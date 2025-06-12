@@ -1,0 +1,99 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.panel {
+    transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+/* Estilos para el menú lateral colapsable */
+#main-sidebar.is-collapsed {
+    width: 5.5rem; /* Ancho para mostrar solo íconos */
+}
+
+#main-sidebar.is-collapsed .sidebar-text {
+    display: none;
+}
+
+#main-sidebar.is-collapsed .nav-link, #main-sidebar.is-collapsed #sidebar-toggle {
+    justify-content: center;
+}
+
+#main-sidebar.is-collapsed .nav-link i, #main-sidebar.is-collapsed #sidebar-toggle i {
+    margin-right: 0;
+}
+
+#main-sidebar.is-collapsed #sidebar-toggle i {
+    transform: rotate(180deg);
+}
+
+/* Estilos para el menú en móvil */
+@media (max-width: 1023px) {
+    #main-sidebar {
+        position: fixed;
+        left: 0;
+        top: 0;
+        height: 100%;
+        z-index: 100;
+        transform: translateX(-100%);
+    }
+
+    #main-sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    #menu-placeholder:has(#main-sidebar.is-open)::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 99;
+    }
+}
+
+/* Estilos para los items de las listas (clientes, sedes, etc.) */
+.list-item {
+    cursor: pointer;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid #e5e7eb; /* gray-200 */
+}
+
+.list-item:hover {
+    background-color: #f3f4f6; /* gray-100 */
+}
+
+.list-item.active {
+    background-color: #e0f2fe; /* sky-100 */
+    border-left: 4px solid #0ea5e9; /* sky-500 */
+    color: #0c4a6e; /* sky-900 */
+    padding-left: calc(1rem - 4px);
+}
+
+.list-item.active .font-semibold {
+    color: #0c4a6e; /* sky-900 */
+}
+
+
+/* Estilos para los Modales */
+.modal-container {
+    display: none; /* Oculto por defecto */
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 0.5rem; /* rounded-lg */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); /* shadow-xl */
+    padding: 1.5rem; /* p-6 */
+    width: 100%;
+    max-width: 32rem; /* max-w-md */
+}
+
+.modal-container.is-open {
+    display: flex;
+} 

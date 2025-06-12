@@ -6,10 +6,7 @@ const path = require('path');
 const app = express();
 const port = 3000;
 
-app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
-  optionsSuccessStatus: 200
-}));
+app.use(cors());
 app.use(express.json());
 
 // Servir archivos estáticos desde la carpeta 'frontend'
@@ -20,18 +17,20 @@ app.get('/', (req, res) => {
 });
 
 // --- API Routes for Clients ---
-// GET all clients
+// GET all clients with location count
 app.get('/api/clients', (req, res) => {
-    const sql = "SELECT * FROM Clients ORDER BY name";
-    db.all(sql, [], (err, rows) => {
+    db.all(`
+        SELECT c.*, COUNT(l.id) as location_count
+        FROM Clients c
+        LEFT JOIN Locations l ON c.id = l.client_id
+        GROUP BY c.id
+        ORDER BY c.name
+    `, (err, rows) => {
         if (err) {
-            res.status(400).json({"error":err.message});
+            res.status(500).json({ error: err.message });
             return;
         }
-        res.json({
-            "message":"success",
-            "data":rows
-        });
+        res.json(rows);
     });
 });
 
@@ -44,10 +43,7 @@ app.get("/api/clients/:id", (req, res) => {
           res.status(400).json({"error":err.message});
           return;
         }
-        res.json({
-            "message":"success",
-            "data":row
-        })
+        res.json(row);
       });
 });
 
@@ -65,10 +61,7 @@ app.post('/api/clients', (req, res) => {
             res.status(400).json({"error":err.message});
             return;
         }
-        res.json({
-            "message": "success",
-            "data": { id: this.lastID, ...req.body }
-        });
+        res.status(201).json({ id: this.lastID, ...req.body });
     });
 });
 
@@ -110,19 +103,29 @@ app.delete("/api/clients/:id", (req, res) => {
 
 
 // --- API Routes for Locations (Sedes) ---
-// GET locations for a specific client
+// GET all locations for a specific client with equipment summary
 app.get('/api/clients/:clientId/locations', (req, res) => {
     const { clientId } = req.params;
-    const sql = "SELECT * FROM Locations WHERE client_id = ?";
-    db.all(sql, [clientId], (err, rows) => {
+    db.all(`
+        SELECT 
+            l.*,
+            (SELECT GROUP_CONCAT(e.type || ' (' || type_count || ')', '; ') 
+             FROM (
+                SELECT type, COUNT(*) as type_count 
+                FROM Equipment 
+                WHERE location_id = l.id 
+                GROUP BY type
+             ) e
+            ) as equipment_summary
+        FROM Locations l
+        WHERE l.client_id = ?
+        ORDER BY l.name
+    `, [clientId], (err, rows) => {
         if (err) {
-            res.status(400).json({"error":err.message});
+            res.status(500).json({ error: err.message });
             return;
         }
-        res.json({
-            "message":"success",
-            "data":rows
-        });
+        res.json(rows);
     });
 });
 
@@ -135,10 +138,7 @@ app.get("/api/locations/:id", (req, res) => {
           res.status(400).json({"error":err.message});
           return;
         }
-        res.json({
-            "message":"success",
-            "data":row
-        })
+        res.json(row);
       });
 });
 
@@ -156,10 +156,7 @@ app.post('/api/locations', (req, res) => {
             res.status(400).json({"error":err.message});
             return;
         }
-        res.status(201).json({
-            "message": "success",
-            "data": { id: this.lastID, ...req.body }
-        });
+        res.status(201).json({ id: this.lastID, ...req.body });
     });
 });
 
@@ -210,10 +207,7 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
             res.status(400).json({"error":err.message});
             return;
         }
-        res.json({
-            "message":"success",
-            "data":rows
-        });
+        res.json(rows);
     });
 });
 
@@ -226,44 +220,39 @@ app.get("/api/equipment/:id", (req, res) => {
           res.status(400).json({"error":err.message});
           return;
         }
-        res.json({
-            "message":"success",
-            "data":row
-        })
+        res.json(row);
       });
 });
 
 // POST new equipment for a location
 app.post('/api/equipment', (req, res) => {
-    const { name, brand, model, serial_number, location_id } = req.body;
-    if (!name || !location_id) {
-        res.status(400).json({"error": "Missing required fields: name, location_id"});
+    const { name, type, brand, model, serial_number, location_id } = req.body;
+     if (!name || !location_id) {
+        res.status(400).json({"error": "Missing required field: name and location_id"});
         return;
     }
-    const sql = 'INSERT INTO Equipment (name, brand, model, serial_number, location_id) VALUES (?,?,?,?,?)';
-    const params = [name, brand, model, serial_number, location_id];
+    const sql = 'INSERT INTO Equipment (name, type, brand, model, serial_number, location_id) VALUES (?,?,?,?,?,?)';
+    const params = [name, type, brand, model, serial_number, location_id];
     db.run(sql, params, function(err) {
         if (err) {
             res.status(400).json({"error":err.message});
             return;
         }
-        res.status(201).json({
-            "message": "success",
-            "data": { id: this.lastID, ...req.body }
-        });
+        res.status(201).json({ id: this.lastID, ...req.body });
     });
 });
 
 // PUT (update) a piece of equipment
 app.put("/api/equipment/:id", (req, res) => {
-    const { name, brand, model, serial_number } = req.body;
+    const { name, type, brand, model, serial_number } = req.body;
     const sql = `UPDATE Equipment set 
                  name = COALESCE(?,name), 
+                 type = COALESCE(?,type),
                  brand = COALESCE(?,brand),
                  model = COALESCE(?,model),
                  serial_number = COALESCE(?,serial_number)
                  WHERE id = ?`;
-    const params = [name, brand, model, serial_number, req.params.id];
+    const params = [name, type, brand, model, serial_number, req.params.id];
     db.run(sql, params, function (err, result) {
             if (err){
                 res.status(400).json({"error": err.message})
@@ -450,6 +439,7 @@ app.delete("/api/tickets/:id", (req, res) => {
 });
 
 
+// --- Server ---
 app.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    console.log(`Gymtec ERP backend listening at http://localhost:${port}`);
 }); 

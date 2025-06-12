@@ -1,374 +1,323 @@
-const API_URL = 'http://localhost:3000/api';
-
-let state = {
-    clients: [],
-    locations: [],
-    equipment: [],
-    selectedClientId: null,
-    selectedLocationId: null,
-};
-
-// --- DOM Elements ---
-const clientList = document.getElementById('client-list');
-const locationList = document.getElementById('location-list');
-const equipmentList = document.getElementById('equipment-list');
-const addLocationBtn = document.getElementById('add-location-btn');
-const createTicketForLocationBtn = document.getElementById('create-ticket-for-location-btn');
-const addEquipmentBtn = document.getElementById('add-equipment-btn');
-const clientModalForm = document.getElementById('client-modal-form');
-const locationModalForm = document.getElementById('location-modal-form');
-const equipmentModalForm = document.getElementById('equipment-modal-form');
-const searchClientInput = document.getElementById('search-client-input');
-
-// --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
-    fetchClients();
+    const API_URL = 'http://localhost:3000/api';
 
-    // --- Event Listeners ---
-    searchClientInput.addEventListener('input', handleClientSearch);
-    document.getElementById('add-client-btn').addEventListener('click', () => openModal('client-modal'));
-    document.getElementById('client-modal-cancel-btn').addEventListener('click', () => closeModal('client-modal'));
-    clientModalForm.addEventListener('submit', (e) => handleFormSubmit(e, 'clients', fetchClients));
+    // --- Estado de la Aplicación ---
+    const state = {
+        clients: [],
+        currentClient: null,
+        currentLocation: null,
+        currentView: 0, // 0: Clientes, 1: Sedes, 2: Detalle
+        clientSearchTerm: ''
+    };
 
-    addLocationBtn.addEventListener('click', () => {
-        if (state.selectedClientId) {
-            openModal('location-modal', { client_id: state.selectedClientId });
+    // --- Selectores del DOM ---
+    const dom = {
+        app: document.getElementById('app'),
+        panels: {
+            clients: document.getElementById('panelClientes'),
+            locations: document.getElementById('panelSedes'),
+            details: document.getElementById('panelDetalle'),
+        },
+        content: {
+            clientList: document.getElementById('clientList'),
+            locationContent: document.getElementById('sedeContent'),
+            detailContent: document.getElementById('detalleContent'),
+        },
+        buttons: {
+            back: document.getElementById('backButton'),
+            addClient: document.getElementById('add-client-btn'),
+        },
+        inputs: {
+            clientSearch: document.getElementById('clientSearch'),
+        },
+        modals: {
+            client: document.getElementById('client-modal'),
+            location: document.getElementById('location-modal'),
+            equipment: document.getElementById('equipment-modal'),
+        },
+        forms: {
+            client: document.getElementById('client-modal-form'),
+            location: document.getElementById('location-modal-form'),
+            equipment: document.getElementById('equipment-modal-form'),
+        },
+        pageTitle: document.getElementById('page-title'),
+    };
+
+    // --- Lógica de la API ---
+    const api = {
+        getClients: () => fetch(`${API_URL}/clients`).then(res => res.json()),
+        getClient: id => fetch(`${API_URL}/clients/${id}`).then(res => res.json()),
+        getClientLocations: id => fetch(`${API_URL}/clients/${id}/locations`).then(res => res.json()),
+        getLocation: id => fetch(`${API_URL}/locations/${id}`).then(res => res.json()),
+        getLocationEquipment: id => fetch(`${API_URL}/locations/${id}/equipment`).then(res => res.json()),
+        getEquipment: id => fetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
+        save: (resource, data) => {
+            const id = data.get('id');
+            const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
+            const method = id ? 'PUT' : 'POST';
+            return fetch(url, {
+                method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(Object.fromEntries(data)),
+            }).then(res => {
+                if (!res.ok) throw new Error(`Error al guardar ${resource}`);
+                return res.json().catch(() => ({}));
+            });
         }
-    });
-    document.getElementById('location-modal-cancel-btn').addEventListener('click', () => closeModal('location-modal'));
-    locationModalForm.addEventListener('submit', (e) => handleFormSubmit(e, 'locations', () => fetchLocationsForClient(state.selectedClientId)));
+    };
 
-    createTicketForLocationBtn.addEventListener('click', () => {
-        if (state.selectedLocationId) {
-            window.location.href = `tickets.html?location_id=${state.selectedLocationId}`;
-        }
-    });
-
-    addEquipmentBtn.addEventListener('click', () => {
-        if (state.selectedLocationId) {
-            openModal('equipment-modal', { location_id: state.selectedLocationId });
-        }
-    });
-    document.getElementById('equipment-modal-cancel-btn').addEventListener('click', () => closeModal('equipment-modal'));
-    equipmentModalForm.addEventListener('submit', (e) => handleFormSubmit(e, 'equipment', () => fetchEquipmentForLocation(state.selectedLocationId)));
-
-
-    const panelsContainer = document.getElementById('client-panels-container');
-    if(panelsContainer) {
-        panelsContainer.addEventListener('click', function(event) {
-            const target = event.target;
-            const button = target.closest('button');
-            const link = target.closest('a');
-
-            if (link && link.matches('.quick-view-equipment-btn')) {
-                event.preventDefault();
-                openModal('equipment-modal', { id: link.dataset.id, readonly: true });
+    // --- Lógica de Renderizado ---
+    const render = {
+        clientList: () => {
+            const filteredClients = state.clients.filter(c => c.name.toLowerCase().includes(state.clientSearchTerm.toLowerCase()));
+            dom.content.clientList.innerHTML = filteredClients.map(client => `
+                <li class="list-item ${state.currentClient?.id === client.id ? 'active' : ''}" data-client-id="${client.id}">
+                    ${client.name}
+                </li>
+            `).join('');
+        },
+        locationPanel: async (client) => {
+            if (!client) {
+                dom.content.locationContent.innerHTML = '<div class="text-center text-gray-500 p-10">Seleccione un cliente para ver sus sedes.</div>';
+                return;
             }
+            try {
+                const locations = await api.getClientLocations(client.id);
+                const locationsHtml = locations.map(loc => `
+                    <li class="list-item ${state.currentLocation?.id === loc.id ? 'active' : ''}" data-location-id="${loc.id}">
+                        <p class="font-semibold text-gray-800">${loc.name}</p>
+                        <p class="text-sm text-gray-500">${loc.address}</p>
+                    </li>
+                `).join('');
 
-            if (!button) return;
+                dom.content.locationContent.innerHTML = `
+                    <div class="p-6">
+                        <div class="bg-white rounded-lg shadow p-4 mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">${client.name}</h2>
+                            <p class="text-sm text-gray-600">Contacto: ${client.contact || 'N/A'}</p>
+                            <div class="mt-4 flex space-x-2">
+                                 <button class="edit-client-btn px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-md hover:bg-sky-700" data-client-id="${client.id}">Editar Cliente</button>
+                                 <button class="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-md hover:bg-gray-300">Ver Contrato</button>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">Sedes</h3>
+                            <ul class="bg-white rounded-lg shadow overflow-hidden">
+                                ${locationsHtml || '<li class="p-4 text-sm text-gray-500">No hay sedes registradas.</li>'}
+                            </ul>
+                             <button class="add-location-btn mt-4 w-full px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600">Añadir Sede</button>
+                        </div>
+                    </div>`;
 
-            if (button.matches('.edit-client-btn')) openModal('client-modal', { id: button.dataset.id });
-            else if (button.matches('.delete-client-btn')) deleteItem('clients', button.dataset.id, fetchClients);
-            else if (button.matches('.edit-location-btn')) openModal('location-modal', { id: button.dataset.id, client_id: state.selectedClientId });
-            else if (button.matches('.delete-location-btn')) deleteItem('locations', button.dataset.id, () => fetchLocationsForClient(state.selectedClientId));
-            else if (button.matches('.edit-equipment-btn')) openModal('equipment-modal', { id: button.dataset.id, location_id: state.selectedLocationId });
-            else if (button.matches('.delete-equipment-btn')) deleteItem('equipment', button.dataset.id, () => fetchEquipmentForLocation(state.selectedLocationId));
-            else if (button.matches('#create-ticket-for-equipment-btn')) {
-                const equipmentId = document.querySelector('#equipment-modal-form input[name="id"]').value;
-                const locationId = document.querySelector('#equipment-modal-form input[name="location_id"]').value;
-                if(equipmentId && locationId) {
-                    window.location.href = `tickets.html?location_id=${locationId}&equipment_id=${equipmentId}`;
+                if (locations.length === 1 && !state.currentLocation) {
+                    actions.selectLocation(locations[0].id);
                 }
+
+            } catch (error) {
+                console.error("Error cargando sedes:", error);
+                dom.content.locationContent.innerHTML = '<div class="p-4 text-red-500">Error al cargar las sedes.</div>';
             }
-        });
-    }
-});
-
-
-// --- Render Functions ---
-function renderClients(clients) {
-    clientList.innerHTML = '';
-    if (clients && clients.length > 0) {
-        clients.forEach(client => {
-            const li = document.createElement('li');
-            li.className = 'p-4 hover:bg-slate-50 cursor-pointer flex justify-between items-center';
-            if (client.id === state.selectedClientId) {
-                li.classList.add('bg-sky-100');
+        },
+        detailPanel: async (location) => {
+            if (!location) {
+                dom.content.detailContent.innerHTML = '<div class="text-center text-gray-500 p-10">Seleccione una sede para ver detalles.</div>';
+                return;
             }
-            li.innerHTML = `
-                <div>
-                    <span class="font-medium text-slate-800">${client.name}</span>
-                    <span class="block text-sm text-slate-500">${client.contact_person || ''}</span>
-                </div>
-                <div>
-                    <button class="p-1 text-slate-500 hover:text-sky-500 edit-client-btn" data-id="${client.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                    <button class="p-1 text-slate-500 hover:text-red-500 delete-client-btn" data-id="${client.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </div>`;
-            li.addEventListener('click', (e) => {
-                if (!e.target.closest('button')) handleClientSelection(client.id, li);
-            });
-            clientList.appendChild(li);
-        });
-    } else {
-        clientList.innerHTML = '<li class="p-4 text-slate-500">No hay clientes.</li>';
-    }
-    lucide.createIcons();
-}
+            try {
+                const equipment = await api.getLocationEquipment(location.id);
+                const grouped = equipment.reduce((acc, eq) => {
+                    (acc[eq.type] = acc[eq.type] || []).push(eq);
+                    return acc;
+                }, {});
 
-function renderLocations(locations) {
-    locationList.innerHTML = '';
-    if (locations && locations.length > 0) {
-        locations.forEach(location => {
-            const li = document.createElement('li');
-            li.className = 'p-4 hover:bg-slate-50 cursor-pointer flex justify-between items-center';
-            li.innerHTML = `
-                <div>
-                    <span class="font-medium text-slate-800">${location.name}</span>
-                    <span class="block text-sm text-slate-500">${location.address || ''}</span>
-                </div>
-                <div>
-                    <button class="p-1 text-slate-500 hover:text-sky-500 edit-location-btn" data-id="${location.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                    <button class="p-1 text-slate-500 hover:text-red-500 delete-location-btn" data-id="${location.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </div>`;
-            li.addEventListener('click', (e) => {
-                if (!e.target.closest('button')) handleLocationSelection(location.id, li);
-            });
-            locationList.appendChild(li);
-        });
-    } else {
-        locationList.innerHTML = '<li class="p-4 text-slate-500">No hay sedes.</li>';
-    }
-    lucide.createIcons();
-}
+                const equipmentHtml = Object.entries(grouped).map(([type, items]) => `
+                    <details class="border-b" open>
+                        <summary class="list-item flex justify-between items-center font-semibold">
+                            <span>${items.length} ${type}${items.length > 1 ? 's' : ''}</span>
+                            <i data-lucide="chevron-down" class="h-5 w-5 transform transition-transform"></i>
+                        </summary>
+                        <ul class="bg-gray-50">
+                            ${items.map(i => `
+                                <li class="list-item equipment-item" data-equipment-id="${i.id}">
+                                    <span class="font-medium text-sky-800">${i.serial_number || 'N/S'}</span>
+                                    <span class="text-sm text-gray-600 ml-2">${i.model || 'Sin modelo'}</span>
+                                </li>`
+                            ).join('')}
+                        </ul>
+                    </details>
+                `).join('');
 
-function renderEquipment(equipment) {
-    equipmentList.innerHTML = '';
-    if (!equipment || equipment.length === 0) {
-        equipmentList.innerHTML = '<li class="p-4 text-slate-500">No hay equipos.</li>';
-        return;
-    }
-
-    const equipmentByType = equipment.reduce((acc, item) => {
-        const type = item.type || 'Sin tipo';
-        if (!acc[type]) {
-            acc[type] = [];
-        }
-        acc[type].push(item);
-        return acc;
-    }, {});
-
-    Object.entries(equipmentByType).forEach(([type, items]) => {
-        const groupLi = document.createElement('li');
-        groupLi.className = 'p-4';
-        groupLi.innerHTML = `
-            <details>
-                <summary class="font-medium text-slate-800 cursor-pointer flex justify-between">
-                    <span>${type}</span>
-                    <span class="text-sm font-normal bg-slate-200 text-slate-600 px-2 rounded-full">${items.length}</span>
-                </summary>
-                <ul class="mt-2 space-y-2 pl-4">
-                    ${items.map(item => `
-                        <li class="flex justify-between items-center text-sm">
-                            <div>
-                                <a href="#" class="font-medium text-slate-700 hover:text-sky-600 quick-view-equipment-btn" data-id="${item.id}">${item.name}</a>
-                                <span class="block text-xs text-slate-500">${item.brand || ''} ${item.model || ''} - S/N: ${item.serial_number || 'N/A'}</span>
+                dom.content.detailContent.innerHTML = `
+                    <div class="p-6">
+                        <div class="bg-white rounded-lg shadow p-4 mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">${location.name}</h2>
+                            <p class="text-sm text-gray-600">${location.address}</p>
+                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+                                 <button class="px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-md hover:bg-sky-700">Crear Ticket</button>
+                                 <button class="add-equipment-btn w-full px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600">Añadir Equipo</button>
                             </div>
-                            <div>
-                                <button class="p-1 text-slate-500 hover:text-sky-500 edit-equipment-btn" data-id="${item.id}" title="Editar Equipo"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                                <button class="p-1 text-slate-500 hover:text-red-500 delete-equipment-btn" data-id="${item.id}" title="Eliminar Equipo"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                            </div>
-                        </li>
-                    `).join('')}
-                </ul>
-            </details>
-        `;
-        equipmentList.appendChild(groupLi);
-    });
-
-    lucide.createIcons();
-}
-
-// --- API Calls ---
-async function fetchClients() {
-    try {
-        const response = await fetch(`${API_URL}/clients`);
-        state.clients = (await response.json()).data;
-        renderClients(state.clients);
-        if (state.clients.length > 0) {
-            if (!state.selectedClientId) { // Auto-select first client only if none is selected yet
-                handleClientSelection(state.clients[0].id, clientList.querySelector('li:first-child'));
+                        </div>
+                        <div class="bg-white rounded-lg shadow mb-6">
+                             <h3 class="text-lg font-semibold text-gray-700 p-4 border-b">Equipos en Sede</h3>
+                             <div class="overflow-hidden">${equipmentHtml || '<div class="p-4 text-sm text-gray-500">No hay equipos registrados.</div>'}</div>
+                        </div>
+                    </div>`;
+                lucide.createIcons();
+            } catch (error) {
+                console.error("Error cargando equipos:", error);
+                dom.content.detailContent.innerHTML = '<div class="p-4 text-red-500">Error al cargar los equipos.</div>';
             }
-        } else {
-            resetPanels('client'); // No clients, reset all panels starting from client level
+        },
+        mobileView: () => {
+            if (window.innerWidth >= 1024) {
+                Object.values(dom.panels).forEach(p => p.classList.remove('panel-mobile-hidden'));
+                dom.buttons.back.disabled = true;
+                return;
+            }
+
+            dom.buttons.back.disabled = state.currentView === 0;
+
+            Object.values(dom.panels).forEach(p => p.classList.add('panel-mobile-hidden'));
+            if (state.currentView === 0) dom.panels.clients.classList.remove('panel-mobile-hidden');
+            if (state.currentView === 1) dom.panels.locations.classList.remove('panel-mobile-hidden');
+            if (state.currentView === 2) dom.panels.details.classList.remove('panel-mobile-hidden');
+        },
+        updateAll: () => {
+            dom.pageTitle.textContent = state.currentLocation?.name || state.currentClient?.name || 'Clientes';
+            render.clientList();
+            render.locationPanel(state.currentClient);
+            render.detailPanel(state.currentLocation);
+            render.mobileView();
+            lucide.createIcons();
         }
-    } catch (error) {
-        console.error("Error fetching clients:", error);
-    }
-}
+    };
+    
+    // --- Lógica de Modales ---
+    const modals = {
+        open: (modalElem, title, data = {}) => {
+            const form = modalElem.querySelector('form');
+            form.reset();
+            form.querySelector('h3').textContent = title;
+            
+            for (const [key, value] of Object.entries(data)) {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input) input.value = value;
+            }
+            
+            const isViewMode = title.toLowerCase().includes('detalle');
+            const inputs = form.querySelectorAll('input, select, textarea');
+            inputs.forEach(input => {
+                if (input.type !== 'hidden') {
+                    input.readOnly = isViewMode;
+                    input.classList.toggle('bg-slate-100', isViewMode);
+                }
+            });
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.textContent = isViewMode ? 'Cerrar' : 'Guardar';
 
-async function fetchLocationsForClient(clientId) {
-    resetPanels('location'); // Reset location and equipment panels before fetching new locations
-    try {
-        const response = await fetch(`${API_URL}/clients/${clientId}/locations`);
-        state.locations = (await response.json()).data;
-        renderLocations(state.locations);
-        if (state.locations.length === 1 && !state.selectedLocationId) { // Auto-select if single location and none selected yet
-            handleLocationSelection(state.locations[0].id, locationList.querySelector('li:first-child'));
-        } else if (state.locations.length === 0) {
-            resetPanels('equipment'); // No locations found, ensure equipment panel is also reset
+            modalElem.classList.add('is-open');
+        },
+        close: (modalElem) => modalElem.classList.remove('is-open'),
+        setup: (modalElem, resource, onSuccess) => {
+            const form = modalElem.querySelector('form');
+            modalElem.querySelector('.modal-cancel-btn').addEventListener('click', () => modals.close(modalElem));
+            form.addEventListener('submit', async e => {
+                e.preventDefault();
+
+                if (form.querySelector('button[type="submit"]').textContent === 'Cerrar') {
+                    modals.close(modalElem);
+                    return;
+                }
+
+                const formData = new FormData(form);
+                try {
+                    await api.save(resource, formData);
+                    modals.close(modalElem);
+                    if(onSuccess) onSuccess();
+                } catch (error) {
+                    alert(error.message);
+                }
+            });
         }
-    } catch (error) {
-        console.error("Error fetching locations:", error);
-    }
-}
+    };
 
-async function fetchEquipmentForLocation(locationId) {
-    resetPanels('equipment'); // Reset equipment panel before fetching new equipment
-    try {
-        const response = await fetch(`${API_URL}/locations/${locationId}/equipment`);
-        state.equipment = (await response.json()).data;
-        renderEquipment(state.equipment);
-    } catch (error) {
-        console.error("Error fetching equipment:", error);
-    }
-}
+    // --- Acciones del Usuario ---
+    const actions = {
+        init: async () => {
+            try {
+                state.clients = await api.getClients();
+                render.updateAll();
+            } catch(e) {
+                dom.content.clientList.innerHTML = '<div class="p-4 text-red-500">Error al cargar clientes.</div>';
+            }
+            actions.setupEventListeners();
+            modals.setup(dom.modals.client, 'clients', actions.init);
+            modals.setup(dom.modals.location, 'locations', () => render.locationPanel(state.currentClient));
+            modals.setup(dom.modals.equipment, 'equipment', () => render.detailPanel(state.currentLocation));
+        },
+        selectClient: async (id) => {
+            if (state.currentClient?.id === id && state.currentView > 0) return;
+            state.currentClient = await api.getClient(id);
+            state.currentLocation = null;
+            state.currentView = 1;
+            render.updateAll();
+        },
+        selectLocation: async (id) => {
+            state.currentLocation = await api.getLocation(id);
+            state.currentView = 2;
+            render.updateAll();
+        },
+        goBack: () => {
+            if (state.currentView > 0) state.currentView--;
+            if (state.currentView === 0) state.currentClient = null;
+            if (state.currentView < 2) state.currentLocation = null;
+            render.updateAll();
+        },
+        setupEventListeners: () => {
+            dom.inputs.clientSearch.addEventListener('input', e => {
+                state.clientSearchTerm = e.target.value;
+                render.clientList();
+            });
 
-// --- Event Handlers ---
-function handleClientSelection(clientId, liElement) {
-    state.selectedClientId = clientId;
-    document.querySelectorAll('#client-list li').forEach(li => li.classList.remove('bg-sky-100'));
-    if (liElement) liElement.classList.add('bg-sky-100');
-    
-    // Show "Add Location" button if a client is selected
-    addLocationBtn.style.display = state.selectedClientId ? 'block' : 'none';
-    fetchLocationsForClient(clientId);
-}
+            dom.content.clientList.addEventListener('click', e => {
+                const item = e.target.closest('.list-item');
+                if (item) actions.selectClient(item.dataset.clientId);
+            });
 
-function handleLocationSelection(locationId, liElement) {
-    state.selectedLocationId = locationId;
-    document.querySelectorAll('#location-list li').forEach(li => li.classList.remove('bg-sky-100'));
-    if (liElement) liElement.classList.add('bg-sky-100');
+            dom.content.locationContent.addEventListener('click', e => {
+                const locationItem = e.target.closest('.list-item');
+                if (locationItem) actions.selectLocation(locationItem.dataset.locationId);
 
-    // Show buttons related to a selected location
-    const showLocationActionButtons = !!state.selectedLocationId;
-    addEquipmentBtn.style.display = showLocationActionButtons ? 'block' : 'none';
-    if (showLocationActionButtons) {
-        createTicketForLocationBtn.classList.remove('hidden');
-    } else {
-        createTicketForLocationBtn.classList.add('hidden');
-    }
-    fetchEquipmentForLocation(locationId);
-}
+                const addBtn = e.target.closest('.add-location-btn');
+                if (addBtn) modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
 
-function handleClientSearch(e) {
-    const searchTerm = e.target.value.toLowerCase();
-    const filteredClients = state.clients.filter(client => 
-        client.name.toLowerCase().includes(searchTerm) ||
-        (client.contact_person && client.contact_person.toLowerCase().includes(searchTerm))
-    );
-    renderClients(filteredClients);
-}
+                const editBtn = e.target.closest('.edit-client-btn');
+                if (editBtn) modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
+            });
 
-// --- Modal & Form Logic ---
-async function openModal(modalId, data = {}) {
-    const form = document.getElementById(`${modalId}-form`);
-    form.reset();
-    form.querySelector('input[name="id"]').value = '';
-    
-    document.getElementById(`${modalId}-title`).textContent = `Nuevo ${modalId.split('-')[0].charAt(0).toUpperCase() + modalId.split('-')[0].slice(1)}`;
-    if(data.client_id) form.elements['client_id'].value = data.client_id;
-    if(data.location_id) form.elements['location_id'].value = data.location_id;
+            dom.content.detailContent.addEventListener('click', async e => {
+                const summary = e.target.closest('summary');
+                if (summary) {
+                    const icon = summary.querySelector('i');
+                    icon.classList.toggle('rotate-180');
+                }
 
-    const isReadonly = data.readonly || false;
-    form.classList.toggle('readonly', isReadonly);
-    
-    const contextButtons = form.querySelector('.context-buttons');
-    if (contextButtons) {
-        contextButtons.classList.toggle('hidden', !isReadonly);
-    }
+                const addBtn = e.target.closest('.add-equipment-btn');
+                if (addBtn) modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: state.currentLocation.id });
+                
+                const equipmentItem = e.target.closest('.equipment-item');
+                if (equipmentItem) {
+                    const equipment = await api.getEquipment(equipmentItem.dataset.equipmentId);
+                    modals.open(dom.modals.equipment, 'Detalle del Equipo', equipment);
+                }
+            });
 
-    if (data.id) { // Editing or Viewing
-        const resourceName = modalId.split('-')[0];
-        document.getElementById(`${modalId}-title`).textContent = isReadonly ? `Detalle del ${resourceName}` : `Editar ${resourceName}`;
+            dom.buttons.addClient.addEventListener('click', () => modals.open(dom.modals.client, 'Nuevo Cliente'));
+            dom.buttons.back.addEventListener('click', actions.goBack);
+            window.addEventListener('resize', render.mobileView);
+        }
+    };
 
-        const resource = resourceName + 's';
-        const response = await fetch(`${API_URL}/${resource}/${data.id}`);
-        const result = await response.json();
-        Object.entries(result.data).forEach(([key, value]) => {
-            if (form.elements[key]) form.elements[key].value = value;
-        });
-    }
-    
-    document.getElementById(modalId).classList.add('flex');
-    document.getElementById(modalId).style.display = 'flex';
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('flex');
-    document.getElementById(modalId).style.display = 'none';
-}
-
-async function handleFormSubmit(e, resource, callback) {
-    e.preventDefault();
-    const form = e.target;
-    const id = form.elements.id.value;
-    
-    const body = Object.fromEntries(new FormData(form));
-    delete body.id;
-
-    const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
-    const method = id ? 'PUT' : 'POST';
-
-    try {
-        const response = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        if (!response.ok) throw new Error('API request failed');
-        
-        closeModal(form.id.replace('-form', ''));
-        if (callback) callback();
-
-    } catch (error) {
-        console.error('Form submission error:', error);
-    }
-}
-
-async function deleteItem(resource, id, callback) {
-    if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
-    try {
-        await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
-        callback();
-    } catch (error) {
-        console.error(`Error deleting ${resource}:`, error);
-    }
-}
-
-function resetPanels(level = 'all') { 
-    // level can be 'all', 'client', 'location', 'equipment'
-    // Resets panels hierarchically
-
-    if (level === 'all' || level === 'client') {
-        clientList.innerHTML = '<li class="p-4 text-slate-500">Cargando clientes...</li>';
-        state.selectedClientId = null;
-        addLocationBtn.style.display = 'none'; // Hide "Add Location" if no client selected
-        // If client selection is reset, cascade to location and equipment
-        level = 'location'; // Ensure downstream panels are also reset
-    }
-
-    if (level === 'all' || level === 'client' || level === 'location') {
-        locationList.innerHTML = '<li class="p-4 text-slate-500">Seleccione un cliente para ver sus sedes.</li>';
-        state.selectedClientId = null;
-        addEquipmentBtn.style.display = 'none'; // Hide "Add Equipment" if no location selected
-        createTicketForLocationBtn.classList.add('hidden'); // Hide "Create Ticket for Location"
-         // If location selection is reset, cascade to equipment
-        level = 'equipment'; // Ensure downstream equipment panel is also reset
-    }
-
-    if (level === 'all' || level === 'client' || level === 'location' || level === 'equipment') {
-        equipmentList.innerHTML = '<li class="p-4 text-slate-500">Seleccione una sede para ver sus equipos.</li>';
-        // Buttons related to equipment are hidden when location is reset.
-        // No specific selected equipment state in the main list view to reset here.
-    }
-} 
+    // --- Inicialización ---
+    actions.init();
+}); 
