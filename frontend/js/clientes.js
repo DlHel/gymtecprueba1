@@ -5,31 +5,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const state = {
         clients: [],
         currentClient: null,
-        currentLocation: null,
-        currentView: 0, // 0: Clientes, 1: Sedes, 2: Detalle
         clientSearchTerm: ''
     };
 
     // --- Selectores del DOM ---
     const dom = {
-        app: document.getElementById('app'),
-        panels: {
-            clients: document.getElementById('panelClientes'),
-            locations: document.getElementById('panelSedes'),
-            details: document.getElementById('panelDetalle'),
-        },
-        content: {
-            clientList: document.getElementById('clientList'),
-            locationContent: document.getElementById('sedeContent'),
-            detailContent: document.getElementById('detalleContent'),
-        },
-        buttons: {
-            back: document.getElementById('backButton'),
-            addClient: document.getElementById('add-client-btn'),
-        },
-        inputs: {
-            clientSearch: document.getElementById('clientSearch'),
-        },
+        clientSearch: document.getElementById('clientSearch'),
+        addClientBtn: document.getElementById('add-client-btn'),
+        clientListContainer: document.getElementById('client-list-container'),
+        detailContainer: document.getElementById('detail-container'),
         modals: {
             client: document.getElementById('client-modal'),
             location: document.getElementById('location-modal'),
@@ -40,10 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
             location: document.getElementById('location-modal-form'),
             equipment: document.getElementById('equipment-modal-form'),
         },
-        pageTitle: document.getElementById('page-title'),
     };
 
-    // --- Lógica de la API ---
+    // --- Lógica de la API (sin cambios, pero la incluyo por completitud) ---
     const api = {
         getClients: () => fetch(`${API_URL}/clients`).then(res => res.json()),
         getClient: id => fetch(`${API_URL}/clients/${id}`).then(res => res.json()),
@@ -63,164 +46,233 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!res.ok) throw new Error(`Error al guardar ${resource}`);
                 return res.json().catch(() => ({}));
             });
+        },
+        delete: (resource, id) => {
+            return fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' })
+                .then(res => {
+                    if (!res.ok) throw new Error(`Error al eliminar ${resource}`);
+                    return res.json().catch(() => ({}));
+                });
         }
     };
 
     // --- Lógica de Renderizado ---
     const render = {
         clientList: () => {
-            const filteredClients = state.clients.filter(c => c.name.toLowerCase().includes(state.clientSearchTerm.toLowerCase()));
-            dom.content.clientList.innerHTML = filteredClients.map(client => `
-                <li class="list-item ${state.currentClient?.id === client.id ? 'active' : ''}" data-client-id="${client.id}">
-                    ${client.name}
-                </li>
-            `).join('');
-        },
-        locationPanel: async (client) => {
-            if (!client) {
-                dom.content.locationContent.innerHTML = '<div class="text-center text-gray-500 p-10">Seleccione un cliente para ver sus sedes.</div>';
+            const searchTerm = state.clientSearchTerm.toLowerCase();
+            const filteredClients = state.clients.filter(c => 
+                c.name.toLowerCase().includes(searchTerm) ||
+                (c.rut && c.rut.toLowerCase().includes(searchTerm)) ||
+                (c.legal_name && c.legal_name.toLowerCase().includes(searchTerm))
+            );
+
+            if (filteredClients.length === 0 && searchTerm) {
+                dom.clientListContainer.innerHTML = `<div class="bg-white rounded-lg shadow-sm p-4 text-center text-gray-500">No se encontraron clientes.</div>`;
+                dom.detailContainer.innerHTML = '';
                 return;
             }
-            try {
-                const locations = await api.getClientLocations(client.id);
-                const locationsHtml = locations.map(loc => `
-                    <li class="list-item ${state.currentLocation?.id === loc.id ? 'active' : ''}" data-location-id="${loc.id}">
-                        <p class="font-semibold text-gray-800">${loc.name}</p>
-                        <p class="text-sm text-gray-500">${loc.address}</p>
-                    </li>
-                `).join('');
 
-                dom.content.locationContent.innerHTML = `
-                    <div class="p-6">
-                        <div class="bg-white rounded-lg shadow p-4 mb-6">
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h2 class="text-xl font-bold text-gray-800">${client.name}</h2>
-                                    <p class="text-sm text-gray-500">${client.legal_name || ''} (${client.rut || 'N/A'})</p>
-                                </div>
-                                <button class="edit-client-btn p-2 rounded-md hover:bg-gray-200" data-client-id="${client.id}"><i data-lucide="pencil" class="h-5 w-5"></i></button>
-                            </div>
-                            <div class="mt-4 border-t pt-4">
-                                <h3 class="text-sm font-semibold text-gray-600 mb-2">Detalles del Cliente</h3>
-                                <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                    <dt class="font-medium text-gray-500">Dirección</dt>
-                                    <dd class="text-gray-900">${client.address || 'No especificada'}</dd>
-                                    <dt class="font-medium text-gray-500">Giro</dt>
-                                    <dd class="text-gray-900">${client.business_activity || 'No especificado'}</dd>
-                                    <dt class="font-medium text-gray-500">Contacto</dt>
-                                    <dd class="text-gray-900">${client.contact_name || 'No especificado'}</dd>
-                                    <dt class="font-medium text-gray-500">Teléfono</dt>
-                                    <dd class="text-gray-900">${client.phone || 'No especificado'}</dd>
-                                    <dt class="font-medium text-gray-500">Email</dt>
-                                    <dd class="text-gray-900">${client.email || 'No especificado'}</dd>
-                                </dl>
-                            </div>
-                            <div class="mt-4 flex space-x-2">
-                                 <button class="view-contract-btn px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-md hover:bg-gray-300">Ver Contrato</button>
-                            </div>
-                        </div>
+            dom.clientListContainer.innerHTML = `
+                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+                    <ul class="divide-y divide-gray-200">
+                        ${filteredClients.map(client => `
+                            <li class="p-4 hover:bg-sky-50 cursor-pointer" data-client-id="${client.id}">
+                                <p class="font-semibold text-sky-700">${client.name}</p>
+                                <p class="text-sm text-gray-600">${client.legal_name} (${client.rut})</p>
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `;
+        },
+
+        clientDetail: async (clientId) => {
+            try {
+                const client = await api.getClient(clientId);
+                const locations = await api.getClientLocations(clientId);
+                state.currentClient = client;
+
+                const clientInfoHtml = `
+                    <div class="flex justify-between items-start">
                         <div>
-                            <div class="flex justify-between items-center mb-2">
-                                <h3 class="text-lg font-semibold text-gray-700">Sedes</h3>
-                                <button class="add-location-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-client-id="${client.id}"><i data-lucide="plus" class="h-4 w-4"></i>Añadir</button>
-                            </div>
-                            <ul class="bg-white rounded-lg shadow overflow-hidden">
-                                ${locationsHtml || '<li class="p-4 text-sm text-gray-500">No hay sedes registradas.</li>'}
-                            </ul>
+                            <h2 class="text-2xl font-bold text-gray-800">${client.name}</h2>
+                            <p class="text-sm text-gray-500">${client.legal_name || ''} (${client.rut || 'N/A'})</p>
                         </div>
+                        <div class="flex items-center gap-2">
+                             <button class="edit-client-btn p-2 rounded-md hover:bg-gray-200" data-client-id="${client.id}" title="Editar Cliente">
+                                <i data-lucide="pencil" class="h-5 w-5"></i>
+                            </button>
+                             <button class="close-detail-btn p-2 rounded-md hover:bg-gray-200" title="Volver a la lista">
+                                <i data-lucide="x" class="h-5 w-5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="mt-4 border-t pt-4">
+                        <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                            <dt class="font-medium text-gray-500">Dirección</dt><dd class="text-gray-900">${client.address || 'N/A'}</dd>
+                            <dt class="font-medium text-gray-500">Giro</dt><dd class="text-gray-900">${client.business_activity || 'N/A'}</dd>
+                            <dt class="font-medium text-gray-500">Contacto</dt><dd class="text-gray-900">${client.contact_name || 'N/A'}</dd>
+                            <dt class="font-medium text-gray-500">Teléfono</dt><dd class="text-gray-900">${client.phone || 'N/A'}</dd>
+                            <dt class="font-medium text-gray-500 col-span-2">Email</dt><dd class="text-gray-900 col-span-2">${client.email || 'N/A'}</dd>
+                        </dl>
                     </div>`;
 
-                if (locations.length === 1 && !state.currentLocation) {
-                    actions.selectLocation(locations[0].id);
-                }
-
-            } catch (error) {
-                console.error("Error cargando sedes:", error);
-                dom.content.locationContent.innerHTML = '<div class="p-4 text-red-500">Error al cargar las sedes.</div>';
-            }
-        },
-        detailPanel: async (location) => {
-            if (!location) {
-                dom.content.detailContent.innerHTML = '<div class="text-center text-gray-500 p-10">Seleccione una sede para ver detalles.</div>';
-                return;
-            }
-            try {
-                const equipment = await api.getLocationEquipment(location.id);
-                const grouped = equipment.reduce((acc, eq) => {
-                    (acc[eq.type] = acc[eq.type] || []).push(eq);
-                    return acc;
-                }, {});
-
-                const equipmentHtml = Object.entries(grouped).map(([type, items]) => `
-                    <details class="border-b" open>
-                        <summary class="list-item flex justify-between items-center font-semibold">
-                            <span>${type} (${items.length})</span>
-                            <i data-lucide="chevron-down" class="h-5 w-5 transform transition-transform"></i>
+                const locationsHtml = locations.map(loc => `
+                    <details class="group bg-gray-50 rounded-lg" data-location-id="${loc.id}">
+                        <summary class="p-4 flex justify-between items-center cursor-pointer">
+                            <div>
+                                <p class="font-semibold text-gray-800">${loc.name}</p>
+                                <p class="text-sm text-gray-500">${loc.address}</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button class="create-ticket-btn invisible group-open:visible p-1 text-sky-600 hover:text-sky-800" title="Crear Ticket" data-client-id="${client.id}" data-location-id="${loc.id}"><i data-lucide="file-plus-2" class="h-5 w-5"></i></button>
+                                <button class="edit-location-btn invisible group-open:visible p-1 text-gray-600 hover:text-gray-800" title="Editar Sede" data-location-id="${loc.id}"><i data-lucide="pencil" class="h-5 w-5"></i></button>
+                                <i data-lucide="chevron-down" class="h-5 w-5 transform transition-transform group-open:rotate-180"></i>
+                            </div>
                         </summary>
-                        <ul class="bg-gray-50">
-                            ${items.map(i => `
-                                <li class="list-item equipment-item" data-equipment-id="${i.id}">
-                                    <div class="flex-1">
-                                        <span class="font-medium text-sky-800">${i.serial_number || 'N/S'}</span>
-                                        <span class="text-sm text-gray-600 ml-2">${i.model || 'Sin modelo'}</span>
-                                    </div>
-                                    <button class="edit-equipment-btn p-1 hover:bg-gray-200 rounded-full" data-equipment-id="${i.id}"><i data-lucide="pencil" class="h-4 w-4"></i></button>
-                                </li>`
-                            ).join('')}
-                        </ul>
+                        <div class="px-4 pb-4 border-t border-gray-200">
+                            <!-- Pestañas -->
+                            <div class="border-b border-gray-200">
+                                <nav class="-mb-px flex space-x-6" aria-label="Tabs">
+                                    <button class="tab-btn shrink-0 border-b-2 border-sky-500 px-1 py-3 text-sm font-medium text-sky-600" data-tab="equipment">
+                                        Equipos
+                                    </button>
+                                    <button class="tab-btn shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700" data-tab="history">
+                                        Historial de Tickets
+                                    </button>
+                                </nav>
+                            </div>
+                            <!-- Contenido de Pestañas -->
+                            <div class="py-4">
+                                <div class="tab-content location-equipment-container">
+                                    <p class="text-gray-500 text-sm py-4 text-center">Cargando equipos...</p>
+                                </div>
+                                <div class="tab-content location-history-container hidden">
+                                     <p class="text-gray-500 text-sm py-4 text-center">Cargando historial...</p>
+                                </div>
+                            </div>
+                        </div>
                     </details>
                 `).join('');
 
-                dom.content.detailContent.innerHTML = `
-                    <div class="p-6">
-                        <div class="bg-white rounded-lg shadow p-4 mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">${location.name}</h2>
-                            <p class="text-sm text-gray-600">${location.address}</p>
-                             <div class="mt-4 flex space-x-2">
-                                <button class="edit-location-btn px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-md hover:bg-gray-300" data-location-id="${location.id}">Editar Sede</button>
-                                <button class="create-ticket-btn px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-md hover:bg-sky-700" data-client-id="${state.currentClient.id}" data-location-id="${location.id}">Crear Ticket</button>
+                dom.detailContainer.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        ${clientInfoHtml}
+                        <div class="mt-6">
+                             <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-lg font-semibold text-gray-700">Sedes</h3>
+                                <button class="add-location-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-client-id="${client.id}">
+                                    <i data-lucide="plus" class="h-4 w-4"></i>Añadir Sede
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                ${locationsHtml || '<p class="text-gray-500 text-sm">No hay sedes para este cliente.</p>'}
                             </div>
                         </div>
-                        <div class="bg-white rounded-lg shadow mb-6">
-                             <div class="flex justify-between items-center p-4 border-b">
-                                <h3 class="text-lg font-semibold text-gray-700">Equipos en Sede</h3>
-                                <button class="add-equipment-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-location-id="${location.id}"><i data-lucide="plus" class="h-4 w-4"></i>Añadir</button>
-                             </div>
-                             <div class="overflow-hidden">${equipmentHtml || '<div class="p-4 text-sm text-gray-500">No hay equipos registrados.</div>'}</div>
-                        </div>
                     </div>`;
+                
+                dom.clientListContainer.innerHTML = ''; // Ocultar lista al mostrar detalle
                 lucide.createIcons();
+
             } catch (error) {
-                console.error("Error cargando equipos:", error);
-                dom.content.detailContent.innerHTML = '<div class="p-4 text-red-500">Error al cargar los equipos.</div>';
+                console.error('Error cargando detalle del cliente:', error);
+                dom.detailContainer.innerHTML = '<div class="bg-white rounded-lg shadow-sm p-4 text-center text-red-500">Error al cargar los detalles.</div>';
             }
         },
-        mobileView: () => {
-            if (window.innerWidth >= 1024) {
-                Object.values(dom.panels).forEach(p => p.classList.remove('panel-mobile-hidden'));
-                dom.buttons.back.disabled = true;
-                return;
+
+        locationEquipment: async (locationId, container) => {
+             try {
+                const equipment = await api.getLocationEquipment(locationId);
+                
+                // El botón de añadir siempre debe estar visible.
+                let contentHtml = `
+                    <div class="flex justify-end mb-3">
+                        <button class="add-equipment-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-location-id="${locationId}">
+                            <i data-lucide="plus" class="h-4 w-4"></i>Añadir Equipo
+                        </button>
+                    </div>`;
+
+                if (equipment.length === 0) {
+                    contentHtml += '<div class="bg-gray-50 p-6 rounded-lg text-center text-sm text-gray-500">No hay equipos registrados en esta sede.</div>';
+                } else {
+                    const grouped = equipment.reduce((acc, eq) => {
+                        (acc[eq.type] = acc[eq.type] || []).push(eq);
+                        return acc;
+                    }, {});
+
+                    let tableHtml = `
+                        <div class="overflow-x-auto border rounded-lg">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-4 py-2 text-left font-semibold text-gray-600">Tipo</th>
+                                        <th class="px-4 py-2 text-left font-semibold text-gray-600">Modelo</th>
+                                        <th class="px-4 py-2 text-left font-semibold text-gray-600">Nº Serie</th>
+                                        <th class="px-4 py-2 text-right font-semibold text-gray-600">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200 bg-white">`;
+
+                    for (const type in grouped) {
+                        grouped[type].forEach((item, index) => {
+                            tableHtml += `
+                                <tr class="equipment-row" data-equipment-id="${item.id}">
+                                    ${index === 0 ? `<td class="py-2 px-4 font-medium text-gray-800 align-top" rowspan="${grouped[type].length}">${type}</td>` : ''}
+                                    <td class="py-2 px-4 hover:underline cursor-pointer">${item.model || 'N/A'}</td>
+                                    <td class="py-2 px-4 text-gray-600 font-mono text-xs">${item.serial_number || 'N/A'}</td>
+                                    <td class="py-2 px-4 text-right">
+                                        <button class="edit-equipment-btn p-1 text-gray-500 hover:text-sky-600" title="Editar Equipo" data-equipment-id="${item.id}"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+                                        <button class="delete-equipment-btn p-1 text-gray-500 hover:text-red-600" title="Eliminar Equipo" data-equipment-id="${item.id}"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                    </td>
+                                </tr>`;
+                        });
+                    }
+                    
+                    tableHtml += '</tbody></table></div>';
+                    contentHtml += tableHtml;
+                }
+                
+                container.innerHTML = contentHtml;
+                lucide.createIcons();
+
+            } catch (error) {
+                 console.error('Error cargando equipos:', error);
+                 container.innerHTML = '<p class="text-red-500 text-sm">Error al cargar equipos.</p>';
             }
-
-            dom.buttons.back.disabled = state.currentView === 0;
-
-            Object.values(dom.panels).forEach(p => p.classList.add('panel-mobile-hidden'));
-            if (state.currentView === 0) dom.panels.clients.classList.remove('panel-mobile-hidden');
-            if (state.currentView === 1) dom.panels.locations.classList.remove('panel-mobile-hidden');
-            if (state.currentView === 2) dom.panels.details.classList.remove('panel-mobile-hidden');
         },
-        updateAll: () => {
-            dom.pageTitle.textContent = state.currentLocation?.name || state.currentClient?.name || 'Clientes';
-            render.clientList();
-            render.locationPanel(state.currentClient);
-            render.detailPanel(state.currentLocation);
-            render.mobileView();
-            lucide.createIcons();
+
+        locationHistory: async (locationId, container) => {
+            try {
+                // Reutilizamos el endpoint de tickets y filtramos por sede
+                const response = await fetch(`${API_URL}/tickets?location_id=${locationId}`);
+                const tickets = await response.json();
+                
+                if (!tickets.data || tickets.data.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-sm py-4 text-center">No hay tickets registrados para esta sede.</p>';
+                    return;
+                }
+
+                const historyHtml = tickets.data.map(t => {
+                     const ticketDate = new Date(t.created_at).toLocaleDateString('es-CL');
+                     return `
+                        <div class="py-2 border-b last:border-b-0">
+                           <p class="font-semibold text-gray-700">${t.title}</p>
+                           <p class="text-xs text-gray-500">Ticket #${t.id} - ${ticketDate} - <span class="font-medium">${t.status}</span></p>
+                        </div>
+                     `
+                }).join('');
+
+                container.innerHTML = `<div class="space-y-1">${historyHtml}</div>`;
+
+            } catch (error) {
+                console.error('Error cargando historial de tickets:', error);
+                container.innerHTML = '<p class="text-red-500 text-sm">Error al cargar historial.</p>';
+            }
         }
     };
     
-    // --- Lógica de Modales ---
-    const modals = {
+    // --- Lógica de Modales (sin cambios) ---
+     const modals = {
         open: (modalElem, title, data = {}) => {
             const form = modalElem.querySelector('form');
             form.reset();
@@ -230,19 +282,56 @@ document.addEventListener('DOMContentLoaded', () => {
                 const input = form.querySelector(`[name="${key}"]`);
                 if (input) input.value = value;
             }
-            
-            const isViewMode = title.toLowerCase().includes('detalle');
-            const inputs = form.querySelectorAll('input, select, textarea');
-            inputs.forEach(input => {
-                if (input.type !== 'hidden') {
-                    input.readOnly = isViewMode;
-                    input.classList.toggle('bg-slate-100', isViewMode);
-                }
-            });
-            const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) submitBtn.textContent = 'Guardar';
-
             modalElem.classList.add('is-open');
+
+            // Autocompletado (lo dejamos por ahora)
+            const addressInput = form.querySelector('input[name="address"]');
+            if (addressInput && window.google) {
+                const autocomplete = new google.maps.places.Autocomplete(addressInput, {
+                    types: ['address'],
+                    componentRestrictions: { 'country': 'CL' } 
+                });
+            }
+
+            // Activar escáner de código de barras
+            const scanBtn = form.querySelector('#scan-barcode-btn');
+            const closeScannerBtn = form.querySelector('#close-scanner-btn');
+            const scannerContainer = form.querySelector('#barcode-scanner-container');
+            const serialInput = form.querySelector('input[name="serial_number"]');
+            
+            if (scanBtn) {
+                const html5QrCode = new Html5Qrcode("barcode-reader");
+                
+                const startScanner = () => {
+                    scannerContainer.classList.remove('hidden');
+                    html5QrCode.start(
+                        { facingMode: "environment" }, // Usar cámara trasera
+                        {
+                            fps: 10,
+                            qrbox: { width: 250, height: 150 }
+                        },
+                        (decodedText, decodedResult) => {
+                            serialInput.value = decodedText;
+                            stopScanner();
+                        },
+                        (errorMessage) => {
+                            // No hacer nada en caso de error de escaneo (normal)
+                        })
+                    .catch((err) => {
+                        alert("No se pudo iniciar el escáner. Asegúrate de dar permiso para usar la cámara.");
+                        scannerContainer.classList.add('hidden');
+                    });
+                };
+
+                const stopScanner = () => {
+                    html5QrCode.stop().then(() => {
+                        scannerContainer.classList.add('hidden');
+                    }).catch(err => console.log("Error al detener el escáner, puede que ya estuviera detenido."));
+                };
+
+                scanBtn.onclick = startScanner;
+                closeScannerBtn.onclick = stopScanner;
+            }
         },
         close: (modalElem) => modalElem.classList.remove('is-open'),
         setup: (modalElem, resource, onSuccess) => {
@@ -250,17 +339,11 @@ document.addEventListener('DOMContentLoaded', () => {
             modalElem.querySelector('.modal-cancel-btn').addEventListener('click', () => modals.close(modalElem));
             form.addEventListener('submit', async e => {
                 e.preventDefault();
-
-                if (form.querySelector('button[type="submit"]').textContent === 'Cerrar') {
-                    modals.close(modalElem);
-                    return;
-                }
-
                 const formData = new FormData(form);
                 try {
                     await api.save(resource, formData);
                     modals.close(modalElem);
-                    if(onSuccess) onSuccess();
+                    if(onSuccess) await onSuccess();
                 } catch (error) {
                     alert(error.message);
                 }
@@ -268,142 +351,195 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Acciones del Usuario ---
-    const actions = {
-        init: async () => {
-            try {
-                state.clients = await api.getClients();
-                render.updateAll();
-            } catch(e) {
-                console.error("Error al inicializar:", e);
-                dom.content.clientList.innerHTML = `<li class="p-4 text-red-500">Error al cargar clientes. Verifique que el backend esté funcionando.</li>`;
+    // --- Lógica de Mapas ---
+    const maps = {
+        initMap: (container, address) => {
+            if (!address || !window.google) {
+                container.innerHTML = `<p class="text-xs text-gray-400 p-2">Dirección no especificada para mostrar el mapa.</p>`;
+                return;
             }
-        },
-        selectClient: async (id) => {
-            if (state.currentClient?.id === id) return;
-            try {
-                const client = await api.getClient(id);
-                state.currentClient = client;
-                state.currentLocation = null; // Reset location when client changes
-                state.currentView = 1;
-                render.updateAll();
-            } catch (error) {
-                console.error("Error seleccionando cliente:", error);
-            }
-        },
-        selectLocation: async (id) => {
-            if (state.currentLocation?.id === id) return;
-            try {
-                const location = await api.getLocation(id);
-                state.currentLocation = location;
-                state.currentView = 2;
-                render.updateAll();
-            } catch (error) {
-                console.error("Error seleccionando sede:", error);
-            }
-        },
+            const geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ 'address': address, 'componentRestrictions': {'country': 'CL'} }, (results, status) => {
+                if (status === 'OK') {
+                    const map = new google.maps.Map(container, {
+                        center: results[0].geometry.location,
+                        zoom: 16,
+                        disableDefaultUI: true,
+                        zoomControl: true,
+                    });
+                    new google.maps.Marker({
+                        map: map,
+                        position: results[0].geometry.location
+                    });
+                     container.innerHTML = ''; // Limpiar texto de placeholder
+                     container.appendChild(map.getDiv());
+                } else {
+                    console.error('Geocode was not successful for the following reason: ' + status);
+                    container.innerHTML = `<p class="text-xs text-red-400 p-2">No se pudo encontrar la dirección en el mapa.</p>`;
+                }
+            });
+        }
     };
 
     // --- Lógica de Eventos ---
     const events = {
         setup: () => {
-            // Búsqueda de clientes
-            dom.inputs.clientSearch.addEventListener('input', e => {
-                state.clientSearchTerm = e.target.value;
+            dom.clientSearch.addEventListener('input', () => {
+                state.clientSearchTerm = dom.clientSearch.value;
+                dom.detailContainer.innerHTML = ''; // Limpiar detalle al buscar
                 render.clientList();
             });
 
-            // Selección de cliente
-            dom.content.clientList.addEventListener('click', e => {
-                const item = e.target.closest('.list-item');
-                if (item) actions.selectClient(item.dataset.clientId);
-            });
-            
-            // Selección de sede
-            dom.content.locationContent.addEventListener('click', e => {
-                const item = e.target.closest('.list-item');
-                if (item) actions.selectLocation(item.dataset.locationId);
+            dom.clientListContainer.addEventListener('click', e => {
+                const item = e.target.closest('li[data-client-id]');
+                if (item) {
+                    render.clientDetail(item.dataset.clientId);
+                }
             });
 
-            // Botón de retroceso (móvil)
-            dom.buttons.back.addEventListener('click', () => {
-                state.currentView = Math.max(0, state.currentView - 1);
-                if(state.currentView === 1) state.currentLocation = null;
-                if(state.currentView === 0) state.currentClient = null;
-                render.updateAll();
-            });
-            
-            // Botones de modales y acciones
-            dom.buttons.addClient.addEventListener('click', () => {
+            dom.addClientBtn.addEventListener('click', () => {
                 modals.open(dom.modals.client, 'Nuevo Cliente');
             });
             
-            document.body.addEventListener('click', async e => {
-                // Añadir Sede
-                if (e.target.matches('.add-location-btn, .add-location-btn *')) {
-                    modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
+            dom.detailContainer.addEventListener('toggle', async (e) => {
+                const detailsElement = e.target;
+                if (detailsElement.matches('details[data-location-id]') && detailsElement.open) {
+                    // Cargar la pestaña de equipos por defecto
+                    const equipmentContainer = detailsElement.querySelector('.location-equipment-container');
+                    if (!equipmentContainer.dataset.loaded) {
+                        equipmentContainer.dataset.loaded = "true";
+                        await render.locationEquipment(detailsElement.dataset.locationId, equipmentContainer);
+                    }
                 }
-                // Añadir Equipo
-                if (e.target.matches('.add-equipment-btn, .add-equipment-btn *')) {
-                     modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: state.currentLocation.id });
+            }, true);
+            
+            dom.detailContainer.addEventListener('click', async e => {
+                // --- Manejo de Pestañas ---
+                const tabButton = e.target.closest('.tab-btn');
+                if (tabButton) {
+                    const detailsElement = tabButton.closest('details');
+                    const tabName = tabButton.dataset.tab;
+
+                    // Ocultar todos los contenidos y desactivar botones
+                    detailsElement.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                    detailsElement.querySelectorAll('.tab-btn').forEach(b => {
+                        b.classList.remove('border-sky-500', 'text-sky-600');
+                        b.classList.add('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+                    });
+                    
+                    // Mostrar el contenido correcto y activar el botón
+                    detailsElement.querySelector(`.location-${tabName}-container`).classList.remove('hidden');
+                    tabButton.classList.add('border-sky-500', 'text-sky-600');
+                    tabButton.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+
+                    // Cargar contenido si es la primera vez
+                    if (tabName === 'history') {
+                        const historyContainer = detailsElement.querySelector('.location-history-container');
+                        if (!historyContainer.dataset.loaded) {
+                            historyContainer.dataset.loaded = "true";
+                            await render.locationHistory(detailsElement.dataset.locationId, historyContainer);
+                        }
+                    }
+                    return; // Detener para no confundir con otros clics
                 }
-                // Editar Cliente
-                if (e.target.matches('.edit-client-btn, .edit-client-btn *')) {
-                    modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
+
+                // --- Botones de acción ---
+                const targetButton = e.target.closest('button');
+                if (targetButton) {
+                    if (targetButton.matches('.edit-client-btn')) {
+                        modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
+                    }
+                    if (targetButton.matches('.close-detail-btn')) {
+                        actions.init(); // Vuelve al estado inicial (lista de clientes)
+                    }
+                    if (targetButton.matches('.add-location-btn')) {
+                        modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
+                    }
+                    if (targetButton.matches('.edit-location-btn')) {
+                        const location = await api.getLocation(targetButton.dataset.locationId);
+                        modals.open(dom.modals.location, 'Editar Sede', location);
+                    }
+                    if (targetButton.matches('.add-equipment-btn')) {
+                        const locationId = targetButton.dataset.locationId;
+                        modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: locationId });
+                    }
+                    if (targetButton.matches('.edit-equipment-btn')) {
+                        const equipmentId = targetButton.dataset.equipmentId;
+                        const equipment = await api.getEquipment(equipmentId);
+                        // Formatear la fecha para el input type="date"
+                        if (equipment.acquisition_date) {
+                            equipment.acquisition_date = equipment.acquisition_date.split('T')[0];
+                        }
+                        modals.open(dom.modals.equipment, 'Editar Equipo', equipment);
+                    }
+                    if (targetButton.matches('.delete-equipment-btn')) {
+                        const equipmentId = targetButton.dataset.equipmentId;
+                        if (confirm('¿Estás seguro de que quieres eliminar este equipo? Esta acción no se puede deshacer.')) {
+                            await api.delete('equipment', equipmentId);
+                            // Recargar la pestaña de equipos
+                            const detailsElement = targetButton.closest('details');
+                            const equipmentContainer = detailsElement.querySelector('.location-equipment-container');
+                            await render.locationEquipment(detailsElement.dataset.locationId, equipmentContainer);
+                        }
+                    }
+                    if (targetButton.matches('.create-ticket-btn')) {
+                        window.location.href = `tickets.html?cliente=${targetButton.dataset.clientId}&sede=${targetButton.dataset.locationId}`;
+                    }
                 }
-                // Editar Sede
-                if (e.target.matches('.edit-location-btn, .edit-location-btn *')) {
-                     modals.open(dom.modals.location, 'Editar Sede', state.currentLocation);
-                }
-                // Editar Equipo
-                if (e.target.matches('.edit-equipment-btn, .edit-equipment-btn *')) {
-                    const button = e.target.closest('.edit-equipment-btn');
-                    const equipment = await api.getEquipment(button.dataset.equipmentId);
-                    modals.open(dom.modals.equipment, 'Editar Equipo', equipment);
-                }
-                 // Ver Contrato
-                if (e.target.matches('.view-contract-btn, .view-contract-btn *')) {
-                    alert('Funcionalidad "Ver Contrato" aún no implementada.');
-                }
-                // Crear Ticket
-                if (e.target.matches('.create-ticket-btn, .create-ticket-btn *')) {
-                    const button = e.target.closest('.create-ticket-btn');
-                    const clientId = button.dataset.clientId;
-                    const locationId = button.dataset.locationId;
-                    window.location.href = `tickets.html?cliente=${clientId}&sede=${locationId}`;
-                }
-                // Ver detalles de equipo
-                 if (e.target.matches('.equipment-item, .equipment-item *')) {
-                    if (e.target.closest('.edit-equipment-btn')) return; // No disparar si se hace clic en editar
-                    const item = e.target.closest('.equipment-item');
-                    const equipment = await api.getEquipment(item.dataset.equipmentId);
-                    alert(`Detalles del equipo:\n- Tipo: ${equipment.type}\n- Modelo: ${equipment.model}\n- N/S: ${equipment.serial_number}\n- Fecha Adquisición: ${equipment.acquisition_date}`);
+
+                // Clic en fila de equipo
+                const equipmentRow = e.target.closest('.equipment-row .hover\\:underline');
+                if (equipmentRow) {
+                     const equipmentId = equipmentRow.closest('.equipment-row').dataset.equipmentId;
+                     window.open(`equipo.html?id=${equipmentId}&clientId=${state.currentClient.id}`, '_blank');
                 }
             });
 
             // Configuración de modales
             modals.setup(dom.modals.client, 'clients', async () => {
-                state.clients = await api.getClients();
+                await actions.init(); // Recarga todo
                 if (state.currentClient) {
-                    state.currentClient = await api.getClient(state.currentClient.id);
+                   await render.clientDetail(state.currentClient.id);
                 }
-                render.updateAll();
             });
-            modals.setup(dom.modals.location, 'locations', async () => {
-                state.currentClient = await api.getClient(state.currentClient.id);
-                render.locationPanel(state.currentClient);
+            modals.setup(dom.modals.location, 'locations', () => render.clientDetail(state.currentClient.id));
+            modals.setup(dom.modals.equipment, 'equipment', async (formData) => {
+                // Busca el contenedor de equipos relevante y lo recarga
+                const locationId = formData.get('location_id');
+                const detailsElement = document.querySelector(`details[data-location-id="${locationId}"]`);
+                if (detailsElement) {
+                    const equipmentContainer = detailsElement.querySelector('.location-equipment-container');
+                    await render.locationEquipment(locationId, equipmentContainer);
+                }
             });
-             modals.setup(dom.modals.equipment, 'equipment', async () => {
-                state.currentLocation = await api.getLocation(state.currentLocation.id);
-                render.detailPanel(state.currentLocation);
-            });
-
-            // Redimensionamiento de ventana
-            window.addEventListener('resize', render.mobileView);
         }
-    }
+    };
 
     // --- Inicialización ---
+    const actions = {
+        init: async () => {
+            try {
+                state.clients = await api.getClients();
+                render.clientList();
+                dom.detailContainer.innerHTML = '';
+
+                // Comprobar si hay que abrir un cliente específico desde la URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const clientIdToOpen = urlParams.get('openClient');
+                if (clientIdToOpen) {
+                    await render.clientDetail(clientIdToOpen);
+                    // Limpiar la URL para que no vuelva a abrirse al recargar
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+
+            } catch(e) {
+                console.error("Error al inicializar:", e);
+                dom.clientListContainer.innerHTML = `<div class="p-4 text-red-500 bg-white rounded-lg shadow-sm">Error al cargar clientes. Verifique que el backend esté funcionando.</li>`;
+            }
+        }
+    };
+    
     actions.init();
     events.setup();
+    lucide.createIcons();
 });

@@ -40,7 +40,11 @@ CREATE TABLE IF NOT EXISTS Equipment (
     brand TEXT,
     model TEXT,
     serial_number TEXT UNIQUE,
+    custom_id TEXT UNIQUE,
     location_id INTEGER NOT NULL,
+    acquisition_date DATE,
+    last_maintenance_date DATE,
+    notes TEXT,
     FOREIGN KEY (location_id) REFERENCES Locations (id) ON DELETE CASCADE
 );
 

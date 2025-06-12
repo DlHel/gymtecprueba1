@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle de Equipo - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/clientes.css">
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div id="app" class="flex flex-col min-h-screen">
+        <!-- Header -->
+        <header class="bg-white shadow-md z-20">
+            <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-2">
+                    <a href="clientes.html" class="p-2 rounded-md hover:bg-gray-200">
+                        <i data-lucide="arrow-left" class="h-6 w-6"></i>
+                    </a>
+                    <h1 id="page-title" class="text-xl font-bold text-gray-800">Detalle de Equipo</h1>
+                </div>
+                <div class="text-sm font-semibold text-gray-600">
+                    Felipe Maturana (Admin)
+                </div>
+            </div>
+        </header>
+
+        <!-- Contenido principal -->
+        <main id="main-content" class="flex-1 p-4 md:p-6">
+            <!-- El contenido se cargará aquí -->
+             <div class="text-center text-gray-500">Cargando datos del equipo...</div>
+        </main>
+    </div>
+    
+    <script src="js/qrcode.min.js"></script>
+    <script src="js/equipo.js"></script>
+</body>
+</html> 

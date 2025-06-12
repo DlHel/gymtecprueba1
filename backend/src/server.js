@@ -215,48 +215,125 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
     });
 });
 
+// GET ticket history for a specific piece of equipment
+app.get('/api/equipment/:id/tickets', (req, res) => {
+    const sql = `
+        SELECT * 
+        FROM Tickets 
+        WHERE equipment_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [req.params.id], (err, rows) => {
+        if (err) {
+            res.status(400).json({"error": err.message});
+            return;
+        }
+        res.json(rows);
+    });
+});
+
 // GET a single piece of equipment by id
 app.get("/api/equipment/:id", (req, res) => {
-    const sql = "SELECT * FROM Equipment WHERE id = ?"
-    const params = [req.params.id]
-    db.get(sql, params, (err, row) => {
+    const equipmentId = req.params.id;
+
+    const getEquipmentSql = `
+        SELECT e.*, l.client_id
+        FROM Equipment e
+        JOIN Locations l ON e.location_id = l.id
+        WHERE e.id = ?
+    `;
+
+    db.get(getEquipmentSql, [equipmentId], (err, row) => {
         if (err) {
-          res.status(400).json({"error":err.message});
-          return;
+            return res.status(400).json({ "error": err.message });
         }
-        res.json(row);
-      });
+        if (!row) {
+            return res.status(404).json({ "error": "Equipo no encontrado" });
+        }
+
+        // Si no tiene custom_id, generarlo, guardarlo y devolverlo
+        if (!row.custom_id) {
+            const typePrefix = (row.type || 'UNK').substring(0, 4).toUpperCase();
+            
+            const countSql = `SELECT COUNT(*) as count FROM Equipment WHERE location_id IN (SELECT id FROM Locations WHERE client_id = ?)`;
+            db.get(countSql, [row.client_id], (err, result) => {
+                if (err) {
+                    return res.status(500).json({ "error": "Error al contar equipos: " + err.message });
+                }
+
+                const newCount = result.count; // No sumamos 1 porque este equipo ya existe
+                const customId = `${row.client_id}-${typePrefix}-${String(newCount).padStart(4, '0')}`;
+
+                const updateSql = `UPDATE Equipment SET custom_id = ? WHERE id = ?`;
+                db.run(updateSql, [customId, equipmentId], function(err) {
+                    if (err) {
+                        return res.status(500).json({ "error": "Error al guardar custom_id: " + err.message });
+                    }
+                    // Devolver el equipo con el nuevo ID
+                    res.json({ ...row, custom_id: customId });
+                });
+            });
+        } else {
+            // Si ya tiene, devolverlo directamente
+            res.json(row);
+        }
+    });
 });
 
 // POST new equipment for a location
 app.post('/api/equipment', (req, res) => {
-    const { name, type, brand, model, serial_number, location_id } = req.body;
-     if (!name || !location_id) {
-        res.status(400).json({"error": "Missing required field: name and location_id"});
-        return;
+    const { name, type, brand, model, serial_number, location_id, acquisition_date, notes } = req.body;
+    if (!name || !type || !location_id) {
+        return res.status(400).json({ "error": "Faltan campos obligatorios: nombre, tipo y sede" });
     }
-    const sql = 'INSERT INTO Equipment (name, type, brand, model, serial_number, location_id) VALUES (?,?,?,?,?,?)';
-    const params = [name, type, brand, model, serial_number, location_id];
-    db.run(sql, params, function(err) {
-        if (err) {
-            res.status(400).json({"error":err.message});
-            return;
+
+    // 1. Obtener el client_id a partir del location_id
+    db.get("SELECT client_id FROM Locations WHERE id = ?", [location_id], (err, location) => {
+        if (err || !location) {
+            return res.status(500).json({ "error": "No se pudo encontrar el cliente para la sede." });
         }
-        res.status(201).json({ id: this.lastID, ...req.body });
+        const clientId = location.client_id;
+        const typePrefix = (type || 'UNK').substring(0, 4).toUpperCase();
+
+        // 2. Contar cuántos equipos tiene el cliente para generar el secuencial
+        const countSql = `SELECT COUNT(*) as count FROM Equipment WHERE location_id IN (SELECT id FROM Locations WHERE client_id = ?)`;
+        db.get(countSql, [clientId], (err, result) => {
+            if (err) {
+                return res.status(500).json({ "error": "Error al contar equipos: " + err.message });
+            }
+            
+            const newCount = result.count + 1;
+            const customId = `${clientId}-${typePrefix}-${String(newCount).padStart(4, '0')}`;
+
+            // 3. Insertar el nuevo equipo con el custom_id generado
+            const insertSql = `INSERT INTO Equipment (location_id, custom_id, type, name, brand, model, serial_number, acquisition_date, notes) 
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+            const params = [location_id, customId, type, name, brand, model, serial_number, acquisition_date, notes];
+
+            db.run(insertSql, params, function(err) {
+                if (err) {
+                    return res.status(400).json({ "error": err.message });
+                }
+                res.status(201).json({ id: this.lastID, custom_id: customId, ...req.body });
+            });
+        });
     });
 });
 
 // PUT (update) a piece of equipment
 app.put("/api/equipment/:id", (req, res) => {
-    const { name, type, brand, model, serial_number } = req.body;
+    const { name, type, brand, model, serial_number, acquisition_date, last_maintenance_date, notes } = req.body;
     const sql = `UPDATE Equipment set 
                  name = COALESCE(?,name), 
                  type = COALESCE(?,type),
                  brand = COALESCE(?,brand),
                  model = COALESCE(?,model),
-                 serial_number = COALESCE(?,serial_number)
+                 serial_number = COALESCE(?,serial_number),
+                 acquisition_date = COALESCE(?,acquisition_date),
+                 last_maintenance_date = COALESCE(?,last_maintenance_date),
+                 notes = COALESCE(?,notes)
                  WHERE id = ?`;
-    const params = [name, type, brand, model, serial_number, req.params.id];
+    const params = [name, type, brand, model, serial_number, acquisition_date, last_maintenance_date, notes, req.params.id];
     db.run(sql, params, function (err, result) {
             if (err){
                 res.status(400).json({"error": err.message})
@@ -359,15 +436,23 @@ app.delete("/api/inventory/:id", (req, res) => {
 
 // GET all tickets
 app.get('/api/tickets', (req, res) => {
-    const sql = `
+    let sql = `
         SELECT 
             t.*, 
             c.name as client_name 
         FROM Tickets t
         LEFT JOIN Clients c ON t.client_id = c.id
-        ORDER BY t.created_at DESC
     `;
-    db.all(sql, [], (err, rows) => {
+    const params = [];
+    
+    if (req.query.location_id) {
+        sql += " WHERE t.location_id = ?";
+        params.push(req.query.location_id);
+    }
+
+    sql += " ORDER BY t.created_at DESC";
+
+    db.all(sql, params, (err, rows) => {
         if (err) {
             res.status(400).json({"error":err.message});
             return;
