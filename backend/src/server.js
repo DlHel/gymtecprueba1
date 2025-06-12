@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./database');
 const path = require('path');
+const { validateClient, validateLocation, validateEquipment, validateClientUpdate, validateLocationUpdate, validateEquipmentUpdate } = require('./validators');
 
 const app = express();
 const port = 3000;
@@ -50,8 +51,14 @@ app.get("/api/clients/:id", (req, res) => {
 // POST new client
 app.post('/api/clients', (req, res) => {
     const { name, legal_name, rut, address, phone, email, business_activity, contact_name } = req.body;
-    if (!name || !legal_name || !rut) {
-        res.status(400).json({"error": "Faltan campos obligatorios: nombre, razón social y rut"});
+    
+    // Validar datos del cliente
+    const validation = validateClient(req.body);
+    if (!validation.isValid) {
+        res.status(400).json({
+            "error": "Datos de cliente inválidos",
+            "details": validation.errors
+        });
         return;
     }
     const sql = 'INSERT INTO Clients (name, legal_name, rut, address, phone, email, business_activity, contact_name) VALUES (?,?,?,?,?,?,?,?)';
@@ -68,6 +75,16 @@ app.post('/api/clients', (req, res) => {
 // PUT (update) a client
 app.put("/api/clients/:id", (req, res) => {
     const { name, legal_name, rut, address, phone, email, business_activity, contact_name } = req.body;
+    
+    // Validar datos del cliente (para actualizaciones, los campos obligatorios pueden estar vacíos)
+    const validation = validateClientUpdate(req.body);
+    if (!validation.isValid) {
+        res.status(400).json({
+            "error": "Datos de cliente inválidos",
+            "details": validation.errors
+        });
+        return;
+    }
     const sql = `UPDATE Clients set 
                  name = COALESCE(?,name),
                  legal_name = COALESCE(?,legal_name),
@@ -81,7 +98,7 @@ app.put("/api/clients/:id", (req, res) => {
     const params = [name, legal_name, rut, address, phone, email, business_activity, contact_name, req.params.id];
     db.run(sql, params, function (err, result) {
             if (err){
-                res.status(400).json({"error": res.message})
+                res.status(400).json({"error": err.message})
                 return;
             }
             res.json({
@@ -98,7 +115,7 @@ app.delete("/api/clients/:id", (req, res) => {
     const params = [req.params.id];
     db.run(sql, params, function (err, result) {
         if (err){
-            res.status(400).json({"error": res.message})
+            res.status(400).json({"error": err.message})
             return;
         }
         res.json({"message":"deleted", changes: this.changes})
@@ -149,8 +166,14 @@ app.get("/api/locations/:id", (req, res) => {
 // POST new location for a client
 app.post('/api/locations', (req, res) => {
     const { name, address, client_id } = req.body;
-     if (!name || !client_id) {
-        res.status(400).json({"error": "Missing required field: name and client_id"});
+    
+    // Validar datos de la ubicación
+    const validation = validateLocation(req.body);
+    if (!validation.isValid) {
+        res.status(400).json({
+            "error": "Datos de ubicación inválidos",
+            "details": validation.errors
+        });
         return;
     }
     const sql = 'INSERT INTO Locations (name, address, client_id) VALUES (?,?,?)';
@@ -167,6 +190,16 @@ app.post('/api/locations', (req, res) => {
 // PUT (update) a location
 app.put("/api/locations/:id", (req, res) => {
     const { name, address } = req.body;
+    
+    // Validar datos de la ubicación
+    const validation = validateLocationUpdate(req.body);
+    if (!validation.isValid) {
+        res.status(400).json({
+            "error": "Datos de ubicación inválidos",
+            "details": validation.errors
+        });
+        return;
+    }
     const sql = `UPDATE Locations set 
                  name = COALESCE(?,name), 
                  address = COALESCE(?,address)
@@ -283,8 +316,14 @@ app.get("/api/equipment/:id", (req, res) => {
 // POST new equipment for a location
 app.post('/api/equipment', (req, res) => {
     const { name, type, brand, model, serial_number, location_id, acquisition_date, notes } = req.body;
-    if (!name || !type || !location_id) {
-        return res.status(400).json({ "error": "Faltan campos obligatorios: nombre, tipo y sede" });
+    
+    // Validar datos del equipo
+    const validation = validateEquipment(req.body);
+    if (!validation.isValid) {
+        return res.status(400).json({
+            "error": "Datos de equipo inválidos",
+            "details": validation.errors
+        });
     }
 
     // 1. Obtener el client_id a partir del location_id
@@ -323,6 +362,15 @@ app.post('/api/equipment', (req, res) => {
 // PUT (update) a piece of equipment
 app.put("/api/equipment/:id", (req, res) => {
     const { name, type, brand, model, serial_number, acquisition_date, last_maintenance_date, notes } = req.body;
+    
+    // Validar datos del equipo
+    const validation = validateEquipmentUpdate(req.body);
+    if (!validation.isValid) {
+        return res.status(400).json({
+            "error": "Datos de equipo inválidos",
+            "details": validation.errors
+        });
+    }
     const sql = `UPDATE Equipment set 
                  name = COALESCE(?,name), 
                  type = COALESCE(?,type),

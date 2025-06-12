@@ -487,11 +487,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
 
-                // Clic en fila de equipo
-                const equipmentRow = e.target.closest('.equipment-row .hover\\:underline');
-                if (equipmentRow) {
-                     const equipmentId = equipmentRow.closest('.equipment-row').dataset.equipmentId;
-                     window.open(`equipo.html?id=${equipmentId}&clientId=${state.currentClient.id}`, '_blank');
+                // Clic en fila de equipo - verificar si se hizo clic en la celda del modelo
+                const equipmentRow = e.target.closest('.equipment-row');
+                if (equipmentRow && (e.target.classList.contains('hover:underline') || e.target.classList.contains('cursor-pointer'))) {
+                     const equipmentId = equipmentRow.dataset.equipmentId;
+                     try {
+                         window.open(`equipo.html?id=${equipmentId}&clientId=${state.currentClient.id}`, '_blank');
+                     } catch (error) {
+                         console.error('Error al abrir ventana:', error);
+                         // Fallback: navegar en la misma ventana
+                         window.location.href = `equipo.html?id=${equipmentId}&clientId=${state.currentClient.id}`;
+                     }
                 }
             });
 

@@ -123,8 +123,12 @@ async function runSeed() {
         console.log('Borrando datos de tablas existentes...');
         const tables = ['Tickets', 'Equipment', 'Locations', 'Clients'];
         for (const table of tables) {
-            await run(`DELETE FROM ${table}`);
-            await run(`DELETE FROM sqlite_sequence WHERE name = ?`, [table]);
+            try {
+                await run(`DELETE FROM ${table}`);
+                await run(`DELETE FROM sqlite_sequence WHERE name = ?`, [table]);
+            } catch (err) {
+                console.log(`Tabla ${table} no existe aún, continuando...`);
+            }
         }
         
         console.log('Insertando nuevos datos de prueba...');
