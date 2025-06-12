@@ -6,12 +6,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const state = {
         equipment: null,
-        tickets: []
+        tickets: [],
+        notes: []
     };
 
     const api = {
         getEquipment: id => fetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
-        getEquipmentTickets: id => fetch(`${API_URL}/equipment/${id}/tickets`).then(res => res.json())
+        getEquipmentTickets: id => fetch(`${API_URL}/equipment/${id}/tickets`).then(res => res.json()),
+        getEquipmentNotes: id => fetch(`${API_URL}/equipment/${id}/notes`).then(res => res.json()),
+        addEquipmentNote: (id, note) => fetch(`${API_URL}/equipment/${id}/notes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ note })
+        }).then(res => res.json()),
+        deleteEquipmentNote: (noteId) => fetch(`${API_URL}/equipment/notes/${noteId}`, {
+            method: 'DELETE'
+        }).then(res => res.json())
     };
 
     const render = {
@@ -74,10 +84,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     <!-- Tarjeta de Notas -->
                     <div class="bg-white p-6 rounded-lg shadow-sm">
-                         <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Notas</h2>
-                         <div class="prose prose-sm max-w-none">
-                            ${equipment.notes ? equipment.notes.replace(/\n/g, '<br>') : '<p class="text-gray-500">No hay notas para este equipo.</p>'}
-                         </div>
+                        <div class="flex justify-between items-center border-b pb-2 mb-4">
+                            <h2 class="text-xl font-bold text-gray-800">Notas del Equipo</h2>
+                            <button id="add-note-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 flex items-center gap-2">
+                                <i data-lucide="plus" class="h-4 w-4"></i> Agregar Nota
+                            </button>
+                        </div>
+                        
+                        <!-- Formulario para nueva nota (inicialmente oculto) -->
+                        <div id="note-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg border">
+                            <textarea id="note-textarea" placeholder="Escribe tu nota aquí..." class="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4"></textarea>
+                            <div class="flex justify-end gap-2 mt-3">
+                                <button id="cancel-note-btn" class="px-3 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600">Cancelar</button>
+                                <button id="save-note-btn" class="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">Guardar Nota</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Lista de notas -->
+                        <div id="notes-container">
+                            <!-- Las notas se cargarán aquí -->
+                        </div>
                     </div>
 
                     <!-- Tarjeta de Historial de Tickets -->
@@ -118,6 +144,39 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 console.warn('No se puede generar QR: equipment o custom_id faltante');
             }
+            
+            // Cargar y renderizar notas
+            render.notes();
+        },
+        
+        notes: () => {
+            const notesContainer = document.getElementById('notes-container');
+            if (!notesContainer) return;
+            
+            if (state.notes.length === 0) {
+                notesContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay notas para este equipo.</p>';
+                return;
+            }
+            
+            const notesHtml = state.notes.map(note => {
+                const date = new Date(note.created_at).toLocaleString('es-CL');
+                return `
+                    <div class="border-l-4 border-blue-500 pl-4 py-3 mb-3 bg-gray-50 rounded-r-lg group">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex flex-col">
+                                <span class="text-xs text-gray-500 font-medium">${date}</span>
+                                <span class="text-xs text-gray-400">Por: ${note.author || 'Sistema'}</span>
+                            </div>
+                            <button class="delete-note-btn opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1" data-note-id="${note.id}" title="Eliminar nota">
+                                <i data-lucide="trash-2" class="h-3 w-3"></i>
+                            </button>
+                        </div>
+                        <p class="text-gray-800 text-sm leading-relaxed">${note.note.replace(/\n/g, '<br>')}</p>
+                    </div>
+                `;
+            }).join('');
+            
+            notesContainer.innerHTML = notesHtml;
         }
     };
 
@@ -143,18 +202,79 @@ document.addEventListener('DOMContentLoaded', () => {
 
             try {
                 console.log('Cargando datos del equipo...');
-                const [equipmentData, ticketsData] = await Promise.all([
+                const [equipmentData, ticketsData, notesData] = await Promise.all([
                     api.getEquipment(equipmentId),
-                    api.getEquipmentTickets(equipmentId)
+                    api.getEquipmentTickets(equipmentId),
+                    api.getEquipmentNotes(equipmentId)
                 ]);
-                console.log('Datos cargados:', { equipmentData, ticketsData });
+                console.log('Datos cargados:', { equipmentData, ticketsData, notesData });
                 state.equipment = equipmentData;
                 state.tickets = ticketsData;
+                state.notes = notesData;
                 render.all();
                 
             } catch (error) {
                 console.error('Error al cargar los datos del equipo:', error);
                 mainContent.innerHTML = `<div class="text-center text-red-500">Error al cargar la información. ${error.message}</div>`;
+            }
+        },
+        
+        saveNote: async () => {
+            const textarea = document.getElementById('note-textarea');
+            const noteText = textarea.value.trim();
+            
+            if (!noteText) {
+                alert('Por favor, escribe una nota antes de guardar.');
+                return;
+            }
+            
+            try {
+                console.log('Guardando nota...');
+                const saveBtn = document.getElementById('save-note-btn');
+                saveBtn.disabled = true;
+                saveBtn.textContent = 'Guardando...';
+                
+                await api.addEquipmentNote(state.equipment.id, noteText);
+                
+                // Recargar las notas
+                state.notes = await api.getEquipmentNotes(state.equipment.id);
+                render.notes();
+                
+                // Limpiar y ocultar formulario
+                const noteForm = document.getElementById('note-form');
+                textarea.value = '';
+                noteForm.classList.add('hidden');
+                
+                console.log('Nota guardada exitosamente');
+                
+            } catch (error) {
+                console.error('Error al guardar la nota:', error);
+                alert('Error al guardar la nota. Por favor, inténtalo de nuevo.');
+            } finally {
+                const saveBtn = document.getElementById('save-note-btn');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Guardar Nota';
+            }
+        },
+        
+        deleteNote: async (noteId) => {
+            if (!confirm('¿Estás seguro de que quieres eliminar esta nota?')) {
+                return;
+            }
+            
+            try {
+                console.log('Eliminando nota...');
+                await api.deleteEquipmentNote(noteId);
+                
+                // Recargar las notas
+                state.notes = await api.getEquipmentNotes(state.equipment.id);
+                render.notes();
+                
+                console.log('Nota eliminada exitosamente');
+                
+            } catch (error) {
+                console.error('Error al eliminar la nota:', error);
+                alert('Error al eliminar la nota. Por favor, inténtalo de nuevo.');
             }
         }
     };
@@ -162,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const events = {
         setup: () => {
             document.body.addEventListener('click', e => {
+                // Manejar impresión de QR
                 if (e.target.matches('#print-qr-btn, #print-qr-btn *')) {
                     e.preventDefault();
                     console.log('Iniciando impresión del QR...');
@@ -301,6 +422,38 @@ document.addEventListener('DOMContentLoaded', () => {
                     };
                     
                     console.log('Ventana de impresión creada');
+                }
+                
+                // Manejar botón "Agregar Nota"
+                if (e.target.matches('#add-note-btn')) {
+                    e.preventDefault();
+                    const noteForm = document.getElementById('note-form');
+                    const textarea = document.getElementById('note-textarea');
+                    noteForm.classList.remove('hidden');
+                    textarea.focus();
+                }
+                
+                // Manejar botón "Cancelar"
+                if (e.target.matches('#cancel-note-btn')) {
+                    e.preventDefault();
+                    const noteForm = document.getElementById('note-form');
+                    const textarea = document.getElementById('note-textarea');
+                    noteForm.classList.add('hidden');
+                    textarea.value = '';
+                }
+                
+                // Manejar botón "Guardar Nota"
+                if (e.target.matches('#save-note-btn')) {
+                    e.preventDefault();
+                    actions.saveNote();
+                }
+                
+                // Manejar botón "Eliminar Nota"
+                if (e.target.matches('.delete-note-btn, .delete-note-btn *')) {
+                    e.preventDefault();
+                    const button = e.target.closest('.delete-note-btn');
+                    const noteId = button.getAttribute('data-note-id');
+                    actions.deleteNote(noteId);
                 }
             });
         }

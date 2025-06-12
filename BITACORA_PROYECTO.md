@@ -1,6 +1,6 @@
 # Bitácora y Plan de Desarrollo - Gymtec ERP
 
-**Última actualización:** 12 de Junio de 2025
+**Última actualización:** 12 de Junio de 2025 - 16:30 hrs
 
 ---
 
@@ -28,10 +28,27 @@
 -   [x] **Lector de Código de Barras:** Se integró la librería `html5-qrcode` en el formulario de "Añadir Equipo" para permitir rellenar el número de serie usando la cámara del dispositivo.
 -   [x] **CRUD de Equipos:** Se añadieron y se dio funcionalidad a los botones para Añadir, Editar y Eliminar equipos directamente desde la tabla de la sede.
 
-**5. Corrección de Bugs y Mantenimiento**
+**5. Sistema de Notas para Equipos**
+-   [x] **Diseño de Base de Datos:** Se creó la tabla `EquipmentNotes` con campos para ID, equipo_id, nota, autor y timestamp.
+-   [x] **API Backend Completa:** Se implementaron endpoints REST para gestión de notas:
+    - `GET /api/equipment/:id/notes` - Obtener todas las notas de un equipo
+    - `POST /api/equipment/:id/notes` - Agregar nueva nota
+    - `DELETE /api/equipment/notes/:noteId` - Eliminar nota específica
+-   [x] **Interfaz de Usuario Avanzada:** Se desarrolló una interfaz completa en `equipo.html` que incluye:
+    - Formulario emergente para agregar notas con validación
+    - Lista cronológica de notas con información de autor y fecha
+    - Botones de eliminar con confirmación (aparecen al hacer hover)
+    - Diseño profesional con bordes distintivos y animaciones
+-   [x] **Funcionalidad Completa:** Sistema totalmente operativo que permite agregar, visualizar y eliminar notas directamente desde la página del equipo.
+-   [x] **Datos de Ejemplo:** Se poblaron 5 notas de ejemplo para demostración del sistema.
+
+**6. Corrección de Bugs y Mantenimiento**
 -   [x] **Error de Puerto en Uso (`EADDRINUSE`):** Se diagnosticó y solucionó en repetidas ocasiones el error de puerto bloqueado, estableciendo un protocolo para detener el servidor antes de realizar cambios.
 -   [x] **Botón "Añadir Equipo":** Se corrigió un bug que hacía desaparecer el botón "Añadir Equipo" en sedes que no tenían máquinas registradas.
 -   [x] **Librería de QR:** Se reemplazó la librería de QR inicial por una más robusta y confiable (`qrcode.js`) para solucionar problemas de generación.
+-   [x] **Error 500 en Equipos:** Se solucionó el error al cargar equipos causado por `custom_id` faltantes en la base de datos.
+-   [x] **Generación de Custom ID:** Se corrigió el script `seed.js` para generar automáticamente `custom_id` únicos (formato EQ-001, EQ-002, etc.) para todos los equipos.
+-   [x] **Estructura de Código JavaScript:** Se corrigieron errores de estructura en `equipo.js` donde las funciones estaban en el objeto incorrecto, causando errores de "función no definida".
 
 ---
 
@@ -54,7 +71,7 @@
 - [ ] **Lógica de Identificadores (IDs):**
     - [ ] **ID de Usuario (Personal):** Implementar formato `[4 Primeras Letras Nombre][Correlativo 4 Dígitos]` (Ej: `Feli1001`).
     - [ ] **ID de Sede:** Implementar formato `[ID Cliente]-[Correlativo 3 Dígitos]` (Ej: `Feli1001-001`).
-    - [x] **ID de Equipo:** Formato `[ID Cliente]-[Abreviatura Tipo]-[Correlativo]`. *(Decisión de diseño: Se usa el ID del Cliente en lugar del ID de la Sede para asegurar un correlativo único a nivel de cliente).*
+    - [x] **ID de Equipo:** Formato `EQ-[Correlativo 3 Dígitos]` (Ej: `EQ-001`, `EQ-002`). *(Implementado con generación automática en el script de seed).*
 - [ ] **Gestor de Clientes (Refinamiento de UI/UX):**
     - [ ] **Rediseño a 3 Paneles:** Refactorizar la interfaz de `clientes.html` del actual diseño de acordeón a un layout de 3 paneles (Lista Clientes | Lista Sedes | Detalle Sede) para mejorar el flujo de trabajo.
     - [ ] **Navegación Cliente -> Sede:** Si un cliente tiene una sola sede, seleccionarla automáticamente.
@@ -62,6 +79,7 @@
 - [ ] **Lógica de Creación Contextual:**
     - [x] **Crear Ticket para esta Sede:** Pasar ID de la sede al formulario de tickets.
     - [ ] **Crear Ticket para este Equipo:** Pasar ID de sede y equipo al formulario.
+- [x] **Sistema de Notas de Equipos:** Sistema completo implementado que permite agregar, visualizar y eliminar notas directamente desde la página de detalle del equipo, con interfaz profesional y persistencia en base de datos.
 
 #### Módulo 3: Gestión de Servicios y Tickets
 - [ ] **Dashboard de Tickets (Kanban/Tabla):**
@@ -117,4 +135,9 @@
     - [ ] Generar reporte de "Rentabilidad por Cliente".
 - [ ] **Notificaciones de Usuario:** Reemplazar los `alert()` de JavaScript por un sistema de notificaciones más amigable (ej. "toasts") para confirmar acciones (Guardado, Eliminado) o mostrar errores.
 - [ ] **Indicadores de Carga (Spinners):** Añadir indicadores visuales de carga mientras se obtienen datos del backend (ej. al cargar la lista de clientes o los detalles de una sede) para mejorar la percepción de rendimiento.
-- [ ] **Integración de Google Maps:** Activar completamente el autocompletado de direcciones en los formularios, sustituyendo la `API_KEY` de placeholder por una real en `clientes.html`. 
+- [x] **Sistema de Autocompletado de Direcciones:** Se implementó un sistema completo de autocompletado usando **Nominatim de OpenStreetMap** como alternativa gratuita a Google Maps. Incluye:
+    - Búsqueda en tiempo real con debounce para optimizar consultas
+    - Filtrado específico para Chile con resultados en español
+    - Interfaz profesional con indicador de carga y navegación por teclado
+    - Formateo inteligente de direcciones con información principal y detalles
+    - Integración automática en campos de dirección de clientes y sedes 

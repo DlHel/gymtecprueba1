@@ -144,9 +144,11 @@ async function runSeed() {
         }
         console.log(`${locations.length} sedes insertadas.`);
 
-        for (const e of equipment) {
-            await run("INSERT INTO Equipment (name, type, brand, model, serial_number, location_id, acquisition_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                [e.name, e.type, e.brand, e.model, e.serial_number, e.location_id, e.acquisition_date, e.notes]);
+        for (let i = 0; i < equipment.length; i++) {
+            const e = equipment[i];
+            const customId = `EQ-${String(i + 1).padStart(3, '0')}`;
+            await run("INSERT INTO Equipment (name, type, brand, model, serial_number, custom_id, location_id, acquisition_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                [e.name, e.type, e.brand, e.model, e.serial_number, customId, e.location_id, e.acquisition_date, e.notes]);
         }
         console.log(`${equipment.length} equipos insertados.`);
         

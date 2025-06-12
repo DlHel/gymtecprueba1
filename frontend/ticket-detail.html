@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalle del Ticket - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- <link rel="stylesheet" href="css/style.css"> --> <!-- Puedes crear un CSS específico o usar Tailwind directamente -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .nav-link.active { background-color: #eef2ff; color: #4f46e5; font-weight: 600; }
+        .detail-section { margin-bottom: 1.5rem; padding: 1.5rem; background-color: white; border-radius: 0.5rem; box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06); }
+        .detail-title { font-size: 1.25rem; font-weight: 600; color: #1f2937; border-bottom: 1px solid #e5e7eb; padding-bottom: 0.75rem; margin-bottom: 1rem; }
+        .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; }
+        .detail-item dt { font-weight: 500; color: #6b7280; }
+        .detail-item dd { color: #111827; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="flex h-screen">
+        <!-- Menú de navegación lateral -->
+        <div id="menu-placeholder"></div>
+
+        <!-- Contenedor principal de la aplicación -->
+        <div id="app" class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-md z-20">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <a href="tickets.html" class="p-2 rounded-md hover:bg-gray-200" title="Volver a Tickets">
+                            <i data-lucide="arrow-left" class="h-6 w-6"></i>
+                        </a>
+                        <h1 id="page-title" class="text-xl font-bold text-gray-800">Detalle del Ticket</h1>
+                    </div>
+                     <div class="text-sm font-semibold text-gray-600">
+                        Felipe Maturana (Admin)
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Contenido principal -->
+            <main class="flex-1 overflow-y-auto p-6" id="main-content">
+                <!-- Contenido del detalle del ticket se cargará aquí por JavaScript -->
+                <div class="text-center py-10">
+                    <p class="text-gray-500">Cargando detalles del ticket...</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="js/nav-loader.js"></script>
+    <script src="js/ticket-detail.js"></script>
+    <script>
+        // Asegúrate de que Lucide se ejecute después de que el contenido dinámico se cargue si es necesario
+        // o al final si los íconos ya están en el HTML estático.
+        lucide.createIcons();
+    </script>
+</body>
+</html>

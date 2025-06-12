@@ -103,4 +103,14 @@ CREATE TABLE IF NOT EXISTS Tickets (
     FOREIGN KEY (location_id) REFERENCES Locations (id),
     FOREIGN KEY (equipment_id) REFERENCES Equipment (id),
     FOREIGN KEY (assigned_technician_id) REFERENCES Users (id)
+);
+
+-- Tabla para notas del equipo
+CREATE TABLE IF NOT EXISTS EquipmentNotes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    equipment_id INTEGER NOT NULL,
+    note TEXT NOT NULL,
+    author TEXT DEFAULT 'Sistema',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (equipment_id) REFERENCES Equipment (id) ON DELETE CASCADE
 ); 

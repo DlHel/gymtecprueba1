@@ -576,6 +576,70 @@ app.delete("/api/tickets/:id", (req, res) => {
 });
 
 
+// --- API Routes for Equipment Notes ---
+
+// GET all notes for a specific equipment
+app.get('/api/equipment/:equipmentId/notes', (req, res) => {
+    const { equipmentId } = req.params;
+    const sql = `
+        SELECT * FROM EquipmentNotes 
+        WHERE equipment_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [equipmentId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
+// POST new note for equipment
+app.post('/api/equipment/:equipmentId/notes', (req, res) => {
+    const { equipmentId } = req.params;
+    const { note, author } = req.body;
+    
+    if (!note || note.trim() === '') {
+        return res.status(400).json({ error: "La nota no puede estar vacía" });
+    }
+    
+    const sql = 'INSERT INTO EquipmentNotes (equipment_id, note, author) VALUES (?, ?, ?)';
+    const params = [equipmentId, note.trim(), author || 'Sistema'];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        // Devolver la nota creada
+        const selectSql = 'SELECT * FROM EquipmentNotes WHERE id = ?';
+        db.get(selectSql, [this.lastID], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.status(201).json(row);
+        });
+    });
+});
+
+// DELETE a note
+app.delete('/api/equipment/notes/:noteId', (req, res) => {
+    const { noteId } = req.params;
+    const sql = 'DELETE FROM EquipmentNotes WHERE id = ?';
+    
+    db.run(sql, [noteId], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.json({ message: "Nota eliminada", changes: this.changes });
+    });
+});
+
+
 // --- Server ---
 app.listen(port, () => {
     console.log(`Gymtec ERP backend listening at http://localhost:${port}`);

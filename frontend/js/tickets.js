@@ -24,6 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     document.getElementById('add-ticket-btn').addEventListener('click', () => openModal('ticket-modal'));
     document.getElementById('ticket-modal-cancel-btn').addEventListener('click', () => closeModal('ticket-modal'));
+    document.getElementById('ticket-modal-close-btn').addEventListener('click', () => closeModal('ticket-modal')); // Para el botón X del modal
     
     document.body.addEventListener('click', (event) => {
         const button = event.target.closest('button');
@@ -64,7 +65,11 @@ function renderTickets(tickets) {
             }
 
             row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap"><div class="text-sm font-medium text-slate-900">${ticket.title}</div></td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <div class="text-sm font-medium text-slate-900">
+                        <a href="ticket-detail.html?id=${ticket.id}" class="text-sky-600 hover:text-sky-800 hover:underline">${ticket.title}</a>
+                    </div>
+                </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${ticket.client_name || 'N/A'}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="status-badge ${statusCellClass}">${ticket.status}</span></td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${ticket.priority}</td>
@@ -75,6 +80,9 @@ function renderTickets(tickets) {
                 </td>`;
             ticketList.appendChild(row);
         });
+        
+        // Actualizar iconos Lucide después de renderizar
+        lucide.createIcons();
     } else {
         ticketList.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-500">No hay tickets registrados.</td></tr>';
     }
@@ -100,25 +108,59 @@ async function fetchAllInitialData() {
 }
 
 async function fetchTickets() {
-    state.tickets = (await (await fetch(`${API_URL}/tickets`)).json()).data;
-    renderTickets(state.tickets);
+    try {
+        const response = await fetch(`${API_URL}/tickets`);
+        if (!response.ok) throw new Error(`Error fetching tickets: ${response.statusText}`);
+        const result = await response.json();
+        state.tickets = result.data || []; // Asegurar que sea un array
+        renderTickets(state.tickets);
+    } catch (error) {
+        console.error("Error fetching tickets:", error);
+        renderTickets([]); // Renderizar lista vacía o con mensaje de error
+    }
 }
 
 async function fetchClients() {
-    state.clients = (await (await fetch(`${API_URL}/clients`)).json()).data;
-    populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
+    try {
+        const response = await fetch(`${API_URL}/clients`);
+        if (!response.ok) throw new Error(`Error fetching clients: ${response.statusText}`);
+        const result = await response.json();
+        state.clients = result.data || []; // Asegurar que sea un array
+        populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
+    } catch (error) {
+        console.error("Error fetching clients:", error);
+        populateSelect(clientSelect, [], { placeholder: 'Error al cargar clientes' });
+    }
 }
 
 async function fetchLocations(clientId) {
-    state.locations = (await (await fetch(`${API_URL}/clients/${clientId}/locations`)).json()).data;
-    populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
-    locationSelect.disabled = false;
+    try {
+        const response = await fetch(`${API_URL}/clients/${clientId}/locations`);
+        if (!response.ok) throw new Error(`Error fetching locations: ${response.statusText}`);
+        const result = await response.json();
+        state.locations = result.data || [];
+        populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
+        locationSelect.disabled = false;
+    } catch (error) {
+        console.error("Error fetching locations:", error);
+        populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
+        locationSelect.disabled = false;
+    }
 }
 
 async function fetchEquipment(locationId) {
-    state.equipment = (await (await fetch(`${API_URL}/locations/${locationId}/equipment`)).json()).data;
-    populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo (opcional)...' });
-    equipmentSelect.disabled = false;
+    try {
+        const response = await fetch(`${API_URL}/locations/${locationId}/equipment`);
+        if (!response.ok) throw new Error(`Error fetching equipment: ${response.statusText}`);
+        const result = await response.json();
+        state.equipment = result.data || [];
+        populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo (opcional)...' });
+        equipmentSelect.disabled = false;
+    } catch (error) {
+        console.error("Error fetching equipment:", error);
+        populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
+        equipmentSelect.disabled = false;
+    }
 }
 
 // --- Event Handlers ---
@@ -161,7 +203,10 @@ async function handleFormSubmit(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error((await response.json()).error);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error desconocido');
+        }
         
         closeModal('ticket-modal');
         fetchTickets();
@@ -200,83 +245,87 @@ async function openModal(modalId, data = {}) {
             const result = await response.json();
             const ticketData = result.data;
 
-            // Populate form fields directly from ticketData
+            // Populate form fields directly from ticketData using updated IDs
             Object.entries(ticketData).forEach(([key, value]) => {
-                if (form.elements[key]) {
+                const fieldId = getFieldId(key);
+                const field = document.getElementById(fieldId);
+                if (field) {
                     if (key === 'due_date' && value) {
-                        form.elements[key].value = value.split('T')[0]; // Format for date input
+                        field.value = value.split('T')[0]; // Format for date input
                     } else {
-                        form.elements[key].value = value;
+                        field.value = value;
                     }
                 }
             });
 
             // Set client_id first, then fetch and set dependent dropdowns
             if (ticketData.client_id) {
-                form.elements.client_id.value = ticketData.client_id;
+                clientSelect.value = ticketData.client_id;
                 await fetchLocations(ticketData.client_id); // Populates and enables locationSelect
-                form.elements.location_id.value = ticketData.location_id;
+                locationSelect.value = ticketData.location_id;
 
                 if (ticketData.location_id) {
                     await fetchEquipment(ticketData.location_id); // Populates and enables equipmentSelect
-                    form.elements.equipment_id.value = ticketData.equipment_id;
+                    equipmentSelect.value = ticketData.equipment_id;
                 }
             }
         } catch (error) {
             console.error("Error opening modal for editing ticket:", error);
         }
     } else if (effectiveData.client_id) { // New ticket with prefill data
-        form.elements.client_id.value = effectiveData.client_id;
+        clientSelect.value = effectiveData.client_id;
         await fetchLocations(effectiveData.client_id);
-        form.elements.location_id.value = effectiveData.location_id;
+        locationSelect.value = effectiveData.location_id;
 
         if (effectiveData.location_id) {
             await fetchEquipment(effectiveData.location_id);
             if (effectiveData.equipment_id) {
-                form.elements.equipment_id.value = effectiveData.equipment_id;
+                equipmentSelect.value = effectiveData.equipment_id;
             }
         }
     }
     
     document.getElementById(modalId).classList.add('flex');
     document.getElementById(modalId).style.display = 'flex';
+    
+    // Actualizar iconos Lucide en el modal
+    lucide.createIcons();
+}
+
+// Helper function to map field names to their HTML IDs
+function getFieldId(fieldName) {
+    const fieldMapping = {
+        'title': 'ticket-title',
+        'description': 'ticket-description',
+        'client_id': 'ticket-client-select',
+        'location_id': 'ticket-location-select',
+        'equipment_id': 'ticket-equipment-select',
+        'priority': 'ticket-priority',
+        'due_date': 'ticket-due-date'
+    };
+    return fieldMapping[fieldName] || fieldName;
 }
 
 async function checkForUrlParams() {
     const params = new URLSearchParams(window.location.search);
-    const locationId = params.get('location_id');
-    const equipmentId = params.get('equipment_id');
+    const clientId = params.get('cliente'); // Cambiado de 'location_id' a 'cliente'
+    const locationId = params.get('sede');   // Cambiado de 'equipment_id' a 'sede'
+    const equipmentId = params.get('equipo'); // Nuevo parámetro para equipo
 
     state.ticketPrefillData = null; // Reset prefill data each time
 
-    if (locationId) {
-        // We need client_id to properly pre-select.
-        // The location details endpoint should provide client_id.
+    if (clientId && locationId) { // Si tenemos cliente y sede de la URL
         try {
-            const response = await fetch(`${API_URL}/locations/${locationId}`);
-            if (!response.ok) {
-                console.error(`Error fetching location ${locationId} for prefill: ${response.status}`);
-                return; 
-            }
-            const result = await response.json();
-            const locationData = result.data;
-
-            if (locationData && locationData.client_id) {
-                state.ticketPrefillData = {
-                    client_id: locationData.client_id,
-                    location_id: locationId,
-                    equipment_id: equipmentId || null
-                };
-            } else {
-                console.warn(`Location data for ${locationId} did not contain client_id.`);
-            }
+            state.ticketPrefillData = {
+                client_id: clientId,
+                location_id: locationId,
+                equipment_id: equipmentId || null // equipmentId puede ser opcional
+            };
+            // Abrir el modal automáticamente si se pasaron parámetros para crear un ticket
+            openModal('ticket-modal'); 
         } catch (error) {
             console.error("Error processing URL params for ticket prefill:", error);
         }
-    }
-
-    if (equipmentId) {
-        form.elements.equipment_id.value = equipmentId;
     }
 
     // Limpiar los parámetros de la URL para evitar que se reutilicen al navegar
@@ -291,118 +340,14 @@ function closeModal(modalId) {
 async function deleteItem(resource, id, callback) {
     if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
     try {
-        await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+        const response = await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al eliminar');
+        }
         callback();
     } catch (error) {
         console.error(`Error deleting ${resource}:`, error);
+        alert(`Error al eliminar: ${error.message}`);
     }
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'http://localhost:3000/api';
-
-    // --- Selectores del DOM ---
-    const dom = {
-        clientIdField: document.querySelector('[name="client_id"]'),
-        locationIdField: document.querySelector('[name="location_id"]'),
-        clientName: document.getElementById('client-name'),
-        locationName: document.getElementById('location-name'),
-        equipmentSelect: document.getElementById('equipment_id'),
-        ticketForm: document.getElementById('ticket-form'),
-        backButton: document.getElementById('backButton'),
-        cancelButton: document.getElementById('cancel-btn'),
-    };
-
-    // --- Lógica de la API ---
-    const api = {
-        get: (resource, id) => fetch(`${API_URL}/${resource}/${id}`).then(res => res.json()),
-        getLocationEquipment: id => fetch(`${API_URL}/locations/${id}/equipment`).then(res => res.json()),
-        post: (resource, data) => fetch(`${API_URL}/${resource}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data),
-        }).then(res => {
-            if (!res.ok) throw new Error(`Error al crear ${resource}`);
-            return res.json();
-        })
-    };
-
-    // --- Acciones ---
-    const actions = {
-        init: async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const clientId = urlParams.get('cliente');
-            const locationId = urlParams.get('sede');
-
-            if (!clientId || !locationId) {
-                alert('No se especificó un cliente o sede. Volviendo a la página de clientes.');
-                window.location.href = 'clientes.html';
-                return;
-            }
-
-            dom.clientIdField.value = clientId;
-            dom.locationIdField.value = locationId;
-
-            try {
-                const client = await api.get('clients', clientId);
-                const location = await api.get('locations', locationId);
-                const equipment = await api.getLocationEquipment(locationId);
-
-                dom.clientName.textContent = client.name;
-                dom.locationName.textContent = location.name;
-
-                if (equipment.length > 0) {
-                    dom.equipmentSelect.innerHTML += equipment.map(e => 
-                        `<option value="${e.id}">${e.type} - ${e.model || 'Sin modelo'} (N/S: ${e.serial_number || 'N/A'})</option>`
-                    ).join('');
-                } else {
-                    dom.equipmentSelect.disabled = true;
-                    dom.equipmentSelect.innerHTML = '<option value="">No hay equipos en esta sede</option>';
-                }
-
-                lucide.createIcons();
-
-            } catch (error) {
-                console.error('Error al cargar datos:', error);
-                alert('Hubo un error al cargar la información del cliente o la sede.');
-            }
-        },
-
-        submitForm: async (e) => {
-            e.preventDefault();
-            const formData = new FormData(dom.ticketForm);
-            const data = Object.fromEntries(formData.entries());
-
-            // Asegurarse de que el equipment_id no se envíe si está vacío
-            if (!data.equipment_id) {
-                delete data.equipment_id;
-            }
-            
-            try {
-                await api.post('tickets', data);
-                alert('Ticket creado con éxito.');
-                window.location.href = 'clientes.html'; // O a una lista de tickets
-            } catch (error) {
-                console.error('Error al crear ticket:', error);
-                alert('Error al crear el ticket. Por favor, intente de nuevo.');
-            }
-        },
-        
-        goBack: () => {
-             window.location.href = 'clientes.html';
-        }
-    };
-
-    // --- Lógica de Eventos ---
-    const events = {
-        setup: () => {
-            dom.ticketForm.addEventListener('submit', actions.submitForm);
-            dom.backButton.addEventListener('click', actions.goBack);
-            dom.cancelButton.addEventListener('click', actions.goBack);
-        }
-    };
-
-    // --- Inicialización ---
-    actions.init();
-    events.setup();
-}); 
