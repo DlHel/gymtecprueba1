@@ -15,10 +15,14 @@ CREATE TABLE IF NOT EXISTS Users (
 -- Módulo 2: Gestión de Clientes, Sedes y Equipos
 CREATE TABLE IF NOT EXISTS Clients (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    contact_person TEXT,
+    name TEXT NOT NULL, -- Nombre comercial
+    legal_name TEXT,     -- Razón Social
+    rut TEXT UNIQUE,
+    address TEXT,
+    phone TEXT,
     email TEXT,
-    phone TEXT
+    business_activity TEXT, -- Giro
+    contact_name TEXT
 );
 
 CREATE TABLE IF NOT EXISTS Locations (

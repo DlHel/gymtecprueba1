@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tickets - Gymtec ERP</title>
+    <title>Gestión de Tickets - Gymtec ERP</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/tickets.css">
     <style>
         body { font-family: 'Inter', sans-serif; }
         .nav-link.active { background-color: #eef2ff; color: #4f46e5; font-weight: 600; }
@@ -18,69 +19,85 @@
         .sla-green { background-color: #dcfce7; color: #166534; }
     </style>
 </head>
-<body class="bg-slate-50 text-slate-800">
+<body class="bg-gray-100 text-gray-800">
     <div class="flex h-screen">
-        <!-- El menú se cargará aquí -->
+        <!-- Menú de navegación lateral -->
         <div id="menu-placeholder"></div>
 
-        <div class="flex-1 flex flex-col overflow-y-auto">
-            <header class="flex-shrink-0 bg-white border-b border-slate-200">
-                <div class="flex items-center justify-between p-4">
-                    <h1 class="text-2xl font-semibold text-slate-800">Tickets de Servicio</h1>
+        <!-- Contenedor principal de la aplicación -->
+        <div id="app" class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-md z-20">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <button id="backButton" class="p-2 rounded-md hover:bg-gray-200">
+                            <i data-lucide="arrow-left" class="h-6 w-6"></i>
+                        </button>
+                        <h1 id="page-title" class="text-xl font-bold text-gray-800">Nuevo Ticket</h1>
+                    </div>
+                     <div class="text-sm font-semibold text-gray-600">
+                        Felipe Maturana (Admin)
+                    </div>
                 </div>
             </header>
-            
-            <main class="flex-1 overflow-y-auto p-6 bg-slate-50">
-                <div class="bg-white rounded-lg shadow-md">
-                    <div class="p-4 border-b border-slate-200 flex justify-between items-center">
-                        <h2 class="text-lg font-semibold">Listado de Tickets</h2>
-                        <button id="add-ticket-btn" class="flex items-center gap-2 px-4 py-2 bg-sky-600 text-white text-sm font-medium rounded-lg hover:bg-sky-700">
-                            <i data-lucide="plus" class="w-4 h-4"></i> Crear Ticket
-                        </button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Título</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Cliente</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Estado</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Prioridad</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">Vencimiento</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-slate-500 uppercase">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="ticket-list" class="bg-white divide-y divide-slate-200"></tbody>
-                        </table>
-                    </div>
+
+            <!-- Contenido principal -->
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow">
+                    <h2 id="ticket-title" class="text-2xl font-bold text-gray-800 mb-6">Crear Nuevo Ticket</h2>
+                    <form id="ticket-form" class="space-y-6">
+                        <input type="hidden" name="client_id">
+                        <input type="hidden" name="location_id">
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Cliente</label>
+                                <p id="client-name" class="mt-1 text-lg font-semibold text-gray-900"></p>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-slate-700">Sede</label>
+                                <p id="location-name" class="mt-1 text-lg font-semibold text-gray-900"></p>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="title" class="block text-sm font-medium text-slate-700">Título del Ticket</label>
+                            <input type="text" name="title" id="title" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required>
+                        </div>
+
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-slate-700">Descripción del Problema</label>
+                            <textarea name="description" id="description" rows="4" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required></textarea>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="equipment_id" class="block text-sm font-medium text-slate-700">Equipo Afectado (Opcional)</label>
+                                <select name="equipment_id" id="equipment_id" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3">
+                                    <option value="">Seleccione un equipo...</option>
+                                    <!-- Equipos se cargarán aquí -->
+                                </select>
+                            </div>
+                            <div>
+                                <label for="priority" class="block text-sm font-medium text-slate-700">Prioridad</label>
+                                <select name="priority" id="priority" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required>
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 pt-4">
+                            <button type="button" id="cancel-btn" class="px-4 py-2 bg-slate-100 rounded-md">Cancelar</button>
+                            <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-md">Crear Ticket</button>
+                        </div>
+                    </form>
                 </div>
             </main>
         </div>
     </div>
-
-    <!-- Modal para Añadir/Editar Ticket -->
-    <div id="ticket-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl">
-            <h3 id="ticket-modal-title" class="text-lg font-medium">Nuevo Ticket</h3>
-            <form id="ticket-modal-form" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="hidden" name="id">
-                <div class="md:col-span-2"><label>Título del Ticket</label><input type="text" name="title" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required></div>
-                <div><label>Cliente</label><select name="client_id" id="ticket-client-select" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required><option>Seleccione un cliente...</option></select></div>
-                <div><label>Sede</label><select name="location_id" id="ticket-location-select" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" disabled><option>Seleccione una sede...</option></select></div>
-                <div class="md:col-span-2"><label>Equipo</label><select name="equipment_id" id="ticket-equipment-select" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" disabled><option>Seleccione un equipo (opcional)...</option></select></div>
-                <div class="md:col-span-2"><label>Descripción</label><textarea name="description" rows="3" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></textarea></div>
-                <div><label>Prioridad</label><select name="priority" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required><option value="Baja">Baja</option><option value="Media">Media</option><option value="Alta">Alta</option><option value="Urgente">Urgente</option></select></div>
-                <div><label>Estado</label><select name="status" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required><option value="Abierto">Abierto</option><option value="En Progreso">En Progreso</option><option value="En Espera">En Espera</option><option value="Resuelto">Resuelto</option><option value="Cerrado">Cerrado</option></select></div>
-                <div><label>Fecha de Vencimiento</label><input type="date" name="due_date" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
-                <div class="md:col-span-2 flex justify-end space-x-3 pt-4">
-                    <button type="button" id="ticket-modal-cancel-btn" class="px-4 py-2 bg-slate-100 rounded-md">Cancelar</button>
-                    <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-md">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/lucide@latest"></script>
+    
     <script src="js/nav-loader.js"></script>
     <script src="js/tickets.js"></script>
 </body>

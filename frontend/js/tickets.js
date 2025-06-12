@@ -296,4 +296,113 @@ async function deleteItem(resource, id, callback) {
     } catch (error) {
         console.error(`Error deleting ${resource}:`, error);
     }
-} 
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const API_URL = 'http://localhost:3000/api';
+
+    // --- Selectores del DOM ---
+    const dom = {
+        clientIdField: document.querySelector('[name="client_id"]'),
+        locationIdField: document.querySelector('[name="location_id"]'),
+        clientName: document.getElementById('client-name'),
+        locationName: document.getElementById('location-name'),
+        equipmentSelect: document.getElementById('equipment_id'),
+        ticketForm: document.getElementById('ticket-form'),
+        backButton: document.getElementById('backButton'),
+        cancelButton: document.getElementById('cancel-btn'),
+    };
+
+    // --- Lógica de la API ---
+    const api = {
+        get: (resource, id) => fetch(`${API_URL}/${resource}/${id}`).then(res => res.json()),
+        getLocationEquipment: id => fetch(`${API_URL}/locations/${id}/equipment`).then(res => res.json()),
+        post: (resource, data) => fetch(`${API_URL}/${resource}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        }).then(res => {
+            if (!res.ok) throw new Error(`Error al crear ${resource}`);
+            return res.json();
+        })
+    };
+
+    // --- Acciones ---
+    const actions = {
+        init: async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const clientId = urlParams.get('cliente');
+            const locationId = urlParams.get('sede');
+
+            if (!clientId || !locationId) {
+                alert('No se especificó un cliente o sede. Volviendo a la página de clientes.');
+                window.location.href = 'clientes.html';
+                return;
+            }
+
+            dom.clientIdField.value = clientId;
+            dom.locationIdField.value = locationId;
+
+            try {
+                const client = await api.get('clients', clientId);
+                const location = await api.get('locations', locationId);
+                const equipment = await api.getLocationEquipment(locationId);
+
+                dom.clientName.textContent = client.name;
+                dom.locationName.textContent = location.name;
+
+                if (equipment.length > 0) {
+                    dom.equipmentSelect.innerHTML += equipment.map(e => 
+                        `<option value="${e.id}">${e.type} - ${e.model || 'Sin modelo'} (N/S: ${e.serial_number || 'N/A'})</option>`
+                    ).join('');
+                } else {
+                    dom.equipmentSelect.disabled = true;
+                    dom.equipmentSelect.innerHTML = '<option value="">No hay equipos en esta sede</option>';
+                }
+
+                lucide.createIcons();
+
+            } catch (error) {
+                console.error('Error al cargar datos:', error);
+                alert('Hubo un error al cargar la información del cliente o la sede.');
+            }
+        },
+
+        submitForm: async (e) => {
+            e.preventDefault();
+            const formData = new FormData(dom.ticketForm);
+            const data = Object.fromEntries(formData.entries());
+
+            // Asegurarse de que el equipment_id no se envíe si está vacío
+            if (!data.equipment_id) {
+                delete data.equipment_id;
+            }
+            
+            try {
+                await api.post('tickets', data);
+                alert('Ticket creado con éxito.');
+                window.location.href = 'clientes.html'; // O a una lista de tickets
+            } catch (error) {
+                console.error('Error al crear ticket:', error);
+                alert('Error al crear el ticket. Por favor, intente de nuevo.');
+            }
+        },
+        
+        goBack: () => {
+             window.location.href = 'clientes.html';
+        }
+    };
+
+    // --- Lógica de Eventos ---
+    const events = {
+        setup: () => {
+            dom.ticketForm.addEventListener('submit', actions.submitForm);
+            dom.backButton.addEventListener('click', actions.goBack);
+            dom.cancelButton.addEventListener('click', actions.goBack);
+        }
+    };
+
+    // --- Inicialización ---
+    actions.init();
+    events.setup();
+}); 

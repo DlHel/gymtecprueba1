@@ -49,13 +49,13 @@ app.get("/api/clients/:id", (req, res) => {
 
 // POST new client
 app.post('/api/clients', (req, res) => {
-    const { name, contact_person, email, phone } = req.body;
-    if (!name) {
-        res.status(400).json({"error": "Missing required field: name"});
+    const { name, legal_name, rut, address, phone, email, business_activity, contact_name } = req.body;
+    if (!name || !legal_name || !rut) {
+        res.status(400).json({"error": "Faltan campos obligatorios: nombre, razón social y rut"});
         return;
     }
-    const sql = 'INSERT INTO Clients (name, contact_person, email, phone) VALUES (?,?,?,?)';
-    const params = [name, contact_person, email, phone];
+    const sql = 'INSERT INTO Clients (name, legal_name, rut, address, phone, email, business_activity, contact_name) VALUES (?,?,?,?,?,?,?,?)';
+    const params = [name, legal_name, rut, address, phone, email, business_activity, contact_name];
     db.run(sql, params, function(err) {
         if (err) {
             res.status(400).json({"error":err.message});
@@ -67,14 +67,18 @@ app.post('/api/clients', (req, res) => {
 
 // PUT (update) a client
 app.put("/api/clients/:id", (req, res) => {
-    const { name, contact_person, email, phone } = req.body;
+    const { name, legal_name, rut, address, phone, email, business_activity, contact_name } = req.body;
     const sql = `UPDATE Clients set 
-                 name = COALESCE(?,name), 
-                 contact_person = COALESCE(?,contact_person), 
-                 email = COALESCE(?,email), 
-                 phone = COALESCE(?,phone) 
+                 name = COALESCE(?,name),
+                 legal_name = COALESCE(?,legal_name),
+                 rut = COALESCE(?,rut),
+                 address = COALESCE(?,address),
+                 phone = COALESCE(?,phone),
+                 email = COALESCE(?,email),
+                 business_activity = COALESCE(?,business_activity),
+                 contact_name = COALESCE(?,contact_name)
                  WHERE id = ?`;
-    const params = [name, contact_person, email, phone, req.params.id];
+    const params = [name, legal_name, rut, address, phone, email, business_activity, contact_name, req.params.id];
     db.run(sql, params, function (err, result) {
             if (err){
                 res.status(400).json({"error": res.message})

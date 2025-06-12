@@ -93,19 +93,40 @@ document.addEventListener('DOMContentLoaded', () => {
                 dom.content.locationContent.innerHTML = `
                     <div class="p-6">
                         <div class="bg-white rounded-lg shadow p-4 mb-6">
-                            <h2 class="text-xl font-bold text-gray-800">${client.name}</h2>
-                            <p class="text-sm text-gray-600">Contacto: ${client.contact || 'N/A'}</p>
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h2 class="text-xl font-bold text-gray-800">${client.name}</h2>
+                                    <p class="text-sm text-gray-500">${client.legal_name || ''} (${client.rut || 'N/A'})</p>
+                                </div>
+                                <button class="edit-client-btn p-2 rounded-md hover:bg-gray-200" data-client-id="${client.id}"><i data-lucide="pencil" class="h-5 w-5"></i></button>
+                            </div>
+                            <div class="mt-4 border-t pt-4">
+                                <h3 class="text-sm font-semibold text-gray-600 mb-2">Detalles del Cliente</h3>
+                                <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                                    <dt class="font-medium text-gray-500">Dirección</dt>
+                                    <dd class="text-gray-900">${client.address || 'No especificada'}</dd>
+                                    <dt class="font-medium text-gray-500">Giro</dt>
+                                    <dd class="text-gray-900">${client.business_activity || 'No especificado'}</dd>
+                                    <dt class="font-medium text-gray-500">Contacto</dt>
+                                    <dd class="text-gray-900">${client.contact_name || 'No especificado'}</dd>
+                                    <dt class="font-medium text-gray-500">Teléfono</dt>
+                                    <dd class="text-gray-900">${client.phone || 'No especificado'}</dd>
+                                    <dt class="font-medium text-gray-500">Email</dt>
+                                    <dd class="text-gray-900">${client.email || 'No especificado'}</dd>
+                                </dl>
+                            </div>
                             <div class="mt-4 flex space-x-2">
-                                 <button class="edit-client-btn px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-md hover:bg-sky-700" data-client-id="${client.id}">Editar Cliente</button>
-                                 <button class="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-md hover:bg-gray-300">Ver Contrato</button>
+                                 <button class="view-contract-btn px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-md hover:bg-gray-300">Ver Contrato</button>
                             </div>
                         </div>
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-700 mb-2">Sedes</h3>
+                            <div class="flex justify-between items-center mb-2">
+                                <h3 class="text-lg font-semibold text-gray-700">Sedes</h3>
+                                <button class="add-location-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-client-id="${client.id}"><i data-lucide="plus" class="h-4 w-4"></i>Añadir</button>
+                            </div>
                             <ul class="bg-white rounded-lg shadow overflow-hidden">
                                 ${locationsHtml || '<li class="p-4 text-sm text-gray-500">No hay sedes registradas.</li>'}
                             </ul>
-                             <button class="add-location-btn mt-4 w-full px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600">Añadir Sede</button>
                         </div>
                     </div>`;
 
@@ -133,14 +154,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 const equipmentHtml = Object.entries(grouped).map(([type, items]) => `
                     <details class="border-b" open>
                         <summary class="list-item flex justify-between items-center font-semibold">
-                            <span>${items.length} ${type}${items.length > 1 ? 's' : ''}</span>
+                            <span>${type} (${items.length})</span>
                             <i data-lucide="chevron-down" class="h-5 w-5 transform transition-transform"></i>
                         </summary>
                         <ul class="bg-gray-50">
                             ${items.map(i => `
                                 <li class="list-item equipment-item" data-equipment-id="${i.id}">
-                                    <span class="font-medium text-sky-800">${i.serial_number || 'N/S'}</span>
-                                    <span class="text-sm text-gray-600 ml-2">${i.model || 'Sin modelo'}</span>
+                                    <div class="flex-1">
+                                        <span class="font-medium text-sky-800">${i.serial_number || 'N/S'}</span>
+                                        <span class="text-sm text-gray-600 ml-2">${i.model || 'Sin modelo'}</span>
+                                    </div>
+                                    <button class="edit-equipment-btn p-1 hover:bg-gray-200 rounded-full" data-equipment-id="${i.id}"><i data-lucide="pencil" class="h-4 w-4"></i></button>
                                 </li>`
                             ).join('')}
                         </ul>
@@ -152,13 +176,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="bg-white rounded-lg shadow p-4 mb-6">
                             <h2 class="text-xl font-bold text-gray-800">${location.name}</h2>
                             <p class="text-sm text-gray-600">${location.address}</p>
-                            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-2">
-                                 <button class="px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-md hover:bg-sky-700">Crear Ticket</button>
-                                 <button class="add-equipment-btn w-full px-4 py-2 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600">Añadir Equipo</button>
+                             <div class="mt-4 flex space-x-2">
+                                <button class="edit-location-btn px-4 py-2 bg-gray-200 text-gray-800 text-sm font-semibold rounded-md hover:bg-gray-300" data-location-id="${location.id}">Editar Sede</button>
+                                <button class="create-ticket-btn px-4 py-2 bg-sky-600 text-white text-sm font-semibold rounded-md hover:bg-sky-700" data-client-id="${state.currentClient.id}" data-location-id="${location.id}">Crear Ticket</button>
                             </div>
                         </div>
                         <div class="bg-white rounded-lg shadow mb-6">
-                             <h3 class="text-lg font-semibold text-gray-700 p-4 border-b">Equipos en Sede</h3>
+                             <div class="flex justify-between items-center p-4 border-b">
+                                <h3 class="text-lg font-semibold text-gray-700">Equipos en Sede</h3>
+                                <button class="add-equipment-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-location-id="${location.id}"><i data-lucide="plus" class="h-4 w-4"></i>Añadir</button>
+                             </div>
                              <div class="overflow-hidden">${equipmentHtml || '<div class="p-4 text-sm text-gray-500">No hay equipos registrados.</div>'}</div>
                         </div>
                     </div>`;
@@ -197,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         open: (modalElem, title, data = {}) => {
             const form = modalElem.querySelector('form');
             form.reset();
-            form.querySelector('h3').textContent = title;
+            modalElem.querySelector('h3').textContent = title;
             
             for (const [key, value] of Object.entries(data)) {
                 const input = form.querySelector(`[name="${key}"]`);
@@ -213,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
             const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) submitBtn.textContent = isViewMode ? 'Cerrar' : 'Guardar';
+            if (submitBtn) submitBtn.textContent = 'Guardar';
 
             modalElem.classList.add('is-open');
         },
@@ -248,76 +275,135 @@ document.addEventListener('DOMContentLoaded', () => {
                 state.clients = await api.getClients();
                 render.updateAll();
             } catch(e) {
-                dom.content.clientList.innerHTML = '<div class="p-4 text-red-500">Error al cargar clientes.</div>';
+                console.error("Error al inicializar:", e);
+                dom.content.clientList.innerHTML = `<li class="p-4 text-red-500">Error al cargar clientes. Verifique que el backend esté funcionando.</li>`;
             }
-            actions.setupEventListeners();
-            modals.setup(dom.modals.client, 'clients', actions.init);
-            modals.setup(dom.modals.location, 'locations', () => render.locationPanel(state.currentClient));
-            modals.setup(dom.modals.equipment, 'equipment', () => render.detailPanel(state.currentLocation));
         },
         selectClient: async (id) => {
-            if (state.currentClient?.id === id && state.currentView > 0) return;
-            state.currentClient = await api.getClient(id);
-            state.currentLocation = null;
-            state.currentView = 1;
-            render.updateAll();
+            if (state.currentClient?.id === id) return;
+            try {
+                const client = await api.getClient(id);
+                state.currentClient = client;
+                state.currentLocation = null; // Reset location when client changes
+                state.currentView = 1;
+                render.updateAll();
+            } catch (error) {
+                console.error("Error seleccionando cliente:", error);
+            }
         },
         selectLocation: async (id) => {
-            state.currentLocation = await api.getLocation(id);
-            state.currentView = 2;
-            render.updateAll();
+            if (state.currentLocation?.id === id) return;
+            try {
+                const location = await api.getLocation(id);
+                state.currentLocation = location;
+                state.currentView = 2;
+                render.updateAll();
+            } catch (error) {
+                console.error("Error seleccionando sede:", error);
+            }
         },
-        goBack: () => {
-            if (state.currentView > 0) state.currentView--;
-            if (state.currentView === 0) state.currentClient = null;
-            if (state.currentView < 2) state.currentLocation = null;
-            render.updateAll();
-        },
-        setupEventListeners: () => {
+    };
+
+    // --- Lógica de Eventos ---
+    const events = {
+        setup: () => {
+            // Búsqueda de clientes
             dom.inputs.clientSearch.addEventListener('input', e => {
                 state.clientSearchTerm = e.target.value;
                 render.clientList();
             });
 
+            // Selección de cliente
             dom.content.clientList.addEventListener('click', e => {
                 const item = e.target.closest('.list-item');
                 if (item) actions.selectClient(item.dataset.clientId);
             });
-
+            
+            // Selección de sede
             dom.content.locationContent.addEventListener('click', e => {
-                const locationItem = e.target.closest('.list-item');
-                if (locationItem) actions.selectLocation(locationItem.dataset.locationId);
-
-                const addBtn = e.target.closest('.add-location-btn');
-                if (addBtn) modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
-
-                const editBtn = e.target.closest('.edit-client-btn');
-                if (editBtn) modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
+                const item = e.target.closest('.list-item');
+                if (item) actions.selectLocation(item.dataset.locationId);
             });
 
-            dom.content.detailContent.addEventListener('click', async e => {
-                const summary = e.target.closest('summary');
-                if (summary) {
-                    const icon = summary.querySelector('i');
-                    icon.classList.toggle('rotate-180');
+            // Botón de retroceso (móvil)
+            dom.buttons.back.addEventListener('click', () => {
+                state.currentView = Math.max(0, state.currentView - 1);
+                if(state.currentView === 1) state.currentLocation = null;
+                if(state.currentView === 0) state.currentClient = null;
+                render.updateAll();
+            });
+            
+            // Botones de modales y acciones
+            dom.buttons.addClient.addEventListener('click', () => {
+                modals.open(dom.modals.client, 'Nuevo Cliente');
+            });
+            
+            document.body.addEventListener('click', async e => {
+                // Añadir Sede
+                if (e.target.matches('.add-location-btn, .add-location-btn *')) {
+                    modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
                 }
-
-                const addBtn = e.target.closest('.add-equipment-btn');
-                if (addBtn) modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: state.currentLocation.id });
-                
-                const equipmentItem = e.target.closest('.equipment-item');
-                if (equipmentItem) {
-                    const equipment = await api.getEquipment(equipmentItem.dataset.equipmentId);
-                    modals.open(dom.modals.equipment, 'Detalle del Equipo', equipment);
+                // Añadir Equipo
+                if (e.target.matches('.add-equipment-btn, .add-equipment-btn *')) {
+                     modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: state.currentLocation.id });
+                }
+                // Editar Cliente
+                if (e.target.matches('.edit-client-btn, .edit-client-btn *')) {
+                    modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
+                }
+                // Editar Sede
+                if (e.target.matches('.edit-location-btn, .edit-location-btn *')) {
+                     modals.open(dom.modals.location, 'Editar Sede', state.currentLocation);
+                }
+                // Editar Equipo
+                if (e.target.matches('.edit-equipment-btn, .edit-equipment-btn *')) {
+                    const button = e.target.closest('.edit-equipment-btn');
+                    const equipment = await api.getEquipment(button.dataset.equipmentId);
+                    modals.open(dom.modals.equipment, 'Editar Equipo', equipment);
+                }
+                 // Ver Contrato
+                if (e.target.matches('.view-contract-btn, .view-contract-btn *')) {
+                    alert('Funcionalidad "Ver Contrato" aún no implementada.');
+                }
+                // Crear Ticket
+                if (e.target.matches('.create-ticket-btn, .create-ticket-btn *')) {
+                    const button = e.target.closest('.create-ticket-btn');
+                    const clientId = button.dataset.clientId;
+                    const locationId = button.dataset.locationId;
+                    window.location.href = `tickets.html?cliente=${clientId}&sede=${locationId}`;
+                }
+                // Ver detalles de equipo
+                 if (e.target.matches('.equipment-item, .equipment-item *')) {
+                    if (e.target.closest('.edit-equipment-btn')) return; // No disparar si se hace clic en editar
+                    const item = e.target.closest('.equipment-item');
+                    const equipment = await api.getEquipment(item.dataset.equipmentId);
+                    alert(`Detalles del equipo:\n- Tipo: ${equipment.type}\n- Modelo: ${equipment.model}\n- N/S: ${equipment.serial_number}\n- Fecha Adquisición: ${equipment.acquisition_date}`);
                 }
             });
 
-            dom.buttons.addClient.addEventListener('click', () => modals.open(dom.modals.client, 'Nuevo Cliente'));
-            dom.buttons.back.addEventListener('click', actions.goBack);
+            // Configuración de modales
+            modals.setup(dom.modals.client, 'clients', async () => {
+                state.clients = await api.getClients();
+                if (state.currentClient) {
+                    state.currentClient = await api.getClient(state.currentClient.id);
+                }
+                render.updateAll();
+            });
+            modals.setup(dom.modals.location, 'locations', async () => {
+                state.currentClient = await api.getClient(state.currentClient.id);
+                render.locationPanel(state.currentClient);
+            });
+             modals.setup(dom.modals.equipment, 'equipment', async () => {
+                state.currentLocation = await api.getLocation(state.currentLocation.id);
+                render.detailPanel(state.currentLocation);
+            });
+
+            // Redimensionamiento de ventana
             window.addEventListener('resize', render.mobileView);
         }
-    };
+    }
 
     // --- Inicialización ---
     actions.init();
-}); 
+    events.setup();
+});
