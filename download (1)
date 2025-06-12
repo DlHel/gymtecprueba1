@@ -1,0 +1,112 @@
+npx create-react-app frontend --template typescript# Guía de Desarrollo: ERP Gymtec
+
+## 1. Visión General del Proyecto
+
+El objetivo es desarrollar un Sistema de Gestión (ERP) integral y moderno para Gymtec. Este sistema centralizará y automatizará las operaciones de mantenimiento de equipos de gimnasio. Será una aplicación web accesible desde cualquier dispositivo, enfocada en la eficiencia operativa y una excelente experiencia de usuario.
+
+## 2. Principios de Arquitectura y Diseño
+
+La construcción del sistema se regirá por los siguientes principios:
+
+*   **Diseño Modular y Responsivo**: La interfaz se basará en componentes reutilizables y seguirá un enfoque "Mobile-First" para garantizar una experiencia óptima en todos los dispositivos.
+*   **Navegación Eficiente**: Se minimizarán las recargas de página completas mediante el uso de menús laterales, paneles deslizables y expansión de contenido en línea, creando una experiencia de aplicación de una sola página (SPA).
+*   **Visibilidad Basada en Roles**: La interfaz se adaptará dinámicamente para mostrar funcionalidades y datos relevantes según el rol del usuario (ej. Administrador, Técnico, Cliente).
+
+## 3. Hoja de Ruta del Desarrollo (Por Etapas)
+
+El desarrollo se dividirá en tres etapas principales, cada una enfocada en un conjunto de funcionalidades clave.
+
+### Etapa 1: Operaciones Centrales
+
+Esta etapa sienta las bases del sistema, cubriendo la gestión de operaciones diarias.
+
+#### Módulo 1: Dashboard y Planificación
+*   **Dashboard del Administrador**:
+    *   Visualización de Indicadores Clave de Rendimiento (KPIs).
+    *   Calendario Centralizado: Unifica tickets, mantenimientos programados, vencimientos de contratos, etc.
+*   **Dashboard del Técnico**:
+    *   Vista simplificada con las tareas y servicios asignados para el día.
+
+#### Módulo 2: Gestión de Clientes, Sedes y Equipos (CRM & Inventario)
+*   **Gestor Unificado (Interfaz de 3 Paneles)**:
+    *   Panel 1: Lista y búsqueda de clientes.
+    *   Panel 2: Sedes asociadas al cliente seleccionado.
+    *   Panel 3: Inventario de equipos en la sede seleccionada.
+*   **Gestión de Contratos y SLAs**:
+    *   Registro de contratos con clientes.
+    *   Definición de vigencia, equipos cubiertos y Acuerdos de Nivel de Servicio (SLAs).
+    *   Los SLAs alimentarán automatizaciones y prioridades en el módulo de tickets.
+*   **Checklists Digitales**:
+    *   Creación y gestión de plantillas de checklists para mantenimientos y reparaciones.
+    *   Estandarización de procedimientos y captura de datos estructurada.
+*   **Inventario de Repuestos (Propio)**:
+    *   Gestión del stock de repuestos de Gymtec.
+    *   Alertas automáticas de stock mínimo.
+
+#### Módulo 3: Gestión de Servicios y Tickets
+*   **Dashboard de Tickets (Vista Kanban/Tabla)**:
+    *   Visualización global del estado de todos los tickets.
+    *   Indicadores visuales de cumplimiento de SLA (ej. verde, amarillo, rojo).
+    *   Filtros por estado, técnico, cliente, etc.
+*   **Detalle del Ticket**:
+    *   Espacio de trabajo para el técnico.
+    *   Completar checklists asociados al servicio.
+    *   Registrar repuestos utilizados (descontando del inventario).
+    *   Añadir notas, fotos y hallazgos.
+*   **Planificador de Servicios (Scheduler)**:
+    *   Herramienta visual (Calendario o Gantt) para el administrador.
+    *   Asignación de tickets/servicios a los técnicos disponibles.
+
+#### Módulo 4: Portal del Cliente
+*   **Interfaz de Autoservicio**:
+    *   Login para clientes.
+    *   Creación de nuevos tickets de servicio.
+    *   Visualización del estado de sus servicios y tickets en tiempo real.
+    *   Aprobación de cotizaciones en línea.
+
+#### Módulo 5: Configuración del Sistema
+*   **Panel de Administración Central**:
+    *   Gestión de Usuarios y Roles.
+    *   CRUD de Tipos de Equipo.
+    *   CRUD de Plantillas de Contratos.
+    *   CRUD de Plantillas de Checklists.
+    *   Gestión de parámetros del inventario de repuestos.
+
+### Etapa 2: Gestión Financiera
+
+Esta etapa introduce las funcionalidades para la gestión económica del negocio.
+
+#### Módulo 6: Billetera y Finanzas (Parte 1)
+*   **Gestión de Cotizaciones**: Creación, envío y seguimiento de cotizaciones.
+*   **Gestión de Facturación**:
+    *   Generación de facturas a partir de servicios completados o cotizaciones aprobadas.
+    *   Opción de facturación recurrente para contratos de mantenimiento.
+*   **Gestión de Caja Chica**: Registro de gastos menores.
+*   **Gestión de Compras y Proveedores**:
+    *   Registro y seguimiento de órdenes de compra de repuestos.
+    *   Gestión de la base de datos de proveedores.
+
+### Etapa 3: Gestión de Personal y Analítica Avanzada
+
+La última etapa se enfoca en la gestión del equipo técnico y en la inteligencia de negocio.
+
+#### Módulo 7: Control Horario y Asistencia
+*   **Interfaz de Marcaje**: Permite a los técnicos registrar inicio y fin de jornada/servicios.
+*   **Dashboard de Asistencia**: Panel para que el administrador revise horas trabajadas, autorice horas extras y gestione ausencias.
+
+#### Módulo 8: Billetera y Finanzas (Parte 2)
+*   **Gestión de Pagos a Técnicos**:
+    *   Cálculo de pagos basado en horas trabajadas (conectado al Módulo 7) y/o servicios realizados.
+
+#### Módulo 9: Reportes y Analítica Avanzada
+*   **Dashboard de KPIs Personalizable**: Permite al administrador elegir y visualizar las métricas más importantes.
+*   **Reportes de Servicio**:
+    *   Tasa de Reparación en Primera Visita (First-Time Fix Rate).
+    *   Tiempo Medio de Reparación (MTTR).
+    *   Reportes de rendimiento por técnico.
+*   **Reportes Financieros**:
+    *   Análisis de rentabilidad por cliente, contrato o servicio.
+    *   Reportes de ingresos y gastos.
+*   **Reportes de Inventario**:
+    *   Análisis de rotación de repuestos.
+    *   Valoración del inventario.

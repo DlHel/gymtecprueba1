@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clientes - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+        .nav-link.active { background-color: #eef2ff; color: #4f46e5; font-weight: 600; }
+        .modal { display: none; }
+        .readonly input, .readonly select { background-color: #f8fafc; border: 1px solid #f8fafc; cursor: default; }
+        .readonly .form-buttons { display: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+    <div class="flex h-screen">
+        <!-- El menú se cargará aquí -->
+        <div id="menu-placeholder"></div>
+
+        <!-- Contenido Principal -->
+        <div class="flex-1 flex flex-row overflow-y-hidden">
+            <header class="flex-shrink-0 bg-white border-b border-slate-200">
+                <div class="flex items-center justify-between p-4">
+                    <h1 id="page-title" class="text-2xl font-semibold text-slate-800">Clientes</h1>
+                </div>
+            </header>
+            
+            <main class="flex-1 overflow-y-auto p-6 bg-slate-50">
+                <div id="client-panels-container" class="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+                    <!-- Panel Clientes -->
+                    <div class="bg-white rounded-lg shadow-md flex flex-col h-full">
+                        <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">Clientes</h2>
+                            <button id="add-client-btn" class="text-slate-500 hover:text-sky-500"><i data-lucide="plus-circle" class="w-6 h-6"></i></button>
+                        </div>
+                        <div class="p-4 border-b border-slate-200">
+                            <input type="search" id="search-client-input" placeholder="Buscar cliente..." class="w-full border border-slate-300 rounded-md py-2 px-3 text-sm" />
+                        </div>
+                        <div class="flex-1 overflow-y-auto"><ul id="client-list" class="divide-y divide-slate-200"></ul></div>
+                    </div>
+                    <!-- Panel Sedes -->
+                    <div class="bg-white rounded-lg shadow-md flex flex-col h-full">
+                        <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">Sedes</h2>
+                            <div class="flex items-center space-x-2">
+                                <button id="create-ticket-for-location-btn" title="Crear Ticket para esta Sede" class="hidden text-slate-500 hover:text-sky-500">
+                                    <i data-lucide="ticket" class="w-5 h-5"></i>
+                                </button>
+                                <button id="add-location-btn" title="Añadir Nueva Sede" class="text-slate-500 hover:text-sky-500" style="display: none;">
+                                    <i data-lucide="plus-circle" class="w-6 h-6"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-y-auto">
+                            <ul id="location-list" class="divide-y divide-slate-200">
+                                <li class="p-4 text-slate-500">Seleccione un cliente para ver sus sedes.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- Panel Equipos -->
+                    <div class="bg-white rounded-lg shadow-md flex flex-col h-full">
+                        <div class="p-4 border-b border-slate-200 flex justify-between items-center">
+                            <h2 class="text-lg font-semibold">Equipos</h2>
+                            <button id="add-equipment-btn" class="text-slate-500 hover:text-sky-500" style="display: none;"><i data-lucide="plus-circle" class="w-6 h-6"></i></button>
+                        </div>
+                        <div class="flex-1 overflow-y-auto">
+                            <ul id="equipment-list" class="divide-y divide-slate-200">
+                                <li class="p-4 text-slate-500">Seleccione una sede para ver sus equipos.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="client-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 id="client-modal-title" class="text-lg font-medium">Nuevo Cliente</h3>
+            <form id="client-modal-form" class="mt-4 space-y-4">
+                <input type="hidden" name="id">
+                <div><label>Nombre del Cliente</label><input type="text" name="name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required></div>
+                <div><label>Persona de Contacto</label><input type="text" name="contact_person" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div><label>Email</label><input type="email" name="email" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div><label>Teléfono</label><input type="tel" name="phone" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="client-modal-cancel-btn" class="px-4 py-2 bg-slate-100 rounded-md">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-md">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="location-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 id="location-modal-title" class="text-lg font-medium">Nueva Sede</h3>
+            <form id="location-modal-form" class="mt-4 space-y-4">
+                <input type="hidden" name="id">
+                <input type="hidden" name="client_id">
+                <div><label>Nombre de la Sede</label><input type="text" name="name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required></div>
+                <div><label>Dirección</label><input type="text" name="address" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="location-modal-cancel-btn" class="px-4 py-2 bg-slate-100 rounded-md">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-md">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div id="equipment-modal" class="modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center">
+         <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+            <h3 id="equipment-modal-title" class="text-lg font-medium">Nuevo Equipo</h3>
+            <form id="equipment-modal-form" class="mt-4 space-y-4">
+                <input type="hidden" name="id">
+                <input type="hidden" name="location_id">
+                <div><label>Nombre</label><input type="text" name="name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required></div>
+                <div><label>Tipo</label>
+                    <select name="type" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3">
+                        <option value="">Seleccione un tipo</option>
+                        <option value="Trotadora">Trotadora</option>
+                        <option value="Elíptica">Elíptica</option>
+                        <option value="Bicicleta Estática">Bicicleta Estática</option>
+                        <option value="Máquina de Remo">Máquina de Remo</option>
+                        <option value="Multifuncional">Multifuncional</option>
+                        <option value="Prensa de Piernas">Prensa de Piernas</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div><label>Marca</label><input type="text" name="brand" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div><label>Modelo</label><input type="text" name="model" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div><label>Nº Serie</label><input type="text" name="serial_number" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3"></div>
+                <div class="form-buttons flex justify-end space-x-3 pt-4">
+                    <button type="button" id="equipment-modal-cancel-btn" class="px-4 py-2 bg-slate-100 rounded-md">Cancelar</button>
+                    <button type="submit" class="px-4 py-2 bg-sky-600 text-white rounded-md">Guardar</button>
+                </div>
+                 <div class="context-buttons hidden justify-end space-x-3 pt-4">
+                    <button type="button" id="create-ticket-for-equipment-btn" class="px-4 py-2 bg-sky-600 text-white rounded-md">Crear Ticket para este Equipo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/nav-loader.js"></script>
+    <script src="js/clientes.js"></script>
+</body>
+</html> 
