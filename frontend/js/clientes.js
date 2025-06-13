@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             tableHtml += `
                                 <tr class="equipment-row" data-equipment-id="${item.id}">
                                     ${index === 0 ? `<td style="font-weight: 600; vertical-align: top;" rowspan="${grouped[type].length}">${type}</td>` : ''}
-                                    <td style="cursor: pointer;" onclick="window.open('equipo.html?id=${item.id}', '_blank')">${item.model || 'N/A'}</td>
+                                    <td style="cursor: pointer;" onclick="openEquipmentDrawer(${item.id})">${item.model || 'N/A'}</td>
                                     <td style="font-family: monospace; font-size: 0.75rem; color: #6b7280;">${item.serial_number || 'N/A'}</td>
                                     <td style="text-align: right;">
                                         <div class="equipment-actions">
@@ -547,10 +547,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (equipmentRow && (e.target.classList.contains('hover:underline') || e.target.classList.contains('cursor-pointer'))) {
                      const equipmentId = equipmentRow.dataset.equipmentId;
                      try {
-                         window.open(`equipo.html?id=${equipmentId}&clientId=${state.currentClient.id}`, '_blank');
+                         openEquipmentDrawer(equipmentId);
                      } catch (error) {
-                         console.error('Error al abrir ventana:', error);
-                         // Fallback: navegar en la misma ventana
+                         console.error('Error al abrir drawer:', error);
+                         // Fallback: navegar a la página separada
                          window.location.href = `equipo.html?id=${equipmentId}&clientId=${state.currentClient.id}`;
                      }
                 }
