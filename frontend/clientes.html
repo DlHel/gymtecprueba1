@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestor de Clientes - Gymtec ERP</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/clientes.css">
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body>
     <div class="flex h-screen">
         <!-- Menú de navegación lateral -->
         <div id="menu-placeholder"></div>
@@ -17,7 +17,7 @@
         <!-- Contenedor principal de la aplicación -->
         <div id="app" class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white shadow-md z-20">
+            <header class="app-header z-20">
                 <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
                     <div class="flex items-center space-x-2">
                          <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación" aria-label="Abrir menú de navegación">
@@ -26,9 +26,9 @@
                         <button id="backButton" class="hidden p-2 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed" title="Volver atrás" aria-label="Volver atrás">
                             <i data-lucide="arrow-left" class="h-6 w-6"></i>
                         </button>
-                        <h1 id="page-title" class="text-xl font-bold text-gray-800">Clientes</h1>
+                        <h1 id="page-title">Clientes</h1>
                     </div>
-                     <div class="text-sm font-semibold text-gray-600">
+                    <div class="user-info">
                         Felipe Maturana (Admin)
                     </div>
                 </div>
@@ -38,10 +38,10 @@
             <main class="flex-1 overflow-y-auto">
                 <div class="max-w-4xl mx-auto p-4 md:p-6">
                     <!-- Buscador y creación de clientes -->
-                    <div class="bg-white p-4 rounded-lg shadow-sm">
+                    <div class="app-card p-4">
                         <div class="flex flex-col md:flex-row gap-4">
-                            <input type="text" id="clientSearch" placeholder="Buscar cliente por nombre, RUT o razón social..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-sky-500">
-                            <button id="add-client-btn" class="flex items-center justify-center gap-2 px-4 py-2 bg-sky-600 text-white font-medium rounded-lg hover:bg-sky-700">
+                            <input type="text" id="clientSearch" placeholder="Buscar cliente por nombre, RUT o razón social..." class="form-input flex-1">
+                            <button id="add-client-btn" class="btn-primary flex items-center justify-center gap-2">
                                 <i data-lucide="plus" class="w-4 h-4"></i> Crear Cliente
                             </button>
                         </div>

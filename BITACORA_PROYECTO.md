@@ -1,6 +1,6 @@
 # Bitácora y Plan de Desarrollo - Gymtec ERP
 
-**Última actualización:** 12 de Junio de 2025 - 16:30 hrs
+**Última actualización:** 13 de Junio de 2025 - 00:55 hrs
 
 ---
 
@@ -49,6 +49,28 @@
 -   [x] **Error 500 en Equipos:** Se solucionó el error al cargar equipos causado por `custom_id` faltantes en la base de datos.
 -   [x] **Generación de Custom ID:** Se corrigió el script `seed.js` para generar automáticamente `custom_id` únicos (formato EQ-001, EQ-002, etc.) para todos los equipos.
 -   [x] **Estructura de Código JavaScript:** Se corrigieron errores de estructura en `equipo.js` donde las funciones estaban en el objeto incorrecto, causando errores de "función no definida".
+-   [x] **Configuración de Tailwind CSS para Producción:** Se solucionó la advertencia de consola "cdn.tailwindcss.com should not be used in production" reemplazando todas las referencias al CDN de Tailwind por un archivo CSS local compilado. Se configuró el entorno de desarrollo con `tailwind.config.js`, archivo de entrada `input.css` y se generó `style.css` con todas las utilidades necesarias. Esto elimina la dependencia del CDN y mejora el rendimiento en producción.
+-   [x] **Implementación de Sistema de Diseño Coherente:** Se realizó una revisión completa de la coherencia visual del proyecto y se implementó un sistema de diseño unificado. Se crearon variables CSS personalizadas para colores, tipografía y espaciado. Se estandarizaron todos los componentes (headers, botones, modales, tablas, formularios) para usar clases consistentes. Se corrigieron inconsistencias en colores de fondo (`bg-slate-50` vs `bg-gray-100`), texto (`text-slate-800` vs `text-gray-800`), y se unificó la presentación del usuario en todos los headers. El resultado es una interfaz visualmente coherente y profesional en todas las páginas del sistema.
+-   [x] **Mantenedor de Modelos de Equipos (Frontend):** Se implementó completamente el frontend del mantenedor de modelos siguiendo las especificaciones del DiseñoApp. Incluye gestión completa de modelos con información técnica, subida de fotos con preview, gestión de manuales PDF/DOC, catálogo de repuestos compatibles, y sistema de checklist de mantenimiento con categorías y frecuencias. La interfaz cuenta con pestañas organizadas, drag & drop para archivos, búsqueda y filtros, vista de tarjetas responsiva, y modal de vista detallada. Se agregó al menú de navegación y está listo para integración con el backend.
+-   [x] **Corrección de Errores de Acceso y JavaScript:** Se solucionaron problemas críticos de acceso y funcionalidad:
+    - Error 404 al acceder a http://localhost:8080/modelos.html - servidor Python ahora ejecutándose desde directorio frontend
+    - Error JavaScript "this.editFromView is not a function" - función removida correctamente del código
+    - Errores de accesibilidad HTML - agregados atributos title a elementos select y botones para cumplir estándares web
+-   [x] **Scripts de Arranque Automático:** Se implementó un sistema completo de scripts para automatizar el inicio y detención de servidores:
+    - `start-servers.bat` - Script principal que inicia backend (Node.js) y frontend (Python) en ventanas separadas
+    - `start-servers.ps1` - Versión alternativa en PowerShell con colores y mejor presentación
+    - `stop-servers.bat` - Script para detener todos los servidores automáticamente
+    - `README-SERVIDORES.md` - Documentación completa con instrucciones de uso y solución de problemas
+    - Eliminación de la necesidad de iniciar manualmente cada servidor desde sus respectivos directorios
+-   [x] **Población de Base de Datos con Modelos Realistas:** Se implementó un sistema completo de datos de equipos de gimnasio basados en marcas reales del mercado:
+    - `backend/seed-models.js` - Script para poblar la tabla EquipmentModels con 28 modelos realistas
+    - **Marcas incluidas:** Life Fitness, Technogym, Matrix, Precor, Cybex, Hammer Strength, Keiser, Concept2, Bowflex, WaterRower, Gym80
+    - **Categorías:** 17 equipos de Cardio, 9 de Fuerza, 1 Funcional, 1 Accesorios
+    - **Datos técnicos completos:** Especificaciones reales, dimensiones, peso, voltaje, potencia, descripciones detalladas
+    - **Códigos de modelo únicos:** Formato estándar por marca (ej: LF-INT-TM-2024, TG-ER-1000, MX-T7X-2024)
+    - Investigación web de equipos reales para garantizar datos precisos y actualizados
+    - Reestructuración de tabla EquipmentModels con campos completos para integración con frontend
+-   [x] **Conexión Frontend-Backend para Modelos:** Se implementó la API REST completa para modelos de equipos (`/api/models`) con operaciones CRUD (GET, POST, PUT, DELETE) y se conectó el frontend para cargar, crear y actualizar modelos desde la base de datos real. La página de modelos ahora carga los 28 modelos reales de la base de datos y permite crear/editar modelos con persistencia completa. Se configuró detección automática de puerto para permitir acceso tanto desde `http://localhost:3000/modelos.html` (servidor backend) como desde `http://localhost:8080/modelos.html` (servidor frontend) con conexión cruzada automática a la API. Se corrigió el formato del modal agregando las clases CSS faltantes (`max-w-4xl`, `space-y-*`, `gap-*`, etc.) para mantener el diseño responsivo y profesional. *(Completado el 2024-12-19)*
 
 ---
 
@@ -73,8 +95,7 @@
     - [ ] **ID de Sede:** Implementar formato `[ID Cliente]-[Correlativo 3 Dígitos]` (Ej: `Feli1001-001`).
     - [x] **ID de Equipo:** Formato `EQ-[Correlativo 3 Dígitos]` (Ej: `EQ-001`, `EQ-002`). *(Implementado con generación automática en el script de seed).*
 - [ ] **Gestor de Clientes (Refinamiento de UI/UX):**
-    - [ ] **Rediseño a 3 Paneles:** Refactorizar la interfaz de `clientes.html` del actual diseño de acordeón a un layout de 3 paneles (Lista Clientes | Lista Sedes | Detalle Sede) para mejorar el flujo de trabajo.
-    - [ ] **Navegación Cliente -> Sede:** Si un cliente tiene una sola sede, seleccionarla automáticamente.
+
     - [ ] **Vista Rápida del Equipo:** Reemplazar la apertura en nueva pestaña por un modal para ver detalles de equipo sin salir del gestor de clientes.
 - [ ] **Lógica de Creación Contextual:**
     - [x] **Crear Ticket para esta Sede:** Pasar ID de la sede al formulario de tickets.

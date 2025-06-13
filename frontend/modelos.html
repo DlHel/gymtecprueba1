@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelos de Equipos - Gymtec ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .model-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .model-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        .model-image {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            background-color: var(--bg-tertiary);
+        }
+        .model-image-placeholder {
+            width: 100%;
+            height: 200px;
+            background-color: var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-tertiary);
+        }
+        .tab-button {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        .tab-button.active {
+            color: var(--primary-600);
+            border-bottom-color: var(--primary-600);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .file-upload-area {
+            border: 2px dashed var(--border-secondary);
+            border-radius: 0.5rem;
+            padding: 2rem;
+            text-align: center;
+            transition: border-color 0.2s;
+            cursor: pointer;
+        }
+        .file-upload-area:hover {
+            border-color: var(--primary-500);
+        }
+        .file-upload-area.dragover {
+            border-color: var(--primary-600);
+            background-color: var(--primary-50);
+        }
+        .checklist-item {
+            padding: 0.75rem;
+            border: 1px solid var(--border-primary);
+            border-radius: 0.375rem;
+            margin-bottom: 0.5rem;
+            background-color: var(--bg-secondary);
+        }
+        .spare-part-item {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            padding: 0.5rem;
+            border: 1px solid var(--border-primary);
+            border-radius: 0.375rem;
+            margin-bottom: 0.5rem;
+            background-color: var(--bg-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="flex h-screen">
+        <!-- Menú de navegación lateral -->
+        <div id="menu-placeholder"></div>
+
+        <!-- Contenedor principal -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="app-header z-20">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <h1>Modelos de Equipos</h1>
+                    </div>
+                    <div class="user-info">
+                        Felipe Maturana (Admin)
+                    </div>
+                </div>
+            </header>
+
+            <!-- Contenido principal -->
+            <main class="flex-1 overflow-y-auto section-spacing">
+                <div class="content-max-width">
+                    <!-- Barra de herramientas -->
+                    <div class="app-card p-4 mb-6">
+                        <div class="flex flex-col md:flex-row gap-4 items-center justify-between">
+                            <div class="flex flex-col md:flex-row gap-4 flex-1">
+                                <input type="text" id="search-models" placeholder="Buscar modelos por nombre, marca o categoría..." class="form-input flex-1">
+                                <select id="filter-category" class="form-input md:w-48" title="Filtrar por categoría">
+                                    <option value="">Todas las categorías</option>
+                                    <option value="Cardio">Cardio</option>
+                                    <option value="Fuerza">Fuerza</option>
+                                    <option value="Funcional">Funcional</option>
+                                    <option value="Accesorios">Accesorios</option>
+                                </select>
+                            </div>
+                            <button id="add-model-btn" class="btn-primary flex items-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Nuevo Modelo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Grid de modelos -->
+                    <div id="models-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <!-- Los modelos se cargarán aquí dinámicamente -->
+                    </div>
+
+                    <!-- Estado vacío -->
+                    <div id="empty-state" class="text-center py-12 hidden">
+                        <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                            <i data-lucide="wrench" class="w-12 h-12 text-gray-400"></i>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">No hay modelos registrados</h3>
+                        <p class="text-gray-500 mb-6">Comienza agregando el primer modelo de equipo</p>
+                        <button class="btn-primary" onclick="document.getElementById('add-model-btn').click()">
+                            Agregar Primer Modelo
+                        </button>
+                    </div>
+
+                    <!-- Estado de carga -->
+                    <div id="loading-state" class="text-center py-12">
+                        <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-4"></div>
+                        <p class="text-gray-500">Cargando modelos...</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal para crear/editar modelo -->
+    <div id="model-modal" class="modal-overlay">
+        <div class="modal-panel-large">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="model-modal-title" class="modal-header">Nuevo Modelo de Equipo</h3>
+                <button id="close-model-modal" class="p-2 hover:bg-gray-100 rounded-full" title="Cerrar modal">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Pestañas del modal -->
+            <div class="border-b border-gray-200 mb-6">
+                <nav class="flex space-x-8">
+                    <button class="tab-button active" data-tab="general">Información General</button>
+                    <button class="tab-button" data-tab="photos">Fotos</button>
+                    <button class="tab-button" data-tab="manuals">Manuales</button>
+                    <button class="tab-button" data-tab="spare-parts">Repuestos</button>
+                    <button class="tab-button" data-tab="checklist">Checklist</button>
+                </nav>
+            </div>
+
+            <form id="model-form">
+                <input type="hidden" name="id">
+
+                <!-- Pestaña: Información General -->
+                <div id="tab-general" class="tab-content active">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="form-label">Nombre del Modelo <span class="text-red-500">*</span></label>
+                            <input type="text" name="name" class="form-input" required placeholder="Ej: Trotadora X1 Pro">
+                        </div>
+                        <div>
+                            <label class="form-label">Marca <span class="text-red-500">*</span></label>
+                            <input type="text" name="brand" class="form-input" required placeholder="Ej: Life Fitness">
+                        </div>
+                        <div>
+                            <label class="form-label">Categoría <span class="text-red-500">*</span></label>
+                            <select name="category" class="form-input" required title="Seleccionar categoría del equipo">
+                                <option value="">Seleccionar categoría</option>
+                                <option value="Cardio">Cardio</option>
+                                <option value="Fuerza">Fuerza</option>
+                                <option value="Funcional">Funcional</option>
+                                <option value="Accesorios">Accesorios</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="form-label">Código del Modelo</label>
+                            <input type="text" name="model_code" class="form-input" placeholder="Ej: LF-X1-2024">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="form-label">Descripción</label>
+                            <textarea name="description" rows="4" class="form-input" placeholder="Descripción detallada del modelo..."></textarea>
+                        </div>
+                        <div>
+                            <label class="form-label">Peso (kg)</label>
+                            <input type="number" name="weight" class="form-input" step="0.1" placeholder="0.0">
+                        </div>
+                        <div>
+                            <label class="form-label">Dimensiones (L x A x H cm)</label>
+                            <input type="text" name="dimensions" class="form-input" placeholder="200 x 80 x 150">
+                        </div>
+                        <div>
+                            <label class="form-label">Voltaje</label>
+                            <input type="text" name="voltage" class="form-input" placeholder="220V / 110V">
+                        </div>
+                        <div>
+                            <label class="form-label">Potencia (W)</label>
+                            <input type="number" name="power" class="form-input" placeholder="1500">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="form-label">Especificaciones Técnicas</label>
+                            <textarea name="specifications" rows="3" class="form-input" placeholder="Especificaciones técnicas adicionales..."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña: Fotos -->
+                <div id="tab-photos" class="tab-content">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="form-label">Subir Fotos del Modelo</label>
+                            <div class="file-upload-area" id="photo-upload-area">
+                                <input type="file" id="photo-input" multiple accept="image/*" class="hidden">
+                                <i data-lucide="image" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
+                                <p class="text-lg font-medium text-gray-700 mb-2">Arrastra fotos aquí o haz clic para seleccionar</p>
+                                <p class="text-sm text-gray-500">PNG, JPG hasta 5MB cada una</p>
+                            </div>
+                        </div>
+                        <div id="photo-preview" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <!-- Las fotos se mostrarán aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña: Manuales -->
+                <div id="tab-manuals" class="tab-content">
+                    <div class="space-y-6">
+                        <div>
+                            <label class="form-label">Subir Manuales</label>
+                            <div class="file-upload-area" id="manual-upload-area">
+                                <input type="file" id="manual-input" multiple accept=".pdf,.doc,.docx" class="hidden">
+                                <i data-lucide="file-text" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
+                                <p class="text-lg font-medium text-gray-700 mb-2">Arrastra manuales aquí o haz clic para seleccionar</p>
+                                <p class="text-sm text-gray-500">PDF, DOC, DOCX hasta 10MB cada uno</p>
+                            </div>
+                        </div>
+                        <div id="manual-list" class="space-y-3">
+                            <!-- Los manuales se mostrarán aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña: Repuestos -->
+                <div id="tab-spare-parts" class="tab-content">
+                    <div class="space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-lg font-semibold">Repuestos Compatibles</h4>
+                            <button type="button" id="add-spare-part" class="btn-secondary flex items-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Agregar Repuesto
+                            </button>
+                        </div>
+                        <div id="spare-parts-list" class="space-y-3">
+                            <!-- Los repuestos se mostrarán aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña: Checklist -->
+                <div id="tab-checklist" class="tab-content">
+                    <div class="space-y-6">
+                        <div class="flex justify-between items-center">
+                            <h4 class="text-lg font-semibold">Checklist de Mantenimiento</h4>
+                            <button type="button" id="add-checklist-item" class="btn-secondary flex items-center gap-2">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Agregar Ítem
+                            </button>
+                        </div>
+                        <div id="checklist-items" class="space-y-3">
+                            <!-- Los ítems del checklist se mostrarán aquí -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones del modal -->
+                <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-8">
+                    <button type="button" id="cancel-model" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">Guardar Modelo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para vista rápida del modelo -->
+    <div id="model-view-modal" class="modal-overlay">
+        <div class="modal-panel-large">
+            <div class="flex justify-between items-center mb-6">
+                <h3 id="model-view-title" class="modal-header">Detalle del Modelo</h3>
+                <div class="flex gap-2">
+                    <button id="edit-model-btn" class="btn-secondary flex items-center gap-2">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                        Editar
+                    </button>
+                    <button id="close-model-view" class="p-2 hover:bg-gray-100 rounded-full" title="Cerrar vista">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+            <div id="model-view-content">
+                <!-- El contenido se cargará dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/nav-loader.js"></script>
+    <script src="js/modelos.js"></script>
+    <script>
+        // Inicializar Lucide icons
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+        });
+    </script>
+</body>
+</html> 

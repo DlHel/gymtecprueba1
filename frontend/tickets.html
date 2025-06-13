@@ -4,22 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Tickets - Gymtec ERP</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/tickets.css">
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        .nav-link.active { background-color: #eef2ff; color: #4f46e5; font-weight: 600; }
         .modal { display: none; }
         select:disabled { background-color: #f1f5f9; }
-        .status-badge { padding: 0.25rem 0.75rem; border-radius: 9999px; font-weight: 500; font-size: 0.75rem; }
         .sla-red { background-color: #fee2e2; color: #b91c1c; }
         .sla-yellow { background-color: #fef3c7; color: #b45309; }
         .sla-green { background-color: #dcfce7; color: #166534; }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-800">
+<body>
     <div class="flex h-screen">
         <!-- Menú de navegación lateral -->
         <div id="menu-placeholder"></div>
@@ -27,40 +24,40 @@
         <!-- Contenedor principal de la aplicación -->
         <div id="app" class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-            <header class="bg-white shadow-md z-20">
+            <header class="app-header z-20">
                 <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
                     <div class="flex items-center space-x-2">
-                        <h1 id="page-title" class="text-xl font-bold text-gray-800">Gestión de Tickets</h1>
+                        <h1 id="page-title">Gestión de Tickets</h1>
                     </div>
-                    <div class="text-sm font-semibold text-gray-600">
+                    <div class="user-info">
                         Felipe Maturana (Admin)
                     </div>
                 </div>
             </header>
             
             <!-- Contenido principal -->
-            <main class="flex-1 overflow-y-auto p-6">
-                <div class="max-w-7xl mx-auto">
+            <main class="flex-1 overflow-y-auto section-spacing">
+                <div class="content-max-width">
                     <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-semibold text-gray-700">Listado de Tickets</h2>
-                        <button id="add-ticket-btn" class="bg-sky-600 hover:bg-sky-700 text-white font-semibold py-2 px-4 rounded-md flex items-center">
+                        <h2 class="text-2xl font-semibold">Listado de Tickets</h2>
+                        <button id="add-ticket-btn" class="btn-primary flex items-center">
                             <i data-lucide="plus" class="mr-2 h-5 w-5"></i> Nuevo Ticket
                         </button>
                     </div>
 
-                    <div class="bg-white shadow-sm rounded-lg overflow-hidden">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
+                    <div class="app-card overflow-hidden">
+                        <table class="app-table">
+                            <thead>
                                 <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Cliente</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Prioridad</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vencimiento (SLA)</th>
-                                    <th scope="col" class="relative px-6 py-3"><span class="sr-only">Acciones</span></th>
+                                    <th scope="col">Título</th>
+                                    <th scope="col">Cliente</th>
+                                    <th scope="col">Estado</th>
+                                    <th scope="col">Prioridad</th>
+                                    <th scope="col">Vencimiento (SLA)</th>
+                                    <th scope="col"><span class="sr-only">Acciones</span></th>
                                 </tr>
                             </thead>
-                            <tbody id="ticket-list" class="bg-white divide-y divide-gray-200">
+                            <tbody id="ticket-list">
                                 <!-- Las filas de tickets se insertarán aquí por JS -->
                             </tbody>
                         </table>

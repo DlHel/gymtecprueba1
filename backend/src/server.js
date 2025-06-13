@@ -480,6 +480,137 @@ app.delete("/api/inventory/:id", (req, res) => {
 });
 
 
+// --- API Routes for Equipment Models ---
+
+// GET all equipment models
+app.get('/api/models', (req, res) => {
+    let sql = 'SELECT * FROM EquipmentModels';
+    const params = [];
+    
+    // Filtros opcionales
+    if (req.query.category) {
+        sql += ' WHERE category = ?';
+        params.push(req.query.category);
+    }
+    
+    if (req.query.brand) {
+        if (params.length > 0) {
+            sql += ' AND brand = ?';
+        } else {
+            sql += ' WHERE brand = ?';
+        }
+        params.push(req.query.brand);
+    }
+    
+    sql += ' ORDER BY brand, name';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
+// GET a single equipment model by id
+app.get('/api/models/:id', (req, res) => {
+    const sql = 'SELECT * FROM EquipmentModels WHERE id = ?';
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (!row) {
+            res.status(404).json({ error: 'Modelo no encontrado' });
+            return;
+        }
+        res.json(row);
+    });
+});
+
+// POST new equipment model
+app.post('/api/models', (req, res) => {
+    const { name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications } = req.body;
+    
+    if (!name || !brand || !category) {
+        return res.status(400).json({ error: "Campos requeridos: name, brand, category" });
+    }
+    
+    const sql = `INSERT INTO EquipmentModels 
+                 (name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications, created_at, updated_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+    const params = [name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.status(201).json({ 
+            id: this.lastID, 
+            name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        });
+    });
+});
+
+// PUT (update) an equipment model
+app.put('/api/models/:id', (req, res) => {
+    const { name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications } = req.body;
+    
+    const sql = `UPDATE EquipmentModels SET 
+                 name = COALESCE(?, name),
+                 brand = COALESCE(?, brand),
+                 category = COALESCE(?, category),
+                 model_code = COALESCE(?, model_code),
+                 description = COALESCE(?, description),
+                 weight = COALESCE(?, weight),
+                 dimensions = COALESCE(?, dimensions),
+                 voltage = COALESCE(?, voltage),
+                 power = COALESCE(?, power),
+                 specifications = COALESCE(?, specifications),
+                 updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`;
+    const params = [name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications, req.params.id];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Modelo no encontrado' });
+            return;
+        }
+        res.json({ 
+            message: "Modelo actualizado exitosamente", 
+            changes: this.changes 
+        });
+    });
+});
+
+// DELETE an equipment model
+app.delete('/api/models/:id', (req, res) => {
+    const sql = 'DELETE FROM EquipmentModels WHERE id = ?';
+    db.run(sql, [req.params.id], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            res.status(404).json({ error: 'Modelo no encontrado' });
+            return;
+        }
+        res.json({ 
+            message: "Modelo eliminado exitosamente", 
+            changes: this.changes 
+        });
+    });
+});
+
+
 // --- API Routes for Tickets ---
 
 // GET all tickets
