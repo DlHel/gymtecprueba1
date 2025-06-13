@@ -30,9 +30,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const api = {
         getClients: () => fetch(`${API_URL}/clients`).then(res => res.json()),
         getClient: id => fetch(`${API_URL}/clients/${id}`).then(res => res.json()),
-        getClientLocations: id => fetch(`${API_URL}/clients/${id}/locations`).then(res => res.json()),
+        getClientLocations: id => fetch(`${API_URL}/clients/${id}/locations`).then(res => res.json().then(data => data.data || [])),
         getLocation: id => fetch(`${API_URL}/locations/${id}`).then(res => res.json()),
-        getLocationEquipment: id => fetch(`${API_URL}/locations/${id}/equipment`).then(res => res.json()),
+        getLocationEquipment: id => fetch(`${API_URL}/locations/${id}/equipment`).then(res => res.json().then(data => data.data || [])),
         getEquipment: id => fetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
         save: (resource, data) => {
             const id = data.get('id');
@@ -243,16 +243,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         locationHistory: async (locationId, container) => {
             try {
-                // Reutilizamos el endpoint de tickets y filtramos por sede
                 const response = await fetch(`${API_URL}/tickets?location_id=${locationId}`);
-                const tickets = await response.json();
+                if (!response.ok) throw new Error('Error al cargar historial');
+                const ticketsResult = await response.json();
+                const tickets = ticketsResult.data || [];
                 
-                if (!tickets.data || tickets.data.length === 0) {
-                    container.innerHTML = '<p class="text-gray-500 text-sm py-4 text-center">No hay tickets registrados para esta sede.</p>';
+                if (tickets.length === 0) {
+                    container.innerHTML = '<div class="bg-gray-50 p-6 rounded-lg text-center text-sm text-gray-500">No hay tickets registrados para esta sede.</div>';
                     return;
                 }
 
-                const historyHtml = tickets.data.map(t => {
+                const historyHtml = tickets.map(t => {
                      const ticketDate = new Date(t.created_at).toLocaleDateString('es-CL');
                      return `
                         <div class="py-2 border-b last:border-b-0">
@@ -271,18 +272,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
     
-    // --- Lógica de Modales (sin cambios) ---
+    // --- Lógica de Modales Modernos ---
      const modals = {
         open: (modalElem, title, data = {}) => {
+            console.log('Abriendo modal:', modalElem, title, data);
+            
+            if (!modalElem) {
+                console.error('Modal element no encontrado!');
+                return;
+            }
+            
             const form = modalElem.querySelector('form');
+            if (!form) {
+                console.error('Form no encontrado en modal!');
+                return;
+            }
+            
             form.reset();
-            modalElem.querySelector('h3').textContent = title;
+            const titleElement = modalElem.querySelector('h3');
+            if (titleElement) {
+                titleElement.textContent = title;
+            }
             
             for (const [key, value] of Object.entries(data)) {
                 const input = form.querySelector(`[name="${key}"]`);
                 if (input) input.value = value;
             }
+            
+            console.log('Mostrando modal...');
+            // Mostrar modal con animación
+            modalElem.style.display = 'flex';
+            modalElem.style.opacity = '1'; // Forzar visibilidad para debug
+            modalElem.style.pointerEvents = 'auto'; // Forzar interactividad para debug
+            document.body.classList.add('modal-open');
+            
+            // Forzar reflow para que la transición funcione
+            modalElem.offsetHeight;
+            
             modalElem.classList.add('is-open');
+            console.log('Modal debería estar visible ahora');
+            console.log('Modal computed style:', window.getComputedStyle(modalElem));
+
+            // Configurar botón X de cerrar (cada vez que se abre el modal)
+            const closeBtn = modalElem.querySelector('.client-modal-close, .location-modal-close, .equipment-modal-close');
+            if (closeBtn) {
+                // Remover listener anterior si existe para evitar duplicados
+                closeBtn.replaceWith(closeBtn.cloneNode(true));
+                const newCloseBtn = modalElem.querySelector('.client-modal-close, .location-modal-close, .equipment-modal-close');
+                newCloseBtn.addEventListener('click', () => modals.close(modalElem));
+            }
 
             // Autocompletado (lo dejamos por ahora)
             const addressInput = form.querySelector('input[name="address"]');
@@ -332,11 +370,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 scanBtn.onclick = startScanner;
                 closeScannerBtn.onclick = stopScanner;
             }
+            
+            // Actualizar iconos de Lucide después de configurar el modal
+            lucide.createIcons();
         },
-        close: (modalElem) => modalElem.classList.remove('is-open'),
+        close: (modalElem) => {
+            modalElem.classList.remove('is-open');
+            setTimeout(() => {
+                modalElem.style.display = 'none';
+            }, 300); // Esperar a que termine la animación
+            document.body.classList.remove('modal-open');
+        },
         setup: (modalElem, resource, onSuccess) => {
             const form = modalElem.querySelector('form');
+            
+            // Event listener para botón cancelar
             modalElem.querySelector('.modal-cancel-btn').addEventListener('click', () => modals.close(modalElem));
+            
             form.addEventListener('submit', async e => {
                 e.preventDefault();
                 const formData = new FormData(form);
@@ -446,7 +496,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 // --- Botones de acción ---
                 const targetButton = e.target.closest('button');
                 if (targetButton) {
+                    console.log('Botón clickeado:', targetButton.className);
                     if (targetButton.matches('.edit-client-btn')) {
+                        console.log('Abriendo modal de editar cliente');
+                        console.log('Modal element:', dom.modals.client);
+                        console.log('Current client:', state.currentClient);
                         modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
                     }
                     if (targetButton.matches('.close-detail-btn')) {
@@ -456,6 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
                     }
                     if (targetButton.matches('.edit-location-btn')) {
+                        console.log('Abriendo modal de editar sede');
                         const location = await api.getLocation(targetButton.dataset.locationId);
                         modals.open(dom.modals.location, 'Editar Sede', location);
                     }
@@ -525,7 +580,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const actions = {
         init: async () => {
             try {
-                state.clients = await api.getClients();
+                const clientsResult = await api.getClients();
+                state.clients = clientsResult.data || [];
                 render.clientList();
                 dom.detailContainer.innerHTML = '';
 

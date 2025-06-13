@@ -112,8 +112,10 @@ app.post('/api/clients', (req, res) => {
     const params = [name, legal_name, rut, address, phone, email, business_activity, contact_name];
     db.run(sql, params, function(err) {
         if (err) {
-            res.status(400).json({"error":err.message});
-            return;
+            if (err.message.includes('UNIQUE constraint failed: Clients.rut')) {
+                return res.status(409).json({ "error": "El RUT ingresado ya se encuentra registrado en el sistema." });
+            }
+            return res.status(400).json({"error":err.message});
         }
         res.status(201).json({ id: this.lastID, ...req.body });
     });

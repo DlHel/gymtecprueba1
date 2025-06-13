@@ -14,6 +14,12 @@ const clientSelect = document.getElementById('ticket-client-select');
 const locationSelect = document.getElementById('ticket-location-select');
 const equipmentSelect = document.getElementById('ticket-equipment-select');
 const ticketModalForm = document.getElementById('ticket-modal-form');
+const addClientModalForm = document.getElementById('add-client-modal-form');
+const addLocationModalForm = document.getElementById('add-location-modal-form');
+const addEquipmentModalForm = document.getElementById('add-equipment-modal-form');
+
+const addLocationBtn = document.getElementById('add-new-location-from-ticket-btn');
+const addEquipmentBtn = document.getElementById('add-new-equipment-from-ticket-btn');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -26,6 +32,33 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('ticket-modal-cancel-btn').addEventListener('click', () => closeModal('ticket-modal'));
     document.getElementById('ticket-modal-close-btn').addEventListener('click', () => closeModal('ticket-modal')); // Para el botón X del modal
     
+    // Listeners para el nuevo modal de cliente
+    document.getElementById('add-new-client-from-ticket-btn').addEventListener('click', () => openModal('add-client-modal'));
+    document.getElementById('add-client-modal-cancel-btn').addEventListener('click', () => closeModal('add-client-modal'));
+    document.getElementById('add-client-modal-close-btn').addEventListener('click', () => closeModal('add-client-modal'));
+
+    // Listeners para el modal de sede
+    addLocationBtn.addEventListener('click', () => {
+        const clientId = clientSelect.value;
+        if (clientId) {
+            addLocationModalForm.querySelector('[name="client_id"]').value = clientId;
+            openModal('add-location-modal');
+        }
+    });
+    document.getElementById('add-location-modal-cancel-btn').addEventListener('click', () => closeModal('add-location-modal'));
+    document.getElementById('add-location-modal-close-btn').addEventListener('click', () => closeModal('add-location-modal'));
+
+    // Listeners para el modal de equipo
+    addEquipmentBtn.addEventListener('click', () => {
+        const locationId = locationSelect.value;
+        if (locationId) {
+            addEquipmentModalForm.querySelector('[name="location_id"]').value = locationId;
+            openModal('add-equipment-modal');
+        }
+    });
+    document.getElementById('add-equipment-modal-cancel-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
+    document.getElementById('add-equipment-modal-close-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
+
     document.body.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
@@ -36,6 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
     clientSelect.addEventListener('change', handleClientChange);
     locationSelect.addEventListener('change', handleLocationChange);
     ticketModalForm.addEventListener('submit', handleFormSubmit);
+    addClientModalForm.addEventListener('submit', handleNewClientSubmit);
+    addLocationModalForm.addEventListener('submit', handleNewLocationSubmit);
+    addEquipmentModalForm.addEventListener('submit', handleNewEquipmentSubmit);
 });
 
 // --- Render Functions ---
@@ -101,7 +137,7 @@ function populateSelect(selectElement, items, { placeholder, valueKey = 'id', na
 // --- API Calls ---
 async function fetchAllInitialData() {
     try {
-        await Promise.all([fetchTickets(), fetchClients()]);
+        await Promise.all([fetchTickets(), fetchClients(), fetchEquipmentModels()]);
     } catch (error) {
         console.error("Error fetching initial data:", error);
     }
@@ -163,6 +199,19 @@ async function fetchEquipment(locationId) {
     }
 }
 
+async function fetchEquipmentModels() {
+    try {
+        const response = await fetch(`${API_URL}/models`);
+        if (!response.ok) throw new Error('Failed to fetch equipment models');
+        const result = await response.json();
+        const models = result.data || [];
+        const modelSelect = document.getElementById('new-equipment-model-select');
+        populateSelect(modelSelect, models, { placeholder: 'Seleccione un modelo (opcional)', valueKey: 'id', nameKey: 'name' });
+    } catch (error) {
+        console.error("Error fetching equipment models:", error);
+    }
+}
+
 // --- Event Handlers ---
 function handleClientChange(e) {
     const clientId = e.target.value;
@@ -170,6 +219,10 @@ function handleClientChange(e) {
     locationSelect.innerHTML = '<option>Cargando sedes...</option>';
     equipmentSelect.disabled = true;
     equipmentSelect.innerHTML = '<option>Seleccione una sede primero...</option>';
+    
+    addLocationBtn.disabled = !clientId;
+    addEquipmentBtn.disabled = true;
+
     if (clientId) {
         fetchLocations(clientId);
     }
@@ -179,6 +232,9 @@ function handleLocationChange(e) {
     const locationId = e.target.value;
     equipmentSelect.disabled = true;
     equipmentSelect.innerHTML = '<option>Cargando equipos...</option>';
+    
+    addEquipmentBtn.disabled = !locationId;
+
     if (locationId) {
         fetchEquipment(locationId);
     }
@@ -220,88 +276,211 @@ async function handleFormSubmit(e) {
     }
 }
 
+async function handleNewClientSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const body = Object.fromEntries(new FormData(form));
+
+    try {
+        const response = await fetch(`${API_URL}/clients`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al crear el cliente');
+        }
+
+        const newClient = await response.json();
+        
+        // 1. Añadir el nuevo cliente al estado local
+        state.clients.push(newClient);
+        
+        // 2. Repoblar y seleccionar en el desplegable de tickets
+        populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
+        clientSelect.value = newClient.id;
+
+        // 3. Disparar el evento change para cargar las sedes (que estarán vacías para un cliente nuevo)
+        clientSelect.dispatchEvent(new Event('change'));
+
+        // 4. Cerrar el modal de creación de cliente
+        closeModal('add-client-modal');
+        form.reset();
+
+    } catch (error) {
+        console.error('Error creating new client:', error);
+        alert(`Error: ${error.message}`);
+    }
+}
+
+async function handleNewLocationSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const body = Object.fromEntries(new FormData(form));
+
+    try {
+        const response = await fetch(`${API_URL}/locations`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error('Failed to create location');
+        const newLocation = await response.json();
+
+        // 1. Añadir a estado y repoblar desplegable de sedes
+        state.locations.push(newLocation);
+        populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
+        locationSelect.value = newLocation.id;
+        
+        // 2. Disparar evento para actualizar la UI dependiente (equipos)
+        locationSelect.dispatchEvent(new Event('change'));
+
+        // 3. Cerrar modal
+        closeModal('add-location-modal');
+        form.reset();
+
+    } catch (error) {
+        console.error('Error creating new location:', error);
+        alert('Error al crear la sede.');
+    }
+}
+
+async function handleNewEquipmentSubmit(e) {
+    e.preventDefault();
+    const form = e.target;
+    const body = Object.fromEntries(new FormData(form));
+    
+    // El modelo es opcional, si no se selecciona, enviar null
+    if (!body.model_id) body.model_id = null;
+
+    try {
+        const response = await fetch(`${API_URL}/equipment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!response.ok) throw new Error('Failed to create equipment');
+        const newEquipment = await response.json();
+
+        // 1. Añadir a estado y repoblar desplegable de equipos
+        state.equipment.push(newEquipment);
+        populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo (opcional)...' });
+        equipmentSelect.value = newEquipment.id;
+
+        // 2. Cerrar modal
+        closeModal('add-equipment-modal');
+        form.reset();
+
+    } catch (error) {
+        console.error('Error creating new equipment:', error);
+        alert('Error al crear el equipo.');
+    }
+}
+
 // --- Modal & Generic Functions ---
 async function openModal(modalId, data = {}) {
-    const form = document.getElementById(`${modalId}-form`);
-    form.reset();
-    form.querySelector('input[name="id"]').value = '';
-    document.getElementById(`${modalId}-title`).textContent = 'Nuevo Ticket';
-    document.getElementById('ticket-status-wrapper').classList.add('hidden');
-
-    // Reset and disable dependent dropdowns
-    // Client select is populated by fetchAllInitialData -> fetchClients
-    locationSelect.innerHTML = '<option value="">Seleccione un cliente primero...</option>';
-    locationSelect.disabled = true;
-    equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero...</option>';
-    equipmentSelect.disabled = true;
-
-    let effectiveData = { ...data }; // Start with data passed to openModal (e.g., for editing)
-
-    // If it's a new ticket (no ID yet) AND there's prefill data from URL params
-    if (!effectiveData.id && state.ticketPrefillData) {
-        effectiveData = { ...state.ticketPrefillData, ...effectiveData };
+    // Lógica general para cualquier modal: mostrarlo.
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+        console.error(`Modal with id ${modalId} not found.`);
+        return;
     }
 
-    if (effectiveData.id) { // Editing an existing ticket
-        document.getElementById(`${modalId}-title`).textContent = 'Editar Ticket';
-        document.getElementById('ticket-status-wrapper').classList.remove('hidden');
+    // Lógica específica solo para el modal de tickets
+    if (modalId === 'ticket-modal') {
+        const form = document.getElementById('ticket-modal-form');
+        form.reset();
+        form.querySelector('input[name="id"]').value = '';
+        document.getElementById('ticket-modal-title').textContent = 'Nuevo Ticket';
+        document.getElementById('ticket-status-wrapper').classList.add('hidden');
 
-        try {
-            const response = await fetch(`${API_URL}/tickets/${effectiveData.id}`);
-            if (!response.ok) throw new Error(`Failed to fetch ticket ${effectiveData.id}`);
-            const result = await response.json();
-            const ticketData = result.data;
+        // Reset and disable dependent dropdowns
+        locationSelect.innerHTML = '<option value="">Seleccione un cliente primero...</option>';
+        locationSelect.disabled = true;
+        equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero...</option>';
+        equipmentSelect.disabled = true;
 
-            // Populate form fields directly from ticketData
-            form.querySelector('input[name="id"]').value = ticketData.id;
-            form.elements.title.value = ticketData.title;
-            form.elements.description.value = ticketData.description;
-            form.elements.priority.value = ticketData.priority;
-            form.elements.status.value = ticketData.status;
+        let effectiveData = { ...data };
 
-            // Formatear la fecha para el input type="date" (YYYY-MM-DD)
-            if (ticketData.due_date) {
-                form.elements.due_date.value = ticketData.due_date.split('T')[0];
-            }
-
-            // --- Manejo de Desplegables en Cascada para Edición ---
-            // 1. Establecer el cliente
-            form.elements.client_id.value = ticketData.client_id;
-
-            // 2. Cargar y establecer la sede
-            if (ticketData.client_id) {
-                await fetchLocations(ticketData.client_id); // Carga las sedes del cliente
-                form.elements.location_id.value = ticketData.location_id;
-            }
-
-            // 3. Cargar y establecer el equipo
-            if (ticketData.location_id) {
-                await fetchEquipment(ticketData.location_id); // Carga los equipos de la sede
-                form.elements.equipment_id.value = ticketData.equipment_id;
-            }
-
-        } catch (error) {
-            console.error('Error populating form for edit:', error);
-            alert('Error al cargar los datos del ticket para editar.');
-            closeModal(modalId);
+        if (!effectiveData.id && state.ticketPrefillData) {
+            effectiveData = { ...state.ticketPrefillData, ...effectiveData };
         }
-    } else if (effectiveData.client_id) { // Prefill for new ticket from client/location page
-        // Similar cascade logic for prefilling...
-        form.elements.client_id.value = effectiveData.client_id;
-        if(effectiveData.client_id) {
-            await fetchLocations(effectiveData.client_id);
-            if(effectiveData.location_id) {
-                form.elements.location_id.value = effectiveData.location_id;
-                await fetchEquipment(effectiveData.location_id);
-                if(effectiveData.equipment_id) {
-                    form.elements.equipment_id.value = effectiveData.equipment_id;
+
+        if (effectiveData.id) { // Editing an existing ticket
+            document.getElementById('ticket-modal-title').textContent = 'Editar Ticket';
+            document.getElementById('ticket-status-wrapper').classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/tickets/${effectiveData.id}`);
+                if (!response.ok) throw new Error(`Failed to fetch ticket ${effectiveData.id}`);
+                const result = await response.json();
+                const ticketData = result.data;
+
+                form.querySelector('input[name="id"]').value = ticketData.id;
+                form.elements.title.value = ticketData.title;
+                form.elements.description.value = ticketData.description;
+                form.elements.priority.value = ticketData.priority;
+                form.elements.status.value = ticketData.status;
+
+                if (ticketData.due_date) {
+                    form.elements.due_date.value = ticketData.due_date.split('T')[0];
+                }
+
+                form.elements.client_id.value = ticketData.client_id;
+
+                if (ticketData.client_id) {
+                    await fetchLocations(ticketData.client_id);
+                    form.elements.location_id.value = ticketData.location_id;
+                }
+
+                if (ticketData.location_id) {
+                    await fetchEquipment(ticketData.location_id);
+                    form.elements.equipment_id.value = ticketData.equipment_id;
+                }
+
+            } catch (error) {
+                console.error('Error populating form for edit:', error);
+                alert('Error al cargar los datos del ticket para editar.');
+                closeModal(modalId);
+                return; // Detener ejecución si falla la carga
+            }
+        } else if (effectiveData.client_id) { // Prefill for new ticket
+            form.elements.client_id.value = effectiveData.client_id;
+            if (effectiveData.client_id) {
+                await fetchLocations(effectiveData.client_id);
+                if (effectiveData.location_id) {
+                    form.elements.location_id.value = effectiveData.location_id;
+                    await fetchEquipment(effectiveData.location_id);
+                    if (effectiveData.equipment_id) {
+                        form.elements.equipment_id.value = effectiveData.equipment_id;
+                    }
                 }
             }
         }
+        state.ticketPrefillData = null;
+    }
+     // Lógica específica para el modal de añadir cliente
+    else if (modalId === 'add-client-modal') {
+        const form = document.getElementById('add-client-modal-form');
+        form.reset();
+    }
+    else if (modalId === 'add-location-modal' || modalId === 'add-equipment-modal') {
+        const form = document.getElementById(`${modalId}-form`);
+        form.reset();
     }
 
-    document.getElementById(modalId).style.display = 'flex';
-    state.ticketPrefillData = null; // Clear prefill data after using it
+    if (modalId === 'ticket-modal') {
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+        setTimeout(() => {
+            modal.classList.add('is-open');
+        }, 10); // Pequeño delay para que la animación funcione
+    } else {
+        modal.style.display = 'flex';
+    }
+    lucide.createIcons(); // Refrescar iconos por si hay nuevos en el modal
 }
 
 // Helper function to map field names to their HTML IDs
@@ -345,8 +524,17 @@ async function checkForUrlParams() {
 }
 
 function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('flex');
-    document.getElementById(modalId).style.display = 'none';
+    const modal = document.getElementById(modalId);
+    if (modalId === 'ticket-modal') {
+        modal.classList.remove('is-open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300); // Esperar a que termine la animación
+    } else {
+        modal.classList.remove('flex');
+        modal.style.display = 'none';
+    }
+    document.body.classList.remove('modal-open');
 }
 
 async function deleteItem(resource, id, callback) {

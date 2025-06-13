@@ -1,6 +1,6 @@
 # Bitácora y Plan de Desarrollo - Gymtec ERP
 
-**Última actualización:** 13 de Junio de 2025 - 02:45 hrs
+**Última actualización:** 13 de Junio de 2025 - 03:45 hrs
 
 ---
 
@@ -74,6 +74,27 @@
 -   [x] **Sistema de Validaciones para Modelos:** Se implementó un sistema completo de validaciones en tiempo real para el formulario de modelos. Incluye validación de campos obligatorios (name, brand, category), validaciones numéricas (weight, power), validaciones de formato (dimensiones: "200 x 80 x 150", voltaje: "220V / 110V"), límites de longitud, y sistema de notificaciones toast con iconos, auto-cierre y diseño responsivo. Las validaciones se ejecutan al salir del campo (blur) y se limpian al escribir (input). *(Completado el 2024-12-19)*
 -   [x] **Sistema de Subida de Fotos para Modelos:** Se implementó un sistema completo de gestión de fotos que incluye backend con multer para subida de archivos (límite 5MB, máximo 10 fotos, tipos: JPEG, JPG, PNG, GIF, WebP), endpoints REST para subir y eliminar fotos, frontend con drag & drop mejorado, preview de fotos con indicadores de estado (✓ subida, ⏳ temporal), indicador de progreso durante subida, eliminación individual con confirmación, y manejo robusto de errores. Las fotos se suben automáticamente para modelos existentes y se almacenan temporalmente para modelos nuevos hasta guardar. *(Completado el 2024-12-19)*
 -   [x] **Corrección de Filtros de Modelos:** Se solucionó un bug crítico donde al filtrar modelos por categoría (ej: "Cardio") aparecían `[object Promise]` en lugar de las tarjetas de modelos. El problema se debía a que la función `filterModels()` no manejaba correctamente las promesas asíncronas de `createModelCard()`. Se implementó el manejo asíncrono correcto usando `async/await` y `Promise.all()`, similar al patrón usado en `renderModels()`. Ahora los filtros funcionan perfectamente mostrando las tarjetas con fotos cargadas desde la base de datos. *(Completado el 2025-06-13)*
+-   [x] **Rediseño del Modal de Tickets:** Se implementó una mejora completa del diseño del modal de creación/edición de tickets para hacerlo más moderno y coherente con el resto de la aplicación. Incluye:
+    - **Diseño moderno:** Bordes redondeados, sombras suaves, gradientes sutiles y backdrop blur
+    - **Layout mejorado:** Grid responsivo de 2 columnas en desktop, 1 columna en móvil
+    - **Componentes estilizados:** Inputs, selects y botones con estados de focus y hover mejorados
+    - **Animaciones suaves:** Transiciones de entrada/salida con escalado y desplazamiento
+    - **Indicadores visuales:** Campos requeridos marcados con asterisco rojo
+    - **Botones de acción:** Gradientes distintivos para cancelar (gris) y guardar (verde)
+    - **Responsive design:** Adaptación completa para dispositivos móviles
+    - **Accesibilidad mejorada:** Mejor contraste, tamaños de botón adecuados y navegación por teclado
+    El modal ahora presenta una apariencia profesional y moderna que mejora significativamente la experiencia del usuario. *(Completado el 2025-06-13)*
+-   [x] **Estandarización Completa de Modales - Fase 1 (clientes.html):** Se completó la primera fase del plan de estandarización de modales aplicando el nuevo sistema de diseño a los 3 modales de clientes.html. Incluye:
+    - **CSS Moderno:** Archivo `clientes.css` con estilos específicos para cada modal (cliente, sede, equipo)
+    - **Estructura HTML Actualizada:** Todos los modales ahora usan la nueva estructura con header, body y footer separados
+    - **Animaciones Suaves:** Implementación de transiciones de entrada/salida con backdrop blur y efectos de escalado
+    - **Grid Responsivo:** Layout de 2 columnas en desktop que se adapta a 1 columna en móvil
+    - **Componentes Estilizados:** Inputs, labels, botones y textareas con estados de focus y hover mejorados
+    - **JavaScript Actualizado:** Funciones de apertura/cierre de modales con manejo de animaciones y event listeners para botones X
+    - **Consistencia Visual:** Todos los modales (cliente, sede, equipo) ahora siguen el mismo estándar de diseño establecido
+    - **Funcionalidad Preservada:** Mantiene todas las características existentes como scanner de códigos de barras y autocompletado de direcciones
+    La página de clientes ahora presenta una experiencia visual completamente coherente y profesional. *(Completado el 2025-06-13)*
+-   [x] **Corrección de Bug en Modales de Edición:** Se solucionó un problema crítico donde los botones de lápiz (editar cliente/sede) no abrían los modales correspondientes. El issue estaba en la configuración de event listeners para los botones de cerrar (X) que se ejecutaban solo una vez al cargar la página, pero los botones se crean dinámicamente. Se corrigió moviendo la configuración de estos listeners a la función `open` de cada modal para que se configuren cada vez que se abre un modal. Se agregaron logs de debug para verificar el funcionamiento correcto y se actualizó la función para evitar duplicación de listeners. *(Completado el 2025-06-13)*
 
 ---
 
@@ -96,19 +117,19 @@
 - [ ] **Lógica de Identificadores (IDs):**
     - [ ] **ID de Usuario (Personal):** Implementar formato `[4 Primeras Letras Nombre][Correlativo 4 Dígitos]` (Ej: `Feli1001`).
     - [ ] **ID de Sede:** Implementar formato `[ID Cliente]-[Correlativo 3 Dígitos]` (Ej: `Feli1001-001`).
-    - [x] **ID de Equipo:** Formato `EQ-[Correlativo 3 Dígitos]` (Ej: `EQ-001`, `EQ-002`). *(Implementado con generación automática en el script de seed).*
 - [ ] **Gestor de Clientes (Refinamiento de UI/UX):**
 
     - [ ] **Vista Rápida del Equipo:** Reemplazar la apertura en nueva pestaña por un modal para ver detalles de equipo sin salir del gestor de clientes.
 - [ ] **Lógica de Creación Contextual:**
     - [x] **Crear Ticket para esta Sede:** Pasar ID de la sede al formulario de tickets.
-    - [ ] **Crear Ticket para este Equipo:** Pasar ID de sede y equipo al formulario.
+    - [x] **Crear Ticket para este Equipo:** Pasar ID de sede y equipo al formulario.
 - [x] **Sistema de Notas de Equipos:** Sistema completo implementado que permite agregar, visualizar y eliminar notas directamente desde la página de detalle del equipo, con interfaz profesional y persistencia en base de datos.
+- [x] **Módulo de Gestión de Tickets (CRUD Básico):** Se ha implementado la funcionalidad completa para Crear, Leer, Actualizar y Eliminar tickets desde la página principal. Incluye la creación de la tabla `Tickets` en la base de datos, los endpoints de la API correspondientes y la lógica del frontend. Se corrigieron bugs de creación (estado por defecto) y edición (duplicación de tickets). Se rediseñó el modal de creación/edición para que sea visualmente coherente con el resto de la aplicación.
 
 #### Módulo 3: Gestión de Servicios y Tickets
 - [ ] **Dashboard de Tickets (Kanban/Tabla):**
-    - [ ] Vista global para gestionar todos los tickets.
-    - [ ] Indicador de color para SLA (Service Level Agreement) calculado en el frontend.
+    - [x] Vista global para gestionar todos los tickets.
+    - [x] Indicador de color para SLA (Service Level Agreement) calculado en el frontend.
 - [ ] **Detalle del Ticket:**
     - [ ] **Checklist Digital:** Cargar plantillas de checklist según el modelo de equipo. Guardar progreso automáticamente.
     - [ ] **Registro de Repuestos:** Implementar búsqueda en inventario del técnico y central. Descontar stock al usar. Generar alertas de bajo stock.
