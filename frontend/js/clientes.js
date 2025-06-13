@@ -118,26 +118,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>`;
 
                 const locationsHtml = locations.map(loc => `
-                    <details class="group bg-gray-50 rounded-lg" data-location-id="${loc.id}">
-                        <summary class="p-4 flex justify-between items-center cursor-pointer">
-                            <div>
-                                <p class="font-semibold text-gray-800">${loc.name}</p>
-                                <p class="text-sm text-gray-500">${loc.address}</p>
+                    <details class="sede-card" data-location-id="${loc.id}">
+                        <summary>
+                            <div class="sede-info">
+                                <h4>${loc.name}</h4>
+                                <p>${loc.address}</p>
                             </div>
-                            <div class="flex items-center gap-2">
-                                <button class="create-ticket-btn invisible group-open:visible p-1 text-sky-600 hover:text-sky-800" title="Crear Ticket" data-client-id="${client.id}" data-location-id="${loc.id}"><i data-lucide="file-plus-2" class="h-5 w-5"></i></button>
-                                <button class="edit-location-btn invisible group-open:visible p-1 text-gray-600 hover:text-gray-800" title="Editar Sede" data-location-id="${loc.id}"><i data-lucide="pencil" class="h-5 w-5"></i></button>
-                                <i data-lucide="chevron-down" class="h-5 w-5 transform transition-transform group-open:rotate-180"></i>
+                            <div class="sede-actions">
+                                <button class="create-ticket-btn" title="Crear Ticket" data-client-id="${client.id}" data-location-id="${loc.id}"><i data-lucide="file-plus-2" class="h-5 w-5"></i></button>
+                                <button class="edit-location-btn" title="Editar Sede" data-location-id="${loc.id}"><i data-lucide="pencil" class="h-5 w-5"></i></button>
+                                <i data-lucide="chevron-down" class="h-5 w-5 sede-chevron"></i>
                             </div>
                         </summary>
-                        <div class="px-4 pb-4 border-t border-gray-200">
+                        <div class="sede-content">
                             <!-- Pestañas -->
-                            <div class="border-b border-gray-200">
-                                <nav class="-mb-px flex space-x-6" aria-label="Tabs">
-                                    <button class="tab-btn shrink-0 border-b-2 border-sky-500 px-1 py-3 text-sm font-medium text-sky-600" data-tab="equipment">
+                            <div class="sede-tabs">
+                                <nav>
+                                    <button class="sede-tab-btn active" data-tab="equipment">
                                         Equipos
                                     </button>
-                                    <button class="tab-btn shrink-0 border-b-2 border-transparent px-1 py-3 text-sm font-medium text-gray-500 hover:border-gray-300 hover:text-gray-700" data-tab="history">
+                                    <button class="sede-tab-btn" data-tab="history">
                                         Historial de Tickets
                                     </button>
                                 </nav>
@@ -201,28 +201,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, {});
 
                     let tableHtml = `
-                        <div class="overflow-x-auto border rounded-lg">
-                            <table class="min-w-full text-sm">
-                                <thead class="bg-gray-100">
+                        <div class="sede-equipment-table">
+                            <table>
+                                <thead>
                                     <tr>
-                                        <th class="px-4 py-2 text-left font-semibold text-gray-600">Tipo</th>
-                                        <th class="px-4 py-2 text-left font-semibold text-gray-600">Modelo</th>
-                                        <th class="px-4 py-2 text-left font-semibold text-gray-600">Nº Serie</th>
-                                        <th class="px-4 py-2 text-right font-semibold text-gray-600">Acciones</th>
+                                        <th>Tipo</th>
+                                        <th>Modelo</th>
+                                        <th>Nº Serie</th>
+                                        <th style="text-align: right;">Acciones</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-200 bg-white">`;
+                                <tbody>`;
 
                     for (const type in grouped) {
                         grouped[type].forEach((item, index) => {
                             tableHtml += `
                                 <tr class="equipment-row" data-equipment-id="${item.id}">
-                                    ${index === 0 ? `<td class="py-2 px-4 font-medium text-gray-800 align-top" rowspan="${grouped[type].length}">${type}</td>` : ''}
-                                    <td class="py-2 px-4 hover:underline cursor-pointer">${item.model || 'N/A'}</td>
-                                    <td class="py-2 px-4 text-gray-600 font-mono text-xs">${item.serial_number || 'N/A'}</td>
-                                    <td class="py-2 px-4 text-right">
-                                        <button class="edit-equipment-btn p-1 text-gray-500 hover:text-sky-600" title="Editar Equipo" data-equipment-id="${item.id}"><i data-lucide="pencil" class="h-4 w-4"></i></button>
-                                        <button class="delete-equipment-btn p-1 text-gray-500 hover:text-red-600" title="Eliminar Equipo" data-equipment-id="${item.id}"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                    ${index === 0 ? `<td style="font-weight: 600; vertical-align: top;" rowspan="${grouped[type].length}">${type}</td>` : ''}
+                                    <td style="cursor: pointer;" onclick="window.open('equipo.html?id=${item.id}', '_blank')">${item.model || 'N/A'}</td>
+                                    <td style="font-family: monospace; font-size: 0.75rem; color: #6b7280;">${item.serial_number || 'N/A'}</td>
+                                    <td style="text-align: right;">
+                                        <div class="equipment-actions">
+                                            <button class="edit-equipment-btn" title="Editar Equipo" data-equipment-id="${item.id}"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+                                            <button class="delete-equipment-btn" title="Eliminar Equipo" data-equipment-id="${item.id}"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                        </div>
                                     </td>
                                 </tr>`;
                         });
@@ -465,22 +467,20 @@ document.addEventListener('DOMContentLoaded', () => {
             
             dom.detailContainer.addEventListener('click', async e => {
                 // --- Manejo de Pestañas ---
-                const tabButton = e.target.closest('.tab-btn');
+                const tabButton = e.target.closest('.sede-tab-btn');
                 if (tabButton) {
                     const detailsElement = tabButton.closest('details');
                     const tabName = tabButton.dataset.tab;
 
                     // Ocultar todos los contenidos y desactivar botones
                     detailsElement.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
-                    detailsElement.querySelectorAll('.tab-btn').forEach(b => {
-                        b.classList.remove('border-sky-500', 'text-sky-600');
-                        b.classList.add('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+                    detailsElement.querySelectorAll('.sede-tab-btn').forEach(b => {
+                        b.classList.remove('active');
                     });
                     
                     // Mostrar el contenido correcto y activar el botón
                     detailsElement.querySelector(`.location-${tabName}-container`).classList.remove('hidden');
-                    tabButton.classList.add('border-sky-500', 'text-sky-600');
-                    tabButton.classList.remove('border-transparent', 'text-gray-500', 'hover:border-gray-300', 'hover:text-gray-700');
+                    tabButton.classList.add('active');
 
                     // Cargar contenido si es la primera vez
                     if (tabName === 'history') {

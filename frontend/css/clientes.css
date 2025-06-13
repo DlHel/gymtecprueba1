@@ -73,6 +73,220 @@ body {
     color: #0c4a6e; /* sky-900 */
 }
 
+/* Estilos para las sedes */
+.sede-card {
+    background-color: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    transition: all 0.2s ease;
+}
+
+.sede-card:hover {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.sede-card summary {
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color 0.2s ease;
+}
+
+.sede-card summary:hover {
+    background-color: #f3f4f6;
+}
+
+.sede-card[open] summary {
+    border-bottom: 1px solid #e5e7eb;
+    border-radius: 8px 8px 0 0;
+}
+
+.sede-info h4 {
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+    font-size: 1rem;
+}
+
+.sede-info p {
+    color: #6b7280;
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+}
+
+.sede-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.sede-card[open] .sede-actions {
+    opacity: 1;
+}
+
+.sede-actions button {
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sede-actions .create-ticket-btn {
+    color: #0ea5e9;
+}
+
+.sede-actions .create-ticket-btn:hover {
+    background-color: #e0f2fe;
+    color: #0284c7;
+}
+
+.sede-actions .edit-location-btn {
+    color: #6b7280;
+}
+
+.sede-actions .edit-location-btn:hover {
+    background-color: #f3f4f6;
+    color: #374151;
+}
+
+.sede-chevron {
+    color: #9ca3af;
+    transition: transform 0.2s ease;
+}
+
+.sede-card[open] .sede-chevron {
+    transform: rotate(180deg);
+}
+
+/* Pestañas de sede */
+.sede-tabs {
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 0;
+}
+
+.sede-tabs nav {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: -1px;
+}
+
+.sede-tab-btn {
+    padding: 0.75rem 0.25rem;
+    border-bottom: 2px solid transparent;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    background: none;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sede-tab-btn:hover {
+    color: #374151;
+    border-bottom-color: #d1d5db;
+}
+
+.sede-tab-btn.active {
+    color: #0ea5e9;
+    border-bottom-color: #0ea5e9;
+}
+
+/* Contenido de sede */
+.sede-content {
+    padding: 1rem;
+    background-color: white;
+    border-radius: 0 0 8px 8px;
+}
+
+.sede-equipment-table {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.sede-equipment-table table {
+    width: 100%;
+    font-size: 0.875rem;
+}
+
+.sede-equipment-table thead {
+    background-color: #f9fafb;
+}
+
+.sede-equipment-table th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: #374151;
+}
+
+.sede-equipment-table td {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.sede-equipment-table tbody tr:hover {
+    background-color: #f9fafb;
+}
+
+.equipment-actions button {
+    padding: 0.25rem;
+    margin: 0 0.125rem;
+    border: none;
+    background: transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.equipment-actions .edit-equipment-btn {
+    color: #6b7280;
+}
+
+.equipment-actions .edit-equipment-btn:hover {
+    color: #0ea5e9;
+    background-color: #e0f2fe;
+}
+
+.equipment-actions .delete-equipment-btn {
+    color: #6b7280;
+}
+
+.equipment-actions .delete-equipment-btn:hover {
+    color: #ef4444;
+    background-color: #fef2f2;
+}
+
+.add-equipment-btn, .add-location-btn {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.add-equipment-btn:hover, .add-location-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
 
 /* Estilos para los Modales */
 .modal-container {
