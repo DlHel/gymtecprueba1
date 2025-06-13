@@ -1,6 +1,6 @@
 # Bitácora y Plan de Desarrollo - Gymtec ERP
 
-**Última actualización:** 13 de Junio de 2025 - 00:55 hrs
+**Última actualización:** 13 de Junio de 2025 - 02:45 hrs
 
 ---
 
@@ -73,6 +73,7 @@
 -   [x] **Conexión Frontend-Backend para Modelos:** Se implementó la API REST completa para modelos de equipos (`/api/models`) con operaciones CRUD (GET, POST, PUT, DELETE) y se conectó el frontend para cargar, crear y actualizar modelos desde la base de datos real. La página de modelos ahora carga los 28 modelos reales de la base de datos y permite crear/editar modelos con persistencia completa. Se configuró detección automática de puerto para permitir acceso tanto desde `http://localhost:3000/modelos.html` (servidor backend) como desde `http://localhost:8080/modelos.html` (servidor frontend) con conexión cruzada automática a la API. Se corrigió el formato del modal agregando las clases CSS faltantes (`max-w-4xl`, `space-y-*`, `gap-*`, etc.) para mantener el diseño responsivo y profesional. *(Completado el 2024-12-19)*
 -   [x] **Sistema de Validaciones para Modelos:** Se implementó un sistema completo de validaciones en tiempo real para el formulario de modelos. Incluye validación de campos obligatorios (name, brand, category), validaciones numéricas (weight, power), validaciones de formato (dimensiones: "200 x 80 x 150", voltaje: "220V / 110V"), límites de longitud, y sistema de notificaciones toast con iconos, auto-cierre y diseño responsivo. Las validaciones se ejecutan al salir del campo (blur) y se limpian al escribir (input). *(Completado el 2024-12-19)*
 -   [x] **Sistema de Subida de Fotos para Modelos:** Se implementó un sistema completo de gestión de fotos que incluye backend con multer para subida de archivos (límite 5MB, máximo 10 fotos, tipos: JPEG, JPG, PNG, GIF, WebP), endpoints REST para subir y eliminar fotos, frontend con drag & drop mejorado, preview de fotos con indicadores de estado (✓ subida, ⏳ temporal), indicador de progreso durante subida, eliminación individual con confirmación, y manejo robusto de errores. Las fotos se suben automáticamente para modelos existentes y se almacenan temporalmente para modelos nuevos hasta guardar. *(Completado el 2024-12-19)*
+-   [x] **Corrección de Filtros de Modelos:** Se solucionó un bug crítico donde al filtrar modelos por categoría (ej: "Cardio") aparecían `[object Promise]` en lugar de las tarjetas de modelos. El problema se debía a que la función `filterModels()` no manejaba correctamente las promesas asíncronas de `createModelCard()`. Se implementó el manejo asíncrono correcto usando `async/await` y `Promise.all()`, similar al patrón usado en `renderModels()`. Ahora los filtros funcionan perfectamente mostrando las tarjetas con fotos cargadas desde la base de datos. *(Completado el 2025-06-13)*
 
 ---
 
