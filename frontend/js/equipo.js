@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
         all: () => {
             const { equipment, tickets } = state;
             if (!equipment) {
-                mainContent.innerHTML = '<div class="text-center text-red-500">No se pudo cargar la información del equipo.</div>';
+                mainContent.innerHTML = '<div class="equipment-error">No se pudo cargar la información del equipo.</div>';
                 return;
             }
 
@@ -39,80 +39,106 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             
             const ticketsHtml = tickets.length > 0 ? tickets.map(t => `
-                <li class="border-b py-2">
-                    <p class="font-semibold">${t.title}</p>
-                    <p class="text-sm">${t.description}</p>
-                    <div class="text-xs text-gray-500 mt-1">
-                        <span>${formatDate(t.created_at)}</span> | 
-                        <span>Estado: ${t.status}</span> | 
-                        <span>Prioridad: ${t.priority}</span>
+                <div class="equipment-ticket-item">
+                    <div class="equipment-ticket-title">${t.title}</div>
+                    <div class="equipment-ticket-description">${t.description}</div>
+                    <div class="equipment-ticket-meta">
+                        <span><i data-lucide="calendar"></i>${formatDate(t.created_at)}</span>
+                        <span><i data-lucide="flag"></i>Estado: ${t.status}</span>
+                        <span><i data-lucide="alert-circle"></i>Prioridad: ${t.priority}</span>
                     </div>
-                </li>
-            `).join('') : '<li class="text-sm text-gray-500">No hay tickets para este equipo.</li>';
+                </div>
+            `).join('') : '<div class="equipment-empty">No hay tickets para este equipo.</div>';
 
             mainContent.innerHTML = `
-                <div class="max-w-6xl mx-auto space-y-6">
-                    <!-- Tarjeta de detalles e identificador -->
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <!-- Información General -->
-                            <div class="lg:col-span-2">
-                                <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Información General</h2>
-                                <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                                    <dt class="font-medium text-gray-500">Tipo</dt><dd class="text-gray-900">${equipment.type}</dd>
-                                    <dt class="font-medium text-gray-500">Marca</dt><dd class="text-gray-900">${equipment.brand || 'N/A'}</dd>
-                                    <dt class="font-medium text-gray-500">Modelo</dt><dd class="text-gray-900">${equipment.model || 'N/A'}</dd>
-                                    <dt class="font-medium text-gray-500">Nº Serie</dt><dd class="text-gray-900 font-mono text-xs">${equipment.serial_number || 'N/A'}</dd>
-                                    <dt class="font-medium text-gray-500">Fecha Adquisición</dt><dd class="text-gray-900">${formatDate(equipment.acquisition_date)}</dd>
-                                    <dt class="font-medium text-gray-500">Última Mantención</dt><dd class="text-gray-900">${formatDate(equipment.last_maintenance_date)}</dd>
-                                </dl>
+                <div class="equipment-container">
+                    <!-- Tarjeta de información general optimizada -->
+                    <div class="equipment-card">
+                        <h2 class="equipment-section-title">
+                            <i data-lucide="info"></i>
+                            Información General
+                        </h2>
+                        <div class="equipment-info-compact">
+                            <!-- Detalles del equipo -->
+                            <div class="equipment-details-compact">
+                                <div class="equipment-detail-item">
+                                    <span class="equipment-detail-label">Tipo</span>
+                                    <span class="equipment-detail-value">${equipment.type}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <span class="equipment-detail-label">Marca</span>
+                                    <span class="equipment-detail-value">${equipment.brand || 'N/A'}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <span class="equipment-detail-label">Modelo</span>
+                                    <span class="equipment-detail-value">${equipment.model || 'N/A'}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <span class="equipment-detail-label">Nº Serie</span>
+                                    <span class="equipment-detail-value serial">${equipment.serial_number || 'N/A'}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <span class="equipment-detail-label">Fecha Adquisición</span>
+                                    <span class="equipment-detail-value">${formatDate(equipment.acquisition_date)}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <span class="equipment-detail-label">Última Mantención</span>
+                                    <span class="equipment-detail-value">${formatDate(equipment.last_maintenance_date)}</span>
+                                </div>
                             </div>
                             
-                            <!-- Identificador Único -->
-                            <div class="lg:col-span-1 text-center lg:border-l lg:pl-6">
-                                <h3 class="text-lg font-bold text-gray-800 border-b pb-2 mb-4">Identificador Único</h3>
-                                <div id="qrcode" class="inline-block p-2 border rounded-lg bg-white mb-3">
+                            <!-- QR Code compacto -->
+                            <div class="equipment-qr-compact">
+                                <div class="equipment-qr-title">Identificador Único</div>
+                                <div id="qrcode" class="equipment-qr-container-compact">
                                     <!-- El código QR se generará aquí -->
                                 </div>
-                                <p class="font-mono text-sm font-bold tracking-wider text-gray-700 mb-3">${equipment.custom_id}</p>
-                                <button id="print-qr-btn" class="px-3 py-2 bg-slate-600 text-white text-xs font-semibold rounded-md hover:bg-slate-700 flex items-center gap-2 mx-auto">
-                                    <i data-lucide="printer" class="h-3 w-3"></i> Imprimir QR
+                                <div class="equipment-custom-id-compact">${equipment.custom_id}</div>
+                                <button id="print-qr-btn" class="equipment-btn equipment-btn-secondary equipment-btn-small">
+                                    <i data-lucide="printer"></i> Imprimir
                                 </button>
                             </div>
                         </div>
                     </div>
 
                     <!-- Tarjeta de Notas -->
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                        <div class="flex justify-between items-center border-b pb-2 mb-4">
-                            <h2 class="text-xl font-bold text-gray-800">Notas del Equipo</h2>
-                            <button id="add-note-btn" class="px-3 py-2 bg-blue-600 text-white text-sm font-semibold rounded-md hover:bg-blue-700 flex items-center gap-2">
-                                <i data-lucide="plus" class="h-4 w-4"></i> Agregar Nota
+                    <div class="equipment-card">
+                        <div class="equipment-notes-header">
+                            <h2 class="equipment-section-title">
+                                <i data-lucide="sticky-note"></i>
+                                Notas del Equipo
+                            </h2>
+                            <button id="add-note-btn" class="equipment-btn equipment-btn-primary">
+                                <i data-lucide="plus"></i> Agregar Nota
                             </button>
                         </div>
                         
                         <!-- Formulario para nueva nota (inicialmente oculto) -->
-                        <div id="note-form" class="hidden mb-4 p-4 bg-gray-50 rounded-lg border">
-                            <textarea id="note-textarea" placeholder="Escribe tu nota aquí..." class="w-full p-3 border border-gray-300 rounded-md resize-none focus:outline-none focus:ring-2 focus:ring-blue-500" rows="4"></textarea>
-                            <div class="flex justify-end gap-2 mt-3">
-                                <button id="cancel-note-btn" class="px-3 py-2 bg-gray-500 text-white text-sm rounded-md hover:bg-gray-600">Cancelar</button>
-                                <button id="save-note-btn" class="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700">Guardar Nota</button>
+                        <div id="note-form" class="equipment-note-form hidden">
+                            <textarea id="note-textarea" placeholder="Escribe tu nota aquí..." class="equipment-note-textarea" rows="4"></textarea>
+                            <div class="equipment-note-actions">
+                                <button id="cancel-note-btn" class="equipment-btn equipment-btn-ghost">Cancelar</button>
+                                <button id="save-note-btn" class="equipment-btn equipment-btn-success">Guardar Nota</button>
                             </div>
                         </div>
                         
                         <!-- Lista de notas -->
-                        <div id="notes-container">
+                        <div id="notes-container" class="equipment-notes-container">
                             <!-- Las notas se cargarán aquí -->
                         </div>
                     </div>
 
                     <!-- Tarjeta de Historial de Tickets -->
-                    <div class="bg-white p-6 rounded-lg shadow-sm">
-                         <h2 class="text-xl font-bold text-gray-800 border-b pb-2 mb-4">Historial de Tickets</h2>
-                         <ul class="space-y-2">${ticketsHtml}</ul>
+                    <div class="equipment-card">
+                         <h2 class="equipment-section-title">
+                             <i data-lucide="clipboard-list"></i>
+                             Historial de Tickets
+                         </h2>
+                         <div class="equipment-tickets-list">${ticketsHtml}</div>
                     </div>
                 </div>
             `;
+            
             lucide.createIcons();
             
             // Generar QR
@@ -130,8 +156,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 try {
                     new QRCode(qrContainer, {
                         text: qrUrl,
-                        width: 120,
-                        height: 120,
+                        width: 100,
+                        height: 100,
                         colorDark : "#000000",
                         colorLight : "#ffffff",
                         correctLevel : QRCode.CorrectLevel.H
@@ -154,24 +180,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!notesContainer) return;
             
             if (state.notes.length === 0) {
-                notesContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay notas para este equipo.</p>';
+                notesContainer.innerHTML = '<div class="equipment-empty">No hay notas para este equipo.</div>';
                 return;
             }
             
             const notesHtml = state.notes.map(note => {
                 const date = new Date(note.created_at).toLocaleString('es-CL');
                 return `
-                    <div class="border-l-4 border-blue-500 pl-4 py-3 mb-3 bg-gray-50 rounded-r-lg group">
-                        <div class="flex justify-between items-start mb-2">
-                            <div class="flex flex-col">
-                                <span class="text-xs text-gray-500 font-medium">${date}</span>
-                                <span class="text-xs text-gray-400">Por: ${note.author || 'Sistema'}</span>
+                    <div class="equipment-note-item">
+                        <div class="equipment-note-header">
+                            <div class="equipment-note-meta">
+                                <span class="equipment-note-date">${date}</span>
+                                <span class="equipment-note-author">Por: ${note.author || 'Sistema'}</span>
                             </div>
-                            <button class="delete-note-btn opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-700 text-xs p-1" data-note-id="${note.id}" title="Eliminar nota">
-                                <i data-lucide="trash-2" class="h-3 w-3"></i>
+                            <button class="equipment-note-delete delete-note-btn" data-note-id="${note.id}" title="Eliminar nota">
+                                <i data-lucide="trash-2"></i>
                             </button>
                         </div>
-                        <p class="text-gray-800 text-sm leading-relaxed">${note.note.replace(/\n/g, '<br>')}</p>
+                        <div class="equipment-note-content">${note.note.replace(/\n/g, '<br>')}</div>
                     </div>
                 `;
             }).join('');
@@ -196,7 +222,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!equipmentId) {
                 console.error('No se proporcionó ID de equipo');
-                mainContent.innerHTML = '<div class="text-center text-red-500">ID de equipo no especificado.</div>';
+                mainContent.innerHTML = '<div class="equipment-error">ID de equipo no especificado.</div>';
                 return;
             }
 
@@ -215,7 +241,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
             } catch (error) {
                 console.error('Error al cargar los datos del equipo:', error);
-                mainContent.innerHTML = `<div class="text-center text-red-500">Error al cargar la información. ${error.message}</div>`;
+                mainContent.innerHTML = `<div class="equipment-error">Error al cargar la información. ${error.message}</div>`;
             }
         },
         
