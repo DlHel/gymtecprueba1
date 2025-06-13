@@ -120,6 +120,16 @@
                     </div>
                 </div>
                 
+                <div id="ticket-status-wrapper" class="hidden">
+                    <label for="ticket-status" class="block text-sm font-medium text-slate-700">Estado</label>
+                    <select name="status" id="ticket-status" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500">
+                        <option value="Abierto">Abierto</option>
+                        <option value="En Progreso">En Progreso</option>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Cerrado">Cerrado</option>
+                    </select>
+                </div>
+
                 <div>
                     <label for="ticket-due-date" class="block text-sm font-medium text-slate-700">Fecha Vencimiento (SLA)</label>
                     <input type="date" name="due_date" id="ticket-due-date" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500">

@@ -187,12 +187,16 @@ function handleLocationChange(e) {
 async function handleFormSubmit(e) {
     e.preventDefault();
     const form = e.target;
-    const id = form.elements.id.value;
+    const id = form.querySelector('input[name="id"]').value;
     const body = Object.fromEntries(new FormData(form));
+    
+    // El ID no debe ir en el cuerpo de la solicitud, se usa en la URL
     delete body.id;
-    // Ensure optional fields are handled
+
+    // Asegurarse de que los campos opcionales que están vacíos se envíen como null
     if (!body.location_id) body.location_id = null;
     if (!body.equipment_id) body.equipment_id = null;
+    if (!body.due_date) body.due_date = null;
 
     const url = id ? `${API_URL}/tickets/${id}` : `${API_URL}/tickets`;
     const method = id ? 'PUT' : 'POST';
@@ -222,6 +226,7 @@ async function openModal(modalId, data = {}) {
     form.reset();
     form.querySelector('input[name="id"]').value = '';
     document.getElementById(`${modalId}-title`).textContent = 'Nuevo Ticket';
+    document.getElementById('ticket-status-wrapper').classList.add('hidden');
 
     // Reset and disable dependent dropdowns
     // Client select is populated by fetchAllInitialData -> fetchClients
@@ -239,57 +244,64 @@ async function openModal(modalId, data = {}) {
 
     if (effectiveData.id) { // Editing an existing ticket
         document.getElementById(`${modalId}-title`).textContent = 'Editar Ticket';
+        document.getElementById('ticket-status-wrapper').classList.remove('hidden');
+
         try {
             const response = await fetch(`${API_URL}/tickets/${effectiveData.id}`);
             if (!response.ok) throw new Error(`Failed to fetch ticket ${effectiveData.id}`);
             const result = await response.json();
             const ticketData = result.data;
 
-            // Populate form fields directly from ticketData using updated IDs
-            Object.entries(ticketData).forEach(([key, value]) => {
-                const fieldId = getFieldId(key);
-                const field = document.getElementById(fieldId);
-                if (field) {
-                    if (key === 'due_date' && value) {
-                        field.value = value.split('T')[0]; // Format for date input
-                    } else {
-                        field.value = value;
-                    }
-                }
-            });
+            // Populate form fields directly from ticketData
+            form.querySelector('input[name="id"]').value = ticketData.id;
+            form.elements.title.value = ticketData.title;
+            form.elements.description.value = ticketData.description;
+            form.elements.priority.value = ticketData.priority;
+            form.elements.status.value = ticketData.status;
 
-            // Set client_id first, then fetch and set dependent dropdowns
-            if (ticketData.client_id) {
-                clientSelect.value = ticketData.client_id;
-                await fetchLocations(ticketData.client_id); // Populates and enables locationSelect
-                locationSelect.value = ticketData.location_id;
-
-                if (ticketData.location_id) {
-                    await fetchEquipment(ticketData.location_id); // Populates and enables equipmentSelect
-                    equipmentSelect.value = ticketData.equipment_id;
-                }
+            // Formatear la fecha para el input type="date" (YYYY-MM-DD)
+            if (ticketData.due_date) {
+                form.elements.due_date.value = ticketData.due_date.split('T')[0];
             }
-        } catch (error) {
-            console.error("Error opening modal for editing ticket:", error);
-        }
-    } else if (effectiveData.client_id) { // New ticket with prefill data
-        clientSelect.value = effectiveData.client_id;
-        await fetchLocations(effectiveData.client_id);
-        locationSelect.value = effectiveData.location_id;
 
-        if (effectiveData.location_id) {
-            await fetchEquipment(effectiveData.location_id);
-            if (effectiveData.equipment_id) {
-                equipmentSelect.value = effectiveData.equipment_id;
+            // --- Manejo de Desplegables en Cascada para Edición ---
+            // 1. Establecer el cliente
+            form.elements.client_id.value = ticketData.client_id;
+
+            // 2. Cargar y establecer la sede
+            if (ticketData.client_id) {
+                await fetchLocations(ticketData.client_id); // Carga las sedes del cliente
+                form.elements.location_id.value = ticketData.location_id;
+            }
+
+            // 3. Cargar y establecer el equipo
+            if (ticketData.location_id) {
+                await fetchEquipment(ticketData.location_id); // Carga los equipos de la sede
+                form.elements.equipment_id.value = ticketData.equipment_id;
+            }
+
+        } catch (error) {
+            console.error('Error populating form for edit:', error);
+            alert('Error al cargar los datos del ticket para editar.');
+            closeModal(modalId);
+        }
+    } else if (effectiveData.client_id) { // Prefill for new ticket from client/location page
+        // Similar cascade logic for prefilling...
+        form.elements.client_id.value = effectiveData.client_id;
+        if(effectiveData.client_id) {
+            await fetchLocations(effectiveData.client_id);
+            if(effectiveData.location_id) {
+                form.elements.location_id.value = effectiveData.location_id;
+                await fetchEquipment(effectiveData.location_id);
+                if(effectiveData.equipment_id) {
+                    form.elements.equipment_id.value = effectiveData.equipment_id;
+                }
             }
         }
     }
-    
-    document.getElementById(modalId).classList.add('flex');
+
     document.getElementById(modalId).style.display = 'flex';
-    
-    // Actualizar iconos Lucide en el modal
-    lucide.createIcons();
+    state.ticketPrefillData = null; // Clear prefill data after using it
 }
 
 // Helper function to map field names to their HTML IDs

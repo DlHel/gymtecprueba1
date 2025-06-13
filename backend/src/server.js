@@ -78,7 +78,7 @@ app.get('/api/clients', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(rows);
+        res.json({ message: "success", data: rows });
     });
 });
 
@@ -193,7 +193,7 @@ app.get('/api/clients/:clientId/locations', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(rows);
+        res.json({ message: "success", data: rows });
     });
 });
 
@@ -291,7 +291,7 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
             res.status(400).json({"error":err.message});
             return;
         }
-        res.json(rows);
+        res.json({ message: "success", data: rows });
     });
 });
 
@@ -781,94 +781,115 @@ app.delete('/api/models/photos/:filename', (req, res) => {
 
 // GET all tickets
 app.get('/api/tickets', (req, res) => {
-    let sql = `
+    const sql = `
         SELECT 
-            t.*, 
-            c.name as client_name 
+            t.*,
+            c.name as client_name
         FROM Tickets t
-        LEFT JOIN Clients c ON t.client_id = c.id
+        JOIN Clients c ON t.client_id = c.id
+        ORDER BY t.created_at DESC
     `;
-    const params = [];
-    
-    if (req.query.location_id) {
-        sql += " WHERE t.location_id = ?";
-        params.push(req.query.location_id);
-    }
-
-    sql += " ORDER BY t.created_at DESC";
-
-    db.all(sql, params, (err, rows) => {
+    db.all(sql, [], (err, rows) => {
         if (err) {
-            res.status(400).json({"error":err.message});
+            res.status(500).json({ "error": err.message });
             return;
         }
-        res.json({ message: "success", data: rows });
+        res.json({
+            message: "success",
+            data: rows
+        });
     });
 });
 
 // GET a single ticket by id
-app.get("/api/tickets/:id", (req, res) => {
+app.get('/api/tickets/:id', (req, res) => {
     const sql = "SELECT * FROM Tickets WHERE id = ?";
     db.get(sql, [req.params.id], (err, row) => {
         if (err) {
-          res.status(400).json({"error":err.message});
-          return;
+            res.status(400).json({ "error": err.message });
+            return;
         }
-        res.json({ message:"success", data:row });
+        res.json({
+            message: "success",
+            data: row
+        });
     });
 });
 
 // POST new ticket
 app.post('/api/tickets', (req, res) => {
-    const { title, description, status, priority, client_id, location_id, equipment_id, assigned_technician_id, due_date } = req.body;
-    if (!title || !client_id) {
-        return res.status(400).json({"error": "Missing required fields: title, client_id"});
+    const { client_id, location_id, equipment_id, title, description, priority, due_date } = req.body;
+
+    // Basic validation
+    if (!title || !client_id || !priority) {
+        return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
     }
-    const sql = `INSERT INTO Tickets (title, description, status, priority, client_id, location_id, equipment_id, assigned_technician_id, due_date) VALUES (?,?,?,?,?,?,?,?,?)`;
-    const params = [title, description, status, priority, client_id, location_id, equipment_id, assigned_technician_id, due_date];
+
+    const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto'];
+    
     db.run(sql, params, function(err) {
         if (err) {
-            res.status(400).json({"error":err.message});
+            res.status(400).json({ "error": err.message });
             return;
         }
-        res.status(201).json({ message: "success", data: { id: this.lastID, ...req.body } });
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ...req.body }
+        });
     });
 });
 
 // PUT (update) a ticket
-app.put("/api/tickets/:id", (req, res) => {
-    const { title, description, status, priority, client_id, location_id, equipment_id, assigned_technician_id, due_date } = req.body;
-    const sql = `UPDATE Tickets set 
-                 title = COALESCE(?,title), 
-                 description = COALESCE(?,description), 
-                 status = COALESCE(?,status), 
-                 priority = COALESCE(?,priority), 
-                 client_id = COALESCE(?,client_id), 
-                 location_id = COALESCE(?,location_id), 
-                 equipment_id = COALESCE(?,equipment_id),
-                 assigned_technician_id = COALESCE(?, assigned_technician_id),
-                 due_date = COALESCE(?, due_date),
-                 updated_at = CURRENT_TIMESTAMP
+app.put('/api/tickets/:id', (req, res) => {
+    const { client_id, location_id, equipment_id, title, description, status, priority, due_date } = req.body;
+    
+    if (!title || !client_id || !priority || !status) {
+        return res.status(400).json({ error: "Título, Cliente, Prioridad y Estado son campos obligatorios." });
+    }
+
+    const sql = `UPDATE Tickets SET
+                    client_id = ?,
+                    location_id = ?,
+                    equipment_id = ?,
+                    title = ?,
+                    description = ?,
+                    status = ?,
+                    priority = ?,
+                    due_date = ?,
+                    updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?`;
-    const params = [title, description, status, priority, client_id, location_id, equipment_id, assigned_technician_id, due_date, req.params.id];
-    db.run(sql, params, function (err, result) {
+                 
+    const params = [client_id, location_id, equipment_id, title, description, status, priority, due_date, req.params.id];
+
+    db.run(sql, params, function(err) {
         if (err) {
-            res.status(400).json({"error": err.message});
+            res.status(400).json({ "error": err.message });
             return;
         }
-        res.json({ message: "success", data: req.body, changes: this.changes });
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Ticket no encontrado." });
+        }
+        res.json({
+            message: "success",
+            changes: this.changes
+        });
     });
 });
 
 // DELETE a ticket
-app.delete("/api/tickets/:id", (req, res) => {
+app.delete('/api/tickets/:id', (req, res) => {
     const sql = 'DELETE FROM Tickets WHERE id = ?';
-    db.run(sql, [req.params.id], function (err) {
-        if (err){
-            res.status(400).json({"error": err.message});
+    db.run(sql, [req.params.id], function(err) {
+        if (err) {
+            res.status(400).json({ "error": err.message });
             return;
         }
-        res.json({ message:"deleted", changes: this.changes });
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Ticket no encontrado." });
+        }
+        res.json({ "message": "deleted", changes: this.changes });
     });
 });
 
