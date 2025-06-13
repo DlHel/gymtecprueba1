@@ -1,0 +1,501 @@
+/* Estilos modernos para modales de modelos */
+
+/* Modal Principal de Modelo (con pestañas) */
+.model-modal {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 50;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.model-modal.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.model-modal-content {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 95%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: scale(0.95) translateY(20px);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.model-modal.is-open .model-modal-content {
+    transform: scale(1) translateY(0);
+}
+
+.model-modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.model-modal-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.model-modal-close {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #64748b;
+}
+
+.model-modal-close:hover {
+    background: #e2e8f0;
+    color: #475569;
+    transform: scale(1.05);
+}
+
+/* Pestañas del modal */
+.model-tabs {
+    padding: 0 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+}
+
+.model-tab-nav {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+}
+
+.model-tab-button {
+    padding: 1rem 1.5rem;
+    border: none;
+    background: transparent;
+    color: #64748b;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    font-size: 0.875rem;
+}
+
+.model-tab-button:hover {
+    color: #475569;
+    background-color: rgba(14, 165, 233, 0.05);
+}
+
+.model-tab-button.active {
+    color: #0ea5e9;
+    border-bottom-color: #0ea5e9;
+    background-color: rgba(14, 165, 233, 0.1);
+}
+
+.model-modal-body {
+    padding: 2rem;
+}
+
+.model-tab-content {
+    display: none;
+}
+
+.model-tab-content.active {
+    display: block;
+}
+
+/* Formulario del modal */
+.model-form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+    .model-form-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 2rem 1.5rem;
+    }
+}
+
+.model-form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.model-form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.model-form-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.model-form-label .required {
+    color: #ef4444;
+}
+
+.model-form-input,
+.model-form-select,
+.model-form-textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1.5px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background-color: #ffffff;
+}
+
+.model-form-input:focus,
+.model-form-select:focus,
+.model-form-textarea:focus {
+    outline: none;
+    border-color: #0ea5e9;
+    box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    background-color: #fefefe;
+}
+
+.model-form-textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+/* Área de subida de archivos */
+.model-file-upload-area {
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    background-color: #f9fafb;
+}
+
+.model-file-upload-area:hover {
+    border-color: #0ea5e9;
+    background-color: rgba(14, 165, 233, 0.05);
+}
+
+.model-file-upload-area.dragover {
+    border-color: #0284c7;
+    background-color: rgba(14, 165, 233, 0.1);
+    transform: scale(1.02);
+}
+
+/* Preview de fotos */
+.model-photo-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 1rem;
+}
+
+.model-photo-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #e2e8f0;
+    transition: all 0.2s ease;
+}
+
+.model-photo-item:hover {
+    border-color: #0ea5e9;
+    transform: scale(1.05);
+}
+
+.model-photo-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.model-photo-status {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: bold;
+    color: white;
+}
+
+.model-photo-status.uploaded {
+    background-color: #10b981;
+}
+
+.model-photo-status.pending {
+    background-color: #f59e0b;
+}
+
+.model-photo-remove {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background-color: rgba(239, 68, 68, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.model-photo-item:hover .model-photo-remove {
+    opacity: 1;
+}
+
+/* Lista de elementos dinámicos */
+.model-dynamic-item {
+    padding: 1rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.model-dynamic-item-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+    align-items: center;
+}
+
+.model-dynamic-item-remove {
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.model-dynamic-item-remove:hover {
+    background-color: #dc2626;
+    transform: scale(1.05);
+}
+
+.model-modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid #e2e8f0;
+    background-color: #f8fafc;
+    border-radius: 0 0 12px 12px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+}
+
+.model-btn-cancel {
+    background: #ffffff;
+    border: 1.5px solid #d1d5db;
+    color: #374151;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.model-btn-cancel:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.model-btn-save {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    border: none;
+    color: white;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 4px rgba(5, 150, 105, 0.2);
+}
+
+.model-btn-save:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(5, 150, 105, 0.3);
+}
+
+/* Modal de Vista (más simple) */
+.model-view-modal {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    z-index: 50;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.model-view-modal.is-open {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.model-view-modal-content {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    width: 95%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: scale(0.95) translateY(20px);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.model-view-modal.is-open .model-view-modal-content {
+    transform: scale(1) translateY(0);
+}
+
+.model-view-modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid #e2e8f0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.model-view-modal-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin: 0;
+}
+
+.model-view-modal-close {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: #64748b;
+}
+
+.model-view-modal-close:hover {
+    background: #e2e8f0;
+    color: #475569;
+    transform: scale(1.05);
+}
+
+.model-view-modal-body {
+    padding: 2rem;
+}
+
+/* Animaciones */
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.model-modal.is-open .model-modal-content,
+.model-view-modal.is-open .model-view-modal-content {
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+/* Prevenir scroll del body cuando el modal está abierto */
+body.modal-open {
+    overflow: hidden;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .model-modal-content,
+    .model-view-modal-content {
+        width: 95%;
+        margin: 1rem;
+        max-height: calc(100vh - 2rem);
+    }
+    
+    .model-modal-header,
+    .model-modal-body,
+    .model-modal-footer,
+    .model-view-modal-header,
+    .model-view-modal-body {
+        padding: 1rem 1.5rem;
+    }
+    
+    .model-tabs {
+        padding: 0 1.5rem;
+    }
+    
+    .model-tab-button {
+        padding: 0.75rem 1rem;
+        font-size: 0.8rem;
+    }
+    
+    .model-form-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .model-modal-footer {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+    
+    .model-btn-cancel,
+    .model-btn-save {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .model-photo-preview {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 0.75rem;
+    }
+} 

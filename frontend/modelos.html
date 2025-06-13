@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Modelos de Equipos - Gymtec ERP</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/modelos.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -156,43 +157,45 @@
     </div>
 
     <!-- Modal para crear/editar modelo -->
-    <div id="model-modal" class="modal-overlay">
-        <div class="modal-panel-large">
-            <div class="flex justify-between items-center mb-6">
-                <h3 id="model-modal-title" class="modal-header">Nuevo Modelo de Equipo</h3>
-                <button id="close-model-modal" class="p-2 hover:bg-gray-100 rounded-full" title="Cerrar modal">
+    <div id="model-modal" class="model-modal" style="display: none;">
+        <div class="model-modal-content">
+            <div class="model-modal-header">
+                <h3 id="model-modal-title" class="model-modal-title">Nuevo Modelo de Equipo</h3>
+                <button id="close-model-modal" class="model-modal-close" title="Cerrar modal">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
 
             <!-- Pestañas del modal -->
-            <div class="border-b border-gray-200 mb-6">
-                <nav class="flex space-x-8">
-                    <button class="tab-button active" data-tab="general">Información General</button>
-                    <button class="tab-button" data-tab="photos">Fotos</button>
-                    <button class="tab-button" data-tab="manuals">Manuales</button>
-                    <button class="tab-button" data-tab="spare-parts">Repuestos</button>
-                    <button class="tab-button" data-tab="checklist">Checklist</button>
+            <div class="model-tabs">
+                <nav class="model-tab-nav">
+                    <button class="model-tab-button active" data-tab="general">Información General</button>
+                    <button class="model-tab-button" data-tab="photos">Fotos</button>
+                    <button class="model-tab-button" data-tab="manuals">Manuales</button>
+                    <button class="model-tab-button" data-tab="spare-parts">Repuestos</button>
+                    <button class="model-tab-button" data-tab="checklist">Checklist</button>
                 </nav>
             </div>
+            
+            <div class="model-modal-body">
 
             <form id="model-form">
                 <input type="hidden" name="id">
 
                 <!-- Pestaña: Información General -->
-                <div id="tab-general" class="tab-content active">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="form-label">Nombre del Modelo <span class="text-red-500">*</span></label>
-                            <input type="text" name="name" class="form-input" required placeholder="Ej: Trotadora X1 Pro">
+                <div id="tab-general" class="model-tab-content active">
+                    <div class="model-form-grid">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Nombre del Modelo <span class="required">*</span></label>
+                            <input type="text" name="name" class="model-form-input" required placeholder="Ej: Trotadora X1 Pro">
                         </div>
-                        <div>
-                            <label class="form-label">Marca <span class="text-red-500">*</span></label>
-                            <input type="text" name="brand" class="form-input" required placeholder="Ej: Life Fitness">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Marca <span class="required">*</span></label>
+                            <input type="text" name="brand" class="model-form-input" required placeholder="Ej: Life Fitness">
                         </div>
-                        <div>
-                            <label class="form-label">Categoría <span class="text-red-500">*</span></label>
-                            <select name="category" class="form-input" required title="Seleccionar categoría del equipo">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Categoría <span class="required">*</span></label>
+                            <select name="category" class="model-form-select" required title="Seleccionar categoría del equipo">
                                 <option value="">Seleccionar categoría</option>
                                 <option value="Cardio">Cardio (Trotadoras, Bicicletas, Elípticas)</option>
                                 <option value="Fuerza">Fuerza (Máquinas de peso, Multiestaciones)</option>
@@ -200,25 +203,25 @@
                                 <option value="Accesorios">Accesorios (Mancuernas, Barras, Discos)</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="form-label">Código del Modelo</label>
-                            <input type="text" name="model_code" class="form-input" placeholder="Ej: LF-X1-2024">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Código del Modelo</label>
+                            <input type="text" name="model_code" class="model-form-input" placeholder="Ej: LF-X1-2024">
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="form-label">Descripción</label>
-                            <textarea name="description" rows="4" class="form-input" placeholder="Descripción detallada del modelo..."></textarea>
+                        <div class="model-form-group full-width">
+                            <label class="model-form-label">Descripción</label>
+                            <textarea name="description" rows="4" class="model-form-textarea" placeholder="Descripción detallada del modelo..."></textarea>
                         </div>
-                        <div>
-                            <label class="form-label">Peso (kg)</label>
-                            <input type="number" name="weight" class="form-input" step="0.1" placeholder="0.0">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Peso (kg)</label>
+                            <input type="number" name="weight" class="model-form-input" step="0.1" placeholder="0.0">
                         </div>
-                        <div>
-                            <label class="form-label">Dimensiones (L x A x H cm)</label>
-                            <input type="text" name="dimensions" class="form-input" placeholder="200 x 80 x 150">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Dimensiones (L x A x H cm)</label>
+                            <input type="text" name="dimensions" class="model-form-input" placeholder="200 x 80 x 150">
                         </div>
-                        <div>
-                            <label class="form-label">Voltaje</label>
-                            <select name="voltage" class="form-input" title="Seleccionar tipo de voltaje del equipo">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Voltaje</label>
+                            <select name="voltage" class="model-form-select" title="Seleccionar tipo de voltaje del equipo">
                                 <option value="">Seleccionar voltaje</option>
                                 <option value="220V">220V</option>
                                 <option value="110V">110V</option>
@@ -226,23 +229,23 @@
                                 <option value="Sin conexión eléctrica">Sin conexión eléctrica</option>
                             </select>
                         </div>
-                        <div>
-                            <label class="form-label">Potencia (W)</label>
-                            <input type="number" name="power" class="form-input" placeholder="1500">
+                        <div class="model-form-group">
+                            <label class="model-form-label">Potencia (W)</label>
+                            <input type="number" name="power" class="model-form-input" placeholder="1500">
                         </div>
-                        <div class="md:col-span-2">
-                            <label class="form-label">Especificaciones Técnicas</label>
-                            <textarea name="specifications" rows="3" class="form-input" placeholder="Especificaciones técnicas adicionales..."></textarea>
+                        <div class="model-form-group full-width">
+                            <label class="model-form-label">Especificaciones Técnicas</label>
+                            <textarea name="specifications" rows="3" class="model-form-textarea" placeholder="Especificaciones técnicas adicionales..."></textarea>
                         </div>
                     </div>
                 </div>
 
                 <!-- Pestaña: Fotos -->
-                <div id="tab-photos" class="tab-content">
+                <div id="tab-photos" class="model-tab-content">
                     <div class="space-y-6">
                         <div>
-                            <label class="form-label">Subir Fotos del Modelo</label>
-                            <div class="file-upload-area" id="photo-upload-area">
+                            <label class="model-form-label">Subir Fotos del Modelo</label>
+                            <div class="model-file-upload-area" id="photo-upload-area">
                                 <label for="photo-input" class="sr-only">Seleccionar fotos del modelo</label>
                                 <input type="file" id="photo-input" multiple accept="image/*" class="hidden">
                                 <i data-lucide="image" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
@@ -259,7 +262,7 @@
                             </div>
                         </div>
                         
-                        <div id="photo-preview" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        <div id="photo-preview" class="model-photo-preview">
                             <!-- Las fotos se mostrarán aquí -->
                         </div>
                         
@@ -279,11 +282,11 @@
                 </div>
 
                 <!-- Pestaña: Manuales -->
-                <div id="tab-manuals" class="tab-content">
+                <div id="tab-manuals" class="model-tab-content">
                     <div class="space-y-6">
                         <div>
-                            <label class="form-label">Subir Manuales</label>
-                            <div class="file-upload-area" id="manual-upload-area">
+                            <label class="model-form-label">Subir Manuales</label>
+                            <div class="model-file-upload-area" id="manual-upload-area">
                                 <label for="manual-input" class="sr-only">Seleccionar manuales del modelo</label>
                                 <input type="file" id="manual-input" multiple accept=".pdf,.doc,.docx" class="hidden">
                                 <i data-lucide="file-text" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
@@ -298,7 +301,7 @@
                 </div>
 
                 <!-- Pestaña: Repuestos -->
-                <div id="tab-spare-parts" class="tab-content">
+                <div id="tab-spare-parts" class="model-tab-content">
                     <div class="space-y-6">
                         <div class="flex justify-between items-center">
                             <h4 class="text-lg font-semibold">Repuestos Compatibles</h4>
@@ -314,7 +317,7 @@
                 </div>
 
                 <!-- Pestaña: Checklist -->
-                <div id="tab-checklist" class="tab-content">
+                <div id="tab-checklist" class="model-tab-content">
                     <div class="space-y-6">
                         <div class="flex justify-between items-center">
                             <h4 class="text-lg font-semibold">Checklist de Mantenimiento</h4>
@@ -330,31 +333,35 @@
                 </div>
 
                 <!-- Botones del modal -->
-                <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200 mt-8">
-                    <button type="button" id="cancel-model" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Modelo</button>
-                </div>
             </form>
+            </div>
+            
+            <div class="model-modal-footer">
+                <button type="button" id="cancel-model" class="model-btn-cancel modal-cancel-btn">Cancelar</button>
+                <button type="submit" form="model-form" class="model-btn-save">Guardar Modelo</button>
+            </div>
         </div>
     </div>
 
     <!-- Modal para vista rápida del modelo -->
-    <div id="model-view-modal" class="modal-overlay">
-        <div class="modal-panel-large">
-            <div class="flex justify-between items-center mb-6">
-                <h3 id="model-view-title" class="modal-header">Detalle del Modelo</h3>
+    <div id="model-view-modal" class="model-view-modal" style="display: none;">
+        <div class="model-view-modal-content">
+            <div class="model-view-modal-header">
+                <h3 id="model-view-title" class="model-view-modal-title">Detalle del Modelo</h3>
                 <div class="flex gap-2">
                     <button id="edit-model-btn" class="btn-secondary flex items-center gap-2">
                         <i data-lucide="edit" class="w-4 h-4"></i>
                         Editar
                     </button>
-                    <button id="close-model-view" class="p-2 hover:bg-gray-100 rounded-full" title="Cerrar vista">
+                    <button id="close-model-view" class="model-view-modal-close" title="Cerrar vista">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
                 </div>
             </div>
-            <div id="model-view-content">
-                <!-- El contenido se cargará dinámicamente -->
+            <div class="model-view-modal-body">
+                <div id="model-view-content">
+                    <!-- El contenido se cargará dinámicamente -->
+                </div>
             </div>
         </div>
     </div>

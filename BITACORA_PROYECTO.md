@@ -105,6 +105,17 @@
     - **Funcionalidad Preservada:** Mantiene todas las características existentes de CRUD de repuestos (crear, editar, eliminar)
     - **Mejoras UX:** Confirmaciones mejoradas para eliminación y títulos descriptivos en botones
     El modal de inventario ahora presenta la misma experiencia visual profesional y coherente establecida en el sistema. *(Completado el 2025-06-13)*
+-   [x] **Estandarización Completa de Modales - Fase 3 (modelos.html):** Se completó la tercera fase del plan de estandarización aplicando el nuevo sistema de diseño a los 2 modales complejos de modelos. Incluye:
+    - **CSS Especializado:** Archivo `modelos.css` con 400+ líneas de estilos específicos para modales con pestañas
+    - **Sistema de Pestañas Modernizado:** 5 pestañas (General, Fotos, Manuales, Repuestos, Checklist) con navegación fluida
+    - **Estructura HTML Actualizada:** Ambos modales rediseñados con header, body y footer separados usando clases semánticas
+    - **Animaciones Suaves:** Implementación de transiciones de entrada/salida con backdrop blur y efectos de escalado
+    - **Grid Responsivo:** Layout adaptativo para formularios complejos con elementos dinámicos
+    - **Componentes Especializados:** Áreas de subida de archivos, preview de fotos, elementos dinámicos (repuestos/checklist)
+    - **JavaScript Actualizado:** Funciones de modal actualizadas al patrón estándar con manejo de pestañas
+    - **Funcionalidad Preservada:** Mantiene todas las características avanzadas como drag & drop, validaciones y CRUD completo
+    - **Elementos Dinámicos Rediseñados:** Repuestos y checklist ahora usan el nuevo sistema de diseño con botones de eliminación estilizados
+    Los modales de equipos ahora presentan la experiencia visual más avanzada y profesional del sistema. *(Completado el 2025-06-13)*
 
 ---
 

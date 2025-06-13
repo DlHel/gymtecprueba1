@@ -191,7 +191,7 @@ class ModelosManager {
 
 
     setupTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
+        const tabButtons = document.querySelectorAll('.model-tab-button');
         tabButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const tabName = e.target.dataset.tab;
@@ -202,11 +202,11 @@ class ModelosManager {
 
     switchTab(tabName) {
         // Actualizar botones
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.model-tab-button').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
         
         // Actualizar contenido
-        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.model-tab-content').forEach(content => content.classList.remove('active'));
         document.getElementById(`tab-${tabName}`).classList.add('active');
         
         this.currentTab = tabName;
@@ -446,15 +446,14 @@ class ModelosManager {
         const html = this.photos.map(photo => {
             console.log('🖼️ Generando HTML para foto:', photo.url);
             return `
-            <div class="relative group">
-                <img src="${photo.url}" alt="${photo.name}" class="w-full h-32 object-cover rounded-lg">
+            <div class="model-photo-item">
+                <img src="${photo.url}" alt="${photo.name}">
                 <button type="button" onclick="modelosManager.removePhoto('${photo.id}', '${photo.filename || ''}')" 
-                        class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <i data-lucide="x" class="w-4 h-4"></i>
+                        class="model-photo-remove">
+                    <i data-lucide="x" class="w-3 h-3"></i>
                 </button>
-                <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 rounded-b-lg">
-                    ${photo.name}
-                    ${photo.isUploaded ? '<span class="ml-2 text-green-300">✓</span>' : photo.isTemporary ? '<span class="ml-2 text-yellow-300">⏳</span>' : ''}
+                <div class="model-photo-status ${photo.isUploaded ? 'uploaded' : photo.isTemporary ? 'pending' : ''}">
+                    ${photo.isUploaded ? '✓' : photo.isTemporary ? '⏳' : ''}
                 </div>
             </div>
         `;
@@ -514,27 +513,27 @@ class ModelosManager {
     renderSpareParts() {
         const container = document.getElementById('spare-parts-list');
         container.innerHTML = this.spareParts.map(part => `
-            <div class="spare-part-item">
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 flex-1">
+            <div class="model-dynamic-item">
+                <div class="model-dynamic-item-content">
                     <input type="text" placeholder="Nombre del repuesto" 
                            value="${part.name}" 
                            onchange="modelosManager.updateSparePart('${part.id}', 'name', this.value)"
-                           class="form-input">
+                           class="model-form-input">
                     <input type="text" placeholder="Código" 
                            value="${part.code}" 
                            onchange="modelosManager.updateSparePart('${part.id}', 'code', this.value)"
-                           class="form-input">
+                           class="model-form-input">
                     <input type="text" placeholder="Descripción" 
                            value="${part.description}" 
                            onchange="modelosManager.updateSparePart('${part.id}', 'description', this.value)"
-                           class="form-input">
+                           class="model-form-input">
                     <input type="number" placeholder="Precio" 
                            value="${part.price}" 
                            onchange="modelosManager.updateSparePart('${part.id}', 'price', this.value)"
-                           class="form-input">
+                           class="model-form-input">
                 </div>
                 <button type="button" onclick="modelosManager.removeSparePart('${part.id}')" 
-                        class="ml-2 text-red-500 hover:text-red-700">
+                        class="model-dynamic-item-remove">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
             </div>
@@ -557,22 +556,22 @@ class ModelosManager {
     renderChecklistItems() {
         const container = document.getElementById('checklist-items');
         container.innerHTML = this.checklistItems.map(item => `
-            <div class="checklist-item">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+            <div class="model-dynamic-item">
+                <div class="model-dynamic-item-content">
                     <input type="text" placeholder="Título del ítem" 
                            value="${item.title}" 
                            onchange="modelosManager.updateChecklistItem('${item.id}', 'title', this.value)"
-                           class="form-input">
+                           class="model-form-input">
                     <div class="flex gap-2">
                         <select onchange="modelosManager.updateChecklistItem('${item.id}', 'category', this.value)" 
-                                class="form-input flex-1">
+                                class="model-form-select flex-1">
                             <option value="preventivo" ${item.category === 'preventivo' ? 'selected' : ''}>Preventivo</option>
                             <option value="correctivo" ${item.category === 'correctivo' ? 'selected' : ''}>Correctivo</option>
                             <option value="limpieza" ${item.category === 'limpieza' ? 'selected' : ''}>Limpieza</option>
                             <option value="inspeccion" ${item.category === 'inspeccion' ? 'selected' : ''}>Inspección</option>
                         </select>
                         <select onchange="modelosManager.updateChecklistItem('${item.id}', 'frequency', this.value)" 
-                                class="form-input flex-1">
+                                class="model-form-select flex-1">
                             <option value="diario" ${item.frequency === 'diario' ? 'selected' : ''}>Diario</option>
                             <option value="semanal" ${item.frequency === 'semanal' ? 'selected' : ''}>Semanal</option>
                             <option value="mensual" ${item.frequency === 'mensual' ? 'selected' : ''}>Mensual</option>
@@ -581,16 +580,14 @@ class ModelosManager {
                             <option value="anual" ${item.frequency === 'anual' ? 'selected' : ''}>Anual</option>
                         </select>
                     </div>
-                </div>
-                <div class="flex gap-2">
                     <textarea placeholder="Descripción detallada del procedimiento..." 
                               onchange="modelosManager.updateChecklistItem('${item.id}', 'description', this.value)"
-                              class="form-input flex-1" rows="2">${item.description}</textarea>
-                    <button type="button" onclick="modelosManager.removeChecklistItem('${item.id}')" 
-                            class="text-red-500 hover:text-red-700 self-start mt-2">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                    </button>
+                              class="model-form-textarea" rows="2">${item.description}</textarea>
                 </div>
+                <button type="button" onclick="modelosManager.removeChecklistItem('${item.id}')" 
+                        class="model-dynamic-item-remove">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
             </div>
         `).join('');
         lucide.createIcons();
@@ -641,7 +638,7 @@ class ModelosManager {
         this.renderChecklistItems();
     }
 
-    // Gestión de modales
+    // Gestión de modales usando el sistema estándar
     async openModelModal(model = null) {
         console.log('🚀 openModelModal ejecutándose, model:', model);
         this.currentModel = model;
@@ -673,22 +670,38 @@ class ModelosManager {
             this.clearFieldError('voltage');
         }, 100);
         
+        // Usar el sistema estándar de modales
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
+        // Forzar reflow para animación
+        modal.offsetHeight;
         modal.classList.add('is-open');
-        document.body.style.overflow = 'hidden';
+        document.body.classList.add('modal-open');
         console.log('🎯 Modal abierto');
     }
 
     closeModelModal() {
         const modal = document.getElementById('model-modal');
         modal.classList.remove('is-open');
-        document.body.style.overflow = '';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+        }, 300);
+        document.body.classList.remove('modal-open');
         this.resetForm();
     }
 
     closeViewModal() {
         const modal = document.getElementById('model-view-modal');
         modal.classList.remove('is-open');
-        document.body.style.overflow = '';
+        setTimeout(() => {
+            modal.style.display = 'none';
+            modal.style.opacity = '0';
+            modal.style.pointerEvents = 'none';
+        }, 300);
+        document.body.classList.remove('modal-open');
     }
 
     populateForm(model) {
@@ -966,8 +979,14 @@ class ModelosManager {
         title.textContent = model.name;
         content.innerHTML = this.createModelViewContent(model);
         
+        // Usar el sistema estándar de modales
+        modal.style.display = 'flex';
+        modal.style.opacity = '1';
+        modal.style.pointerEvents = 'auto';
+        // Forzar reflow para animación
+        modal.offsetHeight;
         modal.classList.add('is-open');
-        document.body.style.overflow = 'hidden';
+        document.body.classList.add('modal-open');
         
         // Configurar botón de editar
         document.getElementById('edit-model-btn').onclick = () => {
