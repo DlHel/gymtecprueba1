@@ -118,13 +118,15 @@
     Los modales de equipos ahora presentan la experiencia visual más avanzada y profesional del sistema. *(Completado el 2025-06-13)*
 -   [x] **Optimización de Layout Compacto para Equipos:** Se implementó una mejora significativa en el aprovechamiento del espacio horizontal en la página de detalle de equipos (`equipo.html`). Se creó un layout compacto donde el código QR (160px) aparece al lado de la información general en lugar de debajo, optimizando especialmente la experiencia en dispositivos móviles y tablets. Se desarrolló un archivo CSS especializado (`equipo.css`) con 400+ líneas de estilos responsivos, se refactorizó el JavaScript para usar clases semánticas en lugar de Tailwind, y se solucionaron problemas de cache del navegador agregando parámetros de versión. El resultado es un diseño más eficiente que aprovecha mejor el espacio disponible. *(Completado el 2025-06-13)*
 -   [x] **Implementación Completa del Sistema Drawer/Sidebar para Equipos:** Se realizó el traspaso completo de la funcionalidad de `equipo.html` a un sistema de drawer/sidebar moderno que se desliza desde la derecha. Incluye:
-    - **Drawer Responsivo:** 500px en desktop, fullscreen en móvil con animaciones suaves (0.3s)
+    - **Drawer Responsivo:** 650px en desktop (30% más ancho), fullscreen en móvil con animaciones suaves (0.3s)
     - **Funcionalidad Completa:** Sistema completo de notas (agregar, eliminar, mostrar), historial de tickets, generación de QR, e impresión avanzada
     - **Integración Perfecta:** Se conectó con `clientes.html` reemplazando todos los enlaces a `equipo.html` por llamadas al drawer
-    - **UX Mejorada:** Overlay oscuro, cierre con ESC/click fuera/botón X, scroll interno personalizado, estados de carga
+    - **UX Mejorada:** Overlay oscuro, cierre con ESC/click fuera/botón X, scroll interno corregido, estados de carga
     - **Layout Optimizado:** Reutiliza el layout compacto desarrollado anteriormente con QR al lado de información
     - **APIs Existentes:** Funciona con todas las APIs existentes sin modificaciones del backend
     - **Scroll Automático:** Contenido con scroll interno cuando excede la altura del drawer
+    - **Sistema de Fotos Completo:** Se agregó funcionalidad completa de gestión de fotos para equipos individuales que incluye tabla EquipmentPhotos en BD, APIs REST (GET/POST/DELETE), galería responsiva con grid, modal de vista ampliada, validación de archivos, almacenamiento en base64, y conexión con sistema de modelos existente
+    - **Integración Fotos de Modelos:** Se implementó la conexión entre equipos individuales y modelos de equipos. Los equipos ahora muestran automáticamente la foto principal del modelo asociado en el drawer. Se agregó columna model_id a tabla Equipment, se asignaron modelos a equipos existentes, y se creó API para obtener foto principal del modelo. El drawer ahora muestra tanto la foto del modelo (si existe) como las fotos específicas del equipo individual
     El drawer proporciona una experiencia superior al eliminar la necesidad de navegar a páginas separadas, manteniendo el contexto del cliente y ofreciendo más espacio que un modal tradicional. *(Completado el 2025-06-13)*
 
 ---

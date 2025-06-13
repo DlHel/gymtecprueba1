@@ -319,9 +319,10 @@ app.get("/api/equipment/:id", (req, res) => {
     const equipmentId = req.params.id;
 
     const getEquipmentSql = `
-        SELECT e.*, l.client_id
+        SELECT e.*, l.client_id, em.name as model_name, em.brand as model_brand
         FROM Equipment e
         JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
         WHERE e.id = ?
     `;
 
@@ -956,6 +957,115 @@ app.delete('/api/equipment/notes/:noteId', (req, res) => {
             return;
         }
         res.json({ message: "Nota eliminada", changes: this.changes });
+    });
+});
+
+
+// --- API Routes for Equipment Photos ---
+
+// GET all photos for a specific equipment
+app.get('/api/equipment/:equipmentId/photos', (req, res) => {
+    const { equipmentId } = req.params;
+    const sql = `
+        SELECT * FROM EquipmentPhotos 
+        WHERE equipment_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [equipmentId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
+// POST new photo for equipment
+app.post('/api/equipment/:equipmentId/photos', (req, res) => {
+    const { equipmentId } = req.params;
+    const { photo_data, mime_type, filename } = req.body;
+    
+    if (!photo_data || !mime_type) {
+        return res.status(400).json({ error: "photo_data y mime_type son requeridos" });
+    }
+    
+    const sql = 'INSERT INTO EquipmentPhotos (equipment_id, photo_data, mime_type, filename) VALUES (?, ?, ?, ?)';
+    const params = [equipmentId, photo_data, mime_type, filename || 'foto.jpg'];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        // Devolver la foto creada
+        const selectSql = 'SELECT * FROM EquipmentPhotos WHERE id = ?';
+        db.get(selectSql, [this.lastID], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.status(201).json(row);
+        });
+    });
+});
+
+// DELETE a photo
+app.delete('/api/equipment/photos/:photoId', (req, res) => {
+    const { photoId } = req.params;
+    const sql = 'DELETE FROM EquipmentPhotos WHERE id = ?';
+    
+    db.run(sql, [photoId], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.json({ message: "Foto eliminada", changes: this.changes });
+    });
+});
+
+// GET main photo for a model (for equipment display)
+app.get('/api/models/:modelId/main-photo', (req, res) => {
+    const { modelId } = req.params;
+    const sql = `
+        SELECT file_path FROM ModelPhotos 
+        WHERE model_id = ? 
+        ORDER BY created_at ASC 
+        LIMIT 1
+    `;
+    db.get(sql, [modelId], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        if (!row) {
+            res.status(404).json({ error: "No hay fotos para este modelo" });
+            return;
+        }
+        
+        // Leer el archivo y convertirlo a base64
+        const fs = require('fs');
+        const path = require('path');
+        const filePath = path.join(__dirname, '..', row.file_path);
+        
+        if (!fs.existsSync(filePath)) {
+            res.status(404).json({ error: "Archivo de foto no encontrado" });
+            return;
+        }
+        
+        try {
+            const fileBuffer = fs.readFileSync(filePath);
+            const base64Data = fileBuffer.toString('base64');
+            const mimeType = `image/${path.extname(filePath).slice(1)}`;
+            
+            res.json({
+                photo_data: base64Data,
+                mime_type: mimeType,
+                file_path: row.file_path
+            });
+        } catch (error) {
+            res.status(500).json({ error: "Error al leer el archivo de foto" });
+        }
     });
 });
 

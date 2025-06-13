@@ -20,6 +20,16 @@ CREATE TABLE ModelPhotos (
     FOREIGN KEY (model_id) REFERENCES EquipmentModels(id) ON DELETE CASCADE
 );
 
+CREATE TABLE EquipmentPhotos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    equipment_id INTEGER NOT NULL,
+    photo_data TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    filename TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (equipment_id) REFERENCES Equipment(id) ON DELETE CASCADE
+);
+
 CREATE TABLE Tickets (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     client_id INTEGER NOT NULL,

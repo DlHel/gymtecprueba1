@@ -66,9 +66,12 @@ class EquipmentDrawer {
             }
         });
 
-        // Prevenir scroll del body cuando el drawer está abierto
+        // Permitir scroll dentro del drawer, prevenir scroll del body
         this.overlay.addEventListener('wheel', (e) => {
-            e.preventDefault();
+            // Solo prevenir si el scroll no es dentro del contenido del drawer
+            if (e.target === this.overlay) {
+                e.preventDefault();
+            }
         });
     }
 
@@ -200,6 +203,50 @@ class EquipmentDrawer {
                     </div>
                 </div>
 
+                <!-- Foto del Modelo -->
+                <div class="equipment-card" id="model-photo-section-drawer" style="display: none;">
+                    <h2 class="equipment-section-title">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21,15 16,10 5,21"></polyline>
+                        </svg>
+                        Foto del Modelo
+                    </h2>
+                    <div class="equipment-model-photo-container" id="modelPhotoContainer-drawer">
+                        <!-- La foto del modelo se cargará aquí -->
+                    </div>
+                </div>
+
+                <!-- Fotos del Equipo -->
+                <div class="equipment-card">
+                    <div class="equipment-notes-header">
+                        <h2 class="equipment-section-title">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21,15 16,10 5,21"></polyline>
+                            </svg>
+                            Fotos Específicas del Equipo
+                        </h2>
+                        <button id="add-photo-btn-drawer" class="equipment-btn equipment-btn-primary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Agregar Foto
+                        </button>
+                    </div>
+                    
+                    <!-- Input de archivo oculto -->
+                    <input type="file" id="photo-input-drawer" accept="image/*" multiple style="display: none;">
+                    
+                    <!-- Galería de fotos -->
+                    <div class="equipment-photos-gallery" id="photosGallery-drawer">
+                        <!-- Las fotos se cargarán aquí -->
+                    </div>
+                </div>
+
                 <!-- Notas -->
                 <div class="equipment-card">
                     <div class="equipment-notes-header">
@@ -265,8 +312,17 @@ class EquipmentDrawer {
         // Cargar tickets
         this.loadTickets(equipo.id);
         
+        // Cargar fotos
+        this.loadPhotos(equipo.id);
+        
+        // Cargar foto del modelo si existe
+        this.loadModelPhoto(equipo);
+        
         // Configurar event listeners
         this.setupEquipmentEvents(equipo);
+        
+        // Configurar manejadores de fotos
+        this.setupPhotoHandlers(equipo.id);
     }
 
     generateQRCode(equipo) {
@@ -662,6 +718,262 @@ class EquipmentDrawer {
         } catch (error) {
             console.error('Error al eliminar la nota:', error);
             alert('Error al eliminar la nota. Por favor, inténtalo de nuevo.');
+        }
+    }
+
+    // ===== MÉTODOS PARA MANEJO DE FOTOS =====
+
+    async loadModelPhoto(equipo) {
+        const modelPhotoSection = document.getElementById('model-photo-section-drawer');
+        const modelPhotoContainer = document.getElementById('modelPhotoContainer-drawer');
+        
+        if (!modelPhotoSection || !modelPhotoContainer) return;
+        
+        // Si el equipo no tiene model_id, ocultar la sección
+        if (!equipo.model_id) {
+            modelPhotoSection.style.display = 'none';
+            return;
+        }
+        
+        try {
+            const response = await fetch(`http://localhost:3000/api/models/${equipo.model_id}/main-photo`);
+            
+            if (response.ok) {
+                const photoData = await response.json();
+                
+                // Mostrar la sección y cargar la foto
+                modelPhotoSection.style.display = 'block';
+                modelPhotoContainer.innerHTML = `
+                    <img src="data:${photoData.mime_type};base64,${photoData.photo_data}" 
+                         alt="Foto del modelo ${equipo.model_name || equipo.model}" 
+                         class="equipment-model-photo"
+                         onclick="equipmentDrawer.viewPhoto('${photoData.photo_data}', '${photoData.mime_type}')"
+                         title="Click para ver en tamaño completo">
+                `;
+            } else {
+                // No hay foto del modelo, mostrar placeholder
+                modelPhotoSection.style.display = 'block';
+                modelPhotoContainer.innerHTML = `
+                    <div class="equipment-model-photo-placeholder">
+                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21,15 16,10 5,21"></polyline>
+                        </svg>
+                        <p>No hay foto disponible para este modelo</p>
+                        <small>${equipo.model_name || equipo.model || 'Modelo desconocido'}</small>
+                    </div>
+                `;
+            }
+        } catch (error) {
+            console.error('Error loading model photo:', error);
+            // En caso de error, ocultar la sección
+            modelPhotoSection.style.display = 'none';
+        }
+    }
+
+    async loadPhotos(equipmentId) {
+        try {
+            const response = await fetch(`http://localhost:3000/api/equipment/${equipmentId}/photos`);
+            const photos = await response.json();
+            
+            const photosGallery = document.getElementById('photosGallery-drawer');
+            if (photosGallery) {
+                if (photos.length === 0) {
+                    photosGallery.innerHTML = `
+                        <div class="equipment-photos-empty">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21,15 16,10 5,21"></polyline>
+                            </svg>
+                            <p>No hay fotos para este equipo</p>
+                        </div>
+                    `;
+                } else {
+                    const photosHtml = photos.map(photo => `
+                        <div class="equipment-photo-item">
+                            <img src="data:${photo.mime_type};base64,${photo.photo_data}" alt="Foto del equipo">
+                            <div class="equipment-photo-overlay">
+                                <div class="equipment-photo-actions">
+                                    <button class="equipment-photo-btn view" onclick="equipmentDrawer.viewPhoto('${photo.photo_data}', '${photo.mime_type}')" title="Ver foto">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                            <circle cx="12" cy="12" r="3"></circle>
+                                        </svg>
+                                    </button>
+                                    <button class="equipment-photo-btn delete" onclick="equipmentDrawer.deletePhoto(${photo.id})" title="Eliminar foto">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="3,6 5,6 21,6"></polyline>
+                                            <path d="M19,6V20a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6M8,6V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                    photosGallery.innerHTML = photosHtml;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading photos:', error);
+            const photosGallery = document.getElementById('photosGallery-drawer');
+            if (photosGallery) {
+                photosGallery.innerHTML = '<div class="equipment-error">Error al cargar fotos</div>';
+            }
+        }
+    }
+
+    setupPhotoHandlers(equipmentId) {
+        // Botón agregar foto
+        const addPhotoBtn = document.getElementById('add-photo-btn-drawer');
+        const photoInput = document.getElementById('photo-input-drawer');
+
+        if (addPhotoBtn && photoInput) {
+            addPhotoBtn.addEventListener('click', () => {
+                photoInput.click();
+            });
+
+            photoInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.uploadPhotos(equipmentId, e.target.files);
+                }
+            });
+        }
+    }
+
+    async uploadPhotos(equipmentId, files) {
+        const addPhotoBtn = document.getElementById('add-photo-btn-drawer');
+        const originalText = addPhotoBtn.innerHTML;
+        
+        try {
+            // Mostrar estado de carga
+            addPhotoBtn.innerHTML = `
+                <div class="spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>
+                Subiendo...
+            `;
+            addPhotoBtn.disabled = true;
+
+            for (let file of files) {
+                // Validar tipo de archivo
+                if (!file.type.startsWith('image/')) {
+                    alert(`El archivo ${file.name} no es una imagen válida.`);
+                    continue;
+                }
+
+                // Validar tamaño (máximo 5MB)
+                if (file.size > 5 * 1024 * 1024) {
+                    alert(`El archivo ${file.name} es demasiado grande. Máximo 5MB.`);
+                    continue;
+                }
+
+                // Convertir a base64
+                const base64 = await this.fileToBase64(file);
+                
+                // Enviar al servidor
+                const response = await fetch(`http://localhost:3000/api/equipment/${equipmentId}/photos`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        photo_data: base64.split(',')[1], // Remover el prefijo data:image/...;base64,
+                        mime_type: file.type,
+                        filename: file.name
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Error al subir ${file.name}`);
+                }
+            }
+
+            // Recargar galería
+            await this.loadPhotos(equipmentId);
+            
+            // Limpiar input
+            document.getElementById('photo-input-drawer').value = '';
+
+        } catch (error) {
+            console.error('Error uploading photos:', error);
+            alert('Error al subir las fotos. Inténtalo de nuevo.');
+        } finally {
+            // Restaurar botón
+            addPhotoBtn.innerHTML = originalText;
+            addPhotoBtn.disabled = false;
+        }
+    }
+
+    fileToBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = error => reject(error);
+        });
+    }
+
+    viewPhoto(photoData, mimeType) {
+        // Crear modal para ver la foto
+        const modal = document.createElement('div');
+        modal.className = 'photo-modal';
+        modal.innerHTML = `
+            <div class="photo-modal-content">
+                <button class="photo-modal-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <img src="data:${mimeType};base64,${photoData}" alt="Foto del equipo">
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // Mostrar modal
+        setTimeout(() => modal.classList.add('active'), 10);
+
+        // Event listeners para cerrar
+        const closeBtn = modal.querySelector('.photo-modal-close');
+        const closeModal = () => {
+            modal.classList.remove('active');
+            setTimeout(() => document.body.removeChild(modal), 300);
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+        
+        document.addEventListener('keydown', function escHandler(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', escHandler);
+            }
+        });
+    }
+
+    async deletePhoto(photoId) {
+        if (!confirm('¿Estás seguro de que quieres eliminar esta foto?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`http://localhost:3000/api/equipment/photos/${photoId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Error al eliminar la foto');
+            }
+
+            // Recargar galería
+            await this.loadPhotos(this.currentEquipmentId);
+
+        } catch (error) {
+            console.error('Error deleting photo:', error);
+            alert('Error al eliminar la foto. Inténtalo de nuevo.');
         }
     }
 }
