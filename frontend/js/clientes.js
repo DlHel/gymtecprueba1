@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'http://localhost:3000/api';
+    // API_URL se define en config.js
 
     // --- Estado de la Aplicación ---
     const state = {

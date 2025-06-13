@@ -16,24 +16,8 @@ class ModelosManager {
     }
 
     getApiBaseUrl() {
-        const currentPort = window.location.port;
-        const currentHost = window.location.hostname;
-        
-        console.log('Current URL:', window.location.href);
-        console.log('Current port:', currentPort);
-        
-        // Si estamos en el puerto 8080 (servidor frontend), apuntar al backend en 3000
-        if (currentPort === '8080') {
-            return 'http://localhost:3000';
-        }
-        
-        // Si estamos en el puerto 3000 (servidor backend), usar la URL completa
-        if (currentPort === '3000') {
-            return `http://${currentHost}:3000`;
-        }
-        
-        // Por defecto, asumir que estamos en el backend
-        return 'http://localhost:3000';
+        // Usar la configuración global de API_URL sin el /api al final
+        return API_URL.replace('/api', '');
     }
 
     init() {
