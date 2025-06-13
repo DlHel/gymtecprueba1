@@ -112,6 +112,7 @@
                             <div class="flex flex-col md:flex-row gap-4 flex-1">
                                 <label for="search-models" class="sr-only">Buscar modelos</label>
                                 <input type="text" id="search-models" placeholder="Buscar modelos por nombre, marca o categoría..." class="form-input flex-1" title="Buscar modelos por nombre, marca o categoría">
+                                <label for="filter-category" class="sr-only">Filtrar por categoría</label>
                                 <select id="filter-category" class="form-input md:w-48" title="Filtrar por categoría">
                                     <option value="">Todas las categorías</option>
                                     <option value="Cardio">Cardio</option>
@@ -242,6 +243,7 @@
                         <div>
                             <label class="form-label">Subir Fotos del Modelo</label>
                             <div class="file-upload-area" id="photo-upload-area">
+                                <label for="photo-input" class="sr-only">Seleccionar fotos del modelo</label>
                                 <input type="file" id="photo-input" multiple accept="image/*" class="hidden">
                                 <i data-lucide="image" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
                                 <p class="text-lg font-medium text-gray-700 mb-2">Arrastra fotos aquí o haz clic para seleccionar</p>
@@ -282,6 +284,7 @@
                         <div>
                             <label class="form-label">Subir Manuales</label>
                             <div class="file-upload-area" id="manual-upload-area">
+                                <label for="manual-input" class="sr-only">Seleccionar manuales del modelo</label>
                                 <input type="file" id="manual-input" multiple accept=".pdf,.doc,.docx" class="hidden">
                                 <i data-lucide="file-text" class="w-12 h-12 text-gray-400 mx-auto mb-4"></i>
                                 <p class="text-lg font-medium text-gray-700 mb-2">Arrastra manuales aquí o haz clic para seleccionar</p>
