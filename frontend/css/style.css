@@ -956,6 +956,81 @@ body {
 .rows-4 { grid-template-rows: repeat(4, minmax(0, 1fr)); }
 .step-0\.1 { step: 0.1; }
 
+/* Estilos para validaciones */
+.form-input.error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.field-error {
+  color: #ef4444;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* Sistema de notificaciones */
+.notification {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10000;
+  max-width: 400px;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid;
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification-success {
+  border-left-color: #10b981;
+}
+
+.notification-error {
+  border-left-color: #ef4444;
+}
+
+.notification-warning {
+  border-left-color: #f59e0b;
+}
+
+.notification-info {
+  border-left-color: #3b82f6;
+}
+
+.notification-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.notification-close {
+  margin-left: auto;
+  padding: 0.25rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  color: #6b7280;
+}
+
+.notification-close:hover {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
 /* Responsive helpers */
 @media (max-width: 768px) {
   .section-spacing {
@@ -965,5 +1040,12 @@ body {
   .modal-panel {
     margin: 1rem;
     width: calc(100% - 2rem);
+  }
+  
+  .notification {
+    top: 0.5rem;
+    right: 0.5rem;
+    left: 0.5rem;
+    max-width: none;
   }
 } 

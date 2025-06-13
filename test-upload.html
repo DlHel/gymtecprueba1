@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Photo Upload</title>
+</head>
+<body>
+    <h1>Test Photo Upload</h1>
+    <form id="uploadForm">
+        <input type="file" id="photoInput" multiple accept="image/*">
+        <button type="submit">Upload Photos</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const files = document.getElementById('photoInput').files;
+            if (files.length === 0) {
+                alert('Please select files');
+                return;
+            }
+            
+            const formData = new FormData();
+            for (let file of files) {
+                formData.append('photos', file);
+            }
+            
+            try {
+                console.log('Uploading to: http://localhost:3000/api/models/26/photos');
+                const response = await fetch('http://localhost:3000/api/models/26/photos', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log('Success:', result);
+                document.getElementById('result').innerHTML = '<pre>' + JSON.stringify(result, null, 2) + '</pre>';
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                document.getElementById('result').innerHTML = '<p style="color: red;">Error: ' + error.message + '</p>';
+            }
+        });
+    </script>
+</body>
+</html> 

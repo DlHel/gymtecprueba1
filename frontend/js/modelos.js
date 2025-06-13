@@ -17,19 +17,23 @@ class ModelosManager {
 
     getApiBaseUrl() {
         const currentPort = window.location.port;
+        const currentHost = window.location.hostname;
+        
+        console.log('Current URL:', window.location.href);
+        console.log('Current port:', currentPort);
         
         // Si estamos en el puerto 8080 (servidor frontend), apuntar al backend en 3000
         if (currentPort === '8080') {
             return 'http://localhost:3000';
         }
         
-        // Si estamos en el puerto 3000 (servidor backend), usar rutas relativas
+        // Si estamos en el puerto 3000 (servidor backend), usar la URL completa
         if (currentPort === '3000') {
-            return '';
+            return `http://${currentHost}:3000`;
         }
         
         // Por defecto, asumir que estamos en el backend
-        return '';
+        return 'http://localhost:3000';
     }
 
     init() {
@@ -50,15 +54,141 @@ class ModelosManager {
         document.getElementById('model-form').addEventListener('submit', (e) => this.handleSubmit(e));
         
         // Búsqueda y filtros
-        document.getElementById('search-models').addEventListener('input', (e) => this.filterModels());
-        document.getElementById('filter-category').addEventListener('change', (e) => this.filterModels());
+        document.getElementById('search-models').addEventListener('input', async (e) => await this.filterModels());
+        document.getElementById('filter-category').addEventListener('change', async (e) => await this.filterModels());
         
         // Botones de agregar elementos
         document.getElementById('add-spare-part').addEventListener('click', () => this.addSparePartRow());
         document.getElementById('add-checklist-item').addEventListener('click', () => this.addChecklistRow());
         
+        // Validación en tiempo real
+        this.setupRealTimeValidation();
+        
         // Modal de edición desde vista (se configurará dinámicamente)
     }
+
+    setupRealTimeValidation() {
+        // Validación en tiempo real para campos obligatorios
+        const requiredFields = ['name', 'brand', 'category'];
+        requiredFields.forEach(fieldName => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('blur', () => this.validateField(fieldName, field.value));
+                field.addEventListener('input', () => this.clearFieldError(fieldName));
+            }
+        });
+
+        // Validación para campos numéricos
+        const numericFields = ['weight', 'power'];
+        numericFields.forEach(fieldName => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('blur', () => this.validateField(fieldName, field.value));
+                field.addEventListener('input', () => this.clearFieldError(fieldName));
+            }
+        });
+
+        // Validación para campos con formato específico
+        const formatFields = ['dimensions'];
+        formatFields.forEach(fieldName => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                field.addEventListener('blur', () => this.validateField(fieldName, field.value));
+                field.addEventListener('input', () => this.clearFieldError(fieldName));
+            }
+        });
+    }
+
+    validateField(fieldName, value) {
+        const errors = [];
+        
+        switch (fieldName) {
+            case 'name':
+                if (!value || value.trim() === '') {
+                    errors.push('El nombre del modelo es obligatorio');
+                } else if (value.length > 100) {
+                    errors.push('El nombre no puede exceder 100 caracteres');
+                }
+                break;
+                
+            case 'brand':
+                if (!value || value.trim() === '') {
+                    errors.push('La marca es obligatoria');
+                } else if (value.length > 50) {
+                    errors.push('La marca no puede exceder 50 caracteres');
+                }
+                break;
+                
+            case 'category':
+                if (!value || value.trim() === '') {
+                    errors.push('La categoría es obligatoria');
+                }
+                break;
+                
+            case 'weight':
+                if (value && (isNaN(value) || parseFloat(value) < 0)) {
+                    errors.push('El peso debe ser un número positivo');
+                }
+                break;
+                
+            case 'power':
+                if (value && (isNaN(value) || parseInt(value) < 0)) {
+                    errors.push('La potencia debe ser un número entero positivo');
+                }
+                break;
+                
+            case 'dimensions':
+                if (value && value.trim() !== '') {
+                    const dimensionPattern = /^\d+(\.\d+)?\s*x\s*\d+(\.\d+)?\s*x\s*\d+(\.\d+)?$/i;
+                    if (!dimensionPattern.test(value.trim())) {
+                        errors.push('Formato: Largo x Ancho x Alto (ej: 200 x 80 x 150)');
+                    }
+                }
+                break;
+                
+            case 'voltage':
+                // No necesita validación - es un select con opciones predefinidas
+                return;
+        }
+        
+        if (errors.length > 0) {
+            this.showFieldError(fieldName, errors[0]);
+        } else {
+            this.clearFieldError(fieldName);
+        }
+    }
+
+    showFieldError(fieldName, message) {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (!field) return;
+        
+        // Limpiar error anterior
+        this.clearFieldError(fieldName);
+        
+        // Agregar clase de error
+        field.classList.add('error');
+        
+        // Crear elemento de error
+        const errorElement = document.createElement('div');
+        errorElement.className = 'field-error text-red-500 text-sm mt-1';
+        errorElement.textContent = message;
+        
+        field.parentNode.appendChild(errorElement);
+    }
+
+    clearFieldError(fieldName) {
+        const field = document.querySelector(`[name="${fieldName}"]`);
+        if (!field) return;
+        
+        field.classList.remove('error');
+        
+        const errorElement = field.parentNode.querySelector('.field-error');
+        if (errorElement) {
+            errorElement.remove();
+        }
+    }
+
+
 
     setupTabs() {
         const tabButtons = document.querySelectorAll('.tab-button');
@@ -128,25 +258,42 @@ class ModelosManager {
         });
     }
 
-    handlePhotoFiles(files) {
-        Array.from(files).forEach(file => {
-            if (file.type.startsWith('image/') && file.size <= 5 * 1024 * 1024) {
+    async handlePhotoFiles(files) {
+        const validFiles = Array.from(files).filter(file => {
+            if (!file.type.startsWith('image/')) {
+                this.showNotification(`${file.name}: Solo se permiten archivos de imagen`, 'error');
+                return false;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                this.showNotification(`${file.name}: El archivo excede el límite de 5MB`, 'error');
+                return false;
+            }
+            return true;
+        });
+        
+        if (validFiles.length === 0) return;
+        
+        // Si estamos editando un modelo existente, subir inmediatamente
+        if (this.currentModel && this.currentModel.id) {
+            await this.uploadPhotos(validFiles, this.currentModel.id);
+        } else {
+            // Si es un modelo nuevo, almacenar temporalmente
+            validFiles.forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const photo = {
                         id: Date.now() + Math.random(),
                         file: file,
                         url: e.target.result,
-                        name: file.name
+                        name: file.name,
+                        isTemporary: true
                     };
                     this.photos.push(photo);
                     this.renderPhotoPreview();
                 };
                 reader.readAsDataURL(file);
-            } else {
-                this.showNotification('Error: Solo se permiten imágenes de hasta 5MB', 'error');
-            }
-        });
+            });
+        }
     }
 
     handleManualFiles(files) {
@@ -168,21 +315,168 @@ class ModelosManager {
         });
     }
 
+    // Funciones para manejo de fotos con API
+    async uploadPhotos(files, modelId) {
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('photos', file);
+        });
+
+        // Mostrar indicador de progreso
+        const progressElement = document.getElementById('upload-progress');
+        if (progressElement) {
+            progressElement.classList.remove('hidden');
+        }
+
+        try {
+            console.log('Uploading photos to:', `${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            console.log('Files to upload:', files.length);
+            
+            const response = await fetch(`${this.apiBaseUrl}/api/models/${modelId}/photos`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                let errorMessage = `Error ${response.status}: ${response.statusText}`;
+                try {
+                    const error = await response.json();
+                    errorMessage = error.error || errorMessage;
+                } catch (parseError) {
+                    // Si no se puede parsear como JSON, usar el texto de la respuesta
+                    const errorText = await response.text();
+                    console.error('Response is not JSON:', errorText);
+                    errorMessage = `Error del servidor (${response.status})`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            
+            // Agregar las fotos subidas a la lista
+            result.photos.forEach(photo => {
+                this.photos.push({
+                    id: Date.now() + Math.random(),
+                    name: photo.originalName,
+                    url: `${this.apiBaseUrl}${photo.url}`,
+                    filename: photo.filename,
+                    isUploaded: true
+                });
+            });
+
+            this.renderPhotoPreview();
+            this.showNotification(`${result.photos.length} foto(s) subida(s) exitosamente`, 'success');
+
+        } catch (error) {
+            console.error('Error uploading photos:', error);
+            this.showNotification(`Error al subir fotos: ${error.message}`, 'error');
+        } finally {
+            // Ocultar indicador de progreso
+            if (progressElement) {
+                progressElement.classList.add('hidden');
+            }
+        }
+    }
+
+    async loadModelPhotos(modelId) {
+        try {
+            console.log('🔍 Cargando fotos para modelo ID:', modelId);
+            console.log('🌐 URL API:', `${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            
+            const response = await fetch(`${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            if (!response.ok) {
+                throw new Error('Error al cargar las fotos');
+            }
+            
+            const photos = await response.json();
+            console.log('✅ Fotos cargadas desde BD:', photos.length);
+            console.log('📸 Datos de fotos:', photos);
+            
+            // Convertir fotos de BD al formato interno
+            this.photos = photos.map(photo => ({
+                id: photo.id,
+                filename: photo.filename,
+                name: photo.originalName,
+                originalName: photo.originalName,
+                size: photo.size,
+                url: `${this.apiBaseUrl}${photo.url}`,
+                isTemporary: false,
+                isUploaded: true,
+                uploadDate: photo.uploadDate
+            }));
+            
+            console.log('🔄 Fotos convertidas:', this.photos);
+            
+            // Actualizar la vista de fotos
+            this.renderPhotoPreview();
+            console.log('🎨 Vista de fotos actualizada');
+            
+        } catch (error) {
+            console.error('❌ Error loading model photos:', error);
+            this.showNotification('Error al cargar las fotos: ' + error.message, 'error');
+        }
+    }
+
+    async deletePhoto(filename) {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/models/photos/${filename}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al eliminar la foto');
+            }
+
+            this.showNotification('Foto eliminada exitosamente', 'success');
+
+        } catch (error) {
+            console.error('Error deleting photo:', error);
+            this.showNotification(`Error al eliminar foto: ${error.message}`, 'error');
+        }
+    }
+
     renderPhotoPreview() {
         const container = document.getElementById('photo-preview');
-        container.innerHTML = this.photos.map(photo => `
+        const infoElement = document.getElementById('photo-info');
+        
+        console.log('🎨 renderPhotoPreview - Fotos a renderizar:', this.photos.length);
+        console.log('📋 Datos de fotos:', this.photos);
+        
+        const html = this.photos.map(photo => {
+            console.log('🖼️ Generando HTML para foto:', photo.url);
+            return `
             <div class="relative group">
                 <img src="${photo.url}" alt="${photo.name}" class="w-full h-32 object-cover rounded-lg">
-                <button type="button" onclick="modelosManager.removePhoto('${photo.id}')" 
+                <button type="button" onclick="modelosManager.removePhoto('${photo.id}', '${photo.filename || ''}')" 
                         class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
                 <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 rounded-b-lg">
                     ${photo.name}
+                    ${photo.isUploaded ? '<span class="ml-2 text-green-300">✓</span>' : photo.isTemporary ? '<span class="ml-2 text-yellow-300">⏳</span>' : ''}
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
+        
+        console.log('📝 HTML generado:', html);
+        container.innerHTML = html;
+        console.log('✅ HTML insertado en container');
+        
+        // Mostrar/ocultar información según si hay fotos
+        if (infoElement) {
+            if (this.photos.length > 0) {
+                infoElement.classList.remove('hidden');
+                console.log('👁️ Mostrando info element');
+            } else {
+                infoElement.classList.add('hidden');
+                console.log('🙈 Ocultando info element');
+            }
+        }
+        
         lucide.createIcons();
+        console.log('🎯 renderPhotoPreview completado');
     }
 
     renderManualList() {
@@ -318,7 +612,16 @@ class ModelosManager {
     }
 
     // Métodos de eliminación
-    removePhoto(id) {
+    async removePhoto(id, filename = '') {
+        const photo = this.photos.find(p => p.id === id);
+        if (!photo) return;
+
+        // Si es una foto subida, eliminarla del servidor
+        if (photo.isUploaded && filename) {
+            await this.deletePhoto(filename);
+        }
+
+        // Eliminar de la lista local
         this.photos = this.photos.filter(p => p.id !== id);
         this.renderPhotoPreview();
     }
@@ -339,21 +642,40 @@ class ModelosManager {
     }
 
     // Gestión de modales
-    openModelModal(model = null) {
+    async openModelModal(model = null) {
+        console.log('🚀 openModelModal ejecutándose, model:', model);
         this.currentModel = model;
         const modal = document.getElementById('model-modal');
         const title = document.getElementById('model-modal-title');
         
         if (model) {
+            console.log('✏️ Modo edición - ID del modelo:', model.id);
             title.textContent = 'Editar Modelo de Equipo';
             this.populateForm(model);
+            // Cargar fotos existentes desde la BD DESPUÉS de populateForm
+            console.log('📸 Llamando a loadModelPhotos...');
+            await this.loadModelPhotos(model.id);
+            console.log('✅ loadModelPhotos completado');
+            
+            // Si hay fotos, cambiar automáticamente a la pestaña Fotos
+            if (this.photos.length > 0) {
+                console.log('📸 Hay fotos, cambiando a pestaña Fotos');
+                this.switchTab('photos');
+            }
         } else {
+            console.log('➕ Modo creación');
             title.textContent = 'Nuevo Modelo de Equipo';
             this.resetForm();
         }
         
+        // Limpiar cualquier error de validación previo
+        setTimeout(() => {
+            this.clearFieldError('voltage');
+        }, 100);
+        
         modal.classList.add('is-open');
         document.body.style.overflow = 'hidden';
+        console.log('🎯 Modal abierto');
     }
 
     closeModelModal() {
@@ -381,11 +703,19 @@ class ModelosManager {
             }
         });
 
-        // Cargar datos adicionales (fotos, manuales, etc.)
-        this.photos = model.photos || [];
+        // Cargar datos adicionales (NO sobrescribir fotos si ya están cargadas)
+        // Las fotos se cargan desde BD en loadModelPhotos()
+        if (!this.photos || this.photos.length === 0) {
+            this.photos = model.photos || [];
+        }
         this.manuals = model.manuals || [];
         this.spareParts = model.spareParts || [];
         this.checklistItems = model.checklistItems || [];
+
+        // Limpiar errores de validación después de poblar
+        setTimeout(() => {
+            this.clearFieldError('voltage');
+        }, 200);
 
         this.renderPhotoPreview();
         this.renderManualList();
@@ -401,6 +731,13 @@ class ModelosManager {
         this.checklistItems = [];
         this.switchTab('general');
         
+        // Limpiar errores de validación
+        this.clearFieldError('voltage');
+        this.clearFieldError('dimensions');
+        this.clearFieldError('name');
+        this.clearFieldError('brand');
+        this.clearFieldError('category');
+        
         this.renderPhotoPreview();
         this.renderManualList();
         this.renderSpareParts();
@@ -412,6 +749,13 @@ class ModelosManager {
         
         const formData = new FormData(e.target);
         const modelData = Object.fromEntries(formData.entries());
+        
+        // Validar datos antes de enviar
+        const validation = this.validateModelData(modelData);
+        if (!validation.isValid) {
+            this.showValidationErrors(validation.errors);
+            return;
+        }
         
         // Convertir números
         if (modelData.weight) modelData.weight = parseFloat(modelData.weight);
@@ -446,6 +790,14 @@ class ModelosManager {
             }
             
             const newModel = await response.json();
+            
+            // Subir fotos temporales si existen
+            const temporaryPhotos = this.photos.filter(photo => photo.isTemporary && photo.file);
+            if (temporaryPhotos.length > 0) {
+                const files = temporaryPhotos.map(photo => photo.file);
+                await this.uploadPhotos(files, newModel.id);
+            }
+            
             this.models.push(newModel);
             this.renderModels();
             this.closeModelModal();
@@ -504,7 +856,7 @@ class ModelosManager {
         }
     }
 
-    renderModels() {
+    async renderModels() {
         const container = document.getElementById('models-grid');
         const loadingState = document.getElementById('loading-state');
         const emptyState = document.getElementById('empty-state');
@@ -520,17 +872,37 @@ class ModelosManager {
         container.classList.remove('hidden');
         emptyState.classList.add('hidden');
         
-        container.innerHTML = this.models.map(model => this.createModelCard(model)).join('');
+        // Cargar fotos para cada modelo y crear las tarjetas
+        const modelCards = await Promise.all(
+            this.models.map(async (model) => await this.createModelCard(model))
+        );
+        
+        container.innerHTML = modelCards.join('');
         lucide.createIcons();
     }
 
-    createModelCard(model) {
-        const mainPhoto = model.photos && model.photos.length > 0 ? model.photos[0].url : null;
+    async createModelCard(model) {
+        // Cargar fotos del modelo desde la BD
+        let photoUrl = null;
+        let photoCount = 0;
+        
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/models/${model.id}/photos`);
+            if (response.ok) {
+                const photos = await response.json();
+                photoCount = photos.length;
+                if (photos.length > 0) {
+                    photoUrl = `${this.apiBaseUrl}${photos[0].url}`;
+                }
+            }
+        } catch (error) {
+            console.warn(`Error cargando fotos para modelo ${model.id}:`, error);
+        }
         
         return `
             <div class="model-card app-card overflow-hidden cursor-pointer" onclick="modelosManager.viewModel('${model.id}')">
-                ${mainPhoto ? 
-                    `<img src="${mainPhoto}" alt="${model.name}" class="model-image">` :
+                ${photoUrl ? 
+                    `<img src="${photoUrl}" alt="${model.name}" class="model-image">` :
                     `<div class="model-image-placeholder">
                         <i data-lucide="image" class="w-12 h-12"></i>
                     </div>`
@@ -547,7 +919,7 @@ class ModelosManager {
                         <div class="flex items-center gap-4">
                             <span class="flex items-center gap-1">
                                 <i data-lucide="image" class="w-4 h-4"></i>
-                                ${model.photos ? model.photos.length : 0}
+                                ${photoCount}
                             </span>
                             <span class="flex items-center gap-1">
                                 <i data-lucide="file-text" class="w-4 h-4"></i>
@@ -568,9 +940,24 @@ class ModelosManager {
         `;
     }
 
-    viewModel(modelId) {
+    async viewModel(modelId) {
         const model = this.models.find(m => m.id == modelId);
         if (!model) return;
+        
+        // Cargar fotos del modelo
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            if (response.ok) {
+                const photos = await response.json();
+                model.photos = photos.map(photo => ({
+                    ...photo,
+                    url: `${this.apiBaseUrl}${photo.url}`
+                }));
+            }
+        } catch (error) {
+            console.warn(`Error cargando fotos para vista del modelo ${modelId}:`, error);
+            model.photos = [];
+        }
         
         const modal = document.getElementById('model-view-modal');
         const title = document.getElementById('model-view-title');
@@ -714,7 +1101,7 @@ class ModelosManager {
         return colors[category] || 'info';
     }
 
-    filterModels() {
+    async filterModels() {
         const searchTerm = document.getElementById('search-models').value.toLowerCase();
         const categoryFilter = document.getElementById('filter-category').value;
         
@@ -733,7 +1120,13 @@ class ModelosManager {
         }
         
         const container = document.getElementById('models-grid');
-        container.innerHTML = filteredModels.map(model => this.createModelCard(model)).join('');
+        
+        // Crear las tarjetas de forma asíncrona como en renderModels()
+        const modelCards = await Promise.all(
+            filteredModels.map(async (model) => await this.createModelCard(model))
+        );
+        
+        container.innerHTML = modelCards.join('');
         lucide.createIcons();
     }
 
@@ -745,10 +1138,125 @@ class ModelosManager {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     }
 
+    validateModelData(data) {
+        const errors = [];
+        
+        // Validaciones obligatorias
+        if (!data.name || data.name.trim() === '') {
+            errors.push({ field: 'name', message: 'El nombre del modelo es obligatorio' });
+        }
+        
+        if (!data.brand || data.brand.trim() === '') {
+            errors.push({ field: 'brand', message: 'La marca es obligatoria' });
+        }
+        
+        if (!data.category || data.category.trim() === '') {
+            errors.push({ field: 'category', message: 'La categoría es obligatoria' });
+        }
+        
+        // Validaciones de formato
+        if (data.name && data.name.length > 100) {
+            errors.push({ field: 'name', message: 'El nombre no puede exceder 100 caracteres' });
+        }
+        
+        if (data.brand && data.brand.length > 50) {
+            errors.push({ field: 'brand', message: 'La marca no puede exceder 50 caracteres' });
+        }
+        
+        if (data.model_code && data.model_code.length > 30) {
+            errors.push({ field: 'model_code', message: 'El código del modelo no puede exceder 30 caracteres' });
+        }
+        
+        // Validaciones numéricas
+        if (data.weight && (isNaN(data.weight) || parseFloat(data.weight) < 0)) {
+            errors.push({ field: 'weight', message: 'El peso debe ser un número positivo' });
+        }
+        
+        if (data.power && (isNaN(data.power) || parseInt(data.power) < 0)) {
+            errors.push({ field: 'power', message: 'La potencia debe ser un número entero positivo' });
+        }
+        
+        // Validación de dimensiones (formato: LxAxH)
+        if (data.dimensions && data.dimensions.trim() !== '') {
+            const dimensionPattern = /^\d+(\.\d+)?\s*x\s*\d+(\.\d+)?\s*x\s*\d+(\.\d+)?$/i;
+            if (!dimensionPattern.test(data.dimensions.trim())) {
+                errors.push({ field: 'dimensions', message: 'Las dimensiones deben tener el formato: Largo x Ancho x Alto (ej: 200 x 80 x 150)' });
+            }
+        }
+        
+        // Validación de voltaje - ELIMINADA: El campo es un select con opciones predefinidas
+        
+        return {
+            isValid: errors.length === 0,
+            errors: errors
+        };
+    }
+
+    showValidationErrors(errors) {
+        // Limpiar errores anteriores
+        document.querySelectorAll('.field-error').forEach(el => el.remove());
+        document.querySelectorAll('.form-input.error').forEach(el => el.classList.remove('error'));
+        
+        // Mostrar nuevos errores
+        errors.forEach(error => {
+            const field = document.querySelector(`[name="${error.field}"]`);
+            if (field) {
+                field.classList.add('error');
+                
+                const errorElement = document.createElement('div');
+                errorElement.className = 'field-error text-red-500 text-sm mt-1';
+                errorElement.textContent = error.message;
+                
+                field.parentNode.appendChild(errorElement);
+            }
+        });
+        
+        // Mostrar notificación general
+        this.showNotification('Por favor corrige los errores en el formulario', 'error');
+        
+        // Hacer scroll al primer error
+        if (errors.length > 0) {
+            const firstErrorField = document.querySelector(`[name="${errors[0].field}"]`);
+            if (firstErrorField) {
+                firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                firstErrorField.focus();
+            }
+        }
+    }
+
     showNotification(message, type = 'info') {
-        // Implementar sistema de notificaciones
-        console.log(`${type.toUpperCase()}: ${message}`);
-        alert(message); // Temporal
+        // Sistema de notificaciones mejorado
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <i data-lucide="${this.getNotificationIcon(type)}" class="w-5 h-5"></i>
+                <span>${message}</span>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        lucide.createIcons();
+        
+        // Auto-remover después de 5 segundos
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 5000);
+    }
+
+    getNotificationIcon(type) {
+        const icons = {
+            'success': 'check-circle',
+            'error': 'alert-circle',
+            'warning': 'alert-triangle',
+            'info': 'info'
+        };
+        return icons[type] || 'info';
     }
 
     generateSampleData() {

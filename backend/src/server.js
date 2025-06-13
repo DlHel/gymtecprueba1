@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const db = require('./database');
 const path = require('path');
+const fs = require('fs');
+const multer = require('multer');
 const { validateClient, validateLocation, validateEquipment, validateClientUpdate, validateLocationUpdate, validateEquipmentUpdate } = require('./validators');
 
 const app = express();
@@ -10,8 +12,53 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 
+// Configuración para subida de archivos
+const uploadsDir = path.join(__dirname, '../../uploads');
+const modelsDir = path.join(uploadsDir, 'models');
+
+// Crear directorios si no existen
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+}
+if (!fs.existsSync(modelsDir)) {
+    fs.mkdirSync(modelsDir, { recursive: true });
+}
+
+// Configurar multer para subida de fotos
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, modelsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const extension = path.extname(file.originalname);
+        cb(null, 'model-' + uniqueSuffix + extension);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB límite
+    },
+    fileFilter: function (req, file, cb) {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        
+        if (mimetype && extname) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten imágenes (JPEG, JPG, PNG, GIF, WebP)'));
+        }
+    }
+});
+
 // Servir archivos estáticos desde la carpeta 'frontend'
 app.use(express.static(path.join(__dirname, '../../frontend')));
+
+// Servir archivos de uploads
+app.use('/uploads', express.static(uploadsDir));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/index.html'));
@@ -607,6 +654,125 @@ app.delete('/api/models/:id', (req, res) => {
             message: "Modelo eliminado exitosamente", 
             changes: this.changes 
         });
+    });
+});
+
+// --- API Routes for Model Photos ---
+
+// GET photos for a model
+app.get('/api/models/:id/photos', (req, res) => {
+    const modelId = req.params.id;
+    const sql = `SELECT * FROM ModelPhotos WHERE model_id = ? ORDER BY upload_date ASC`;
+    
+    db.all(sql, [modelId], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        const photos = rows.map(row => ({
+            id: row.id,
+            filename: row.filename,
+            originalName: row.original_name,
+            size: row.file_size,
+            uploadDate: row.upload_date,
+            isPrimary: row.is_primary,
+            url: `/uploads/models/${row.filename}`
+        }));
+        
+        res.json(photos);
+    });
+});
+
+// POST upload photos for a model
+app.post('/api/models/:id/photos', upload.array('photos', 10), (req, res) => {
+    const modelId = req.params.id;
+    console.log('Photo upload request for model:', modelId);
+    console.log('Files received:', req.files ? req.files.length : 0);
+    
+    if (!req.files || req.files.length === 0) {
+        console.log('No files uploaded');
+        return res.status(400).json({ error: 'No se subieron archivos' });
+    }
+    
+    // Verificar que el modelo existe
+    db.get('SELECT id FROM EquipmentModels WHERE id = ?', [modelId], (err, model) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!model) {
+            // Eliminar archivos subidos si el modelo no existe
+            req.files.forEach(file => {
+                fs.unlink(file.path, () => {});
+            });
+            return res.status(404).json({ error: 'Modelo no encontrado' });
+        }
+        
+        // Guardar información de fotos en la base de datos
+        const insertPromises = req.files.map(file => {
+            return new Promise((resolve, reject) => {
+                const sql = `INSERT INTO ModelPhotos (model_id, filename, original_name, file_size) VALUES (?, ?, ?, ?)`;
+                db.run(sql, [modelId, file.filename, file.originalname, file.size], function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({
+                            id: this.lastID,
+                            filename: file.filename,
+                            originalName: file.originalname,
+                            size: file.size,
+                            url: `/uploads/models/${file.filename}`
+                        });
+                    }
+                });
+            });
+        });
+        
+        // Esperar a que todas las fotos se guarden en BD
+        Promise.all(insertPromises)
+            .then(photos => {
+                console.log('✅ Fotos guardadas en BD:', photos.length);
+                res.json({
+                    message: 'Fotos subidas exitosamente',
+                    photos: photos
+                });
+            })
+            .catch(err => {
+                console.error('❌ Error guardando fotos en BD:', err);
+                // Eliminar archivos si hay error en BD
+                req.files.forEach(file => {
+                    fs.unlink(file.path, () => {});
+                });
+                res.status(500).json({ error: 'Error guardando fotos en base de datos' });
+            });
+    });
+});
+
+// DELETE a photo
+app.delete('/api/models/photos/:filename', (req, res) => {
+    const filename = req.params.filename;
+    const filePath = path.join(modelsDir, filename);
+    
+    // Primero eliminar de la base de datos
+    db.run('DELETE FROM ModelPhotos WHERE filename = ?', [filename], function(err) {
+        if (err) {
+            return res.status(500).json({ error: 'Error eliminando de base de datos' });
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ error: 'Foto no encontrada en base de datos' });
+        }
+        
+        // Luego eliminar archivo físico
+        if (fs.existsSync(filePath)) {
+            fs.unlink(filePath, (err) => {
+                if (err) {
+                    console.error('Error eliminando archivo físico:', err);
+                    // Aunque falle eliminar el archivo, ya se eliminó de BD
+                }
+            });
+        }
+        
+        res.json({ message: 'Foto eliminada exitosamente' });
     });
 });
 
