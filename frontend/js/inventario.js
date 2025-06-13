@@ -5,34 +5,149 @@ let state = {
 };
 
 // --- DOM Elements ---
-const inventoryList = document.getElementById('inventory-list');
-const inventoryModalForm = document.getElementById('inventory-modal-form');
+const dom = {
+    inventoryList: document.getElementById('inventory-list'),
+    addInventoryBtn: document.getElementById('add-inventory-btn'),
+    modal: document.getElementById('inventory-modal'),
+    form: document.getElementById('inventory-modal-form'),
+};
+
+// --- Lógica de Modales Modernos ---
+const modals = {
+    open: (modalElem, title, data = {}) => {
+        console.log('Abriendo modal de inventario:', title, data);
+        
+        if (!modalElem) {
+            console.error('Modal element no encontrado!');
+            return;
+        }
+        
+        const form = modalElem.querySelector('form');
+        if (!form) {
+            console.error('Form no encontrado en modal!');
+            return;
+        }
+        
+        form.reset();
+        const titleElement = modalElem.querySelector('h3');
+        if (titleElement) {
+            titleElement.textContent = title;
+        }
+        
+        for (const [key, value] of Object.entries(data)) {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input) input.value = value;
+        }
+        
+        // Mostrar modal con animación
+        modalElem.style.display = 'flex';
+        modalElem.style.opacity = '1';
+        modalElem.style.pointerEvents = 'auto';
+        document.body.classList.add('modal-open');
+        
+        // Forzar reflow para que la transición funcione
+        modalElem.offsetHeight;
+        
+        modalElem.classList.add('is-open');
+        
+        // Configurar botón X de cerrar (cada vez que se abre el modal)
+        const closeBtn = modalElem.querySelector('.inventory-modal-close');
+        if (closeBtn) {
+            closeBtn.replaceWith(closeBtn.cloneNode(true));
+            const newCloseBtn = modalElem.querySelector('.inventory-modal-close');
+            newCloseBtn.addEventListener('click', () => modals.close(modalElem));
+        }
+        
+        // Actualizar iconos de Lucide después de configurar el modal
+        lucide.createIcons();
+    },
+    
+    close: (modalElem) => {
+        modalElem.classList.remove('is-open');
+        setTimeout(() => {
+            modalElem.style.display = 'none';
+        }, 300); // Esperar a que termine la animación
+        document.body.classList.remove('modal-open');
+    },
+    
+    setup: (modalElem, resource, onSuccess) => {
+        const form = modalElem.querySelector('form');
+        
+        // Event listener para botón cancelar
+        modalElem.querySelector('.modal-cancel-btn').addEventListener('click', () => modals.close(modalElem));
+        
+        form.addEventListener('submit', async e => {
+            e.preventDefault();
+            const formData = new FormData(form);
+            try {
+                await api.save(resource, formData);
+                modals.close(modalElem);
+                if(onSuccess) await onSuccess();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    }
+};
+
+// --- API Functions ---
+const api = {
+    save: (resource, data) => {
+        const id = data.get('id');
+        const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
+        const method = id ? 'PUT' : 'POST';
+        return fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(Object.fromEntries(data)),
+        }).then(res => {
+            if (!res.ok) throw new Error(`Error al guardar ${resource}`);
+            return res.json().catch(() => ({}));
+        });
+    },
+    
+    delete: (resource, id) => {
+        return fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' })
+            .then(res => {
+                if (!res.ok) throw new Error(`Error al eliminar ${resource}`);
+                return res.json().catch(() => ({}));
+            });
+    }
+};
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     fetchInventory();
 
     // --- Event Listeners ---
-    document.getElementById('add-inventory-btn').addEventListener('click', () => openModal('inventory-modal'));
-    document.getElementById('inventory-modal-cancel-btn').addEventListener('click', () => closeModal('inventory-modal'));
-    inventoryModalForm.addEventListener('submit', handleFormSubmit);
+    dom.addInventoryBtn.addEventListener('click', () => {
+        modals.open(dom.modal, 'Nuevo Repuesto');
+    });
 
-    document.body.addEventListener('click', function(event) {
+    document.body.addEventListener('click', async function(event) {
         const button = event.target.closest('button');
         if (!button) return;
 
         if (button.matches('.edit-inventory-btn')) {
-            openModal('inventory-modal', { id: button.dataset.id });
+            const response = await fetch(`${API_URL}/inventory/${button.dataset.id}`);
+            const result = await response.json();
+            modals.open(dom.modal, 'Editar Repuesto', result.data);
         } else if (button.matches('.delete-inventory-btn')) {
-            deleteItem('inventory', button.dataset.id, fetchInventory);
+            if (confirm('¿Estás seguro de que quieres eliminar este repuesto? Esta acción no se puede deshacer.')) {
+                await api.delete('inventory', button.dataset.id);
+                fetchInventory();
+            }
         }
     });
+    
+    // Configuración del modal
+    modals.setup(dom.modal, 'inventory', fetchInventory);
 });
 
 
 // --- Render Functions ---
 function renderInventory(inventoryItems) {
-    inventoryList.innerHTML = '';
+    dom.inventoryList.innerHTML = '';
     if (inventoryItems && inventoryItems.length > 0) {
         inventoryItems.forEach(item => {
             const row = document.createElement('tr');
@@ -47,13 +162,13 @@ function renderInventory(inventoryItems) {
                 <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.minimum_stock}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">${stockStatus}</td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="p-1 text-slate-500 hover:text-sky-500 edit-inventory-btn" data-id="${item.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                    <button class="p-1 text-slate-500 hover:text-red-500 delete-inventory-btn" data-id="${item.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    <button class="p-1 text-slate-500 hover:text-sky-500 edit-inventory-btn" data-id="${item.id}" title="Editar repuesto"><i data-lucide="edit" class="w-4 h-4"></i></button>
+                    <button class="p-1 text-slate-500 hover:text-red-500 delete-inventory-btn" data-id="${item.id}" title="Eliminar repuesto"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </td>`;
-            inventoryList.appendChild(row);
+            dom.inventoryList.appendChild(row);
         });
     } else {
-        inventoryList.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-500">No hay repuestos en el inventario.</td></tr>';
+        dom.inventoryList.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-500">No hay repuestos en el inventario.</td></tr>';
     }
     lucide.createIcons();
 }
@@ -66,70 +181,8 @@ async function fetchInventory() {
         renderInventory(state.inventory);
     } catch (error) {
         console.error("Error fetching inventory:", error);
-        inventoryList.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">Error al cargar inventario.</td></tr>`;
+        dom.inventoryList.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-red-500">Error al cargar inventario.</td></tr>`;
     }
 }
 
-// --- Modal & Form Logic ---
-async function openModal(modalId, data = {}) {
-    const form = document.getElementById(`${modalId}-form`);
-    form.reset();
-    form.querySelector('input[name="id"]').value = '';
-    document.getElementById(`${modalId}-title`).textContent = 'Nuevo Repuesto';
-
-    if (data.id) { // Editing
-        document.getElementById(`${modalId}-title`).textContent = 'Editar Repuesto';
-        const response = await fetch(`${API_URL}/inventory/${data.id}`);
-        const result = await response.json();
-        Object.entries(result.data).forEach(([key, value]) => {
-            if (form.elements[key]) form.elements[key].value = value;
-        });
-        form.elements.id.value = data.id;
-        document.getElementById('inventory-modal-title').innerText = 'Editar Repuesto';
-    }
-    
-    document.getElementById(modalId).classList.add('flex');
-    document.getElementById(modalId).style.display = 'flex';
-}
-
-function closeModal(modalId) {
-    document.getElementById(modalId).classList.remove('flex');
-    document.getElementById(modalId).style.display = 'none';
-}
-
-async function handleFormSubmit(e) {
-    e.preventDefault();
-    const form = e.target;
-    
-    const id = form.elements.id.value;
-    const body = Object.fromEntries(new FormData(form));
-    delete body.id;
-
-    const url = id ? `${API_URL}/inventory/${id}` : `${API_URL}/inventory`;
-    const method = id ? 'PUT' : 'POST';
-
-    try {
-        const response = await fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body)
-        });
-        if (!response.ok) throw new Error('API request failed');
-        
-        closeModal('inventory-modal');
-        fetchInventory();
-
-    } catch (error) {
-        console.error('Form submission error:', error);
-    }
-}
-
-async function deleteItem(resource, id, callback) {
-    if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
-    try {
-        await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
-        callback();
-    } catch (error) {
-        console.error(`Error deleting ${resource}:`, error);
-    }
-} 
+ 
