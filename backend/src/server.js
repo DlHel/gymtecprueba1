@@ -1,6 +1,7 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const db = require('./database');
+const db = require('./db-adapter');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
@@ -173,25 +174,49 @@ app.delete("/api/clients/:id", (req, res) => {
 
 
 // --- API Routes for Locations (Sedes) ---
-// GET all locations for a specific client with equipment summary
-app.get('/api/clients/:clientId/locations', (req, res) => {
-    const { clientId } = req.params;
+// GET all locations
+app.get('/api/locations', (req, res) => {
     db.all(`
         SELECT 
             l.*,
-            (SELECT GROUP_CONCAT(e.type || ' (' || type_count || ')', '; ') 
-             FROM (
-                SELECT type, COUNT(*) as type_count 
-                FROM Equipment 
-                WHERE location_id = l.id 
-                GROUP BY type
-             ) e
-            ) as equipment_summary
+            c.name as client_name,
+            COUNT(e.id) as equipment_count
         FROM Locations l
+        LEFT JOIN Clients c ON l.client_id = c.id
+        LEFT JOIN Equipment e ON l.id = e.location_id
+        GROUP BY l.id, l.name, l.address, l.client_id, c.name
+        ORDER BY c.name, l.name
+    `, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
+// GET all locations for a specific client with equipment summary
+app.get('/api/clients/:clientId/locations', (req, res) => {
+    const { clientId } = req.params;
+    
+    // Consulta simplificada compatible con MySQL
+    db.all(`
+        SELECT 
+            l.id,
+            l.name,
+            l.address,
+            l.client_id,
+            l.created_at,
+            l.updated_at,
+            COUNT(e.id) as equipment_count
+        FROM Locations l
+        LEFT JOIN Equipment e ON l.id = e.location_id
         WHERE l.client_id = ?
+        GROUP BY l.id, l.name, l.address, l.client_id, l.created_at, l.updated_at
         ORDER BY l.name
     `, [clientId], (err, rows) => {
         if (err) {
+            console.error('❌ Error en consulta de ubicaciones:', err.message);
             res.status(500).json({ error: err.message });
             return;
         }
@@ -284,6 +309,29 @@ app.delete("/api/locations/:id", (req, res) => {
 
 
 // --- API Routes for Equipment ---
+// GET all equipment
+app.get('/api/equipment', (req, res) => {
+    db.all(`
+        SELECT 
+            e.*,
+            l.name as location_name,
+            c.name as client_name,
+            em.name as model_name,
+            em.brand as model_brand
+        FROM Equipment e
+        LEFT JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN Clients c ON l.client_id = c.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        ORDER BY c.name, l.name, e.name
+    `, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json(rows);
+    });
+});
+
 // GET equipment for a specific location
 app.get('/api/locations/:locationId/equipment', (req, res) => {
     const { locationId } = req.params;
