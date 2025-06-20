@@ -426,9 +426,13 @@ app.post('/api/equipment', (req, res) => {
 
     // 1. Obtener el client_id a partir del location_id
     db.get("SELECT client_id FROM Locations WHERE id = ?", [location_id], (err, location) => {
-        if (err || !location) {
-            return res.status(500).json({ "error": "No se pudo encontrar el cliente para la sede." });
+        if (err) {
+            return res.status(500).json({ "error": "Error en consulta de ubicación: " + err.message });
         }
+        if (!location) {
+            return res.status(500).json({ "error": "No se encontró la ubicación con ID: " + location_id });
+        }
+        
         const clientId = location.client_id;
         const typePrefix = (type || 'UNK').substring(0, 4).toUpperCase();
 
@@ -440,7 +444,7 @@ app.post('/api/equipment', (req, res) => {
             }
             
             const newCount = result.count + 1;
-            const customId = `${clientId}-${typePrefix}-${String(newCount).padStart(4, '0')}`;
+            const customId = `CLI${String(clientId).padStart(3, '0')}-${typePrefix}-${String(newCount).padStart(4, '0')}`;
 
             // 3. Insertar el nuevo equipo con el custom_id generado
             const insertSql = `INSERT INTO Equipment (location_id, custom_id, type, name, brand, model, serial_number, acquisition_date, notes) 
@@ -835,13 +839,19 @@ app.get('/api/tickets', (req, res) => {
     const sql = `
         SELECT 
             t.*,
-            c.name as client_name
+            c.name as client_name,
+            l.name as location_name,
+            e.name as equipment_name,
+            e.custom_id as equipment_custom_id
         FROM Tickets t
-        JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN Locations l ON e.location_id = l.id
         ORDER BY t.created_at DESC
     `;
     db.all(sql, [], (err, rows) => {
         if (err) {
+            console.error('❌ Error en consulta de tickets:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
@@ -1116,6 +1126,7 @@ app.get('/api/models/:modelId/main-photo', (req, res) => {
         }
     });
 });
+
 
 
 // --- Server ---

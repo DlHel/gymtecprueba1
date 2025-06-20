@@ -1,5 +1,110 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // API_URL se define en config.js
+    // Protección robusta contra interferencia de extensiones del navegador
+    const originalFetch = window.fetch;
+    let retryCount = 0;
+    const maxRetries = 3;
+    
+    window.fetch = function(...args) {
+        return new Promise((resolve, reject) => {
+            const attemptFetch = (attempt = 0) => {
+                originalFetch.apply(this, args)
+                    .then(resolve)
+                    .catch(error => {
+                        console.log(`Intento ${attempt + 1} falló:`, error.message);
+                        
+                        // Errores específicos de extensiones del navegador
+                        const isExtensionError = error.message && (
+                            error.message.includes('message channel closed') ||
+                            error.message.includes('Extension context invalidated') ||
+                            error.message.includes('Could not establish connection') ||
+                            error.message.includes('The message port closed') ||
+                            error.message.includes('receiving end does not exist')
+                        );
+                        
+                        if (isExtensionError && attempt < maxRetries) {
+                            console.warn(`🔄 Reintentando petición (${attempt + 1}/${maxRetries}) debido a interferencia de extensión`);
+                            setTimeout(() => attemptFetch(attempt + 1), 100 * (attempt + 1)); // Delay incremental
+                        } else {
+                            reject(error);
+                        }
+                    });
+            };
+            
+            attemptFetch();
+        });
+    };
+
+    // Suprimir errores de extensiones en la consola
+    const originalConsoleError = console.error;
+    console.error = function(...args) {
+        const message = args.join(' ');
+        if (message.includes('message channel closed') || 
+            message.includes('Extension context invalidated') ||
+            message.includes('vendor.js')) {
+            // No mostrar estos errores de extensiones
+            return;
+        }
+        originalConsoleError.apply(console, args);
+    };
+
+    // Sistema de notificación para extensiones problemáticas
+    let extensionWarningShown = false;
+    const showExtensionWarning = () => {
+        if (extensionWarningShown) return;
+        extensionWarningShown = true;
+        
+        const notification = document.createElement('div');
+        notification.innerHTML = `
+            <div style="position: fixed; top: 20px; right: 20px; z-index: 10000; background: #fbbf24; color: #92400e; padding: 16px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-width: 400px; font-family: system-ui, -apple-system, sans-serif;">
+                <div style="display: flex; align-items: start; gap: 12px;">
+                    <div style="font-size: 20px;">⚠️</div>
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 8px;">Extensión del navegador interfiriendo</div>
+                        <div style="font-size: 14px; line-height: 1.4; margin-bottom: 12px;">
+                            Una extensión de tu navegador está interfiriendo con la aplicación. 
+                            Para una mejor experiencia, considera desactivar extensiones como bloqueadores de anuncios o VPNs.
+                        </div>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                                style="background: #92400e; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px;">
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(notification);
+        
+        // Auto-remover después de 10 segundos
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.remove();
+            }
+        }, 10000);
+    };
+
+    // Detectar errores de extensiones en tiempo real
+    window.addEventListener('error', (event) => {
+        if (event.error && event.error.message && 
+            event.error.message.includes('message channel closed')) {
+            showExtensionWarning();
+        }
+    });
+
+    // Detectar errores de promesas rechazadas
+    window.addEventListener('unhandledrejection', (event) => {
+        if (event.reason && event.reason.message && 
+            event.reason.message.includes('message channel closed')) {
+            showExtensionWarning();
+        }
+    });
+
+    // Verificar que API_URL esté definido
+    if (typeof API_URL === 'undefined') {
+        console.error('❌ API_URL no está definido. Asegúrate de cargar config.js primero.');
+        return;
+    }
+
+    console.log('🚀 Iniciando módulo de clientes con API_URL:', API_URL);
 
     // --- Estado de la Aplicación ---
     const state = {
@@ -28,31 +133,164 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Lógica de la API (sin cambios, pero la incluyo por completitud) ---
     const api = {
-        getClients: () => fetch(`${API_URL}/clients`).then(res => res.json()),
-        getClient: id => fetch(`${API_URL}/clients/${id}`).then(res => res.json()),
-        getClientLocations: id => fetch(`${API_URL}/clients/${id}/locations`).then(res => res.json().then(data => data.data || [])),
-        getLocation: id => fetch(`${API_URL}/locations/${id}`).then(res => res.json()),
-        getLocationEquipment: id => fetch(`${API_URL}/locations/${id}/equipment`).then(res => res.json().then(data => data.data || [])),
-        getEquipment: id => fetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
-        save: (resource, data) => {
-            const id = data.get('id');
-            const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
-            const method = id ? 'PUT' : 'POST';
-            return fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(Object.fromEntries(data)),
-            }).then(res => {
-                if (!res.ok) throw new Error(`Error al guardar ${resource}`);
-                return res.json().catch(() => ({}));
-            });
-        },
-        delete: (resource, id) => {
-            return fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' })
-                .then(res => {
-                    if (!res.ok) throw new Error(`Error al eliminar ${resource}`);
-                    return res.json().catch(() => ({}));
+        getClients: async () => {
+            try {
+                console.log('📡 Solicitando lista de clientes...');
+                
+                // Crear un timeout para la petición
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
+                
+                const response = await fetch(`${API_URL}/clients`, {
+                    signal: controller.signal,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
+                
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('✅ Clientes recibidos:', data);
+                return data;
+                
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    throw new Error('La petición tardó demasiado tiempo. Verifique su conexión.');
+                }
+                
+                // Manejar errores específicos de extensiones
+                if (error.message && (
+                    error.message.includes('message channel closed') ||
+                    error.message.includes('Extension context invalidated') ||
+                    error.message.includes('Could not establish connection')
+                )) {
+                    console.warn('⚠️ Error de extensión del navegador detectado, reintentando...');
+                    // Reintentar una vez más
+                    try {
+                        const retryResponse = await fetch(`${API_URL}/clients`);
+                        if (!retryResponse.ok) {
+                            throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
+                        }
+                        return await retryResponse.json();
+                    } catch (retryError) {
+                        throw new Error('Error persistente. Intente desactivar extensiones del navegador.');
+                    }
+                }
+                
+                console.error('Error fetching clients:', error);
+                throw error;
+            }
+        },
+        getClient: async (id) => {
+            try {
+                const response = await fetch(`${API_URL}/clients/${id}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching client:', error);
+                throw error;
+            }
+        },
+        getClientLocations: async (id) => {
+            try {
+                const response = await fetch(`${API_URL}/clients/${id}/locations`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error('Error fetching client locations:', error);
+                throw error;
+            }
+        },
+        getLocation: async (id) => {
+            try {
+                const response = await fetch(`${API_URL}/locations/${id}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching location:', error);
+                throw error;
+            }
+        },
+        getLocationEquipment: async (id) => {
+            try {
+                const response = await fetch(`${API_URL}/locations/${id}/equipment`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                const data = await response.json();
+                return data.data || [];
+            } catch (error) {
+                console.error('Error fetching location equipment:', error);
+                throw error;
+            }
+        },
+        getEquipment: async (id) => {
+            try {
+                const response = await fetch(`${API_URL}/equipment/${id}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching equipment:', error);
+                throw error;
+            }
+        },
+        save: async (resource, data) => {
+            try {
+                const id = data.get('id');
+                const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
+                const method = id ? 'PUT' : 'POST';
+                const response = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(Object.fromEntries(data)),
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Error al guardar ${resource}: ${response.status} ${response.statusText}`);
+                }
+                
+                // Intentar parsear JSON, pero no fallar si no hay contenido
+                try {
+                    return await response.json();
+                } catch (jsonError) {
+                    return {};
+                }
+            } catch (error) {
+                console.error('Error saving:', error);
+                throw error;
+            }
+        },
+        delete: async (resource, id) => {
+            try {
+                const response = await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+                if (!response.ok) {
+                    throw new Error(`Error al eliminar ${resource}: ${response.status} ${response.statusText}`);
+                }
+                
+                // Intentar parsear JSON, pero no fallar si no hay contenido
+                try {
+                    return await response.json();
+                } catch (jsonError) {
+                    return {};
+                }
+            } catch (error) {
+                console.error('Error deleting:', error);
+                throw error;
+            }
         }
     };
 
@@ -580,23 +818,75 @@ document.addEventListener('DOMContentLoaded', () => {
     const actions = {
         init: async () => {
             try {
+                console.log('🔄 Inicializando módulo de clientes...');
+                
+                // Mostrar indicador de carga
+                dom.clientListContainer.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-sm p-8 text-center">
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                        <p class="text-gray-600">Cargando clientes...</p>
+                    </div>
+                `;
+                
                 const clientsResult = await api.getClients();
-                state.clients = clientsResult.data || [];
-                render.clientList();
+                console.log('✅ Clientes cargados:', clientsResult);
+                
+                state.clients = clientsResult.data || clientsResult || [];
+                
+                if (state.clients.length === 0) {
+                    dom.clientListContainer.innerHTML = `
+                        <div class="bg-white rounded-lg shadow-sm p-8 text-center">
+                            <p class="text-gray-600 mb-4">No hay clientes registrados</p>
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" onclick="document.getElementById('add-client-btn').click()">
+                                Crear primer cliente
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    render.clientList();
+                }
+                
                 dom.detailContainer.innerHTML = '';
 
                 // Comprobar si hay que abrir un cliente específico desde la URL
                 const urlParams = new URLSearchParams(window.location.search);
                 const clientIdToOpen = urlParams.get('openClient');
                 if (clientIdToOpen) {
+                    console.log('🔗 Abriendo cliente desde URL:', clientIdToOpen);
                     await render.clientDetail(clientIdToOpen);
                     // Limpiar la URL para que no vuelva a abrirse al recargar
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
 
-            } catch(e) {
-                console.error("Error al inicializar:", e);
-                dom.clientListContainer.innerHTML = `<div class="p-4 text-red-500 bg-white rounded-lg shadow-sm">Error al cargar clientes. Verifique que el backend esté funcionando.</li>`;
+                console.log('✅ Módulo de clientes inicializado correctamente');
+
+            } catch(error) {
+                console.error("❌ Error al inicializar módulo de clientes:", error);
+                
+                // Mostrar error más específico
+                let errorMessage = 'Error desconocido';
+                if (error.message.includes('Failed to fetch') || error.message.includes('ECONNREFUSED')) {
+                    errorMessage = 'No se puede conectar con el servidor. Verifique que el backend esté funcionando.';
+                } else if (error.message.includes('HTTP')) {
+                    errorMessage = `Error del servidor: ${error.message}`;
+                } else {
+                    errorMessage = error.message;
+                }
+                
+                dom.clientListContainer.innerHTML = `
+                    <div class="bg-white rounded-lg shadow-sm p-6 text-center border-l-4 border-red-500">
+                        <div class="text-red-600 mb-2">
+                            <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h3 class="font-semibold text-gray-800 mb-2">Error al cargar clientes</h3>
+                        <p class="text-sm text-gray-600 mb-4">${errorMessage}</p>
+                        <button onclick="location.reload()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                            Reintentar
+                        </button>
+                    </div>
+                `;
             }
         }
     };

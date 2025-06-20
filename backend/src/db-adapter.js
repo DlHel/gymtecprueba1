@@ -1,73 +1,82 @@
 const mysqlDb = require('./mysql-database');
 
-// Adaptador para mantener compatibilidad con SQLite callback style
+// Adaptador para MySQL
 class DatabaseAdapter {
     constructor() {
-        this.mysql = mysqlDb;
+        this.db = mysqlDb;
     }
 
-    // Inicializar la base de datos
+    // Inicializar la base de datos MySQL
     async initialize() {
-        await this.mysql.initializeDB();
+        try {
+            await this.db.testConnection();
+            console.log('✅ Base de datos MySQL conectada correctamente');
+        } catch (error) {
+            console.error('❌ Error conectando a MySQL:', error.message);
+            throw error;
+        }
     }
 
-    // Función para emular el comportamiento de SQLite db.all()
+    // Función para MySQL db.all() - convertir callback a promesa
     all(sql, params, callback) {
         if (typeof params === 'function') {
             callback = params;
             params = [];
         }
-
-        this.mysql.all(sql, params)
-            .then(rows => callback(null, rows))
-            .catch(err => callback(err));
+        
+        this.db.query(sql, params)
+            .then(results => callback(null, results))
+            .catch(error => callback(error));
     }
 
-    // Función para emular el comportamiento de SQLite db.get()
+    // Función para MySQL db.get() - obtener solo el primer resultado
     get(sql, params, callback) {
         if (typeof params === 'function') {
             callback = params;
             params = [];
         }
-
-        this.mysql.get(sql, params)
-            .then(row => callback(null, row))
-            .catch(err => callback(err));
+        
+        this.db.query(sql, params)
+            .then(results => {
+                const row = results.length > 0 ? results[0] : null;
+                callback(null, row);
+            })
+            .catch(error => callback(error));
     }
 
-    // Función para emular el comportamiento de SQLite db.run()
+    // Función para MySQL db.run() - para INSERT, UPDATE, DELETE
     run(sql, params, callback) {
         if (typeof params === 'function') {
             callback = params;
             params = [];
         }
-
-        this.mysql.run(sql, params)
+        
+        this.db.query(sql, params)
             .then(result => {
-                // Crear contexto similar a SQLite
-                const context = {
-                    lastID: result.insertId,
-                    changes: result.affectedRows
+                // Simular el objeto de resultado de SQLite
+                const sqliteResult = {
+                    lastID: result.insertId || null,
+                    changes: result.affectedRows || 0
                 };
-                callback.call(context, null, result);
+                callback.call(sqliteResult, null);
             })
-            .catch(err => callback(err));
+            .catch(error => callback(error));
     }
 
-    // Función para emular el comportamiento de SQLite db.exec()
+    // Función para MySQL db.exec() - ejecutar múltiples statements
     exec(sql, callback) {
-        this.mysql.query(sql)
-            .then(result => callback(null, result))
-            .catch(err => callback(err));
+        this.db.query(sql)
+            .then(() => callback(null))
+            .catch(error => callback(error));
     }
 
-    // Funciones adicionales para compatibilidad
+    // Funciones adicionales
     async close() {
-        await this.mysql.close();
+        await this.db.close();
     }
 
     async testConnection() {
-        return await this.mysql.testConnection();
+        return await this.db.testConnection();
     }
 }
 
@@ -76,7 +85,8 @@ const dbAdapter = new DatabaseAdapter();
 
 // Inicializar cuando se importe
 dbAdapter.initialize().catch(err => {
-    console.error('❌ Error inicializando base de datos:', err.message);
+    console.error('❌ Error inicializando base de datos MySQL:', err.message);
+    console.error('💡 Asegúrate de que MySQL esté corriendo y configurado correctamente');
 });
 
 module.exports = dbAdapter; 
