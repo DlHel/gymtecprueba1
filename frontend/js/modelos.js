@@ -16,8 +16,8 @@ class ModelosManager {
     }
 
     getApiBaseUrl() {
-        // Usar la configuración global de API_URL sin el /api al final
-        return API_URL.replace('/api', '');
+        // Usar la configuración global de API_URL directamente
+        return API_URL;
     }
 
     init() {
@@ -244,12 +244,19 @@ class ModelosManager {
 
     async handlePhotoFiles(files) {
         const validFiles = Array.from(files).filter(file => {
-            if (!file.type.startsWith('image/')) {
-                this.showNotification(`${file.name}: Solo se permiten archivos de imagen`, 'error');
+            // Verificar que sea una imagen y no SVG
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!allowedTypes.includes(file.type.toLowerCase())) {
+                this.showNotification(`${file.name}: Solo se permiten imágenes JPG, PNG, GIF, WebP (no SVG)`, 'error');
                 return false;
             }
             if (file.size > 5 * 1024 * 1024) {
                 this.showNotification(`${file.name}: El archivo excede el límite de 5MB`, 'error');
+                return false;
+            }
+            // Verificar tamaño mínimo para evitar placeholders
+            if (file.size < 1024) { // Menos de 1KB probablemente es un placeholder
+                this.showNotification(`${file.name}: El archivo es demasiado pequeño (mínimo 1KB)`, 'error');
                 return false;
             }
             return true;
@@ -280,23 +287,157 @@ class ModelosManager {
         }
     }
 
-    handleManualFiles(files) {
+    async handleManualFiles(files) {
+        const validFiles = [];
+        const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        
+        // Validar archivos
         Array.from(files).forEach(file => {
-            const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
             if (allowedTypes.includes(file.type) && file.size <= 10 * 1024 * 1024) {
+                validFiles.push(file);
+            } else {
+                this.showNotification(`Error: ${file.name} - Solo se permiten PDF, DOC, DOCX de hasta 10MB`, 'error');
+            }
+        });
+        
+        if (validFiles.length === 0) {
+            return;
+        }
+        
+        // Si estamos editando un modelo existente, subir inmediatamente
+        if (this.currentModel && this.currentModel.id) {
+            await this.uploadManuals(validFiles, this.currentModel.id);
+        } else {
+            // Si es un modelo nuevo, almacenar temporalmente
+            validFiles.forEach(file => {
                 const manual = {
                     id: Date.now() + Math.random(),
                     file: file,
                     name: file.name,
                     size: this.formatFileSize(file.size),
-                    type: file.type
+                    type: file.type,
+                    isTemporary: true
                 };
                 this.manuals.push(manual);
-                this.renderManualList();
-            } else {
-                this.showNotification('Error: Solo se permiten PDF, DOC, DOCX de hasta 10MB', 'error');
-            }
+            });
+            this.renderManualList();
+            this.showNotification(`${validFiles.length} manual(es) agregado(s) temporalmente`, 'info');
+        }
+    }
+
+    // Funciones para manejo de manuales con API
+    async uploadManuals(files, modelId) {
+        const formData = new FormData();
+        files.forEach(file => {
+            formData.append('manuals', file);
         });
+
+        try {
+            console.log('Uploading manuals to:', `${this.apiBaseUrl}/models/${modelId}/manuals`);
+            console.log('Files to upload:', files.length);
+            
+            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/manuals`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                let errorMessage = `Error ${response.status}: ${response.statusText}`;
+                try {
+                    const responseText = await response.text();
+                    try {
+                        const error = JSON.parse(responseText);
+                        errorMessage = error.error || errorMessage;
+                    } catch (parseError) {
+                        console.error('Response is not JSON:', responseText);
+                        errorMessage = `Error del servidor (${response.status})`;
+                    }
+                } catch (textError) {
+                    console.error('Error reading response:', textError);
+                    errorMessage = `Error del servidor (${response.status})`;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const result = await response.json();
+            
+            // Agregar los manuales subidos a la lista
+            result.manuals.forEach(manual => {
+                this.manuals.push({
+                    id: manual.id, // ID de la base de datos
+                    name: manual.originalName,
+                    size: this.formatFileSize(manual.size),
+                    type: manual.mimeType,
+                    url: manual.url,
+                    isUploaded: true,
+                    uploadDate: manual.uploadDate
+                });
+            });
+
+            this.renderManualList();
+            this.showNotification(`${result.manuals.length} manual(es) subido(s) exitosamente`, 'success');
+
+        } catch (error) {
+            console.error('Error uploading manuals:', error);
+            this.showNotification(`Error al subir manuales: ${error.message}`, 'error');
+        }
+    }
+
+    async loadModelManuals(modelId) {
+        try {
+            console.log('🔍 Cargando manuales para modelo ID:', modelId);
+            
+            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/manuals`);
+            if (!response.ok) {
+                throw new Error('Error al cargar los manuales');
+            }
+            
+            const manuals = await response.json();
+            console.log('✅ Manuales cargados desde BD:', manuals.length);
+            
+            // Convertir manuales de BD al formato interno
+            this.manuals = manuals.map(manual => ({
+                id: manual.id, // ID de la base de datos
+                name: manual.originalName,
+                size: this.formatFileSize(manual.size),
+                type: manual.mimeType,
+                url: manual.url,
+                isTemporary: false,
+                isUploaded: true,
+                uploadDate: manual.uploadDate
+            }));
+            
+            // Actualizar la vista de manuales
+            this.renderManualList();
+            console.log('🎨 Vista de manuales actualizada');
+            
+        } catch (error) {
+            console.error('❌ Error loading model manuals:', error);
+            this.showNotification('Error al cargar los manuales: ' + error.message, 'error');
+        }
+    }
+
+    async deleteManual(manualId) {
+        try {
+            console.log('🗑️ Eliminando manual ID:', manualId);
+            
+            const response = await fetch(`${this.apiBaseUrl}/models/manuals/${manualId}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al eliminar el manual');
+            }
+
+            console.log('✅ Manual eliminado del servidor');
+            this.showNotification('Manual eliminado exitosamente', 'success');
+
+        } catch (error) {
+            console.error('❌ Error deleting manual:', error);
+            this.showNotification(`Error al eliminar manual: ${error.message}`, 'error');
+            throw error;
+        }
     }
 
     // Funciones para manejo de fotos con API
@@ -313,10 +454,10 @@ class ModelosManager {
         }
 
         try {
-            console.log('Uploading photos to:', `${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            console.log('Uploading photos to:', `${this.apiBaseUrl}/models/${modelId}/photos`);
             console.log('Files to upload:', files.length);
             
-            const response = await fetch(`${this.apiBaseUrl}/api/models/${modelId}/photos`, {
+            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/photos`, {
                 method: 'POST',
                 body: formData
             });
@@ -342,7 +483,7 @@ class ModelosManager {
                 this.photos.push({
                     id: Date.now() + Math.random(),
                     name: photo.originalName,
-                    url: `${this.apiBaseUrl}${photo.url}`,
+                    url: photo.url, // Ya es un data URL completo
                     filename: photo.filename,
                     isUploaded: true
                 });
@@ -365,9 +506,9 @@ class ModelosManager {
     async loadModelPhotos(modelId) {
         try {
             console.log('🔍 Cargando fotos para modelo ID:', modelId);
-            console.log('🌐 URL API:', `${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            console.log('🌐 URL API:', `${this.apiBaseUrl}/models/${modelId}/photos`);
             
-            const response = await fetch(`${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/photos`);
             if (!response.ok) {
                 throw new Error('Error al cargar las fotos');
             }
@@ -378,12 +519,13 @@ class ModelosManager {
             
             // Convertir fotos de BD al formato interno
             this.photos = photos.map(photo => ({
-                id: photo.id,
+                id: photo.id, // ID de la base de datos para eliminar
+                localId: `db_${photo.id}`, // ID local único para el frontend
                 filename: photo.filename,
                 name: photo.originalName,
                 originalName: photo.originalName,
                 size: photo.size,
-                url: `${this.apiBaseUrl}${photo.url}`,
+                url: photo.url, // Ya es un data URL completo, no necesita apiBaseUrl
                 isTemporary: false,
                 isUploaded: true,
                 uploadDate: photo.uploadDate
@@ -401,9 +543,11 @@ class ModelosManager {
         }
     }
 
-    async deletePhoto(filename) {
+    async deletePhoto(photoId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/models/photos/${filename}`, {
+            console.log('🗑️ Eliminando foto ID:', photoId);
+            
+            const response = await fetch(`${this.apiBaseUrl}/models/photos/${photoId}`, {
                 method: 'DELETE'
             });
 
@@ -412,11 +556,13 @@ class ModelosManager {
                 throw new Error(error.error || 'Error al eliminar la foto');
             }
 
+            console.log('✅ Foto eliminada del servidor');
             this.showNotification('Foto eliminada exitosamente', 'success');
 
         } catch (error) {
-            console.error('Error deleting photo:', error);
+            console.error('❌ Error deleting photo:', error);
             this.showNotification(`Error al eliminar foto: ${error.message}`, 'error');
+            throw error; // Re-lanzar el error para que removePhoto lo maneje
         }
     }
 
@@ -429,11 +575,12 @@ class ModelosManager {
         
         const html = this.photos.map(photo => {
             console.log('🖼️ Generando HTML para foto:', photo.url);
+            const photoId = photo.localId || photo.id; // Usar localId si existe, sino id
             return `
             <div class="model-photo-item">
                 <img src="${photo.url}" alt="${photo.name}">
-                <button type="button" onclick="modelosManager.removePhoto('${photo.id}', '${photo.filename || ''}')" 
-                        class="model-photo-remove">
+                <button type="button" onclick="modelosManager.removePhoto('${photoId}', '${photo.filename || ''}')" 
+                        class="model-photo-remove" title="Eliminar foto">
                     <i data-lucide="x" class="w-3 h-3"></i>
                 </button>
                 <div class="model-photo-status ${photo.isUploaded ? 'uploaded' : photo.isTemporary ? 'pending' : ''}">
@@ -464,21 +611,35 @@ class ModelosManager {
 
     renderManualList() {
         const container = document.getElementById('manual-list');
-        container.innerHTML = this.manuals.map(manual => `
+        container.innerHTML = this.manuals.map(manual => {
+            const statusIcon = manual.isUploaded ? '✅' : manual.isTemporary ? '⏳' : '📄';
+            const statusText = manual.isUploaded ? 'Subido' : manual.isTemporary ? 'Temporal' : 'Local';
+            
+            return `
             <div class="flex items-center justify-between p-3 border border-gray-200 rounded-lg">
                 <div class="flex items-center gap-3">
                     <i data-lucide="file-text" class="w-6 h-6 text-gray-500"></i>
                     <div>
                         <p class="font-medium">${manual.name}</p>
-                        <p class="text-sm text-gray-500">${manual.size}</p>
+                        <p class="text-sm text-gray-500">${manual.size || this.formatFileSize(manual.file?.size || 0)}</p>
+                        <p class="text-xs text-blue-600">${statusIcon} ${statusText}</p>
                     </div>
                 </div>
-                <button type="button" onclick="modelosManager.removeManual('${manual.id}')" 
-                        class="text-red-500 hover:text-red-700">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
+                <div class="flex items-center gap-2">
+                    ${manual.isUploaded && manual.url ? `
+                        <button type="button" onclick="window.open('${manual.url}', '_blank')" 
+                                class="text-blue-500 hover:text-blue-700 p-1" title="Abrir manual">
+                            <i data-lucide="external-link" class="w-4 h-4"></i>
+                        </button>
+                    ` : ''}
+                    <button type="button" onclick="modelosManager.removeManual('${manual.id}')" 
+                            class="text-red-500 hover:text-red-700 p-1" title="Eliminar manual">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
         lucide.createIcons();
     }
 
@@ -593,23 +754,76 @@ class ModelosManager {
     }
 
     // Métodos de eliminación
-    async removePhoto(id, filename = '') {
-        const photo = this.photos.find(p => p.id === id);
-        if (!photo) return;
-
-        // Si es una foto subida, eliminarla del servidor
-        if (photo.isUploaded && filename) {
-            await this.deletePhoto(filename);
+    async removePhoto(photoIdentifier, filename = '') {
+        // Buscar la foto por localId o por id normal
+        const photo = this.photos.find(p => 
+            p.localId === photoIdentifier || 
+            p.id == photoIdentifier
+        );
+        
+        if (!photo) {
+            console.warn('⚠️ Foto no encontrada con identificador:', photoIdentifier);
+            return;
         }
 
-        // Eliminar de la lista local
-        this.photos = this.photos.filter(p => p.id !== id);
-        this.renderPhotoPreview();
+        // Mostrar confirmación antes de eliminar
+        const photoName = photo.name || photo.filename || 'Foto sin nombre';
+        const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar esta foto?\n\n"${photoName}"\n\nEsta acción no se puede deshacer.`);
+        if (!confirmDelete) {
+            return;
+        }
+
+        try {
+            // Si es una foto subida (tiene ID de BD), eliminarla del servidor
+            if (photo.isUploaded && photo.id) {
+                console.log('🗑️ Eliminando foto de BD con ID:', photo.id);
+                await this.deletePhoto(photo.id); // Usar el ID de la base de datos
+            }
+
+            // Eliminar de la lista local (buscar por el identificador usado)
+            this.photos = this.photos.filter(p => 
+                p.localId !== photoIdentifier && 
+                p.id != photoIdentifier
+            );
+            
+            this.renderPhotoPreview();
+            console.log('✅ Foto eliminada localmente');
+            
+        } catch (error) {
+            console.error('❌ Error al eliminar foto:', error);
+            // No eliminar de la lista local si falló en el servidor
+        }
     }
 
-    removeManual(id) {
-        this.manuals = this.manuals.filter(m => m.id !== id);
-        this.renderManualList();
+    async removeManual(id) {
+        const manual = this.manuals.find(m => m.id == id);
+        if (!manual) {
+            console.warn('⚠️ Manual no encontrado con ID:', id);
+            return;
+        }
+
+        // Mostrar confirmación antes de eliminar
+        const confirmDelete = confirm(`¿Estás seguro de que deseas eliminar este manual?\n\n"${manual.name}"\n\nEsta acción no se puede deshacer.`);
+        if (!confirmDelete) {
+            return;
+        }
+
+        try {
+            // Si es un manual subido (tiene ID de BD), eliminarlo del servidor
+            if (manual.isUploaded && manual.id) {
+                console.log('🗑️ Eliminando manual de BD con ID:', manual.id);
+                await this.deleteManual(manual.id);
+            }
+
+            // Eliminar de la lista local
+            this.manuals = this.manuals.filter(m => m.id != id);
+            this.renderManualList();
+            console.log('✅ Manual eliminado localmente');
+            
+        } catch (error) {
+            console.error('❌ Error al eliminar manual:', error);
+            // No eliminar de la lista local si falló en el servidor
+        }
     }
 
     removeSparePart(id) {
@@ -633,10 +847,14 @@ class ModelosManager {
             console.log('✏️ Modo edición - ID del modelo:', model.id);
             title.textContent = 'Editar Modelo de Equipo';
             this.populateForm(model);
-            // Cargar fotos existentes desde la BD DESPUÉS de populateForm
+            // Cargar fotos y manuales existentes desde la BD DESPUÉS de populateForm
             console.log('📸 Llamando a loadModelPhotos...');
             await this.loadModelPhotos(model.id);
             console.log('✅ loadModelPhotos completado');
+            
+            console.log('📚 Llamando a loadModelManuals...');
+            await this.loadModelManuals(model.id);
+            console.log('✅ loadModelManuals completado');
             
             // Si hay fotos, cambiar automáticamente a la pestaña Fotos
             if (this.photos.length > 0) {
@@ -758,22 +976,26 @@ class ModelosManager {
         if (modelData.weight) modelData.weight = parseFloat(modelData.weight);
         if (modelData.power) modelData.power = parseInt(modelData.power);
         
-        // Agregar datos adicionales
-        modelData.photos = this.photos;
-        modelData.manuals = this.manuals;
-        modelData.spareParts = this.spareParts.filter(p => p.name.trim());
-        modelData.checklistItems = this.checklistItems.filter(i => i.title.trim());
+        // NO enviar datos adicionales complejos para evitar payload grande
+        // Solo enviar campos básicos del modelo
+        const basicFields = ['name', 'brand', 'category', 'model_code', 'description', 'weight', 'dimensions', 'voltage', 'power', 'specifications'];
+        const cleanModelData = {};
+        basicFields.forEach(field => {
+            if (modelData[field] !== undefined && modelData[field] !== null) {
+                cleanModelData[field] = modelData[field];
+            }
+        });
         
         if (this.currentModel) {
-            await this.updateModel(modelData);
+            await this.updateModel(cleanModelData);
         } else {
-            await this.createModel(modelData);
+            await this.createModel(cleanModelData);
         }
     }
 
     async createModel(modelData) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/models`, {
+            const response = await fetch(`${this.apiBaseUrl}/models`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -795,6 +1017,13 @@ class ModelosManager {
                 await this.uploadPhotos(files, newModel.id);
             }
             
+            // Subir manuales temporales si existen
+            const temporaryManuals = this.manuals.filter(manual => manual.isTemporary && manual.file);
+            if (temporaryManuals.length > 0) {
+                const files = temporaryManuals.map(manual => manual.file);
+                await this.uploadManuals(files, newModel.id);
+            }
+            
             this.models.push(newModel);
             this.renderModels();
             this.closeModelModal();
@@ -807,7 +1036,12 @@ class ModelosManager {
 
     async updateModel(modelData) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/models/${this.currentModel.id}`, {
+            // Debug: mostrar qué se está enviando
+            console.log('📤 Datos a enviar:', modelData);
+            console.log('📏 Tamaño del payload:', JSON.stringify(modelData).length, 'bytes');
+            console.log('📏 Tamaño del payload:', (JSON.stringify(modelData).length / 1024).toFixed(2), 'KB');
+            
+            const response = await fetch(`${this.apiBaseUrl}/models/${this.currentModel.id}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
@@ -835,7 +1069,7 @@ class ModelosManager {
 
     async loadModels() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/models`);
+            const response = await fetch(`${this.apiBaseUrl}/models`);
             if (!response.ok) {
                 throw new Error('Error al cargar los modelos');
             }
@@ -884,12 +1118,12 @@ class ModelosManager {
         let photoCount = 0;
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/models/${model.id}/photos`);
+            const response = await fetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
             if (response.ok) {
                 const photos = await response.json();
                 photoCount = photos.length;
                 if (photos.length > 0) {
-                    photoUrl = `${this.apiBaseUrl}${photos[0].url}`;
+                    photoUrl = photos[0].url; // Ya es un data URL completo
                 }
             }
         } catch (error) {
@@ -943,12 +1177,12 @@ class ModelosManager {
         
         // Cargar fotos del modelo
         try {
-            const response = await fetch(`${this.apiBaseUrl}/api/models/${modelId}/photos`);
+            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/photos`);
             if (response.ok) {
                 const photos = await response.json();
                 model.photos = photos.map(photo => ({
                     ...photo,
-                    url: `${this.apiBaseUrl}${photo.url}`
+                    url: photo.url // Ya es un data URL completo
                 }));
             }
         } catch (error) {

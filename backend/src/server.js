@@ -11,7 +11,8 @@ const app = express();
 const port = 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // Aumentar límite para payloads grandes
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Configuración para subida de archivos
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -44,13 +45,32 @@ const upload = multer({
     },
     fileFilter: function (req, file, cb) {
         const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const allowedMimeTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
+        const mimetype = allowedMimeTypes.includes(file.mimetype.toLowerCase());
         
         if (mimetype && extname) {
             return cb(null, true);
         } else {
-            cb(new Error('Solo se permiten imágenes (JPEG, JPG, PNG, GIF, WebP)'));
+            cb(new Error('Solo se permiten imágenes reales (JPEG, JPG, PNG, GIF, WebP) - no SVG'));
+        }
+    }
+});
+
+// Configuración de multer para subida de manuales
+const uploadManuals = multer({
+    storage: multer.memoryStorage(), // Usar memoria para procesar directamente
+    limits: {
+        fileSize: 10 * 1024 * 1024 // 10MB límite para manuales
+    },
+    fileFilter: function (req, file, cb) {
+        const allowedMimeTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const mimetype = allowedMimeTypes.includes(file.mimetype.toLowerCase());
+        
+        if (mimetype) {
+            return cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos PDF, DOC y DOCX'));
         }
     }
 });
@@ -335,13 +355,22 @@ app.get('/api/equipment', (req, res) => {
 // GET equipment for a specific location
 app.get('/api/locations/:locationId/equipment', (req, res) => {
     const { locationId } = req.params;
-    const sql = "SELECT * FROM Equipment WHERE location_id = ?";
+    const sql = `
+        SELECT 
+            e.*,
+            em.name as model_name,
+            em.brand as model_brand
+        FROM Equipment e
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        WHERE e.location_id = ?
+        ORDER BY e.type, e.name
+    `;
     db.all(sql, [locationId], (err, rows) => {
         if (err) {
-            res.status(400).json({"error":err.message});
+            res.status(500).json({ error: err.message });
             return;
         }
-        res.json({ message: "success", data: rows });
+        res.json(rows);
     });
 });
 
@@ -717,7 +746,7 @@ app.delete('/api/models/:id', (req, res) => {
 // GET photos for a model
 app.get('/api/models/:id/photos', (req, res) => {
     const modelId = req.params.id;
-    const sql = `SELECT * FROM ModelPhotos WHERE model_id = ? ORDER BY upload_date ASC`;
+    const sql = `SELECT * FROM ModelPhotos WHERE model_id = ? ORDER BY created_at ASC`;
     
     db.all(sql, [modelId], (err, rows) => {
         if (err) {
@@ -726,12 +755,12 @@ app.get('/api/models/:id/photos', (req, res) => {
         
         const photos = rows.map(row => ({
             id: row.id,
-            filename: row.filename,
-            originalName: row.original_name,
+            filename: row.file_name,
+            originalName: row.file_name,
             size: row.file_size,
-            uploadDate: row.upload_date,
+            uploadDate: row.created_at,
             isPrimary: row.is_primary,
-            url: `/uploads/models/${row.filename}`
+            url: row.photo_data // Usar el data URL directamente desde la BD
         }));
         
         res.json(photos);
@@ -765,17 +794,28 @@ app.post('/api/models/:id/photos', upload.array('photos', 10), (req, res) => {
         // Guardar información de fotos en la base de datos
         const insertPromises = req.files.map(file => {
             return new Promise((resolve, reject) => {
-                const sql = `INSERT INTO ModelPhotos (model_id, filename, original_name, file_size) VALUES (?, ?, ?, ?)`;
-                db.run(sql, [modelId, file.filename, file.originalname, file.size], function(err) {
+                // Leer el archivo y convertirlo a base64
+                const fs = require('fs');
+                const fileData = fs.readFileSync(file.path);
+                const base64Data = fileData.toString('base64');
+                const photoData = `data:${file.mimetype};base64,${base64Data}`;
+                
+                const sql = `INSERT INTO ModelPhotos (model_id, photo_data, file_name, mime_type, file_size, is_primary) VALUES (?, ?, ?, ?, ?, ?)`;
+                db.run(sql, [modelId, photoData, file.filename, file.mimetype, file.size, false], function(err) {
                     if (err) {
                         reject(err);
                     } else {
+                        // Eliminar archivo temporal después de guardarlo en BD
+                        fs.unlink(file.path, (unlinkErr) => {
+                            if (unlinkErr) console.error('Error eliminando archivo temporal:', unlinkErr);
+                        });
+                        
                         resolve({
                             id: this.lastID,
                             filename: file.filename,
                             originalName: file.originalname,
                             size: file.size,
-                            url: `/uploads/models/${file.filename}`
+                            url: photoData // Devolver el data URL directamente
                         });
                     }
                 });
@@ -802,14 +842,59 @@ app.post('/api/models/:id/photos', upload.array('photos', 10), (req, res) => {
     });
 });
 
-// DELETE a photo
-app.delete('/api/models/photos/:filename', (req, res) => {
-    const filename = req.params.filename;
-    const filePath = path.join(modelsDir, filename);
+// DELETE a photo by ID
+app.delete('/api/models/photos/:photoId', (req, res) => {
+    const photoId = req.params.photoId;
     
-    // Primero eliminar de la base de datos
-    db.run('DELETE FROM ModelPhotos WHERE filename = ?', [filename], function(err) {
+    console.log('🗑️ Eliminando foto ID:', photoId, 'Tipo:', typeof photoId);
+    
+    // Primero verificar que la foto existe
+    db.get('SELECT id, model_id, file_name FROM ModelPhotos WHERE id = ?', [photoId], (err, row) => {
         if (err) {
+            console.error('❌ Error consultando foto:', err);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+        
+        if (!row) {
+            console.log('❌ Foto no encontrada con ID:', photoId);
+            // Listar todas las fotos para debug
+            db.all('SELECT id, model_id, file_name FROM ModelPhotos LIMIT 10', [], (err, allPhotos) => {
+                if (!err) {
+                    console.log('📸 Fotos disponibles:', allPhotos.map(p => `ID:${p.id}(${typeof p.id})`));
+                }
+            });
+            return res.status(404).json({ error: 'Foto no encontrada en base de datos' });
+        }
+        
+        console.log('✅ Foto encontrada:', row);
+        
+        // Ahora eliminar la foto
+        db.run('DELETE FROM ModelPhotos WHERE id = ?', [photoId], function(err) {
+            if (err) {
+                console.error('❌ Error eliminando foto:', err);
+                return res.status(500).json({ error: 'Error eliminando de base de datos' });
+            }
+            
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Foto no encontrada en base de datos' });
+            }
+            
+            console.log('✅ Foto eliminada exitosamente, ID:', photoId, 'Cambios:', this.changes);
+            res.json({ message: 'Foto eliminada exitosamente' });
+        });
+    });
+});
+
+// DELETE a photo by filename (mantener compatibilidad)
+app.delete('/api/models/photos/file/:filename', (req, res) => {
+    const filename = req.params.filename;
+    
+    console.log('🗑️ Eliminando foto por filename:', filename);
+    
+    // Eliminar de la base de datos (no hay archivos físicos que eliminar)
+    db.run('DELETE FROM ModelPhotos WHERE file_name = ?', [filename], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando foto:', err);
             return res.status(500).json({ error: 'Error eliminando de base de datos' });
         }
         
@@ -817,17 +902,141 @@ app.delete('/api/models/photos/:filename', (req, res) => {
             return res.status(404).json({ error: 'Foto no encontrada en base de datos' });
         }
         
-        // Luego eliminar archivo físico
-        if (fs.existsSync(filePath)) {
-            fs.unlink(filePath, (err) => {
-                if (err) {
-                    console.error('Error eliminando archivo físico:', err);
-                    // Aunque falle eliminar el archivo, ya se eliminó de BD
-                }
-            });
+        console.log('✅ Foto eliminada exitosamente, filename:', filename);
+        res.json({ message: 'Foto eliminada exitosamente' });
+    });
+});
+
+
+// --- API Routes for Model Manuals ---
+
+// GET manuals for a model
+app.get('/api/models/:id/manuals', (req, res) => {
+    const modelId = req.params.id;
+    const sql = `SELECT * FROM ModelManuals WHERE model_id = ? ORDER BY created_at ASC`;
+    
+    db.all(sql, [modelId], (err, rows) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
         }
         
-        res.json({ message: 'Foto eliminada exitosamente' });
+        const manuals = rows.map(row => ({
+            id: row.id,
+            filename: row.file_name,
+            originalName: row.original_name,
+            size: row.file_size,
+            uploadDate: row.created_at,
+            mimeType: row.mime_type,
+            url: row.file_data // Data URL con el archivo en base64
+        }));
+        
+        res.json(manuals);
+    });
+});
+
+// POST upload manuals for a model
+app.post('/api/models/:id/manuals', uploadManuals.array('manuals', 5), (req, res) => {
+    const modelId = req.params.id;
+    console.log('Manual upload request for model:', modelId);
+    console.log('Files received:', req.files ? req.files.length : 0);
+    
+    if (!req.files || req.files.length === 0) {
+        console.log('No files uploaded');
+        return res.status(400).json({ error: 'No se subieron archivos' });
+    }
+    
+    // Verificar que el modelo existe
+    db.get('SELECT id FROM EquipmentModels WHERE id = ?', [modelId], (err, model) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!model) {
+            return res.status(404).json({ error: 'Modelo no encontrado' });
+        }
+        
+        // Validar tipos de archivo
+        const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        const invalidFiles = req.files.filter(file => !allowedTypes.includes(file.mimetype));
+        
+        if (invalidFiles.length > 0) {
+            return res.status(400).json({ error: 'Solo se permiten archivos PDF, DOC y DOCX' });
+        }
+        
+        // Guardar información de manuales en la base de datos
+        const insertPromises = req.files.map(file => {
+            return new Promise((resolve, reject) => {
+                // El archivo está en memoria (file.buffer), convertirlo a base64
+                const base64Data = file.buffer.toString('base64');
+                const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+                
+                const sql = `INSERT INTO ModelManuals (model_id, file_data, file_name, original_name, mime_type, file_size) VALUES (?, ?, ?, ?, ?, ?)`;
+                db.run(sql, [modelId, dataUrl, file.originalname, file.originalname, file.mimetype, file.size], function(err) {
+                    if (err) {
+                        reject(err);
+                    } else {
+                        resolve({
+                            id: this.lastID,
+                            filename: file.originalname,
+                            originalName: file.originalname,
+                            size: file.size,
+                            mimeType: file.mimetype,
+                            url: dataUrl
+                        });
+                    }
+                });
+            });
+        });
+        
+        // Esperar a que todos los manuales se guarden en BD
+        Promise.all(insertPromises)
+            .then(manuals => {
+                console.log('✅ Manuales guardados en BD:', manuals.length);
+                res.json({
+                    message: 'Manuales subidos exitosamente',
+                    manuals: manuals
+                });
+            })
+            .catch(err => {
+                console.error('❌ Error guardando manuales en BD:', err);
+                res.status(500).json({ error: 'Error guardando manuales en base de datos' });
+            });
+    });
+});
+
+// DELETE a manual by ID
+app.delete('/api/models/manuals/:manualId', (req, res) => {
+    const manualId = req.params.manualId;
+    
+    console.log('🗑️ Eliminando manual ID:', manualId);
+    
+    // Primero verificar que el manual existe
+    db.get('SELECT id, model_id, original_name FROM ModelManuals WHERE id = ?', [manualId], (err, row) => {
+        if (err) {
+            console.error('❌ Error consultando manual:', err);
+            return res.status(500).json({ error: 'Error consultando base de datos' });
+        }
+        
+        if (!row) {
+            console.log('❌ Manual no encontrado con ID:', manualId);
+            return res.status(404).json({ error: 'Manual no encontrado en base de datos' });
+        }
+        
+        console.log('✅ Manual encontrado:', row);
+        
+        // Ahora eliminar el manual
+        db.run('DELETE FROM ModelManuals WHERE id = ?', [manualId], function(err) {
+            if (err) {
+                console.error('❌ Error eliminando manual:', err);
+                return res.status(500).json({ error: 'Error eliminando de base de datos' });
+            }
+            
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Manual no encontrado en base de datos' });
+            }
+            
+            console.log('✅ Manual eliminado exitosamente, ID:', manualId, 'Cambios:', this.changes);
+            res.json({ message: 'Manual eliminado exitosamente' });
+        });
     });
 });
 
@@ -1086,7 +1295,7 @@ app.delete('/api/equipment/photos/:photoId', (req, res) => {
 app.get('/api/models/:modelId/main-photo', (req, res) => {
     const { modelId } = req.params;
     const sql = `
-        SELECT file_path FROM ModelPhotos 
+        SELECT file_path FROM modelphotos 
         WHERE model_id = ? 
         ORDER BY created_at ASC 
         LIMIT 1
