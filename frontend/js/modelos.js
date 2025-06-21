@@ -175,7 +175,7 @@ class ModelosManager {
 
 
     setupTabs() {
-        const tabButtons = document.querySelectorAll('.model-tab-button');
+        const tabButtons = document.querySelectorAll('.tab-button');
         tabButtons.forEach(button => {
             button.addEventListener('click', (e) => {
                 const tabName = e.target.dataset.tab;
@@ -186,11 +186,11 @@ class ModelosManager {
 
     switchTab(tabName) {
         // Actualizar botones
-        document.querySelectorAll('.model-tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
         document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
         
         // Actualizar contenido
-        document.querySelectorAll('.model-tab-content').forEach(content => content.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
         document.getElementById(`tab-${tabName}`).classList.add('active');
         
         this.currentTab = tabName;
@@ -900,8 +900,6 @@ class ModelosManager {
         modal.classList.remove('is-open');
         setTimeout(() => {
             modal.style.display = 'none';
-            modal.style.opacity = '0';
-            modal.style.pointerEvents = 'none';
         }, 300);
         document.body.classList.remove('modal-open');
     }
@@ -1129,42 +1127,102 @@ class ModelosManager {
         } catch (error) {
             console.warn(`Error cargando fotos para modelo ${model.id}:`, error);
         }
+
+        // Obtener color de categoría
+        const categoryColor = this.getCategoryColor(model.category);
         
         return `
-            <div class="model-card app-card overflow-hidden cursor-pointer" onclick="modelosManager.viewModel('${model.id}')">
-                ${photoUrl ? 
-                    `<img src="${photoUrl}" alt="${model.name}" class="model-image">` :
-                    `<div class="model-image-placeholder">
-                        <i data-lucide="image" class="w-12 h-12"></i>
-                    </div>`
-                }
-                <div class="p-4">
-                    <div class="flex justify-between items-start mb-2">
-                        <h3 class="font-semibold text-lg line-clamp-2">${model.name}</h3>
-                        <span class="status-badge info text-xs">${model.category}</span>
-                    </div>
-                    <p class="text-gray-600 font-medium mb-2">${model.brand}</p>
-                    <p class="text-sm text-gray-500 line-clamp-2 mb-4">${model.description || 'Sin descripción'}</p>
+            <div class="model-card-modern cursor-pointer group" onclick="modelosManager.viewModel('${model.id}')">
+                <!-- Imagen principal con overlay de información -->
+                <div class="model-image-container">
+                    ${photoUrl ? 
+                        `<img src="${photoUrl}" alt="${model.name}" class="model-image-main">` :
+                        `<div class="model-image-placeholder-modern">
+                            <i data-lucide="image" class="w-16 h-16 text-gray-300"></i>
+                            <p class="text-gray-400 text-sm mt-2">Sin imagen</p>
+                        </div>`
+                    }
                     
-                    <div class="flex justify-between items-center text-sm text-gray-500">
-                        <div class="flex items-center gap-4">
-                            <span class="flex items-center gap-1">
-                                <i data-lucide="image" class="w-4 h-4"></i>
-                                ${photoCount}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <i data-lucide="file-text" class="w-4 h-4"></i>
-                                ${model.manuals ? model.manuals.length : 0}
-                            </span>
-                            <span class="flex items-center gap-1">
-                                <i data-lucide="wrench" class="w-4 h-4"></i>
-                                ${model.spareParts ? model.spareParts.length : 0}
-                            </span>
+                    <!-- Badge de categoría -->
+                    <div class="category-badge" style="background-color: ${categoryColor}">
+                        ${model.category}
+                    </div>
+                    
+                    <!-- Overlay con contador de fotos -->
+                    ${photoCount > 1 ? `
+                        <div class="photo-counter">
+                            <i data-lucide="image" class="w-4 h-4"></i>
+                            <span>${photoCount}</span>
                         </div>
-                        <button onclick="event.stopPropagation(); modelosManager.openModelModal(modelosManager.models.find(m => m.id === '${model.id}'))" 
-                                class="text-primary-600 hover:text-primary-800">
-                            <i data-lucide="edit" class="w-4 h-4"></i>
-                        </button>
+                    ` : ''}
+                    
+                    <!-- Botón de editar flotante -->
+                    <button onclick="event.stopPropagation(); modelosManager.openModelModal(modelosManager.models.find(m => m.id === '${model.id}'))" 
+                            class="edit-button-floating">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                
+                <!-- Información del modelo -->
+                <div class="model-info-container">
+                    <!-- Header con título y marca -->
+                    <div class="model-header">
+                        <h3 class="model-title">${model.name}</h3>
+                        <p class="model-brand">Por ${model.brand}</p>
+                    </div>
+                    
+                    <!-- Especificaciones principales -->
+                    <div class="model-specs">
+                        ${model.weight ? `
+                            <div class="spec-item">
+                                <i data-lucide="weight" class="w-4 h-4"></i>
+                                <span>${model.weight} kg</span>
+                            </div>
+                        ` : ''}
+                        ${model.dimensions ? `
+                            <div class="spec-item">
+                                <i data-lucide="maximize" class="w-4 h-4"></i>
+                                <span>${model.dimensions}</span>
+                            </div>
+                        ` : ''}
+                        ${model.voltage ? `
+                            <div class="spec-item">
+                                <i data-lucide="zap" class="w-4 h-4"></i>
+                                <span>${model.voltage}</span>
+                            </div>
+                        ` : ''}
+                        ${model.power ? `
+                            <div class="spec-item">
+                                <i data-lucide="cpu" class="w-4 h-4"></i>
+                                <span>${model.power}W</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    <!-- Descripción -->
+                    ${model.description ? `
+                        <p class="model-description">${model.description}</p>
+                    ` : ''}
+                    
+                    <!-- Footer con código del modelo y recursos -->
+                    <div class="model-footer">
+                        <div class="model-code">
+                            ${model.model_code ? `Código: ${model.model_code}` : 'Sin código'}
+                        </div>
+                        <div class="model-resources">
+                            ${model.manuals && model.manuals.length > 0 ? `
+                                <span class="resource-badge">
+                                    <i data-lucide="file-text" class="w-3 h-3"></i>
+                                    ${model.manuals.length} manual${model.manuals.length > 1 ? 'es' : ''}
+                                </span>
+                            ` : ''}
+                            ${model.spareParts && model.spareParts.length > 0 ? `
+                                <span class="resource-badge">
+                                    <i data-lucide="wrench" class="w-3 h-3"></i>
+                                    ${model.spareParts.length} repuesto${model.spareParts.length > 1 ? 's' : ''}
+                                </span>
+                            ` : ''}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1199,8 +1257,6 @@ class ModelosManager {
         
         // Usar el sistema estándar de modales
         modal.style.display = 'flex';
-        modal.style.opacity = '1';
-        modal.style.pointerEvents = 'auto';
         // Forzar reflow para animación
         modal.offsetHeight;
         modal.classList.add('is-open');

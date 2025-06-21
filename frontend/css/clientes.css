@@ -1,6 +1,4 @@
-body {
-    font-family: 'Inter', sans-serif;
-}
+/* Body ya definido en style.css - eliminado para evitar conflictos */
 
 .panel {
     transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
@@ -34,7 +32,7 @@ body {
         left: 0;
         top: 0;
         height: 100%;
-        z-index: 100;
+        z-index: var(--z-dropdown);
         transform: translateX(-100%);
     }
 
@@ -47,7 +45,7 @@ body {
         position: fixed;
         inset: 0;
         background-color: rgba(0, 0, 0, 0.5);
-        z-index: 99;
+        z-index: calc(var(--z-dropdown) - 1);
     }
 }
 
@@ -296,7 +294,7 @@ body {
     background-color: rgba(0, 0, 0, 0.5);
     align-items: center;
     justify-content: center;
-    z-index: 50;
+    z-index: var(--z-modal);
 }
 
 .modal-content {
@@ -325,7 +323,7 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
-    z-index: 50;
+    z-index: var(--z-modal);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
@@ -502,7 +500,7 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
-    z-index: 50;
+    z-index: var(--z-modal);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
@@ -659,7 +657,7 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.3s ease;
-    z-index: 50;
+    z-index: var(--z-modal);
     -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }

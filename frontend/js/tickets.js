@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     document.getElementById('add-ticket-btn').addEventListener('click', () => openModal('ticket-modal'));
     document.getElementById('ticket-modal-cancel-btn').addEventListener('click', () => closeModal('ticket-modal'));
-    document.getElementById('ticket-modal-close-btn').addEventListener('click', () => closeModal('ticket-modal')); // Para el botón X del modal
+    document.getElementById('ticket-modal-close-btn').addEventListener('click', () => closeModal('ticket-modal')); // Para el botón X del modal (migrado a base-modal-close)
     
     // Listeners para el nuevo modal de cliente
     document.getElementById('add-new-client-from-ticket-btn').addEventListener('click', () => openModal('add-client-modal'));

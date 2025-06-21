@@ -44,33 +44,31 @@
 
 /* Layout compacto para información general */
 .equipment-card .equipment-info-compact {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 1.5rem !important;
-    width: 100% !important;
-
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    width: 100%;
 }
 
 @media (min-width: 768px) {
     .equipment-card .equipment-info-compact {
-        flex-direction: row !important;
-        align-items: flex-start !important;
-        gap: 2rem !important;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: 2rem;
     }
 }
 
 .equipment-card .equipment-details-compact {
-    flex: 1 !important;
-    display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
-    gap: 1rem !important;
-    min-width: 0 !important;
-
+    flex: 1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    min-width: 0;
 }
 
 @media (max-width: 480px) {
     .equipment-card .equipment-details-compact {
-        grid-template-columns: 1fr !important;
+        grid-template-columns: 1fr;
     }
 }
 
@@ -105,14 +103,13 @@
 
 /* QR Code compacto */
 .equipment-card .equipment-qr-compact {
-    display: flex !important;
-    flex-direction: column !important;
-    align-items: center !important;
-    flex-shrink: 0 !important;
-    min-width: 140px !important;
-    max-width: 160px !important;
-    width: 160px !important;
-
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 140px;
+    max-width: 160px;
+    width: 160px;
 }
 
 .equipment-qr-title {
@@ -125,9 +122,9 @@
 
 @media (max-width: 767px) {
     .equipment-card .equipment-qr-compact {
-        align-self: center !important;
-        margin-top: 1rem !important;
-        width: 140px !important;
+        align-self: center;
+        margin-top: 1rem;
+        width: 140px;
     }
 }
 
@@ -142,8 +139,8 @@
 }
 
 .equipment-qr-container-compact canvas {
-    width: 100px !important;
-    height: 100px !important;
+    width: 100px;
+    height: 100px;
     display: block;
 }
 
@@ -491,8 +488,8 @@
     }
     
     .equipment-qr-container-compact canvas {
-        width: 80px !important;
-        height: 80px !important;
+        width: 80px;
+        height: 80px;
     }
 }
 
@@ -531,7 +528,7 @@
     .equipment-btn,
     .equipment-note-form,
     .equipment-note-delete {
-        display: none !important;
+        display: none;
     }
     
     .equipment-card {

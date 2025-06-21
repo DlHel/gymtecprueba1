@@ -51,10 +51,10 @@ const modals = {
         modalElem.classList.add('is-open');
         
         // Configurar botón X de cerrar (cada vez que se abre el modal)
-        const closeBtn = modalElem.querySelector('.inventory-modal-close');
+        const closeBtn = modalElem.querySelector('.base-modal-close');
         if (closeBtn) {
             closeBtn.replaceWith(closeBtn.cloneNode(true));
-            const newCloseBtn = modalElem.querySelector('.inventory-modal-close');
+            const newCloseBtn = modalElem.querySelector('.base-modal-close');
             newCloseBtn.addEventListener('click', () => modals.close(modalElem));
         }
         
@@ -74,7 +74,7 @@ const modals = {
         const form = modalElem.querySelector('form');
         
         // Event listener para botón cancelar
-        modalElem.querySelector('.modal-cancel-btn').addEventListener('click', () => modals.close(modalElem));
+        modalElem.querySelector('.base-btn-cancel').addEventListener('click', () => modals.close(modalElem));
         
         form.addEventListener('submit', async e => {
             e.preventDefault();

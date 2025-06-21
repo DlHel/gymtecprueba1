@@ -67,23 +67,23 @@
         </div>
     </div>
 
-    <!-- Modal para Crear/Editar Ticket -->
-    <div id="ticket-modal" class="ticket-modal" style="display: none;">
-        <div class="ticket-modal-content">
-            <div class="ticket-modal-header">
-                <h3 id="ticket-modal-title" class="ticket-modal-title">Nuevo Ticket</h3>
-                <button id="ticket-modal-close-btn" class="ticket-modal-close">
+    <!-- Modal para Crear/Editar Ticket - MIGRADO AL SISTEMA UNIFICADO -->
+    <div id="ticket-modal" class="base-modal" style="display: none;">
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 id="ticket-modal-title" class="base-modal-title">Nuevo Ticket</h3>
+                <button id="ticket-modal-close-btn" class="base-modal-close">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <div class="ticket-modal-body">
-                <form id="ticket-modal-form" class="ticket-form-grid">
+            <div class="base-modal-body">
+                <form id="ticket-modal-form" class="base-form-grid">
                     <input type="hidden" name="id">
                     
-                    <div class="ticket-form-group">
-                        <label for="ticket-client-select" class="ticket-form-label">Cliente <span class="required">*</span></label>
+                    <div class="base-form-group">
+                        <label for="ticket-client-select" class="base-form-label">Cliente <span class="required">*</span></label>
                         <div class="ticket-input-group">
-                            <select name="client_id" id="ticket-client-select" class="ticket-form-select" required>
+                            <select name="client_id" id="ticket-client-select" class="base-form-select" required>
                                 <option value="">Seleccione un cliente...</option>
                             </select>
                             <button type="button" id="add-new-client-from-ticket-btn" class="ticket-add-btn" title="Crear nuevo cliente">
@@ -92,10 +92,10 @@
                         </div>
                     </div>
 
-                    <div class="ticket-form-group">
-                        <label for="ticket-location-select" class="ticket-form-label">Sede</label>
+                    <div class="base-form-group">
+                        <label for="ticket-location-select" class="base-form-label">Sede</label>
                         <div class="ticket-input-group">
-                            <select name="location_id" id="ticket-location-select" class="ticket-form-select" disabled>
+                            <select name="location_id" id="ticket-location-select" class="base-form-select" disabled>
                                 <option value="">Seleccione un cliente primero...</option>
                             </select>
                             <button type="button" id="add-new-location-from-ticket-btn" class="ticket-add-btn" title="Crear nueva sede" disabled>
@@ -104,20 +104,20 @@
                         </div>
                     </div>
 
-                    <div class="ticket-form-group full-width">
-                        <label for="ticket-title" class="ticket-form-label">Título del Ticket <span class="required">*</span></label>
-                        <input type="text" name="title" id="ticket-title" class="ticket-form-input" required>
+                    <div class="base-form-group full-width">
+                        <label for="ticket-title" class="base-form-label">Título del Ticket <span class="required">*</span></label>
+                        <input type="text" name="title" id="ticket-title" class="base-form-input" required>
                     </div>
 
-                    <div class="ticket-form-group full-width">
-                        <label for="ticket-description" class="ticket-form-label">Descripción del Problema <span class="required">*</span></label>
-                        <textarea name="description" id="ticket-description" rows="3" class="ticket-form-textarea" required></textarea>
+                    <div class="base-form-group full-width">
+                        <label for="ticket-description" class="base-form-label">Descripción del Problema <span class="required">*</span></label>
+                        <textarea name="description" id="ticket-description" rows="3" class="base-form-textarea" required></textarea>
                     </div>
                     
-                    <div class="ticket-form-group">
-                        <label for="ticket-equipment-select" class="ticket-form-label">Equipo Afectado (Opcional)</label>
+                    <div class="base-form-group">
+                        <label for="ticket-equipment-select" class="base-form-label">Equipo Afectado (Opcional)</label>
                         <div class="ticket-input-group">
-                            <select name="equipment_id" id="ticket-equipment-select" class="ticket-form-select" disabled>
+                            <select name="equipment_id" id="ticket-equipment-select" class="base-form-select" disabled>
                                 <option value="">Seleccione una sede primero...</option>
                             </select>
                             <button type="button" id="add-new-equipment-from-ticket-btn" class="ticket-add-btn" title="Crear nuevo equipo" disabled>
@@ -126,18 +126,18 @@
                         </div>
                     </div>
                     
-                    <div class="ticket-form-group">
-                        <label for="ticket-priority" class="ticket-form-label">Prioridad <span class="required">*</span></label>
-                        <select name="priority" id="ticket-priority" class="ticket-form-select" required>
+                    <div class="base-form-group">
+                        <label for="ticket-priority" class="base-form-label">Prioridad <span class="required">*</span></label>
+                        <select name="priority" id="ticket-priority" class="base-form-select" required>
                             <option value="Baja">Baja</option>
                             <option value="Media" selected>Media</option>
                             <option value="Alta">Alta</option>
                         </select>
                     </div>
                 
-                    <div id="ticket-status-wrapper" class="ticket-form-group hidden">
-                        <label for="ticket-status" class="ticket-form-label">Estado</label>
-                        <select name="status" id="ticket-status" class="ticket-form-select">
+                    <div id="ticket-status-wrapper" class="base-form-group hidden">
+                        <label for="ticket-status" class="base-form-label">Estado</label>
+                        <select name="status" id="ticket-status" class="base-form-select">
                             <option value="Abierto">Abierto</option>
                             <option value="En Progreso">En Progreso</option>
                             <option value="Pendiente">Pendiente</option>
@@ -145,16 +145,16 @@
                         </select>
                     </div>
                     
-                    <div class="ticket-form-group">
-                        <label for="ticket-due-date" class="ticket-form-label">Fecha Vencimiento (SLA)</label>
-                        <input type="date" name="due_date" id="ticket-due-date" class="ticket-form-input">
+                    <div class="base-form-group">
+                        <label for="ticket-due-date" class="base-form-label">Fecha Vencimiento (SLA)</label>
+                        <input type="date" name="due_date" id="ticket-due-date" class="base-form-input">
                     </div>
                 </form>
             </div>
             
-            <div class="ticket-modal-footer">
-                <button type="button" id="ticket-modal-cancel-btn" class="ticket-btn-cancel">Cancelar</button>
-                <button type="submit" form="ticket-modal-form" class="ticket-btn-save">Guardar Ticket</button>
+            <div class="base-modal-footer">
+                <button type="button" id="ticket-modal-cancel-btn" class="base-btn-cancel">Cancelar</button>
+                <button type="submit" form="ticket-modal-form" class="base-btn-save btn-primary">Guardar Ticket</button>
             </div>
         </div>
     </div>
