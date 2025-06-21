@@ -225,12 +225,15 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         getLocationEquipment: async (id) => {
             try {
+                console.log(`🔍 Obteniendo equipos para ubicación ${id}...`);
                 const response = await fetch(`${API_URL}/locations/${id}/equipment`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 const data = await response.json();
-                return data.data || [];
+                console.log(`✅ Equipos recibidos para ubicación ${id}:`, data);
+                // La API devuelve directamente un array, no un objeto con propiedad data
+                return Array.isArray(data) ? data : (data.data || []);
             } catch (error) {
                 console.error('Error fetching location equipment:', error);
                 throw error;
@@ -420,7 +423,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         locationEquipment: async (locationId, container) => {
              try {
+                console.log(`🏢 Cargando equipos para ubicación ${locationId}...`);
                 const equipment = await api.getLocationEquipment(locationId);
+                console.log(`📋 Equipos obtenidos:`, equipment);
                 
                 // El botón de añadir siempre debe estar visible.
                 let contentHtml = `
