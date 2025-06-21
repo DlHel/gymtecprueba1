@@ -1338,6 +1338,566 @@ app.get('/api/models/:modelId/main-photo', (req, res) => {
 
 
 
+// === APIS COMPLETAS PARA SISTEMA DE TICKETS ===
+
+// --- API Routes for Ticket Time Entries ---
+
+// GET all time entries for a specific ticket
+app.get('/api/tickets/:ticketId/time-entries', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT 
+            tte.*,
+            u.username as technician_name
+        FROM TicketTimeEntries tte
+        LEFT JOIN Users u ON tte.technician_id = u.id
+        WHERE tte.ticket_id = ? 
+        ORDER BY tte.created_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo time entries:', err.message);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        console.log(`✅ Time entries obtenidas para ticket ${ticketId}:`, rows.length);
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new time entry for ticket
+app.post('/api/tickets/:ticketId/time-entries', (req, res) => {
+    const { ticketId } = req.params;
+    const { technician_id, start_time, end_time, duration_seconds, description } = req.body;
+    
+    if (!start_time || !duration_seconds) {
+        return res.status(400).json({ error: "start_time y duration_seconds son requeridos" });
+    }
+    
+    const sql = `INSERT INTO TicketTimeEntries 
+                 (ticket_id, technician_id, start_time, end_time, duration_seconds, description) 
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    const params = [ticketId, technician_id || null, start_time, end_time || null, duration_seconds, description || null];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error creando time entry:', err.message);
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        console.log(`✅ Time entry creada para ticket ${ticketId}, ID: ${this.lastID}`);
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ticket_id: ticketId, ...req.body }
+        });
+    });
+});
+
+// DELETE a time entry
+app.delete('/api/tickets/time-entries/:entryId', (req, res) => {
+    const { entryId } = req.params;
+    const sql = 'DELETE FROM TicketTimeEntries WHERE id = ?';
+    
+    db.run(sql, [entryId], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Time entry no encontrada" });
+        }
+        res.json({ message: "Time entry eliminada", changes: this.changes });
+    });
+});
+
+// --- API Routes for Ticket Notes ---
+
+// GET all notes for a specific ticket
+app.get('/api/tickets/:ticketId/notes', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT * FROM TicketNotes 
+        WHERE ticket_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new note for ticket
+app.post('/api/tickets/:ticketId/notes', (req, res) => {
+    const { ticketId } = req.params;
+    const { note, note_type, author, is_internal } = req.body;
+    
+    if (!note || note.trim() === '') {
+        return res.status(400).json({ error: "La nota no puede estar vacía" });
+    }
+    
+    const sql = `INSERT INTO TicketNotes 
+                 (ticket_id, note, note_type, author, is_internal) 
+                 VALUES (?, ?, ?, ?, ?)`;
+    const params = [
+        ticketId, 
+        note.trim(), 
+        note_type || 'Comentario', 
+        author || 'Sistema', 
+        is_internal || false
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        // Devolver la nota creada
+        const selectSql = 'SELECT * FROM TicketNotes WHERE id = ?';
+        db.get(selectSql, [this.lastID], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.status(201).json({
+                message: "success",
+                data: row
+            });
+        });
+    });
+});
+
+// DELETE a ticket note
+app.delete('/api/tickets/notes/:noteId', (req, res) => {
+    const { noteId } = req.params;
+    const sql = 'DELETE FROM TicketNotes WHERE id = ?';
+    
+    db.run(sql, [noteId], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Nota no encontrada" });
+        }
+        res.json({ message: "Nota eliminada", changes: this.changes });
+    });
+});
+
+// --- API Routes for Ticket Checklists ---
+
+// GET all checklist items for a specific ticket
+app.get('/api/tickets/:ticketId/checklist', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT * FROM TicketChecklists 
+        WHERE ticket_id = ? 
+        ORDER BY order_index ASC, created_at ASC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new checklist item for ticket
+app.post('/api/tickets/:ticketId/checklist', (req, res) => {
+    const { ticketId } = req.params;
+    const { title, description, order_index } = req.body;
+    
+    if (!title || title.trim() === '') {
+        return res.status(400).json({ error: "El título del checklist no puede estar vacío" });
+    }
+    
+    const sql = `INSERT INTO TicketChecklists 
+                 (ticket_id, title, description, order_index) 
+                 VALUES (?, ?, ?, ?)`;
+    const params = [ticketId, title.trim(), description || null, order_index || 0];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        // Devolver el item creado
+        const selectSql = 'SELECT * FROM TicketChecklists WHERE id = ?';
+        db.get(selectSql, [this.lastID], (err, row) => {
+            if (err) {
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            res.status(201).json({
+                message: "success",
+                data: row
+            });
+        });
+    });
+});
+
+// PUT update checklist item (mark as completed/uncompleted)
+app.put('/api/tickets/checklist/:itemId', (req, res) => {
+    const { itemId } = req.params;
+    const { is_completed, completed_by } = req.body;
+    
+    const sql = `UPDATE TicketChecklists SET 
+                 is_completed = ?, 
+                 completed_at = ?, 
+                 completed_by = ? 
+                 WHERE id = ?`;
+    const params = [
+        is_completed,
+        is_completed ? new Date().toISOString() : null,
+        is_completed ? (completed_by || 'Sistema') : null,
+        itemId
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Item de checklist no encontrado" });
+        }
+        res.json({
+            message: "success",
+            changes: this.changes
+        });
+    });
+});
+
+// DELETE a checklist item
+app.delete('/api/tickets/checklist/:itemId', (req, res) => {
+    const { itemId } = req.params;
+    const sql = 'DELETE FROM TicketChecklists WHERE id = ?';
+    
+    db.run(sql, [itemId], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Item de checklist no encontrado" });
+        }
+        res.json({ message: "Item eliminado", changes: this.changes });
+    });
+});
+
+// --- API Routes for Ticket Spare Parts ---
+
+// GET all spare parts used in a specific ticket
+app.get('/api/tickets/:ticketId/spare-parts', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT 
+            tsp.*,
+            sp.name as spare_part_name,
+            sp.sku as spare_part_sku
+        FROM TicketSpareParts tsp
+        JOIN SpareParts sp ON tsp.spare_part_id = sp.id
+        WHERE tsp.ticket_id = ? 
+        ORDER BY tsp.used_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new spare part usage for ticket
+app.post('/api/tickets/:ticketId/spare-parts', (req, res) => {
+    const { ticketId } = req.params;
+    const { spare_part_id, quantity_used, unit_cost, notes } = req.body;
+    
+    if (!spare_part_id || !quantity_used) {
+        return res.status(400).json({ error: "spare_part_id y quantity_used son requeridos" });
+    }
+    
+    const sql = `INSERT INTO TicketSpareParts 
+                 (ticket_id, spare_part_id, quantity_used, unit_cost, notes) 
+                 VALUES (?, ?, ?, ?, ?)`;
+    const params = [ticketId, spare_part_id, quantity_used, unit_cost || null, notes || null];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        // Actualizar stock del repuesto
+        const updateStockSql = `UPDATE SpareParts 
+                               SET current_stock = current_stock - ? 
+                               WHERE id = ?`;
+        db.run(updateStockSql, [quantity_used, spare_part_id], (err) => {
+            if (err) {
+                console.error('⚠️ Error actualizando stock:', err.message);
+            }
+        });
+        
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ticket_id: ticketId, ...req.body }
+        });
+    });
+});
+
+// DELETE a spare part usage
+app.delete('/api/tickets/spare-parts/:usageId', (req, res) => {
+    const { usageId } = req.params;
+    
+    // Primero obtener la información para restaurar el stock
+    const getSql = 'SELECT spare_part_id, quantity_used FROM TicketSpareParts WHERE id = ?';
+    db.get(getSql, [usageId], (err, row) => {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (!row) {
+            return res.status(404).json({ error: "Uso de repuesto no encontrado" });
+        }
+        
+        // Eliminar el registro
+        const deleteSql = 'DELETE FROM TicketSpareParts WHERE id = ?';
+        db.run(deleteSql, [usageId], function(err) {
+            if (err) {
+                res.status(400).json({ error: err.message });
+                return;
+            }
+            
+            // Restaurar stock
+            const updateStockSql = `UPDATE SpareParts 
+                                   SET current_stock = current_stock + ? 
+                                   WHERE id = ?`;
+            db.run(updateStockSql, [row.quantity_used, row.spare_part_id], (err) => {
+                if (err) {
+                    console.error('⚠️ Error restaurando stock:', err.message);
+                }
+            });
+            
+            res.json({ message: "Uso de repuesto eliminado", changes: this.changes });
+        });
+    });
+});
+
+// --- API Routes for Ticket Photos ---
+
+// GET all photos for a specific ticket
+app.get('/api/tickets/:ticketId/photos', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT * FROM TicketPhotos 
+        WHERE ticket_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new photo for ticket
+app.post('/api/tickets/:ticketId/photos', (req, res) => {
+    const { ticketId } = req.params;
+    const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
+    
+    if (!photo_data || !mime_type) {
+        return res.status(400).json({ error: "photo_data y mime_type son requeridos" });
+    }
+    
+    const sql = `INSERT INTO TicketPhotos 
+                 (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const params = [
+        ticketId, 
+        photo_data, 
+        file_name || 'foto.jpg', 
+        mime_type, 
+        file_size || 0, 
+        description || null, 
+        photo_type || 'Otros'
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ticket_id: ticketId, ...req.body }
+        });
+    });
+});
+
+// DELETE a ticket photo
+app.delete('/api/tickets/photos/:photoId', (req, res) => {
+    const { photoId } = req.params;
+    const sql = 'DELETE FROM TicketPhotos WHERE id = ?';
+    
+    db.run(sql, [photoId], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Foto no encontrada" });
+        }
+        res.json({ message: "Foto eliminada", changes: this.changes });
+    });
+});
+
+// --- API Routes for Ticket History ---
+
+// GET history for a specific ticket
+app.get('/api/tickets/:ticketId/history', (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT * FROM TicketHistory 
+        WHERE ticket_id = ? 
+        ORDER BY changed_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// Function to log ticket changes (internal use)
+function logTicketChange(ticketId, fieldChanged, oldValue, newValue, changedBy = 'Sistema') {
+    const sql = `INSERT INTO TicketHistory 
+                 (ticket_id, field_changed, old_value, new_value, changed_by) 
+                 VALUES (?, ?, ?, ?, ?)`;
+    const params = [ticketId, fieldChanged, oldValue, newValue, changedBy];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('⚠️ Error logging ticket change:', err.message);
+        } else {
+            console.log(`📝 Cambio registrado en ticket ${ticketId}: ${fieldChanged}`);
+        }
+    });
+}
+
+// GET enhanced ticket detail with all related data
+app.get('/api/tickets/:id/detail', (req, res) => {
+    const ticketId = req.params.id;
+    
+    // Query principal del ticket con joins
+    const ticketSql = `
+        SELECT 
+            t.*,
+            c.name as client_name,
+            l.name as location_name,
+            l.address as location_address,
+            e.name as equipment_name,
+            e.custom_id as equipment_custom_id,
+            e.serial_number as equipment_serial,
+            em.name as equipment_model_name,
+            em.brand as equipment_brand,
+            u.username as technician_name
+        FROM Tickets t
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Locations l ON t.location_id = l.id
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        LEFT JOIN Users u ON t.assigned_technician_id = u.id
+        WHERE t.id = ?
+    `;
+    
+    db.get(ticketSql, [ticketId], (err, ticket) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        if (!ticket) {
+            return res.status(404).json({ error: "Ticket no encontrado" });
+        }
+        
+        // Obtener datos relacionados en paralelo
+        Promise.all([
+            new Promise((resolve, reject) => {
+                db.all('SELECT * FROM TicketTimeEntries WHERE ticket_id = ? ORDER BY created_at DESC', 
+                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+            }),
+            new Promise((resolve, reject) => {
+                db.all('SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC', 
+                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+            }),
+            new Promise((resolve, reject) => {
+                db.all('SELECT * FROM TicketChecklists WHERE ticket_id = ? ORDER BY order_index ASC', 
+                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+            }),
+            new Promise((resolve, reject) => {
+                db.all(`SELECT tsp.*, sp.name as spare_part_name, sp.sku as spare_part_sku 
+                        FROM TicketSpareParts tsp 
+                        JOIN SpareParts sp ON tsp.spare_part_id = sp.id 
+                        WHERE tsp.ticket_id = ? ORDER BY tsp.used_at DESC`, 
+                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+            }),
+            new Promise((resolve, reject) => {
+                db.all('SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC', 
+                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+            }),
+            new Promise((resolve, reject) => {
+                db.all('SELECT * FROM TicketHistory WHERE ticket_id = ? ORDER BY changed_at DESC', 
+                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+            })
+        ]).then(([timeEntries, notes, checklist, spareParts, photos, history]) => {
+            res.json({
+                message: "success",
+                data: {
+                    ...ticket,
+                    time_entries: timeEntries,
+                    notes: notes,
+                    checklist: checklist,
+                    spare_parts: spareParts,
+                    photos: photos,
+                    history: history
+                }
+            });
+        }).catch(error => {
+            console.error('❌ Error obteniendo datos relacionados del ticket:', error);
+            res.status(500).json({ error: "Error obteniendo datos completos del ticket" });
+        });
+    });
+});
+
 // --- Server ---
 app.listen(port, () => {
     console.log(`Gymtec ERP backend listening at http://localhost:${port}`);
