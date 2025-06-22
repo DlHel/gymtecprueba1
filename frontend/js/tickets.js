@@ -499,13 +499,26 @@ function getFieldId(fieldName) {
 
 async function checkForUrlParams() {
     const params = new URLSearchParams(window.location.search);
+    const editTicketId = params.get('edit'); // Parámetro para editar ticket
     const clientId = params.get('cliente'); // Cambiado de 'location_id' a 'cliente'
     const locationId = params.get('sede');   // Cambiado de 'equipment_id' a 'sede'
     const equipmentId = params.get('equipo'); // Nuevo parámetro para equipo
 
     state.ticketPrefillData = null; // Reset prefill data each time
 
-    if (clientId && locationId) { // Si tenemos cliente y sede de la URL
+    // Manejar edición de ticket
+    if (editTicketId) {
+        try {
+            console.log(`🎫 Abriendo modal para editar ticket ${editTicketId}`);
+            // Abrir el modal automáticamente en modo edición
+            await openModal('ticket-modal', { id: editTicketId });
+        } catch (error) {
+            console.error("Error processing URL param for ticket edit:", error);
+            alert('Error al cargar el ticket para editar');
+        }
+    }
+    // Manejar creación de ticket con datos precompletados
+    else if (clientId && locationId) { // Si tenemos cliente y sede de la URL
         try {
             state.ticketPrefillData = {
                 client_id: clientId,
