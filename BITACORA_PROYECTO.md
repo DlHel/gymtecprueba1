@@ -4,7 +4,34 @@
 
 ---
 
-## ✅ **NUEVA ACTUALIZACIÓN: Estandarización Visual de Clientes (22 de Junio 2025)**
+## ✅ **NUEVA ACTUALIZACIÓN: Columna Marca en Tabla de Equipos (22 de Junio 2025)**
+
+### **📋 Mejora de Información en Listado de Equipos**
+Se agregó la columna "Marca" a la tabla de equipos en la página de clientes para mejorar la identificación y organización de los equipos.
+
+#### **Cambio Implementado:**
+- [x] **Nueva Columna "Marca":**
+  - Agregada entre columnas "Tipo" y "Modelo" en tabla de equipos
+  - Muestra el campo `brand` de cada equipo (ej: Life Fitness, Technogym, Matrix, Precor)
+  - Estilo coherente: `font-weight: 500`, `color: var(--text-secondary)`
+  - Fallback "N/A" para equipos sin marca registrada
+
+#### **Estructura de Tabla Actualizada:**
+```
+| Tipo | Marca | Modelo | Nº Serie | Acciones |
+```
+
+#### **Beneficios:**
+- ✅ **Mejor Identificación:** Fácil reconocimiento de equipos por marca
+- ✅ **Información Completa:** Datos más detallados en vista de equipos
+- ✅ **Coherencia Visual:** Mantiene el diseño y colores del sistema
+- ✅ **Funcionalidad Preservada:** Sin cambios en botones ni comportamiento
+
+**Commit:** `81f7324` - "feat: Agregada columna Marca a tabla de equipos en clientes"
+
+---
+
+## ✅ **ACTUALIZACIÓN ANTERIOR: Estandarización Visual de Clientes (22 de Junio 2025)**
 
 ### **🎨 Migración Completa al Sistema de Diseño Unificado**
 Se completó la estandarización visual de la página de clientes para seguir el mismo patrón de diseño que el resto del sistema.
