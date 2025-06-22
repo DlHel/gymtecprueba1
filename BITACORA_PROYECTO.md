@@ -50,6 +50,23 @@ Se corrigió el problema donde el botón "Minimizar Menú" no funcionaba en ning
 - 📱 **Móvil Mejorado:** Funcionalidad táctil preservada
 - 🧹 **Código Limpio:** Eliminación de duplicaciones CSS
 
+#### **🔧 CORRECCIÓN ADICIONAL: Iconos Perfectos en Sidebar**
+Después de la implementación inicial, se detectó que los iconos se achicaban hasta verse como puntos cuando el sidebar se colapsaba. Se realizó una corrección completa del flujo del menú:
+
+**Problema Identificado:**
+- ❌ **Conflicto Tailwind:** Clases `w-5 h-5 mr-3` conflictuando con CSS personalizado
+- ❌ **Iconos Diminutos:** Se achicaban hasta verse como puntos en estado colapsado
+- ❌ **Carga Dinámica:** Problemas con `menu.html` + `nav-loader.js` + Lucide Icons
+
+**Solución Completa:**
+- [x] **HTML Reestructurado:** Reemplazadas clases Tailwind por `.sidebar-icon` semántica
+- [x] **CSS Optimizado:** Eliminados `!important` y conflictos, estilos limpios
+- [x] **Iconos Fijos:** Tamaño constante 20x20px en ambos estados (normal/colapsado)
+- [x] **Flujo Mejorado:** Optimizada carga dinámica menu.html sin conflictos
+- [x] **Ancho Perfecto:** Sidebar colapsado a 64px para iconos centrados
+
+**Commit:** `4816027` - "fix: Corrección completa del botón minimizar menú - Iconos perfectos en sidebar"
+
 ---
 
 ## ✅ **ACTUALIZACIÓN ANTERIOR: Columna Marca en Tabla de Equipos (22 de Junio 2025)**
