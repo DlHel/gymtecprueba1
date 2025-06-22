@@ -473,6 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <thead>
                                     <tr>
                                         <th>Tipo</th>
+                                        <th>Marca</th>
                                         <th>Modelo</th>
                                         <th>Nº Serie</th>
                                         <th style="text-align: right;">Acciones</th>
@@ -485,6 +486,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             tableHtml += `
                                 <tr class="equipment-row" data-equipment-id="${item.id}">
                                     ${index === 0 ? `<td style="font-weight: 600; vertical-align: top;" rowspan="${grouped[type].length}">${type}</td>` : ''}
+                                    <td style="font-weight: 500; color: var(--text-secondary);">${item.brand || 'N/A'}</td>
                                     <td style="cursor: pointer;" onclick="openEquipmentDrawer(${item.id})">${item.model || 'N/A'}</td>
                                     <td style="font-family: monospace; font-size: 0.75rem; color: #6b7280;">${item.serial_number || 'N/A'}</td>
                                     <td style="text-align: right;">
