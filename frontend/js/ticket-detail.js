@@ -253,32 +253,37 @@ function renderTicketDescription(ticket) {
 
 function renderQuickActions(ticket) {
     const actions = document.getElementById('quick-actions');
-    if (!actions) return;
+    if (!actions) {
+        console.warn('❌ Contenedor quick-actions no encontrado');
+        return;
+    }
+    
+    console.log('🎯 Renderizando acciones rápidas...');
     
     actions.innerHTML = `
-        <div class="flex flex-wrap gap-3">
-            <button onclick="showAddNoteModal()" class="action-btn">
-                <i data-lucide="message-circle-plus" class="w-4 h-4"></i>
-                Agregar Nota
-            </button>
-            <button onclick="showAddChecklistModal()" class="action-btn">
-                <i data-lucide="list-plus" class="w-4 h-4"></i>
-                Agregar Tarea
-            </button>
-            <button onclick="showAddSparePartModal()" class="action-btn">
-                <i data-lucide="package-plus" class="w-4 h-4"></i>
-                Agregar Repuesto
-            </button>
-            <button onclick="showAddPhotoModal()" class="action-btn">
-                <i data-lucide="camera-plus" class="w-4 h-4"></i>
-                Subir Foto
-            </button>
-            <button onclick="printTicket()" class="action-btn">
-                <i data-lucide="printer" class="w-4 h-4"></i>
-                Imprimir
-            </button>
-        </div>
+        <button onclick="showAddNoteModal()" class="action-btn btn-primary-action">
+            <i data-lucide="message-circle-plus" class="w-4 h-4"></i>
+            Agregar Nota
+        </button>
+        <button onclick="showAddChecklistModal()" class="action-btn btn-secondary-action">
+            <i data-lucide="list-plus" class="w-4 h-4"></i>
+            Agregar Tarea
+        </button>
+        <button onclick="showAddSparePartModal()" class="action-btn btn-secondary-action">
+            <i data-lucide="package-plus" class="w-4 h-4"></i>
+            Agregar Repuesto
+        </button>
+        <button onclick="showAddPhotoModal()" class="action-btn btn-secondary-action">
+            <i data-lucide="camera-plus" class="w-4 h-4"></i>
+            Subir Foto
+        </button>
+        <button onclick="printTicket()" class="action-btn btn-secondary-action">
+            <i data-lucide="printer" class="w-4 h-4"></i>
+            Imprimir
+        </button>
     `;
+    
+    console.log('✅ Acciones rápidas renderizadas');
 }
 
 function renderTimeEntries() {
@@ -471,12 +476,17 @@ function setupEventListeners() {
 }
 
 function setupTabNavigation() {
-    const tabButtons = document.querySelectorAll('.tab-btn');
+    const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
+    
+    console.log('📋 Configurando navegación de pestañas...');
+    console.log('🔍 Botones encontrados:', tabButtons.length);
+    console.log('🔍 Contenidos encontrados:', tabContents.length);
     
     tabButtons.forEach(button => {
         button.addEventListener('click', () => {
             const targetTab = button.dataset.tab;
+            console.log('🖱️ Clic en pestaña:', targetTab);
             
             // Actualizar botones
             tabButtons.forEach(btn => btn.classList.remove('active'));
@@ -487,6 +497,7 @@ function setupTabNavigation() {
                 content.classList.remove('active');
                 if (content.id === `tab-${targetTab}`) {
                     content.classList.add('active');
+                    console.log('✅ Pestaña activada:', content.id);
                 }
             });
         });
@@ -750,6 +761,8 @@ async function addNote(noteText) {
 
 async function addChecklistItem(title) {
     try {
+        console.log(`➕ Agregando nueva tarea: ${title}`);
+        
         const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/checklist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -757,15 +770,46 @@ async function addChecklistItem(title) {
         });
         
         if (response.ok) {
-            await loadTicketDetail(state.currentTicket.id);
+            const result = await response.json();
+            console.log('✅ Tarea agregada exitosamente');
+            
+            // Agregar la nueva tarea al estado local
+            if (result.data) {
+                state.checklist.push(result.data);
+            } else {
+                // Si no viene el objeto completo, crear uno básico
+                state.checklist.push({
+                    id: Date.now(), // ID temporal
+                    title: title,
+                    is_completed: false,
+                    completed_by: null,
+                    completed_at: null,
+                    created_at: new Date().toISOString()
+                });
+            }
+            
+            // Re-renderizar solo el checklist
+            renderChecklist();
+            renderTicketStats();
+            lucide.createIcons();
+            
+        } else {
+            throw new Error('Error en la respuesta del servidor');
         }
     } catch (error) {
-        console.error('Error adding checklist item:', error);
+        console.error('❌ Error adding checklist item:', error);
+        if (typeof showNotification === 'function') {
+            showNotification('Error al agregar la tarea', 'error');
+        } else {
+            alert('Error al agregar la tarea');
+        }
     }
 }
 
 async function toggleChecklistItem(itemId, isCompleted) {
     try {
+        console.log(`🔄 Actualizando checklist item ${itemId} a ${isCompleted ? 'completado' : 'pendiente'}`);
+        
         const response = await fetch(`${API_URL}/tickets/checklist/${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -776,10 +820,43 @@ async function toggleChecklistItem(itemId, isCompleted) {
         });
         
         if (response.ok) {
-            await loadTicketDetail(state.currentTicket.id);
+            console.log('✅ Checklist item actualizado exitosamente');
+            
+            // Actualizar solo el estado local del checklist
+            const checklistItem = state.checklist.find(item => item.id === itemId);
+            if (checklistItem) {
+                checklistItem.is_completed = isCompleted;
+                checklistItem.completed_by = isCompleted ? 'Felipe Maturana' : null;
+                checklistItem.completed_at = isCompleted ? new Date().toISOString() : null;
+            }
+            
+            // Re-renderizar solo el checklist sin recargar toda la página
+            renderChecklist();
+            
+            // Actualizar estadísticas sin scroll
+            renderTicketStats();
+            
+            // Reinicializar iconos
+            lucide.createIcons();
+            
+        } else {
+            throw new Error('Error en la respuesta del servidor');
         }
     } catch (error) {
-        console.error('Error updating checklist item:', error);
+        console.error('❌ Error updating checklist item:', error);
+        
+        // Revertir el checkbox en caso de error
+        const checkbox = document.querySelector(`input[onchange*="${itemId}"]`);
+        if (checkbox) {
+            checkbox.checked = !isCompleted;
+        }
+        
+        // Mostrar notificación de error
+        if (typeof showNotification === 'function') {
+            showNotification('Error al actualizar la tarea', 'error');
+        } else {
+            alert('Error al actualizar la tarea');
+        }
     }
 }
 
@@ -818,15 +895,33 @@ async function deleteNote(noteId) {
 async function deleteChecklistItem(itemId) {
     if (confirm('¿Eliminar esta tarea?')) {
         try {
+            console.log(`🗑️ Eliminando tarea ${itemId}`);
+            
             const response = await fetch(`${API_URL}/tickets/checklist/${itemId}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
-                await loadTicketDetail(state.currentTicket.id);
+                console.log('✅ Tarea eliminada exitosamente');
+                
+                // Remover la tarea del estado local
+                state.checklist = state.checklist.filter(item => item.id !== itemId);
+                
+                // Re-renderizar solo el checklist
+                renderChecklist();
+                renderTicketStats();
+                lucide.createIcons();
+                
+            } else {
+                throw new Error('Error en la respuesta del servidor');
             }
         } catch (error) {
-            console.error('Error deleting checklist item:', error);
+            console.error('❌ Error deleting checklist item:', error);
+            if (typeof showNotification === 'function') {
+                showNotification('Error al eliminar la tarea', 'error');
+            } else {
+                alert('Error al eliminar la tarea');
+            }
         }
     }
 }
