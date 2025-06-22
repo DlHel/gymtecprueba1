@@ -696,7 +696,21 @@ function showError(message) {
 
 // === FUNCIONES DE ACCIONES ===
 function editTicket(ticketId) {
-    window.location.href = `tickets.html?edit=${ticketId}`;
+    console.log(`✏️ Abriendo modal de edición para ticket ${ticketId}`);
+    
+    if (!state.currentTicket) {
+        console.error('❌ No hay ticket cargado para editar');
+        showNotification('Error: No se pudo cargar el ticket para editar', 'error');
+        return;
+    }
+    
+    // Crear y mostrar el modal de edición
+    const modal = createEditTicketModal(state.currentTicket);
+    document.body.appendChild(modal);
+    modal.style.display = 'flex';
+    lucide.createIcons();
+    
+    console.log('✅ Modal de edición abierto correctamente');
 }
 
 function changeStatus(currentStatus) {

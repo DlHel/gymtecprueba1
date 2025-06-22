@@ -278,6 +278,65 @@ function createAdvancedNoteModal() {
     return modal;
 }
 
+function createEditTicketModal(ticket) {
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content modal-large">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">Editar Ticket #${ticket.id}</h3>
+                <button class="base-modal-close" onclick="this.closest('.base-modal').remove()">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <form id="edit-ticket-form">
+                    <div class="base-form-grid">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Título del Ticket</label>
+                            <input type="text" name="title" class="base-form-input" value="${ticket.title}" required>
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Prioridad</label>
+                            <select name="priority" class="base-form-input" required>
+                                <option value="Baja" ${ticket.priority === 'Baja' ? 'selected' : ''}>Baja</option>
+                                <option value="Media" ${ticket.priority === 'Media' ? 'selected' : ''}>Media</option>
+                                <option value="Alta" ${ticket.priority === 'Alta' ? 'selected' : ''}>Alta</option>
+                                <option value="Urgente" ${ticket.priority === 'Urgente' ? 'selected' : ''}>Urgente</option>
+                            </select>
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Estado</label>
+                            <select name="status" class="base-form-input" required>
+                                <option value="Abierto" ${ticket.status === 'Abierto' ? 'selected' : ''}>Abierto</option>
+                                <option value="En Progreso" ${ticket.status === 'En Progreso' ? 'selected' : ''}>En Progreso</option>
+                                <option value="En Espera" ${ticket.status === 'En Espera' ? 'selected' : ''}>En Espera</option>
+                                <option value="Resuelto" ${ticket.status === 'Resuelto' ? 'selected' : ''}>Resuelto</option>
+                                <option value="Cerrado" ${ticket.status === 'Cerrado' ? 'selected' : ''}>Cerrado</option>
+                            </select>
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Fecha de Vencimiento</label>
+                            <input type="date" name="due_date" class="base-form-input" 
+                                   value="${ticket.due_date ? ticket.due_date.split('T')[0] : ''}">
+                        </div>
+                    </div>
+                    <div class="base-form-group">
+                        <label class="base-form-label">Descripción del Problema</label>
+                        <textarea name="description" class="base-form-textarea" rows="4" required>${ticket.description}</textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()">Cancelar</button>
+                <button type="button" class="btn-primary" onclick="submitEditTicket(this)">Guardar Cambios</button>
+            </div>
+        </div>
+    `;
+    
+    return modal;
+}
+
 // === FUNCIONES PARA ENVIAR FORMULARIOS ===
 
 async function submitSparePartForm(button) {
@@ -568,4 +627,53 @@ function showNotification(message, type = 'info') {
     setTimeout(() => {
         notification.remove();
     }, 3000);
+}
+
+async function submitEditTicket(button) {
+    const modal = button.closest('.base-modal');
+    const form = modal.querySelector('#edit-ticket-form');
+    const formData = new FormData(form);
+    
+    const data = {
+        title: formData.get('title'),
+        description: formData.get('description'),
+        priority: formData.get('priority'),
+        status: formData.get('status'),
+        due_date: formData.get('due_date') || null
+    };
+    
+    try {
+        button.disabled = true;
+        button.textContent = 'Guardando...';
+        
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            modal.remove();
+            
+            // Actualizar el estado local del ticket
+            Object.assign(state.currentTicket, data);
+            state.currentTicket.updated_at = new Date().toISOString();
+            
+            // Re-renderizar header y stats
+            renderTicketHeader(state.currentTicket);
+            renderTicketStats();
+            renderTicketDescription(state.currentTicket);
+            lucide.createIcons();
+            
+            showNotification('Ticket actualizado exitosamente', 'success');
+        } else {
+            throw new Error('Error al actualizar ticket');
+        }
+    } catch (error) {
+        console.error('Error updating ticket:', error);
+        showNotification('Error al actualizar el ticket', 'error');
+        button.disabled = false;
+        button.textContent = 'Guardar Cambios';
+    }
 } 

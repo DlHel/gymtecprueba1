@@ -673,4 +673,13 @@ Se completó la estandarización visual de la página de clientes para seguir el
     - **Flujo Corregido:** Al hacer clic en "Editar Ticket" desde detalle → Redirección a `tickets.html?edit=${ticketId}` → Detección automática del parámetro → Apertura del modal de edición con datos precargados
     - **Funcionalidad Preservada:** Se mantuvo toda la lógica existente para creación de tickets con datos precompletados (`cliente`, `sede`, `equipo`)
     - **Logs Agregados:** Se agregó logging detallado para monitorear el proceso de edición
-    **Resultado**: El botón "Editar Ticket" ahora funciona correctamente, abriendo automáticamente el modal de edición con todos los datos del ticket precargados desde la página de detalle. *(Completado el 2025-01-29)* 
+    **Resultado**: El botón "Editar Ticket" ahora funciona correctamente, abriendo automáticamente el modal de edición con todos los datos del ticket precargados desde la página de detalle. *(Completado el 2025-01-29)*
+
+-   [x] **Implementación de Modal de Edición Inline en Detalle de Tickets:** Se solucionó el problema donde el botón "Editar Ticket" redirigía a tickets.html en lugar de quedarse en la página de detalle. Se implementó un sistema completo de edición inline:
+    - **Modal de Edición Creado:** Se agregó `createEditTicketModal()` en `ticket-detail-modals.js` con formulario completo (título, descripción, prioridad, estado, fecha vencimiento)
+    - **Función de Envío:** Se implementó `submitEditTicket()` que actualiza el ticket via API PUT y actualiza el estado local sin recargar la página
+    - **Función editTicket Modificada:** Se cambió de redirección (`window.location.href`) a modal inline que permanece en la página de detalle
+    - **Actualización en Tiempo Real:** Al guardar cambios se actualiza automáticamente el header, stats y descripción del ticket sin perder el contexto
+    - **Sistema de Clases Base:** Se utilizó el sistema unificado de modales (`base-modal`, `base-form-grid`, `base-form-input`) para consistencia visual
+    - **Manejo de Errores:** Se agregó validación robusta con notificaciones de éxito/error y logging detallado
+    **Resultado**: El botón "Editar Ticket" ahora abre un modal inline profesional que permite editar todos los campos del ticket sin salir de la página de detalle, manteniendo el contexto completo y actualizando la información en tiempo real. *(Completado el 2025-01-29)* 
