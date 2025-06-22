@@ -1,11 +1,138 @@
-# Bitácora y Plan de Desarrollo - Gymtec ERP
+# Bitácora del Proyecto - Gymtec ERP MySQL
 
-**Última actualización:** 21 de Junio de 2025 - 01:45 hrs
+**Última actualización:** 29 de Enero de 2025
 
 ---
 
-## ✅ Bitácora de Tareas Realizadas
+## ✅ Estado Actual del Sistema
 
+### **🏗️ Arquitectura Implementada**
+- **Backend:** Node.js + Express + MySQL
+- **Frontend:** HTML + CSS + JavaScript (Vanilla) + Tailwind CSS  
+- **Base de Datos:** MySQL con 12 clientes, 16 ubicaciones, 100 equipos, 26 modelos
+- **Sistema de Archivos:** Almacenamiento base64 en BD para fotos y manuales
+- **Sistema de Modales:** Arquitectura unificada con CSS optimizado
+
+### **🎯 Funcionalidades Principales Completadas**
+
+#### **Sistema de Gestión de Clientes, Sedes y Equipos**
+- [x] **CRUD Completo:** Crear, leer, actualizar y eliminar clientes, sedes y equipos
+- [x] **Sistema de IDs Personalizados:** 
+  - Clientes: `spor1001` (4 letras + 4 dígitos)
+  - Sedes: `spor1001-001` (ID cliente + correlativo)
+  - Equipos: `EQ-001` a `EQ-100`
+- [x] **Drawer de Equipos:** Sistema responsivo que reemplaza páginas separadas
+- [x] **Códigos QR:** Generación automática para cada equipo con impresión
+- [x] **Sistema de Notas:** CRUD completo para notas de equipos
+- [x] **Autocompletado de Direcciones:** Integración con OpenStreetMap/Nominatim
+
+#### **Sistema de Modelos de Equipos**
+- [x] **26 Modelos Realistas:** Marcas reconocidas (Life Fitness, Technogym, Matrix, Precor, etc.)
+- [x] **Gestión de Fotos:** Subida, visualización y eliminación con almacenamiento base64
+- [x] **Sistema de Manuales:** Gestión completa de archivos PDF/DOC/DOCX
+- [x] **Modal Avanzado:** 5 pestañas (General, Fotos, Manuales, Repuestos, Checklist)
+- [x] **Validaciones Robustas:** Frontend y backend con tipos de archivo específicos
+
+#### **Sistema de Tickets**
+- [x] **CRUD Básico:** Crear, leer, actualizar y eliminar tickets
+- [x] **20 Tickets Realistas:** Con estados, prioridades y asignaciones
+- [x] **SLA Visual:** Indicadores de color según tiempo transcurrido
+- [x] **Sistema de Detalle Avanzado:** Timer, repuestos, fotos, notas, checklist
+- [x] **15+ APIs Backend:** Endpoints completos para todas las funcionalidades
+
+#### **Sistema de Inventario**
+- [x] **Gestión de Repuestos:** CRUD completo con control de stock
+- [x] **Modal Estandarizado:** Diseño coherente con el sistema unificado
+
+---
+
+## 🎨 Optimizaciones de CSS y UX
+
+### **Sistema Unificado de Modales**
+- [x] **4 Modales Migrados:** Tickets, Inventario, Modelos y Clientes (3 modales)
+- [x] **~1,500 Líneas CSS Eliminadas:** Duplicaciones masivas removidas
+- [x] **Arquitectura Base:** `.base-modal` con variantes (small, medium, large)
+- [x] **Animaciones Profesionales:** Backdrop blur, transiciones suaves
+- [x] **Sistema de Pestañas:** Para modales complejos con navegación fluida
+
+### **Mejoras de Rendimiento**
+- [x] **Z-Index Estandarizado:** 10 capas organizadas con variables CSS
+- [x] **Eliminación de !important:** 27 instancias removidas
+- [x] **CSS Variables:** Sistema de colores y espaciado unificado
+- [x] **Responsive Design:** Grids adaptativos en todos los modales
+
+---
+
+## 🗃️ Base de Datos MySQL
+
+### **Tablas Principales**
+- **Clients:** 12 clientes con datos corporativos completos
+- **Locations:** 16 ubicaciones distribuidas geográficamente  
+- **Equipment:** 100 equipos con custom_ids únicos
+- **EquipmentModels:** 26 modelos con especificaciones técnicas
+- **Tickets:** 20 tickets con estados y prioridades
+- **Users:** 5 usuarios (1 admin + 4 técnicos)
+- **Inventory:** Repuestos con control de stock
+- **ModelPhotos:** Fotos almacenadas en base64
+- **ModelManuals:** Manuales PDF/DOC/DOCX en base64
+- **EquipmentNotes:** Sistema de notas CRUD
+
+### **Configuración de Hosting**
+- [x] **XAMPP para Desarrollo:** Configuración automática con scripts
+- [x] **Variables de Entorno:** Archivos `.env` para desarrollo y producción
+- [x] **Scripts de Migración:** Población automática de datos de prueba
+- [x] **Documentación:** Guía completa de instalación y hosting
+
+---
+
+## 🚀 Sistema de Desarrollo
+
+### **Scripts de Automatización**
+- [x] **`start-servers.bat`:** Inicio automático de backend (Node.js) y frontend (Python)
+- [x] **`start-dev-mysql.bat`:** Configuración específica para desarrollo con XAMPP
+- [x] **Scripts de Setup:** Configuración automática de MySQL y población de datos
+
+### **Testing y Debug**
+- [x] **Páginas de Prueba:** Verificación de APIs y funcionalidades
+- [x] **Logging Detallado:** Sistema de debugging en frontend y backend
+- [x] **Manejo de Errores:** Validación robusta con mensajes específicos
+
+---
+
+## 📝 Próximas Tareas Pendientes
+
+### **Primera Prioridad**
+- [ ] **Dashboard Principal:** Vista consolidada de operaciones con KPIs
+- [ ] **Dashboard del Técnico:** Vista simplificada de jornada con tickets asignados
+- [ ] **Planificador de Servicios:** Vista de calendario/Gantt para asignación de tickets
+
+### **Segunda Prioridad** 
+- [ ] **Portal del Cliente:** Sistema de login y filtrado de datos por cliente
+- [ ] **Checklist Digital:** Plantillas según modelo de equipo con progreso automático
+- [ ] **Sistema de Notificaciones:** Reemplazar alerts por toasts profesionales
+
+### **Tercera Prioridad**
+- [ ] **Gestión Financiera:** Cotizaciones, facturación recurrente, órdenes de compra
+- [ ] **Control Horario:** Cálculo de horas y autorización de horas extra
+- [ ] **Reportes Avanzados:** Generador de reportes y analítica empresarial
+
+---
+
+## 🔧 Configuración Técnica
+
+### **Requisitos del Sistema**
+- **Node.js:** v16+ con npm
+- **MySQL:** v8.0+ (XAMPP recomendado para desarrollo)
+- **Python:** v3.8+ para servidor de desarrollo frontend
+- **Navegador:** Chrome/Firefox/Edge moderno
+
+### **URLs de Acceso**
+- **Frontend:** `http://localhost:8080/` (Servidor Python)  
+- **Backend API:** `http://localhost:3000/api/` (Servidor Node.js)
+- **Conexión Cruzada:** Frontend detecta automáticamente el puerto del backend
+
+### **Archivos de Configuración**
+- **`config.env`:** Variables de desarrollo (MySQL local)
 **1. Configuración Inicial y Funcionalidad Básica**
 -   [x] **Respaldo Inicial:** Se realizó el primer commit para establecer una línea base del proyecto en Git.
 -   [x] **Activación de Botones:** Se implementó la funcionalidad para los botones de la interfaz de clientes (`clientes.html`), incluyendo la lógica para "Editar".
@@ -267,6 +394,15 @@
     - **Integración Completa:** Se conectó con `openModelModal()` y `createModel()` para cargar y subir manuales automáticamente
     - **Pruebas Exitosas:** Sistema verificado con script de prueba que confirma servidor funcionando y endpoints disponibles
     **Resultado**: Sistema de manuales 100% funcional con persistencia en MySQL, validación robusta, UX profesional, y funcionalidad completa de subida/descarga/eliminación de archivos PDF/DOC/DOCX. *(Completado el 2025-06-21)*
+
+-   [x] **Migración Completa de Modales de Clientes al Sistema Unificado:** Se completó exitosamente la migración de los 3 modales de `clientes.html` al sistema unificado de modales, eliminando duplicación masiva de CSS y mejorando la consistencia visual:
+    - **HTML Migrado:** Se actualizaron los 3 modales para usar el sistema base: Modal de Cliente (`client-modal` → `base-modal`), Modal de Sede (`location-modal` → `base-modal modal-small`), Modal de Equipo (`equipment-modal` → `base-modal`) con todas las clases específicas reemplazadas por clases unificadas
+    - **JavaScript Actualizado:** Se modificó `clientes.js` para usar las nuevas clases del sistema unificado: botones de cerrar (`.base-modal-close`), botones de cancelar (`.base-btn-cancel`), y elementos de formulario con clases base consistentes
+    - **CSS Optimizado:** Se eliminaron **~700 líneas** de CSS duplicado de `clientes.css`, manteniendo solo los estilos específicos no relacionados con modales. El archivo pasó de tener definiciones complejas de modales a usar el sistema unificado
+    - **Documentación Actualizada:** Se agregó comentario en `clientes.css` explicando la migración y la referencia al sistema unificado en `style.css`
+    - **Funcionalidad Preservada:** Se mantuvieron todas las funcionalidades específicas de cada modal (validaciones, grids responsivos, integración con APIs) mientras se mejora la consistencia visual
+    - **Beneficios Logrados:** Reducción significativa de código CSS duplicado, consistencia visual mejorada entre todos los modales del sistema, mantenimiento simplificado al centralizar estilos de modales, y arquitectura escalable para futuros modales
+    **Resultado**: Los 3 modales de clientes ahora siguen el diseño estándar del sistema unificado, eliminando duplicación masiva de CSS y mejorando la experiencia visual consistente en toda la aplicación. El módulo de clientes está completamente alineado con el estándar de modales. *(Completado el 2025-01-29)*
 
 -   [x] **Solución de Error 404 en Endpoint DELETE de Fotos:** Se diagnosticó y solucionó completamente el error 404 "Foto no encontrada en base de datos" en el endpoint `DELETE /api/models/photos/:photoId` que impedía eliminar fotos desde el frontend:
     - **Problema Identificado:** El servidor no se había reiniciado correctamente después de los cambios previos en el código, causando que el endpoint DELETE usara una versión anterior sin las mejoras de logging y validación

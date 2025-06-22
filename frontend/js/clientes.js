@@ -559,11 +559,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Modal computed style:', window.getComputedStyle(modalElem));
 
             // Configurar botón X de cerrar (cada vez que se abre el modal)
-            const closeBtn = modalElem.querySelector('.client-modal-close, .location-modal-close, .equipment-modal-close');
+            const closeBtn = modalElem.querySelector('.base-modal-close');
             if (closeBtn) {
                 // Remover listener anterior si existe para evitar duplicados
                 closeBtn.replaceWith(closeBtn.cloneNode(true));
-                const newCloseBtn = modalElem.querySelector('.client-modal-close, .location-modal-close, .equipment-modal-close');
+                const newCloseBtn = modalElem.querySelector('.base-modal-close');
                 newCloseBtn.addEventListener('click', () => modals.close(modalElem));
             }
 
@@ -630,7 +630,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const form = modalElem.querySelector('form');
             
             // Event listener para botón cancelar
-            modalElem.querySelector('.modal-cancel-btn').addEventListener('click', () => modals.close(modalElem));
+            modalElem.querySelector('.base-btn-cancel').addEventListener('click', () => modals.close(modalElem));
             
             form.addEventListener('submit', async e => {
                 e.preventDefault();

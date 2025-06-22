@@ -65,159 +65,159 @@
     </div>
     
     <!-- Modals -->
-    <div id="client-modal" class="client-modal" style="display: none;">
-        <div class="client-modal-content">
-            <div class="client-modal-header">
-                <h3 id="client-modal-title" class="client-modal-title">Nuevo Cliente</h3>
-                <button type="button" class="client-modal-close">
+    <div id="client-modal" class="base-modal" style="display: none;">
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 id="client-modal-title" class="base-modal-title">Nuevo Cliente</h3>
+                <button type="button" class="base-modal-close">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <div class="client-modal-body">
-                <form id="client-modal-form" class="client-form-grid">
+            <div class="base-modal-body">
+                <form id="client-modal-form" class="base-form-grid">
                     <input type="hidden" name="id">
                     
-                    <div class="client-form-group">
-                        <label for="client-name" class="client-form-label">Nombre Comercial <span class="required">*</span></label>
-                        <input type="text" id="client-name" name="name" class="client-form-input" required placeholder="Ingrese el nombre comercial">
+                    <div class="base-form-group">
+                        <label for="client-name" class="base-form-label">Nombre Comercial <span class="required">*</span></label>
+                        <input type="text" id="client-name" name="name" class="base-form-input" required placeholder="Ingrese el nombre comercial">
                     </div>
                     
-                    <div class="client-form-group">
-                        <label for="client-legal-name" class="client-form-label">Razón Social <span class="required">*</span></label>
-                        <input type="text" id="client-legal-name" name="legal_name" class="client-form-input" required placeholder="Ingrese la razón social">
+                    <div class="base-form-group">
+                        <label for="client-legal-name" class="base-form-label">Razón Social <span class="required">*</span></label>
+                        <input type="text" id="client-legal-name" name="legal_name" class="base-form-input" required placeholder="Ingrese la razón social">
                     </div>
                     
-                    <div class="client-form-group">
-                        <label for="client-rut" class="client-form-label">RUT <span class="required">*</span></label>
-                        <input type="text" id="client-rut" name="rut" class="client-form-input" required placeholder="Ej: 12345678-9">
+                    <div class="base-form-group">
+                        <label for="client-rut" class="base-form-label">RUT <span class="required">*</span></label>
+                        <input type="text" id="client-rut" name="rut" class="base-form-input" required placeholder="Ej: 12345678-9">
                     </div>
                     
-                    <div class="client-form-group">
-                        <label for="client-business-activity" class="client-form-label">Giro</label>
-                        <input type="text" id="client-business-activity" name="business_activity" class="client-form-input" placeholder="Ingrese el giro de la empresa">
+                    <div class="base-form-group">
+                        <label for="client-business-activity" class="base-form-label">Giro</label>
+                        <input type="text" id="client-business-activity" name="business_activity" class="base-form-input" placeholder="Ingrese el giro de la empresa">
                     </div>
                     
-                    <div class="client-form-group full-width">
-                        <label for="client-address" class="client-form-label">Dirección</label>
-                        <input type="text" id="client-address" name="address" class="client-form-input" placeholder="Ingrese la dirección">
+                    <div class="base-form-group full-width">
+                        <label for="client-address" class="base-form-label">Dirección</label>
+                        <input type="text" id="client-address" name="address" class="base-form-input" placeholder="Ingrese la dirección">
                     </div>
                     
-                    <div class="client-form-group">
-                        <label for="client-email" class="client-form-label">Email</label>
-                        <input type="email" id="client-email" name="email" class="client-form-input" placeholder="ejemplo@correo.com">
+                    <div class="base-form-group">
+                        <label for="client-email" class="base-form-label">Email</label>
+                        <input type="email" id="client-email" name="email" class="base-form-input" placeholder="ejemplo@correo.com">
                     </div>
                     
-                    <div class="client-form-group">
-                        <label for="client-phone" class="client-form-label">Teléfono</label>
-                        <input type="text" id="client-phone" name="phone" class="client-form-input" placeholder="Ej: +56 9 1234 5678">
+                    <div class="base-form-group">
+                        <label for="client-phone" class="base-form-label">Teléfono</label>
+                        <input type="text" id="client-phone" name="phone" class="base-form-input" placeholder="Ej: +56 9 1234 5678">
                     </div>
                     
-                    <div class="client-form-group full-width">
-                        <label for="client-contact-name" class="client-form-label">Persona de Contacto</label>
-                        <input type="text" id="client-contact-name" name="contact_name" class="client-form-input" placeholder="Nombre del contacto principal">
+                    <div class="base-form-group full-width">
+                        <label for="client-contact-name" class="base-form-label">Persona de Contacto</label>
+                        <input type="text" id="client-contact-name" name="contact_name" class="base-form-input" placeholder="Nombre del contacto principal">
                     </div>
                 </form>
             </div>
-            <div class="client-modal-footer">
-                <button type="button" class="client-btn-cancel modal-cancel-btn">Cancelar</button>
-                <button type="submit" form="client-modal-form" class="client-btn-save">Guardar Cliente</button>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel modal-cancel-btn">Cancelar</button>
+                <button type="submit" form="client-modal-form" class="base-btn-save">Guardar Cliente</button>
             </div>
         </div>
     </div>
 
-    <div id="location-modal" class="location-modal" style="display: none;">
-        <div class="location-modal-content">
-            <div class="location-modal-header">
-                <h3 id="location-modal-title" class="location-modal-title">Nueva Sede</h3>
-                <button type="button" class="location-modal-close">
+    <div id="location-modal" class="base-modal" style="display: none;">
+        <div class="base-modal-content modal-small">
+            <div class="base-modal-header">
+                <h3 id="location-modal-title" class="base-modal-title">Nueva Sede</h3>
+                <button type="button" class="base-modal-close">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <div class="location-modal-body">
-                <form id="location-modal-form" class="location-form-grid">
+            <div class="base-modal-body">
+                <form id="location-modal-form" class="base-form-grid">
                     <input type="hidden" name="id">
                     <input type="hidden" name="client_id">
                     
-                    <div class="location-form-group">
-                        <label for="location-name" class="location-form-label">Nombre de la Sede <span class="required">*</span></label>
-                        <input type="text" id="location-name" name="name" class="location-form-input" required placeholder="Ingrese el nombre de la sede">
+                    <div class="base-form-group">
+                        <label for="location-name" class="base-form-label">Nombre de la Sede <span class="required">*</span></label>
+                        <input type="text" id="location-name" name="name" class="base-form-input" required placeholder="Ingrese el nombre de la sede">
                     </div>
                     
-                    <div class="location-form-group">
-                        <label for="location-address" class="location-form-label">Dirección</label>
-                        <input type="text" id="location-address" name="address" class="location-form-input" placeholder="Ingrese la dirección de la sede">
+                    <div class="base-form-group">
+                        <label for="location-address" class="base-form-label">Dirección</label>
+                        <input type="text" id="location-address" name="address" class="base-form-input" placeholder="Ingrese la dirección de la sede">
                     </div>
                 </form>
             </div>
-            <div class="location-modal-footer">
-                <button type="button" class="location-btn-cancel modal-cancel-btn">Cancelar</button>
-                <button type="submit" form="location-modal-form" class="location-btn-save">Guardar Sede</button>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel modal-cancel-btn">Cancelar</button>
+                <button type="submit" form="location-modal-form" class="base-btn-save">Guardar Sede</button>
             </div>
         </div>
     </div>
     
-    <div id="equipment-modal" class="equipment-modal" style="display: none;">
-        <div class="equipment-modal-content">
-            <div class="equipment-modal-header">
-                <h3 id="equipment-modal-title" class="equipment-modal-title">Nuevo Equipo</h3>
-                <button type="button" class="equipment-modal-close">
+    <div id="equipment-modal" class="base-modal" style="display: none;">
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 id="equipment-modal-title" class="base-modal-title">Nuevo Equipo</h3>
+                <button type="button" class="base-modal-close">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <div class="equipment-modal-body">
-                <form id="equipment-modal-form" class="equipment-form-grid">
+            <div class="base-modal-body">
+                <form id="equipment-modal-form" class="base-form-grid">
                     <input type="hidden" name="id">
                     <input type="hidden" name="location_id">
                     
-                    <div class="equipment-form-group">
-                        <label class="equipment-form-label">Tipo de Equipo <span class="required">*</span></label>
-                        <input type="text" name="type" placeholder="Ej: Cardio, Fuerza" class="equipment-form-input" required>
+                    <div class="base-form-group">
+                        <label class="base-form-label">Tipo de Equipo <span class="required">*</span></label>
+                        <input type="text" name="type" placeholder="Ej: Cardio, Fuerza" class="base-form-input" required>
                     </div>
                     
-                    <div class="equipment-form-group">
-                        <label class="equipment-form-label">Nombre del Equipo <span class="required">*</span></label>
-                        <input type="text" name="name" placeholder="Ej: Trotadora, Prensa" class="equipment-form-input" required>
+                    <div class="base-form-group">
+                        <label class="base-form-label">Nombre del Equipo <span class="required">*</span></label>
+                        <input type="text" name="name" placeholder="Ej: Trotadora, Prensa" class="base-form-input" required>
                     </div>
                     
-                    <div class="equipment-form-group">
-                        <label for="equipment-brand" class="equipment-form-label">Marca</label>
-                        <input type="text" id="equipment-brand" name="brand" class="equipment-form-input" placeholder="Ej: Life Fitness, Technogym">
+                    <div class="base-form-group">
+                        <label for="equipment-brand" class="base-form-label">Marca</label>
+                        <input type="text" id="equipment-brand" name="brand" class="base-form-input" placeholder="Ej: Life Fitness, Technogym">
                     </div>
                     
-                    <div class="equipment-form-group">
-                        <label for="equipment-model" class="equipment-form-label">Modelo</label>
-                        <input type="text" id="equipment-model" name="model" class="equipment-form-input" placeholder="Ingrese el modelo del equipo">
+                    <div class="base-form-group">
+                        <label for="equipment-model" class="base-form-label">Modelo</label>
+                        <input type="text" id="equipment-model" name="model" class="base-form-input" placeholder="Ingrese el modelo del equipo">
                     </div>
                     
-                    <div class="equipment-form-group full-width">
-                        <label for="equipment-serial" class="equipment-form-label">Nº Serie</label>
+                    <div class="base-form-group full-width">
+                        <label for="equipment-serial" class="base-form-label">Nº Serie</label>
                         <div class="equipment-input-group">
-                            <input type="text" id="equipment-serial" name="serial_number" class="equipment-form-input" placeholder="Ingrese el número de serie">
+                            <input type="text" id="equipment-serial" name="serial_number" class="base-form-input" placeholder="Ingrese el número de serie">
                             <button type="button" id="scan-barcode-btn" class="equipment-scan-btn" title="Escanear código de barras">
                                 <i data-lucide="camera" class="h-5 w-5"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <div id="barcode-scanner-container" class="equipment-form-group full-width hidden">
+                    <div id="barcode-scanner-container" class="base-form-group full-width hidden">
                         <div id="barcode-reader" class="w-full"></div>
                         <button type="button" id="close-scanner-btn" class="mt-2 w-full px-4 py-2 bg-red-600 text-white rounded-md">Cerrar Escáner</button>
                     </div>
                     
-                    <div class="equipment-form-group">
-                        <label for="equipment-acquisition-date" class="equipment-form-label">Fecha de Adquisición</label>
-                        <input type="date" id="equipment-acquisition-date" name="acquisition_date" class="equipment-form-input" title="Seleccione la fecha de adquisición del equipo">
+                    <div class="base-form-group">
+                        <label for="equipment-acquisition-date" class="base-form-label">Fecha de Adquisición</label>
+                        <input type="date" id="equipment-acquisition-date" name="acquisition_date" class="base-form-input" title="Seleccione la fecha de adquisición del equipo">
                     </div>
                     
-                    <div class="equipment-form-group full-width">
-                        <label for="equipment-notes" class="equipment-form-label">Notas</label>
-                        <textarea id="equipment-notes" name="notes" rows="3" class="equipment-form-textarea" placeholder="Observaciones adicionales sobre el equipo"></textarea>
+                    <div class="base-form-group full-width">
+                        <label for="equipment-notes" class="base-form-label">Notas</label>
+                        <textarea id="equipment-notes" name="notes" rows="3" class="base-form-textarea" placeholder="Observaciones adicionales sobre el equipo"></textarea>
                     </div>
                 </form>
             </div>
-            <div class="equipment-modal-footer">
-                <button type="button" class="equipment-btn-cancel modal-cancel-btn">Cancelar</button>
-                <button type="submit" form="equipment-modal-form" class="equipment-btn-save">Guardar Equipo</button>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel modal-cancel-btn">Cancelar</button>
+                <button type="submit" form="equipment-modal-form" class="base-btn-save">Guardar Equipo</button>
             </div>
         </div>
     </div>
