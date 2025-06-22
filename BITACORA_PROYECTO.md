@@ -1,6 +1,40 @@
 # Bitácora del Proyecto - Gymtec ERP MySQL
 
-**Última actualización:** 29 de Enero de 2025
+**Última actualización:** 22 de Junio de 2025
+
+---
+
+## ✅ **NUEVA ACTUALIZACIÓN: Estandarización Visual de Clientes (22 de Junio 2025)**
+
+### **🎨 Migración Completa al Sistema de Diseño Unificado**
+Se completó la estandarización visual de la página de clientes para seguir el mismo patrón de diseño que el resto del sistema.
+
+#### **Cambios Implementados:**
+- [x] **HTML Reestructurado:** 
+  - Header estándar con título `<h2>` + botón `btn-primary`
+  - Buscador en tarjeta `app-card` separada
+  - Lista convertida de `<ul><li>` a tabla `app-table` profesional
+  - Uso de clases estándar: `content-max-width`, `section-spacing`
+
+- [x] **JavaScript Actualizado:**
+  - Corregido event listener de `li[data-client-id]` a `tr[data-client-id]`
+  - Tabla con columnas organizadas: Cliente, RUT, Contacto, Acciones
+  - Información estructurada con nombre principal + razón social
+  - Botones de acción usando `btn-icon` estándar
+
+- [x] **CSS Optimizado:**
+  - Migrado a variables del sistema (`--primary-*`, `--text-*`, `--border-*`)
+  - Eliminados estilos específicos duplicados del sistema base
+  - Conservados solo estilos únicos de sedes y equipos
+  - Coherencia visual completa con otras páginas
+
+#### **Resultado:**
+- ✅ **Coherencia Total:** Mismo patrón visual que tickets.html, inventario.html, modelos.html
+- ✅ **Funcionalidad Preservada:** Búsqueda, detalles, sedes, equipos, modales funcionando al 100%
+- ✅ **UX Mejorada:** Tabla profesional con información bien organizada
+- ✅ **Responsive:** Adaptación móvil mantenida
+
+**Commit:** `e0bee72` - "Estandarización visual de clientes.html - Migración completa al sistema de diseño unificado"
 
 ---
 
