@@ -303,8 +303,18 @@ async function submitSparePartForm(button) {
         });
         
         if (response.ok) {
+            const result = await response.json();
             modal.remove();
-            await loadTicketDetail(state.currentTicket.id);
+            
+            // Agregar el repuesto al estado local
+            if (result.data) {
+                state.spareParts.unshift(result.data);
+            }
+            
+            // Re-renderizar solo los repuestos
+            renderSpareParts();
+            lucide.createIcons();
+            
             showNotification('Repuesto agregado exitosamente', 'success');
         } else {
             throw new Error('Error al agregar repuesto');
@@ -351,8 +361,18 @@ async function submitPhotoForm(button) {
         });
         
         if (response.ok) {
+            const result = await response.json();
             modal.remove();
-            await loadTicketDetail(state.currentTicket.id);
+            
+            // Agregar la foto al estado local
+            if (result.data) {
+                state.photos.unshift(result.data);
+            }
+            
+            // Re-renderizar solo las fotos
+            renderPhotos();
+            lucide.createIcons();
+            
             showNotification('Foto subida exitosamente', 'success');
         } else {
             throw new Error('Error al subir foto');
@@ -401,7 +421,29 @@ async function submitStatusChange(button) {
             }
             
             modal.remove();
-            await loadTicketDetail(state.currentTicket.id);
+            
+            // Actualizar el estado local del ticket
+            state.currentTicket.status = newStatus;
+            state.currentTicket.updated_at = new Date().toISOString();
+            
+            // Si hay comentario, agregarlo a las notas localmente
+            if (comment) {
+                const newNote = {
+                    id: Date.now(),
+                    note: `Estado cambiado a "${newStatus}": ${comment}`,
+                    note_type: 'Seguimiento',
+                    author: 'Felipe Maturana',
+                    is_internal: false,
+                    created_at: new Date().toISOString()
+                };
+                state.notes.unshift(newNote);
+            }
+            
+            // Re-renderizar header y notas
+            renderTicketHeader(state.currentTicket);
+            renderNotes();
+            lucide.createIcons();
+            
             showNotification(`Estado cambiado a "${newStatus}"`, 'success');
         } else {
             throw new Error('Error al cambiar estado');
@@ -437,8 +479,18 @@ async function submitAdvancedNote(button) {
         });
         
         if (response.ok) {
+            const result = await response.json();
             modal.remove();
-            await loadTicketDetail(state.currentTicket.id);
+            
+            // Agregar la nota al estado local
+            if (result.data) {
+                state.notes.unshift(result.data);
+            }
+            
+            // Re-renderizar solo las notas
+            renderNotes();
+            lucide.createIcons();
+            
             showNotification('Nota agregada exitosamente', 'success');
         } else {
             throw new Error('Error al agregar nota');
@@ -463,7 +515,14 @@ async function deleteTicketPhoto(photoId, button) {
         
         if (response.ok) {
             button.closest('.base-modal').remove();
-            await loadTicketDetail(state.currentTicket.id);
+            
+            // Remover la foto del estado local
+            state.photos = state.photos.filter(photo => photo.id !== photoId);
+            
+            // Re-renderizar solo las fotos
+            renderPhotos();
+            lucide.createIcons();
+            
             showNotification('Foto eliminada exitosamente', 'success');
         } else {
             throw new Error('Error al eliminar foto');

@@ -287,8 +287,11 @@ function renderQuickActions(ticket) {
 }
 
 function renderTimeEntries() {
-    const container = document.getElementById('time-entries');
-    if (!container) return;
+    const container = document.getElementById('time-entries-list');
+    if (!container) {
+        console.warn('❌ Contenedor time-entries-list no encontrado');
+        return;
+    }
     
     if (state.timeEntries.length === 0) {
         container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay registros de tiempo</p>';
@@ -575,6 +578,8 @@ function updateTimerDisplay() {
 
 async function saveTimeEntry(durationSeconds) {
     try {
+        console.log(`⏰ Guardando entrada de tiempo: ${formatDuration(durationSeconds)}`);
+        
         const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/time-entries`, {
             method: 'POST',
             headers: {
@@ -589,9 +594,31 @@ async function saveTimeEntry(durationSeconds) {
         });
         
         if (response.ok) {
-            console.log('✅ Entrada de tiempo guardada');
-            // Recargar datos
-            await loadTicketDetail(state.currentTicket.id);
+            const result = await response.json();
+            console.log('✅ Entrada de tiempo guardada exitosamente');
+            
+            // Agregar la nueva entrada al estado local
+            if (result.data) {
+                state.timeEntries.unshift(result.data); // Agregar al inicio para orden DESC
+            } else {
+                // Si no viene el objeto completo, crear uno básico
+                state.timeEntries.unshift({
+                    id: Date.now(), // ID temporal
+                    ticket_id: state.currentTicket.id,
+                    start_time: state.startTime.toISOString(),
+                    end_time: new Date().toISOString(),
+                    duration_seconds: durationSeconds,
+                    description: `Sesión de trabajo de ${formatDuration(durationSeconds)}`,
+                    technician_name: 'Felipe Maturana',
+                    created_at: new Date().toISOString()
+                });
+            }
+            
+            // Re-renderizar solo las entradas de tiempo y estadísticas
+            renderTimeEntries();
+            renderTicketStats();
+            lucide.createIcons();
+            
         } else {
             throw new Error('Error al guardar entrada de tiempo');
         }
@@ -741,6 +768,8 @@ function viewPhoto(photoId) {
 // === FUNCIONES DE API ===
 async function addNote(noteText) {
     try {
+        console.log(`📝 Agregando nueva nota: ${noteText.substring(0, 50)}...`);
+        
         const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -752,10 +781,38 @@ async function addNote(noteText) {
         });
         
         if (response.ok) {
-            await loadTicketDetail(state.currentTicket.id);
+            const result = await response.json();
+            console.log('✅ Nota agregada exitosamente');
+            
+            // Agregar la nueva nota al estado local
+            if (result.data) {
+                state.notes.unshift(result.data); // Agregar al inicio para orden DESC
+            } else {
+                // Si no viene el objeto completo, crear uno básico
+                state.notes.unshift({
+                    id: Date.now(), // ID temporal
+                    note: noteText,
+                    note_type: 'Comentario',
+                    author: 'Felipe Maturana',
+                    is_internal: false,
+                    created_at: new Date().toISOString()
+                });
+            }
+            
+            // Re-renderizar solo las notas
+            renderNotes();
+            lucide.createIcons();
+            
+        } else {
+            throw new Error('Error en la respuesta del servidor');
         }
     } catch (error) {
-        console.error('Error adding note:', error);
+        console.error('❌ Error adding note:', error);
+        if (typeof showNotification === 'function') {
+            showNotification('Error al agregar la nota', 'error');
+        } else {
+            alert('Error al agregar la nota');
+        }
     }
 }
 
@@ -863,15 +920,33 @@ async function toggleChecklistItem(itemId, isCompleted) {
 async function deleteTimeEntry(entryId) {
     if (confirm('¿Eliminar esta entrada de tiempo?')) {
         try {
+            console.log(`🗑️ Eliminando entrada de tiempo ${entryId}`);
+            
             const response = await fetch(`${API_URL}/tickets/time-entries/${entryId}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
-                await loadTicketDetail(state.currentTicket.id);
+                console.log('✅ Entrada de tiempo eliminada exitosamente');
+                
+                // Remover la entrada del estado local
+                state.timeEntries = state.timeEntries.filter(entry => entry.id !== entryId);
+                
+                // Re-renderizar solo las entradas de tiempo y estadísticas
+                renderTimeEntries();
+                renderTicketStats();
+                lucide.createIcons();
+                
+            } else {
+                throw new Error('Error en la respuesta del servidor');
             }
         } catch (error) {
-            console.error('Error deleting time entry:', error);
+            console.error('❌ Error deleting time entry:', error);
+            if (typeof showNotification === 'function') {
+                showNotification('Error al eliminar la entrada de tiempo', 'error');
+            } else {
+                alert('Error al eliminar la entrada de tiempo');
+            }
         }
     }
 }
@@ -879,15 +954,32 @@ async function deleteTimeEntry(entryId) {
 async function deleteNote(noteId) {
     if (confirm('¿Eliminar esta nota?')) {
         try {
+            console.log(`🗑️ Eliminando nota ${noteId}`);
+            
             const response = await fetch(`${API_URL}/tickets/notes/${noteId}`, {
                 method: 'DELETE'
             });
             
             if (response.ok) {
-                await loadTicketDetail(state.currentTicket.id);
+                console.log('✅ Nota eliminada exitosamente');
+                
+                // Remover la nota del estado local
+                state.notes = state.notes.filter(note => note.id !== noteId);
+                
+                // Re-renderizar solo las notas
+                renderNotes();
+                lucide.createIcons();
+                
+            } else {
+                throw new Error('Error en la respuesta del servidor');
             }
         } catch (error) {
-            console.error('Error deleting note:', error);
+            console.error('❌ Error deleting note:', error);
+            if (typeof showNotification === 'function') {
+                showNotification('Error al eliminar la nota', 'error');
+            } else {
+                alert('Error al eliminar la nota');
+            }
         }
     }
 }
@@ -926,22 +1018,42 @@ async function deleteChecklistItem(itemId) {
     }
 }
 
-function deleteSparePartUsage(usageId) {
+async function deleteSparePartUsage(usageId) {
     if (!confirm('¿Eliminar este repuesto del ticket?')) return;
     
-    fetch(`${API_URL}/tickets/spare-parts/${usageId}`, {
-        method: 'DELETE'
-    })
-    .then(response => {
+    try {
+        console.log(`🗑️ Eliminando uso de repuesto ${usageId}`);
+        
+        const response = await fetch(`${API_URL}/tickets/spare-parts/${usageId}`, {
+            method: 'DELETE'
+        });
+        
         if (response.ok) {
-            loadTicketDetail(state.currentTicket.id);
-            alert('Repuesto eliminado exitosamente');
+            console.log('✅ Uso de repuesto eliminado exitosamente');
+            
+            // Remover el repuesto del estado local
+            state.spareParts = state.spareParts.filter(part => part.id !== usageId);
+            
+            // Re-renderizar solo los repuestos
+            renderSpareParts();
+            lucide.createIcons();
+            
+            // Mostrar notificación de éxito
+            if (typeof showNotification === 'function') {
+                showNotification('Repuesto eliminado exitosamente', 'success');
+            } else {
+                alert('Repuesto eliminado exitosamente');
+            }
+            
         } else {
             throw new Error('Error al eliminar repuesto');
         }
-    })
-    .catch(error => {
-        console.error('Error deleting spare part:', error);
-        alert('Error al eliminar el repuesto');
-    });
+    } catch (error) {
+        console.error('❌ Error deleting spare part:', error);
+        if (typeof showNotification === 'function') {
+            showNotification('Error al eliminar el repuesto', 'error');
+        } else {
+            alert('Error al eliminar el repuesto');
+        }
+    }
 } 

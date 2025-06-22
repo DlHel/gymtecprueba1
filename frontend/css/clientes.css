@@ -21,51 +21,7 @@
     border: 1px solid var(--border-primary);
 }
 
-/* Sidebar responsive */
-#main-sidebar.is-collapsed {
-    width: 80px;
-}
-
-#main-sidebar.is-collapsed .sidebar-text {
-    display: none;
-}
-
-#main-sidebar.is-collapsed .nav-link, #main-sidebar.is-collapsed #sidebar-toggle {
-    justify-content: center;
-}
-
-#main-sidebar.is-collapsed .nav-link i, #main-sidebar.is-collapsed #sidebar-toggle i {
-    margin-right: 0;
-}
-
-#main-sidebar.is-collapsed #sidebar-toggle i {
-    transform: rotate(180deg);
-}
-
-/* Mobile sidebar */
-@media (max-width: 1023px) {
-    #main-sidebar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        height: 100vh;
-        z-index: var(--z-modal);
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-    }
-
-    #main-sidebar.is-open {
-        transform: translateX(0);
-    }
-
-    #menu-placeholder:has(#main-sidebar.is-open)::before {
-        content: '';
-        position: fixed;
-        inset: 0;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: calc(var(--z-modal) - 1);
-    }
-}
+/* Sidebar responsive - Estilos movidos a style.css para uso global */
 
 /* Lista de elementos */
 .list-item {
