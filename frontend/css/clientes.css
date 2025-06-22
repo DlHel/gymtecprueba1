@@ -93,14 +93,14 @@
 /* Tarjetas de sede */
 .sede-card {
     background-color: white;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--border-primary);
     border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-sm);
     transition: all 0.2s ease;
 }
 
 .sede-card:hover {
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    box-shadow: var(--shadow-md);
 }
 
 .sede-card summary {
@@ -115,23 +115,23 @@
 }
 
 .sede-card summary:hover {
-    background-color: #f8fafc;
+    background-color: var(--bg-tertiary);
 }
 
 .sede-card[open] summary {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-primary);
     border-radius: 8px 8px 0 0;
 }
 
 .sede-info h4 {
     font-size: 1.125rem;
     font-weight: 600;
-    color: #1e293b;
+    color: var(--text-primary);
     margin: 0 0 0.25rem 0;
 }
 
 .sede-info p {
-    color: #64748b;
+    color: var(--text-secondary);
     font-size: 0.875rem;
     margin: 0;
 }
@@ -157,10 +157,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    color: white;
 }
 
 .sede-actions .create-ticket-btn {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
 }
 
 .sede-actions .create-ticket-btn:hover {
@@ -179,7 +180,7 @@
 
 .sede-chevron {
     transition: transform 0.2s ease;
-    color: #64748b;
+    color: var(--text-secondary);
 }
 
 .sede-card[open] .sede-chevron {
@@ -188,52 +189,45 @@
 
 /* Pestañas de sede */
 .sede-tabs {
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .sede-tabs nav {
     display: flex;
     padding: 0 1.5rem;
-    background-color: #f8fafc;
+    background-color: var(--bg-tertiary);
 }
 
 .sede-tab-btn {
-    padding: 1rem 1.5rem;
+    padding: 0.75rem 1rem;
     border: none;
-    background: transparent;
-    color: #64748b;
-    font-weight: 500;
+    background: none;
     cursor: pointer;
-    border-bottom: 3px solid transparent;
-    transition: all 0.2s ease;
-    white-space: nowrap;
     font-size: 0.875rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
 }
 
 .sede-tab-btn:hover {
-    color: #475569;
-    background-color: rgba(14, 165, 233, 0.05);
+    color: var(--text-primary);
+    background-color: var(--bg-secondary);
 }
 
 .sede-tab-btn.active {
-    color: #0ea5e9;
-    border-bottom-color: #0ea5e9;
-    background-color: rgba(14, 165, 233, 0.1);
+    color: var(--primary-600);
+    border-bottom-color: var(--primary-600);
+    background-color: white;
 }
 
-/* Contenido de sede */
 .sede-content {
-    padding: 1.5rem;
-    background-color: white;
-    border-radius: 0 0 8px 8px;
+    padding: 0;
 }
 
 /* Tabla de equipos */
 .sede-equipment-table {
-    margin-top: 1rem;
+    overflow-x: auto;
 }
 
 .sede-equipment-table table {
@@ -242,57 +236,55 @@
 }
 
 .sede-equipment-table thead {
-    background-color: #f8fafc;
+    background-color: var(--bg-tertiary);
 }
 
 .sede-equipment-table th {
-    padding: 0.75rem 1rem;
+    padding: 0.75rem;
     text-align: left;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-primary);
 }
 
 .sede-equipment-table td {
-    padding: 1rem;
-    border-bottom: 1px solid #e2e8f0;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-secondary);
 }
 
 .sede-equipment-table tbody tr:hover {
-    background-color: #f8fafc;
+    background-color: var(--bg-tertiary);
 }
 
 /* Acciones de equipo */
 .equipment-actions button {
-    padding: 0.5rem;
+    padding: 0.25rem;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    margin-right: 0.5rem;
+    margin-right: 0.25rem;
+    color: white;
 }
 
 .equipment-actions .edit-equipment-btn {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    background-color: var(--warning-500);
 }
 
 .equipment-actions .edit-equipment-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+    background-color: var(--warning-600);
 }
 
 .equipment-actions .delete-equipment-btn {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    background-color: var(--danger-500);
 }
 
 .equipment-actions .delete-equipment-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+    background-color: var(--danger-600);
 }
 
 /* Botones para agregar */
@@ -344,22 +336,22 @@
     box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
 }
 
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 768px) {
     .sede-equipment-table {
-        overflow-x: auto;
+        font-size: 0.875rem;
     }
-    
+
     .sede-tabs nav {
         padding: 0 1rem;
     }
-    
+
     .sede-tab-btn {
-        padding: 0.75rem 1rem;
+        padding: 0.5rem 0.75rem;
         font-size: 0.8rem;
     }
-    
+
     .sede-content {
-        padding: 1rem;
+        padding: 0.5rem;
     }
 } 

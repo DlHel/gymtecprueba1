@@ -308,21 +308,45 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             if (filteredClients.length === 0 && searchTerm) {
-                dom.clientListContainer.innerHTML = `<div class="bg-white rounded-lg shadow-sm p-4 text-center text-gray-500">No se encontraron clientes.</div>`;
+                dom.clientListContainer.innerHTML = `<div class="app-card p-6 text-center text-gray-500">No se encontraron clientes.</div>`;
                 dom.detailContainer.innerHTML = '';
                 return;
             }
 
             dom.clientListContainer.innerHTML = `
-                <div class="bg-white rounded-lg shadow-sm overflow-hidden">
-                    <ul class="divide-y divide-gray-200">
-                        ${filteredClients.map(client => `
-                            <li class="p-4 hover:bg-sky-50 cursor-pointer" data-client-id="${client.id}">
-                                <p class="font-semibold text-sky-700">${client.name}</p>
-                                <p class="text-sm text-gray-600">${client.legal_name} (${client.rut})</p>
-                            </li>
-                        `).join('')}
-                    </ul>
+                <div class="app-card overflow-hidden">
+                    <table class="app-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Cliente</th>
+                                <th scope="col">RUT</th>
+                                <th scope="col">Contacto</th>
+                                <th scope="col"><span class="sr-only">Acciones</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filteredClients.map(client => `
+                                <tr class="cursor-pointer hover:bg-gray-50" data-client-id="${client.id}">
+                                    <td>
+                                        <div>
+                                            <div class="font-medium text-gray-900">${client.name}</div>
+                                            <div class="text-sm text-gray-500">${client.legal_name || ''}</div>
+                                        </div>
+                                    </td>
+                                    <td class="text-sm text-gray-900">${client.rut || 'N/A'}</td>
+                                    <td>
+                                        <div class="text-sm text-gray-900">${client.contact_name || 'N/A'}</div>
+                                        <div class="text-sm text-gray-500">${client.phone || client.email || ''}</div>
+                                    </td>
+                                    <td class="text-right">
+                                        <button class="btn-icon edit-client-btn" data-client-id="${client.id}" title="Editar Cliente">
+                                            <i data-lucide="pencil" class="h-4 w-4"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
         },
@@ -397,13 +421,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 `).join('');
 
                 dom.detailContainer.innerHTML = `
-                    <div class="bg-white rounded-lg shadow-sm p-6">
+                    <div class="app-card p-6">
                         ${clientInfoHtml}
                         <div class="mt-6">
                              <div class="flex justify-between items-center mb-3">
                                 <h3 class="text-lg font-semibold text-gray-700">Sedes</h3>
-                                <button class="add-location-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-client-id="${client.id}">
-                                    <i data-lucide="plus" class="h-4 w-4"></i>Añadir Sede
+                                <button class="add-location-btn btn-primary flex items-center" data-client-id="${client.id}">
+                                    <i data-lucide="plus" class="mr-2 h-4 w-4"></i>Añadir Sede
                                 </button>
                             </div>
                             <div class="space-y-3">
@@ -417,7 +441,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             } catch (error) {
                 console.error('Error cargando detalle del cliente:', error);
-                dom.detailContainer.innerHTML = '<div class="bg-white rounded-lg shadow-sm p-4 text-center text-red-500">Error al cargar los detalles.</div>';
+                dom.detailContainer.innerHTML = '<div class="app-card p-6 text-center text-red-500">Error al cargar los detalles.</div>';
             }
         },
 
@@ -430,8 +454,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // El botón de añadir siempre debe estar visible.
                 let contentHtml = `
                     <div class="flex justify-end mb-3">
-                        <button class="add-equipment-btn px-3 py-1 bg-green-500 text-white text-sm font-semibold rounded-md hover:bg-green-600 flex items-center gap-1" data-location-id="${locationId}">
-                            <i data-lucide="plus" class="h-4 w-4"></i>Añadir Equipo
+                        <button class="add-equipment-btn btn-primary flex items-center" data-location-id="${locationId}">
+                            <i data-lucide="plus" class="mr-2 h-4 w-4"></i>Añadir Equipo
                         </button>
                     </div>`;
 
@@ -686,7 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             dom.clientListContainer.addEventListener('click', e => {
-                const item = e.target.closest('li[data-client-id]');
+                const item = e.target.closest('tr[data-client-id]');
                 if (item) {
                     render.clientDetail(item.dataset.clientId);
                 }
