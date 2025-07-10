@@ -1,7 +1,7 @@
 const mysql = require('mysql2');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config({ path: '../config.env' });
+require('dotenv').config({ path: './config.env' });
 
 console.log('🔧 CONFIGURANDO MYSQL PARA GYMTEC ERP...\n');
 
