@@ -8,6 +8,7 @@
     "dev": "nodemon src/server.js",
     "seed": "node seed.js",
     "migrate": "node migrate-to-mysql.js",
+    "migrate-advanced": "node migrate-advanced-features.js",
     "seed-models": "node seed-models.js",
     "setup-mysql": "node database/setup-mysql.js"
   },

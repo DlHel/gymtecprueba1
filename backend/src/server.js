@@ -1898,6 +1898,443 @@ app.get('/api/tickets/:id/detail', (req, res) => {
     });
 });
 
+// --- API Routes for Dashboard KPIs ---
+
+// GET dashboard KPIs and statistics
+app.get('/api/dashboard/kpis', (req, res) => {
+    const queries = [
+        // Total de clientes
+        new Promise((resolve, reject) => {
+            db.get('SELECT COUNT(*) as total FROM Clients', (err, row) => {
+                if (err) reject(err);
+                else resolve({ key: 'total_clients', value: row.total });
+            });
+        }),
+        // Total de equipos
+        new Promise((resolve, reject) => {
+            db.get('SELECT COUNT(*) as total FROM Equipment', (err, row) => {
+                if (err) reject(err);
+                else resolve({ key: 'total_equipment', value: row.total });
+            });
+        }),
+        // Tickets por estado
+        new Promise((resolve, reject) => {
+            db.all(`SELECT status, COUNT(*) as count FROM Tickets GROUP BY status`, (err, rows) => {
+                if (err) reject(err);
+                else resolve({ key: 'tickets_by_status', value: rows });
+            });
+        }),
+        // Tickets activos (no cerrados)
+        new Promise((resolve, reject) => {
+            db.get(`SELECT COUNT(*) as total FROM Tickets WHERE status != 'Cerrado'`, (err, row) => {
+                if (err) reject(err);
+                else resolve({ key: 'active_tickets', value: row.total });
+            });
+        }),
+        // Tickets críticos
+        new Promise((resolve, reject) => {
+            db.get(`SELECT COUNT(*) as total FROM Tickets WHERE priority = 'Alta' AND status != 'Cerrado'`, (err, row) => {
+                if (err) reject(err);
+                else resolve({ key: 'critical_tickets', value: row.total });
+            });
+        }),
+        // Inventario bajo stock
+        new Promise((resolve, reject) => {
+            db.get(`SELECT COUNT(*) as total FROM SpareParts WHERE current_stock <= minimum_stock`, (err, row) => {
+                if (err) reject(err);
+                else resolve({ key: 'low_stock_items', value: row.total });
+            });
+        }),
+        // Tickets recientes (últimos 7 días)
+        new Promise((resolve, reject) => {
+            db.all(`SELECT DATE(created_at) as date, COUNT(*) as count 
+                   FROM Tickets 
+                   WHERE created_at >= datetime('now', '-7 days')
+                   GROUP BY DATE(created_at)
+                   ORDER BY date DESC`, (err, rows) => {
+                if (err) reject(err);
+                else resolve({ key: 'recent_tickets', value: rows });
+            });
+        }),
+        // Técnicos con tickets asignados
+        new Promise((resolve, reject) => {
+            db.all(`SELECT u.username, COUNT(t.id) as ticket_count
+                   FROM Users u
+                   LEFT JOIN Tickets t ON u.id = t.assigned_technician_id AND t.status != 'Cerrado'
+                   WHERE u.role = 'Tecnico'
+                   GROUP BY u.id, u.username
+                   ORDER BY ticket_count DESC`, (err, rows) => {
+                if (err) reject(err);
+                else resolve({ key: 'technician_workload', value: rows });
+            });
+        })
+    ];
+
+    Promise.all(queries)
+        .then(results => {
+            const kpis = {};
+            results.forEach(result => {
+                kpis[result.key] = result.value;
+            });
+            res.json({
+                message: "success",
+                data: kpis
+            });
+        })
+        .catch(error => {
+            console.error('❌ Error obteniendo KPIs:', error);
+            res.status(500).json({ error: "Error obteniendo estadísticas del dashboard" });
+        });
+});
+
+// GET recent activity for dashboard
+app.get('/api/dashboard/activity', (req, res) => {
+    const limit = req.query.limit || 10;
+    const sql = `
+        SELECT 
+            'ticket' as type,
+            id,
+            title as description,
+            status,
+            priority,
+            created_at,
+            updated_at
+        FROM Tickets
+        ORDER BY updated_at DESC
+        LIMIT ?
+    `;
+    
+    db.all(sql, [limit], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// --- API Routes for Users Management ---
+
+// GET all users
+app.get('/api/users', (req, res) => {
+    const sql = `SELECT id, username, email, role, status, created_at FROM Users ORDER BY username`;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET single user
+app.get('/api/users/:id', (req, res) => {
+    const sql = `SELECT id, username, email, role, status, created_at FROM Users WHERE id = ?`;
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        if (!row) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+        res.json({
+            message: "success",
+            data: row
+        });
+    });
+});
+
+// POST new user
+app.post('/api/users', (req, res) => {
+    const { username, email, password, role, status } = req.body;
+    
+    if (!username || !email || !password || !role) {
+        return res.status(400).json({ error: "username, email, password y role son requeridos" });
+    }
+    
+    const sql = `INSERT INTO Users (username, email, password, role, status) VALUES (?, ?, ?, ?, ?)`;
+    const params = [username, email, password, role, status || 'Activo'];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint failed')) {
+                return res.status(409).json({ error: "El usuario o email ya existe" });
+            }
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, username, email, role, status: status || 'Activo' }
+        });
+    });
+});
+
+// PUT update user
+app.put('/api/users/:id', (req, res) => {
+    const { username, email, role, status } = req.body;
+    const sql = `UPDATE Users SET 
+                 username = COALESCE(?, username),
+                 email = COALESCE(?, email),
+                 role = COALESCE(?, role),
+                 status = COALESCE(?, status)
+                 WHERE id = ?`;
+    const params = [username, email, role, status, req.params.id];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+        res.json({
+            message: "success",
+            changes: this.changes
+        });
+    });
+});
+
+// DELETE user
+app.delete('/api/users/:id', (req, res) => {
+    const sql = 'DELETE FROM Users WHERE id = ?';
+    db.run(sql, [req.params.id], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+        res.json({ message: "Usuario eliminado", changes: this.changes });
+    });
+});
+
+// --- API Routes for System Configuration ---
+
+// GET all system configurations
+app.get('/api/config', (req, res) => {
+    const sql = `SELECT * FROM SystemConfig ORDER BY category, key`;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET config by category
+app.get('/api/config/:category', (req, res) => {
+    const sql = `SELECT * FROM SystemConfig WHERE category = ? ORDER BY key`;
+    db.all(sql, [req.params.category], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST/PUT upsert configuration
+app.post('/api/config', (req, res) => {
+    const { category, key, value, description } = req.body;
+    
+    if (!category || !key || value === undefined) {
+        return res.status(400).json({ error: "category, key y value son requeridos" });
+    }
+    
+    const sql = `INSERT OR REPLACE INTO SystemConfig (category, key, value, description) VALUES (?, ?, ?, ?)`;
+    const params = [category, key, value, description || null];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: { category, key, value, description }
+        });
+    });
+});
+
+// DELETE configuration
+app.delete('/api/config/:category/:key', (req, res) => {
+    const sql = 'DELETE FROM SystemConfig WHERE category = ? AND key = ?';
+    db.run(sql, [req.params.category, req.params.key], function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Configuración no encontrada" });
+        }
+        res.json({ message: "Configuración eliminada", changes: this.changes });
+    });
+});
+
+// --- API Routes for Financial Management ---
+
+// GET all quotes
+app.get('/api/quotes', (req, res) => {
+    const sql = `
+        SELECT 
+            q.*,
+            c.name as client_name,
+            l.name as location_name
+        FROM Quotes q
+        LEFT JOIN Clients c ON q.client_id = c.id
+        LEFT JOIN Locations l ON q.location_id = l.id
+        ORDER BY q.created_at DESC
+    `;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new quote
+app.post('/api/quotes', (req, res) => {
+    const { client_id, location_id, title, description, total_amount, status, items } = req.body;
+    
+    if (!client_id || !title || !total_amount) {
+        return res.status(400).json({ error: "client_id, title y total_amount son requeridos" });
+    }
+    
+    const sql = `INSERT INTO Quotes (client_id, location_id, title, description, total_amount, status, items) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const params = [client_id, location_id, title, description, total_amount, status || 'Borrador', JSON.stringify(items || [])];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ...req.body }
+        });
+    });
+});
+
+// GET all invoices
+app.get('/api/invoices', (req, res) => {
+    const sql = `
+        SELECT 
+            i.*,
+            c.name as client_name,
+            l.name as location_name
+        FROM Invoices i
+        LEFT JOIN Clients c ON i.client_id = c.id
+        LEFT JOIN Locations l ON i.location_id = l.id
+        ORDER BY i.created_at DESC
+    `;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST new invoice
+app.post('/api/invoices', (req, res) => {
+    const { client_id, location_id, invoice_number, title, description, total_amount, status, items } = req.body;
+    
+    if (!client_id || !invoice_number || !title || !total_amount) {
+        return res.status(400).json({ error: "client_id, invoice_number, title y total_amount son requeridos" });
+    }
+    
+    const sql = `INSERT INTO Invoices (client_id, location_id, invoice_number, title, description, total_amount, status, items) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const params = [client_id, location_id, invoice_number, title, description, total_amount, status || 'Pendiente', JSON.stringify(items || [])];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ...req.body }
+        });
+    });
+});
+
+// --- API Routes for Time Tracking ---
+
+// GET all time entries
+app.get('/api/time-entries', (req, res) => {
+    const sql = `
+        SELECT 
+            te.*,
+            u.username as user_name,
+            t.title as ticket_title
+        FROM TimeEntries te
+        LEFT JOIN Users u ON te.user_id = u.id
+        LEFT JOIN Tickets t ON te.ticket_id = t.id
+        ORDER BY te.created_at DESC
+    `;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// POST clock in/out
+app.post('/api/time-entries', (req, res) => {
+    const { user_id, entry_type, ticket_id, notes } = req.body;
+    
+    if (!user_id || !entry_type) {
+        return res.status(400).json({ error: "user_id y entry_type son requeridos" });
+    }
+    
+    const sql = `INSERT INTO TimeEntries (user_id, entry_type, ticket_id, notes) VALUES (?, ?, ?, ?)`;
+    const params = [user_id, entry_type, ticket_id, notes];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ...req.body }
+        });
+    });
+});
+
 // --- Server ---
 app.listen(port, () => {
     console.log(`Gymtec ERP backend listening at http://localhost:${port}`);

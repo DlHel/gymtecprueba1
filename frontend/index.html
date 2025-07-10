@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Gymtec ERP</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -16,28 +17,167 @@
         <div class="flex-1 flex flex-col overflow-y-auto">
             <header class="app-header flex-shrink-0">
                 <div class="flex items-center justify-between p-4">
-                    <h1>Dashboard</h1>
+                    <div>
+                        <h1>Dashboard Principal</h1>
+                        <p class="text-sm text-gray-600 mt-1">Centro de control y monitoreo en tiempo real</p>
+                    </div>
                     <div class="user-info">Felipe Maturana (Admin)</div>
                 </div>
             </header>
             
-            <main class="flex-1 overflow-y-auto section-spacing">
-                <div class="content-max-width">
-                    <div class="text-center app-card section-spacing">
-                        <h2 class="text-3xl font-bold" style="color: var(--primary-600);">Bienvenido a Gymtec ERP</h2>
-                        <p class="mt-4 text-lg" style="color: var(--text-secondary);">Tu sistema centralizado para la gestión de equipos de gimnasio.</p>
-                        <p class="mt-2" style="color: var(--text-tertiary);">Usa el menú de la izquierda para navegar por los diferentes módulos.</p>
-                        <div class="mt-8">
-                            <a href="clientes.html" class="btn-primary inline-block px-6 py-3 text-white font-semibold rounded-lg transition-colors">
-                                Empezar a Gestionar Clientes
-                            </a>
+            <main class="flex-1 overflow-y-auto">
+                <div class="dashboard-container">
+                    <!-- Error Container -->
+                    <div id="error-container"></div>
+
+                    <!-- Dashboard Header -->
+                    <div class="dashboard-header">
+                        <div>
+                            <h1 class="dashboard-title">Dashboard Operacional</h1>
+                            <p class="dashboard-subtitle">Resumen general del sistema ERP - Datos en tiempo real</p>
+                        </div>
+                        <div class="dashboard-actions">
+                            <button id="refresh-dashboard" class="refresh-btn">
+                                <i data-lucide="refresh-cw"></i>
+                                Actualizar
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Enlaces Rápidos -->
+                    <div class="quick-links">
+                        <a href="tickets.html" class="quick-link">
+                            <i data-lucide="ticket"></i>
+                            <span class="quick-link-text">Gestionar Tickets</span>
+                        </a>
+                        <a href="clientes.html" class="quick-link">
+                            <i data-lucide="users"></i>
+                            <span class="quick-link-text">Gestionar Clientes</span>
+                        </a>
+                        <a href="inventario.html" class="quick-link">
+                            <i data-lucide="package"></i>
+                            <span class="quick-link-text">Inventario</span>
+                        </a>
+                        <a href="modelos.html" class="quick-link">
+                            <i data-lucide="server"></i>
+                            <span class="quick-link-text">Modelos de Equipos</span>
+                        </a>
+                        <a href="personal.html" class="quick-link">
+                            <i data-lucide="user-check"></i>
+                            <span class="quick-link-text">Personal</span>
+                        </a>
+                        <a href="finanzas.html" class="quick-link">
+                            <i data-lucide="dollar-sign"></i>
+                            <span class="quick-link-text">Finanzas</span>
+                        </a>
+                    </div>
+
+                    <!-- KPI Cards Grid -->
+                    <div id="kpi-container" class="kpi-grid">
+                        <!-- Los KPIs se cargarán dinámicamente -->
+                        <div class="loading">
+                            <i data-lucide="loader"></i>
+                            <span>Cargando estadísticas...</span>
+                        </div>
+                    </div>
+
+                    <!-- Charts Grid -->
+                    <div class="charts-grid">
+                        <!-- Gráfico de Tickets por Estado -->
+                        <div class="chart-card">
+                            <div id="ticket-status-chart">
+                                <div class="loading">
+                                    <i data-lucide="loader"></i>
+                                    <span>Cargando gráfico...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico de Actividad Reciente -->
+                        <div class="chart-card">
+                            <div id="activity-chart">
+                                <div class="loading">
+                                    <i data-lucide="loader"></i>
+                                    <span>Cargando actividad...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Gráfico de Carga de Técnicos -->
+                        <div class="chart-card">
+                            <div id="technician-workload-chart">
+                                <div class="loading">
+                                    <i data-lucide="loader"></i>
+                                    <span>Cargando carga de trabajo...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Actividad Reciente -->
+                    <div class="activity-section">
+                        <div id="recent-activity">
+                            <div class="loading">
+                                <i data-lucide="loader"></i>
+                                <span>Cargando actividad reciente...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Footer con información adicional -->
+                    <div class="mt-8 pt-6 border-t border-gray-200">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                            <div>
+                                <h4 class="font-semibold mb-2">Sistema ERP</h4>
+                                <p>Versión 2.0</p>
+                                <p>Gymtec - Soluciones Integrales</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-2">Última Actualización</h4>
+                                <p id="last-update">Cargando...</p>
+                                <p>Actualización automática cada 5 minutos</p>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold mb-2">Estado del Sistema</h4>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+                                    <span>Sistema Operativo</span>
+                                </div>
+                                <p class="mt-1">Todos los servicios funcionando correctamente</p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </main>
         </div>
     </div>
+
+    <!-- Scripts -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/nav-loader.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script>
+        // Actualizar timestamp de última actualización
+        function updateLastUpdateTime() {
+            const lastUpdateElement = document.getElementById('last-update');
+            if (lastUpdateElement) {
+                const now = new Date();
+                lastUpdateElement.textContent = now.toLocaleString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+        }
+
+        // Inicializar timestamp
+        document.addEventListener('DOMContentLoaded', function() {
+            updateLastUpdateTime();
+            // Actualizar cada minuto
+            setInterval(updateLastUpdateTime, 60000);
+        });
+    </script>
 </body>
 </html> 
