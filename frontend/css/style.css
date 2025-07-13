@@ -756,6 +756,20 @@ video {
   --neutral-100: #f5f5f5;
   --neutral-700: #404040;
   
+  /* Colores adicionales - Púrpura */
+  --purple-100: #f3e8ff;
+  --purple-700: #7c3aed;
+  
+  /* Colores adicionales para badges */
+  --blue-50: #eff6ff;
+  --blue-200: #bfdbfe;
+  --blue-300: #93c5fd;
+  --blue-600: #2563eb;
+  --red-50: #fef2f2;
+  --red-200: #fecaca;
+  --red-300: #fca5a5;
+  --red-600: #dc2626;
+  
   /* Colores de fondo */
   --bg-primary: #f8fafc;    /* slate-50 */
   --bg-secondary: #ffffff;  /* white */

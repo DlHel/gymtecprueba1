@@ -211,7 +211,10 @@ app.get('/api/locations', (req, res) => {
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(rows);
+        res.json({ 
+            message: "success",
+            data: rows 
+        });
     });
 });
 
@@ -1045,7 +1048,9 @@ app.delete('/api/models/manuals/:manualId', (req, res) => {
 
 // GET all tickets
 app.get('/api/tickets', (req, res) => {
-    const sql = `
+    const { location_id } = req.query;
+    
+    let sql = `
         SELECT 
             t.*,
             c.name as client_name,
@@ -1055,10 +1060,20 @@ app.get('/api/tickets', (req, res) => {
         FROM Tickets t
         LEFT JOIN Clients c ON t.client_id = c.id
         LEFT JOIN Equipment e ON t.equipment_id = e.id
-        LEFT JOIN Locations l ON e.location_id = l.id
-        ORDER BY t.created_at DESC
+        LEFT JOIN Locations l ON t.location_id = l.id
     `;
-    db.all(sql, [], (err, rows) => {
+    
+    let params = [];
+    
+    // Filtrar por location_id si se proporciona
+    if (location_id) {
+        sql += ` WHERE t.location_id = ?`;
+        params.push(location_id);
+    }
+    
+    sql += ` ORDER BY t.created_at DESC`;
+    
+    db.all(sql, params, (err, rows) => {
         if (err) {
             console.error('❌ Error en consulta de tickets:', err.message);
             res.status(500).json({ "error": err.message });

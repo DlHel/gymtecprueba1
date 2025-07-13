@@ -1,101 +1,590 @@
-/* ============================================
-   CLIENTES CSS - MIGRADO AL SISTEMA UNIFICADO
-   ============================================ */
+/* =============================================================================
+   CLIENTES CSS - DISEÑO MEJORADO Y MODERNO
+   Sistema ERP Gymtec - Gestión de Clientes con UI/UX Optimizada
+   ============================================================================= */
 
-/* 
-   NOTA: Los modales de clientes han sido migrados al sistema unificado de modales.
-   Todas las clases específicas (.client-modal, .location-modal, .equipment-modal, etc.) 
-   han sido reemplazadas por las clases base (.base-modal, .base-form-*, etc.)
-   
-   El CSS específico de modales se ha eliminado para evitar duplicación.
-   Los estilos ahora se heredan del sistema unificado en style.css
-*/
+/* === HEADER MEJORADO === */
+.clients-header-improved {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    margin-bottom: 0;
+}
 
-/* Estilos específicos de clientes que NO son modales */
+.clients-header-content {
+    width: 100%;
+    max-width: none;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 2rem;
+}
+
+.clients-title-section h1.clients-main-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.clients-subtitle {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin: 0;
+    font-weight: 400;
+}
+
+.clients-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.clients-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.clients-action-btn.primary {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.clients-action-btn.primary:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* === CONTENIDO PRINCIPAL === */
+.clients-main-content {
+    width: 100%;
+    max-width: none;
+    margin: 0 auto;
+    padding: 1.5rem;
+    min-height: calc(100vh - 200px);
+}
+
+/* === PANEL DE BÚSQUEDA === */
+.clients-search-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e5e7eb;
+}
+
+.clients-search-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.clients-search-input-wrapper {
+    position: relative;
+    flex: 1;
+    max-width: 400px;
+}
+
+.clients-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    width: 20px;
+    height: 20px;
+}
+
+.clients-search-input {
+    width: 100%;
+    padding: 0.75rem 1rem 0.75rem 2.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.clients-search-input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.clients-search-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.clients-total-count {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    border-radius: 6px;
+}
+
+/* === LAYOUT CONTAINER === */
+.clients-layout-container {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 1.5rem;
+    min-height: calc(100vh - 350px);
+}
+
+/* === PANEL DE LISTA === */
+.clients-list-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+}
+
+.clients-list-header {
+    background: #f8fafc;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 1.5rem;
+}
+
+.clients-panel-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.clients-list-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    max-height: none;
+}
+
+/* === PANEL DE DETALLES === */
+.clients-detail-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    overflow: visible;
+    padding: 1.5rem;
+}
+
+/* === ESTADOS === */
+.clients-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+}
+
+.clients-loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.clients-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+}
+
+.clients-empty-icon {
+    margin-bottom: 1rem;
+    color: #9ca3af;
+}
+
+.clients-empty-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.clients-empty-text {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+    max-width: 300px;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 1200px) {
+    .clients-layout-container {
+        grid-template-columns: 350px 1fr;
+    }
+}
+
+@media (max-width: 1024px) {
+    .clients-layout-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .clients-header-content {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .clients-search-container {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .clients-search-input-wrapper {
+        max-width: none;
+    }
+    
+    .clients-main-content {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .clients-header-improved {
+        padding: 1.5rem 1rem;
+    }
+    
+    .clients-search-panel {
+        padding: 1rem;
+    }
+    
+    .clients-action-btn {
+        padding: 0.625rem 1rem;
+        font-size: 0.8125rem;
+    }
+    
+    .clients-layout-container {
+        gap: 0.75rem;
+    }
+    
+    .clients-list-panel,
+    .clients-detail-panel {
+        border-radius: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    .clients-header-improved {
+        padding: 1rem 0.75rem;
+    }
+    
+    .clients-main-content {
+        padding: 0.75rem;
+    }
+    
+    .clients-search-panel {
+        padding: 0.75rem;
+    }
+    
+    .clients-title-section h1.clients-main-title {
+        font-size: 1.5rem;
+    }
+    
+    .clients-search-input-wrapper {
+        max-width: none;
+    }
+    
+    .clients-search-container {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .clients-search-stats {
+        justify-content: center;
+    }
+    
+    .clients-list-panel {
+        margin-bottom: 1rem;
+    }
+    
+    .clients-detail-panel {
+        padding: 1rem;
+    }
+    
+    .close-detail-btn {
+        padding: 0.5rem !important;
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
+/* Estilos específicos heredados */
 
 /* Panel layout */
 .panel {
     background-color: var(--bg-secondary);
     border-radius: 0.5rem;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--border-primary);
-}
-
-/* Sidebar responsive - Estilos movidos a style.css para uso global */
-
-/* Lista de elementos */
-.list-item {
-    cursor: pointer;
     padding: 1rem;
-    border-bottom: 1px solid var(--border-primary);
-    transition: background-color 0.2s;
+    margin-bottom: 1rem;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.list-item:hover {
-    background-color: var(--bg-tertiary);
-}
-
-.list-item.active {
-    background-color: var(--primary-50);
-    border-left: 4px solid var(--primary-500);
-    color: var(--primary-800);
-    padding-left: calc(1rem - 4px);
-}
-
-.list-item.active .font-semibold {
-    color: var(--primary-800);
-}
-
-/* Tarjetas de sede */
-.sede-card {
-    background-color: white;
-    border: 1px solid var(--border-primary);
+/* Client Cards */
+.client-card {
+    background: white;
+    border: 1px solid #e5e7eb;
     border-radius: 8px;
-    box-shadow: var(--shadow-sm);
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.client-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.client-card:last-child {
+    margin-bottom: 0;
+}
+
+.client-card.active {
+    border-color: #667eea;
+    background: #f8faff;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.15);
+}
+
+.client-card.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #667eea;
+    border-radius: 0 2px 2px 0;
+}
+
+.client-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+}
+
+.client-card-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #374151;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.client-card.active .client-card-name {
+    color: #667eea;
+}
+
+.client-card-badge {
+    background: #f3f4f6;
+    color: #6b7280;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.client-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.client-card-detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.client-card-detail i {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+
+.client-card.active .client-card-detail {
+    color: #4b5563;
+}
+
+.client-card.active .client-card-detail i {
+    color: #667eea;
+}
+
+.client-card-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.client-card.active .client-card-stats {
+    border-top-color: #e0e7ff;
+}
+
+.client-stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    color: #9ca3af;
+}
+
+.client-card.active .client-stat-item {
+    color: #6b7280;
+}
+
+.client-stat-value {
+    font-weight: 600;
+}
+
+.client-card.active .client-stat-value {
+    color: #667eea;
+}
+
+.clients-list-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    text-align: center;
+}
+
+.clients-list-empty i {
+    width: 3rem;
+    height: 3rem;
+    color: #d1d5db;
+    margin-bottom: 1rem;
+}
+
+.clients-list-empty h4 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.clients-list-empty p {
+    color: #6b7280;
+    margin-bottom: 1.5rem;
+}
+
+/* Scrollbar customization */
+.clients-list-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.clients-list-content::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 3px;
+}
+
+.clients-list-content::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+}
+
+.clients-list-content::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+/* Utility classes */
+.hidden {
+    display: none !important;
+}
+
+/* Location/Sede cards */
+.sede-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    overflow: hidden;
     transition: all 0.2s ease;
 }
 
 .sede-card:hover {
-    box-shadow: var(--shadow-md);
+    border-color: #cbd5e1;
 }
 
 .sede-card summary {
-    padding: 1.5rem;
-    cursor: pointer;
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    border-radius: 8px;
-    transition: background-color 0.2s ease;
+    justify-content: space-between;
+    padding: 1rem;
+    cursor: pointer;
     list-style: none;
+    position: relative;
 }
 
 .sede-card summary:hover {
-    background-color: var(--bg-tertiary);
+    background: #f1f5f9;
 }
 
 .sede-card[open] summary {
-    border-bottom: 1px solid var(--border-primary);
-    border-radius: 8px 8px 0 0;
+    background: #e2e8f0;
+    border-bottom: 1px solid #cbd5e1;
 }
 
 .sede-info h4 {
-    font-size: 1.125rem;
+    font-size: 1rem;
     font-weight: 600;
-    color: var(--text-primary);
+    color: #374151;
     margin: 0 0 0.25rem 0;
 }
 
 .sede-info p {
-    color: var(--text-secondary);
     font-size: 0.875rem;
+    color: #6b7280;
     margin: 0;
 }
 
 .sede-actions {
     display: flex;
-    gap: 0.5rem;
     align-items: center;
+    gap: 0.5rem;
     opacity: 0;
     transition: opacity 0.2s ease;
 }
@@ -107,81 +596,79 @@
 .sede-actions button {
     padding: 0.5rem;
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
+    background: transparent;
+    color: #6b7280;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
 }
 
 .sede-actions .create-ticket-btn {
-    background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%);
+    color: #059669;
 }
 
 .sede-actions .create-ticket-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+    background: #ecfdf5;
 }
 
 .sede-actions .edit-location-btn {
-    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: #0369a1;
 }
 
 .sede-actions .edit-location-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(245, 158, 11, 0.3);
+    background: #eff6ff;
 }
 
 .sede-chevron {
     transition: transform 0.2s ease;
-    color: var(--text-secondary);
 }
 
 .sede-card[open] .sede-chevron {
     transform: rotate(180deg);
 }
 
-/* Pestañas de sede */
+/* Sede tabs */
 .sede-tabs {
-    border-bottom: 1px solid var(--border-primary);
+    background: white;
 }
 
 .sede-tabs nav {
     display: flex;
-    padding: 0 1.5rem;
-    background-color: var(--bg-tertiary);
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .sede-tab-btn {
     padding: 0.75rem 1rem;
     border: none;
     background: none;
+    color: #6b7280;
     cursor: pointer;
-    font-size: 0.875rem;
     font-weight: 500;
-    color: var(--text-secondary);
+    font-size: 0.875rem;
     border-bottom: 2px solid transparent;
     transition: all 0.2s ease;
+    flex: 1;
 }
 
 .sede-tab-btn:hover {
-    color: var(--text-primary);
-    background-color: var(--bg-secondary);
+    color: #374151;
+    background: #f9fafb;
 }
 
 .sede-tab-btn.active {
-    color: var(--primary-600);
-    border-bottom-color: var(--primary-600);
-    background-color: white;
+    color: #667eea;
+    border-bottom-color: #667eea;
+    background: #f8faff;
 }
 
 .sede-content {
-    padding: 0;
+    padding: 1rem;
 }
 
-/* Tabla de equipos */
+/* Equipment table */
 .sede-equipment-table {
     overflow-x: auto;
 }
@@ -189,125 +676,133 @@
 .sede-equipment-table table {
     width: 100%;
     border-collapse: collapse;
+    font-size: 0.875rem;
 }
 
 .sede-equipment-table thead {
-    background-color: var(--bg-tertiary);
+    background: #f8fafc;
 }
 
 .sede-equipment-table th {
     padding: 0.75rem;
     text-align: left;
-    font-size: 0.875rem;
     font-weight: 600;
-    color: var(--text-primary);
-    border-bottom: 1px solid var(--border-primary);
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
 }
 
 .sede-equipment-table td {
     padding: 0.75rem;
-    border-bottom: 1px solid var(--border-secondary);
+    border-bottom: 1px solid #f3f4f6;
 }
 
 .sede-equipment-table tbody tr:hover {
-    background-color: var(--bg-tertiary);
+    background: #f9fafb;
 }
 
-/* Acciones de equipo */
+/* Equipment actions */
 .equipment-actions button {
-    padding: 0.25rem;
+    padding: 0.375rem 0.75rem;
     border: none;
     border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.25rem;
     margin-right: 0.25rem;
-    color: white;
 }
 
 .equipment-actions .edit-equipment-btn {
-    background-color: var(--warning-500);
+    background: #dbeafe;
+    color: #1e40af;
 }
 
 .equipment-actions .edit-equipment-btn:hover {
-    background-color: var(--warning-600);
+    background: #bfdbfe;
 }
 
 .equipment-actions .delete-equipment-btn {
-    background-color: var(--danger-500);
+    background: #fee2e2;
+    color: #dc2626;
 }
 
 .equipment-actions .delete-equipment-btn:hover {
-    background-color: var(--danger-600);
+    background: #fecaca;
 }
 
-/* Botones para agregar */
+/* Add buttons */
 .add-equipment-btn, .add-location-btn {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: white;
-    border: none;
-    padding: 0.5rem 1rem;
-    border-radius: 6px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s ease;
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #475569;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 500;
+    font-size: 0.875rem;
+    margin-top: 1rem;
 }
 
 .add-equipment-btn:hover, .add-location-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+    border-color: #667eea;
+    background: #f8faff;
+    color: #667eea;
 }
 
-/* Estilos específicos que necesitamos mantener */
+/* Equipment input group */
 .equipment-input-group {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
 .equipment-scan-btn {
-    background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
-    border: none;
-    border-radius: 8px;
-    padding: 0.75rem;
-    color: white;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: white;
+    color: #6b7280;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 44px;
-    height: 44px;
-    box-shadow: 0 2px 4px rgba(14, 165, 233, 0.2);
+    width: 40px;
+    height: 40px;
+    flex-shrink: 0;
 }
 
 .equipment-scan-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(14, 165, 233, 0.3);
+    border-color: #667eea;
+    background: #f8faff;
+    color: #667eea;
 }
 
-/* Responsive */
+/* Mobile responsive */
 @media (max-width: 768px) {
     .sede-equipment-table {
-        font-size: 0.875rem;
+        font-size: 0.75rem;
     }
-
+    
     .sede-tabs nav {
-        padding: 0 1rem;
+        flex-direction: column;
     }
-
+    
     .sede-tab-btn {
-        padding: 0.5rem 0.75rem;
-        font-size: 0.8rem;
+        text-align: left;
+        border-bottom: none;
+        border-right: 2px solid transparent;
     }
-
+    
     .sede-content {
-        padding: 0.5rem;
+        padding: 0.75rem;
     }
 } 

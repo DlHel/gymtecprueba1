@@ -47,6 +47,125 @@ document.addEventListener('DOMContentLoaded', () => {
         originalConsoleError.apply(console, args);
     };
 
+    // === CONFIGURACIÓN INICIAL ===
+    setupModernEventListeners();
+    
+    // === FUNCIONES DE CONFIGURACIÓN MODERNA ===
+    function setupModernEventListeners() {
+        // Botones de agregar cliente
+        const addClientBtn = document.getElementById('add-client-btn');
+        const addClientBtnEmpty = document.getElementById('add-client-btn-empty');
+        
+        if (addClientBtn) {
+            addClientBtn.addEventListener('click', () => {
+                console.log('🔘 Abriendo modal de nuevo cliente');
+                modals.open(dom.modals.client, 'Nuevo Cliente');
+            });
+        }
+        
+        if (addClientBtnEmpty) {
+            addClientBtnEmpty.addEventListener('click', () => {
+                console.log('🔘 Abriendo modal de primer cliente');
+                modals.open(dom.modals.client, 'Nuevo Cliente');
+            });
+        }
+        
+        // Configurar búsqueda mejorada
+        const searchInput = document.getElementById('clientSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce(handleModernSearch, 300));
+        }
+        
+        console.log('✅ Event listeners modernos configurados');
+    }
+    
+    function handleModernSearch(event) {
+        const searchTerm = event.target.value.trim().toLowerCase();
+        console.log('🔍 Búsqueda:', searchTerm);
+        
+        // Actualizar contador de resultados
+        updateSearchStats(searchTerm);
+        
+        // Filtrar la lista de clientes
+        filterClientsList(searchTerm);
+    }
+    
+    function updateSearchStats(searchTerm) {
+        const statsElement = document.getElementById('search-stats');
+        const countElement = statsElement?.querySelector('.clients-total-count');
+        
+        if (countElement) {
+            if (searchTerm) {
+                // Contar resultados filtrados
+                const filteredCount = document.querySelectorAll('.client-card:not(.hidden)').length;
+                countElement.textContent = `${filteredCount} resultado${filteredCount !== 1 ? 's' : ''}`;
+            } else {
+                // Mostrar total
+                const totalCount = document.querySelectorAll('.client-card').length;
+                countElement.textContent = `${totalCount} cliente${totalCount !== 1 ? 's' : ''}`;
+            }
+        }
+    }
+    
+    function filterClientsList(searchTerm) {
+        const clientCards = document.querySelectorAll('.client-card');
+        
+        clientCards.forEach(card => {
+            const name = card.querySelector('.client-card-name')?.textContent?.toLowerCase() || '';
+            const rut = card.querySelector('[data-rut]')?.textContent?.toLowerCase() || '';
+            const email = card.querySelector('[data-email]')?.textContent?.toLowerCase() || '';
+            
+            const matches = name.includes(searchTerm) || 
+                          rut.includes(searchTerm) || 
+                          email.includes(searchTerm);
+            
+            if (matches) {
+                card.classList.remove('hidden');
+            } else {
+                card.classList.add('hidden');
+            }
+        });
+        
+        // Mostrar estado vacío si no hay resultados
+        updateEmptyState(searchTerm);
+    }
+    
+    function updateEmptyState(searchTerm) {
+        const listContent = document.getElementById('client-list-container');
+        const visibleCards = document.querySelectorAll('.client-card:not(.hidden)').length;
+        
+        // Remover estados vacíos anteriores
+        const existingEmpty = listContent.querySelector('.clients-list-empty');
+        if (existingEmpty) {
+            existingEmpty.remove();
+        }
+        
+        if (visibleCards === 0 && searchTerm) {
+            const emptyState = document.createElement('div');
+            emptyState.className = 'clients-list-empty';
+            emptyState.innerHTML = `
+                <i data-lucide="search-x"></i>
+                <h4>No se encontraron resultados</h4>
+                <p>No hay clientes que coincidan con "${searchTerm}"</p>
+            `;
+            listContent.appendChild(emptyState);
+            lucide.createIcons();
+        }
+    }
+    
+    // Función debounce para optimizar búsqueda
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+    
     // Sistema de notificación para extensiones problemáticas
     let extensionWarningShown = false;
     const showExtensionWarning = () => {
@@ -300,55 +419,102 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Lógica de Renderizado ---
     const render = {
         clientList: () => {
-            const searchTerm = state.clientSearchTerm.toLowerCase();
-            const filteredClients = state.clients.filter(c => 
-                c.name.toLowerCase().includes(searchTerm) ||
-                (c.rut && c.rut.toLowerCase().includes(searchTerm)) ||
-                (c.legal_name && c.legal_name.toLowerCase().includes(searchTerm))
-            );
+            console.log('🔄 Ejecutando render.clientList()');
+            console.log('📊 State.clients:', state.clients);
+            
+            // Ocultar loading state
+            const loadingState = document.getElementById('loading-clients');
+            if (loadingState) {
+                loadingState.style.display = 'none';
+            }
 
-            if (filteredClients.length === 0 && searchTerm) {
-                dom.clientListContainer.innerHTML = `<div class="app-card p-6 text-center text-gray-500">No se encontraron clientes.</div>`;
-                dom.detailContainer.innerHTML = '';
+            // Verificar si hay clientes
+            if (!state.clients || state.clients.length === 0) {
+                dom.clientListContainer.innerHTML = `
+                    <div class="clients-list-empty">
+                        <i data-lucide="users"></i>
+                        <h4>No hay clientes registrados</h4>
+                        <p>Comienza agregando tu primer cliente al sistema</p>
+                    </div>
+                `;
+                // Mostrar estado vacío en el panel de detalles si existe
+                const emptyDetailElement = document.getElementById('empty-detail');
+                if (emptyDetailElement) {
+                    emptyDetailElement.style.display = 'flex';
+                }
+                lucide.createIcons();
                 return;
             }
 
-            dom.clientListContainer.innerHTML = `
-                <div class="app-card overflow-hidden">
-                    <table class="app-table">
-                        <thead>
-                            <tr>
-                                <th scope="col">Cliente</th>
-                                <th scope="col">RUT</th>
-                                <th scope="col">Contacto</th>
-                                <th scope="col"><span class="sr-only">Acciones</span></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredClients.map(client => `
-                                <tr class="cursor-pointer hover:bg-gray-50" data-client-id="${client.id}">
-                                    <td>
-                                        <div>
-                                            <div class="font-medium text-gray-900">${client.name}</div>
-                                            <div class="text-sm text-gray-500">${client.legal_name || ''}</div>
-                                        </div>
-                                    </td>
-                                    <td class="text-sm text-gray-900">${client.rut || 'N/A'}</td>
-                                    <td>
-                                        <div class="text-sm text-gray-900">${client.contact_name || 'N/A'}</div>
-                                        <div class="text-sm text-gray-500">${client.phone || client.email || ''}</div>
-                                    </td>
-                                    <td class="text-right">
-                                        <button class="btn-icon edit-client-btn" data-client-id="${client.id}" title="Editar Cliente">
-                                            <i data-lucide="pencil" class="h-4 w-4"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            `;
+            // Generar tarjetas de clientes modernas
+            const clientsHtml = state.clients.map(client => {
+                const locationCount = client.location_count || 0;
+                const equipmentCount = client.equipment_count || 0;
+                
+                return `
+                    <div class="client-card" data-client-id="${client.id}">
+                        <div class="client-card-header">
+                            <h4 class="client-card-name">${client.name}</h4>
+                            <span class="client-card-badge">Activo</span>
+                        </div>
+                        <div class="client-card-info">
+                            <div class="client-card-detail" data-rut="${client.rut || ''}">
+                                <i data-lucide="credit-card"></i>
+                                <span>RUT: ${client.rut || 'No especificado'}</span>
+                            </div>
+                            ${client.contact_name ? `
+                                <div class="client-card-detail">
+                                    <i data-lucide="user"></i>
+                                    <span>${client.contact_name}</span>
+                                </div>
+                            ` : ''}
+                            ${client.email ? `
+                                <div class="client-card-detail" data-email="${client.email}">
+                                    <i data-lucide="mail"></i>
+                                    <span>${client.email}</span>
+                                </div>
+                            ` : ''}
+                            ${client.phone ? `
+                                <div class="client-card-detail">
+                                    <i data-lucide="phone"></i>
+                                    <span>${client.phone}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="client-card-stats">
+                            <div class="client-stat-item">
+                                <i data-lucide="map-pin"></i>
+                                <span class="client-stat-value">${locationCount}</span>
+                                <span>sede${locationCount !== 1 ? 's' : ''}</span>
+                            </div>
+                            <div class="client-stat-item">
+                                <i data-lucide="monitor"></i>
+                                <span class="client-stat-value">${equipmentCount}</span>
+                                <span>equipo${equipmentCount !== 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            dom.clientListContainer.innerHTML = clientsHtml;
+            console.log('📝 HTML generado para clientes:', clientsHtml.substring(0, 200) + '...');
+            console.log('📍 Contenedor de lista:', dom.clientListContainer);
+            
+            // Actualizar contador de clientes
+            updateSearchStats('');
+            
+            // Ocultar estado vacío del panel de detalles si existe
+            const emptyDetailElement = document.getElementById('empty-detail');
+            if (emptyDetailElement) {
+                emptyDetailElement.style.display = 'none';
+            }
+            
+            // Regenerar iconos de Lucide
+            setTimeout(() => {
+                lucide.createIcons();
+                console.log('✅ Lista de clientes renderizada correctamente');
+            }, 10);
         },
 
         clientDetail: async (clientId) => {
@@ -436,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </div>`;
                 
-                dom.clientListContainer.innerHTML = ''; // Ocultar lista al mostrar detalle
+                // No ocultar la lista - debe permanecer visible
                 lucide.createIcons();
 
             } catch (error) {
@@ -736,13 +902,34 @@ document.addEventListener('DOMContentLoaded', () => {
         setup: () => {
             dom.clientSearch.addEventListener('input', () => {
                 state.clientSearchTerm = dom.clientSearch.value;
-                dom.detailContainer.innerHTML = ''; // Limpiar detalle al buscar
+                // Restaurar estado vacío del panel de detalles al buscar
+                dom.detailContainer.innerHTML = `
+                    <div class="clients-empty-state" id="empty-detail">
+                        <div class="clients-empty-icon">
+                            <i data-lucide="user-plus" class="w-16 h-16"></i>
+                        </div>
+                        <h3 class="clients-empty-title">Selecciona un cliente</h3>
+                        <p class="clients-empty-text">Elige un cliente de la lista para ver sus detalles, sedes y equipos</p>
+                        <button id="add-client-btn-empty" class="clients-action-btn primary">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Crear Primer Cliente
+                        </button>
+                    </div>
+                `;
+                lucide.createIcons();
                 render.clientList();
             });
 
             dom.clientListContainer.addEventListener('click', e => {
-                const item = e.target.closest('tr[data-client-id]');
+                const item = e.target.closest('.client-card[data-client-id]');
                 if (item) {
+                    // Actualizar estado visual de las tarjetas
+                    document.querySelectorAll('.client-card').forEach(card => {
+                        card.classList.remove('active');
+                    });
+                    item.classList.add('active');
+                    
+                    // Cargar detalles del cliente
                     render.clientDetail(item.dataset.clientId);
                 }
             });
@@ -803,6 +990,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (targetButton.matches('.close-detail-btn')) {
                         actions.init(); // Vuelve al estado inicial (lista de clientes)
+                    }
+                    if (targetButton.matches('#add-client-btn-empty') || targetButton.id === 'add-client-btn-empty') {
+                        console.log('🔘 Abriendo modal de primer cliente desde panel vacío');
+                        modals.open(dom.modals.client, 'Nuevo Cliente');
                     }
                     if (targetButton.matches('.add-location-btn')) {
                         modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
@@ -903,10 +1094,26 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     `;
                 } else {
+                    console.log('📋 Llamando a render.clientList()...');
                     render.clientList();
                 }
                 
-                dom.detailContainer.innerHTML = '';
+                // Restaurar estado vacío del panel de detalles
+                dom.detailContainer.innerHTML = `
+                    <div class="clients-empty-state" id="empty-detail">
+                        <div class="clients-empty-icon">
+                            <i data-lucide="user-plus" class="w-16 h-16"></i>
+                        </div>
+                        <h3 class="clients-empty-title">Selecciona un cliente</h3>
+                        <p class="clients-empty-text">Elige un cliente de la lista para ver sus detalles, sedes y equipos</p>
+                        <button id="add-client-btn-empty" class="clients-action-btn primary">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Crear Primer Cliente
+                        </button>
+                    </div>
+                `;
+                // Inicializar iconos de Lucide
+                lucide.createIcons();
 
                 // Comprobar si hay que abrir un cliente específico desde la URL
                 const urlParams = new URLSearchParams(window.location.search);

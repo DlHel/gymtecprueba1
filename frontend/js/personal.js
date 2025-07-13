@@ -27,10 +27,21 @@ class PersonalManager {
         document.getElementById('add-user-btn').addEventListener('click', () => this.openUserModal());
         document.getElementById('refresh-users').addEventListener('click', () => this.loadUsers());
 
-        // Modales
-        document.getElementById('close-modal').addEventListener('click', () => this.closeUserModal());
+        // Modales - usar base-modal-close para cerrar
+        document.querySelectorAll('.base-modal-close').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = e.target.closest('.base-modal');
+                if (modal) {
+                    if (modal.id === 'user-modal') {
+                        this.closeUserModal();
+                    } else if (modal.id === 'confirm-modal') {
+                        this.closeConfirmModal();
+                    }
+                }
+            });
+        });
+
         document.getElementById('cancel-user').addEventListener('click', () => this.closeUserModal());
-        document.getElementById('close-confirm-modal').addEventListener('click', () => this.closeConfirmModal());
         document.getElementById('cancel-action').addEventListener('click', () => this.closeConfirmModal());
 
         // Formularios
@@ -47,7 +58,7 @@ class PersonalManager {
 
         // Cerrar modales al hacer clic fuera
         window.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal')) {
+            if (e.target.classList.contains('base-modal')) {
                 this.closeUserModal();
                 this.closeConfirmModal();
             }
@@ -99,54 +110,55 @@ class PersonalManager {
     }
 
     renderUsers() {
-        const tableBody = document.getElementById('users-table-body');
+        const usersContainer = document.getElementById('users-table-body');
         
         if (this.filteredUsers.length === 0) {
-            tableBody.innerHTML = `
-                <tr>
-                    <td colspan="6" class="text-center py-8">
-                        <div class="empty-state">
-                            <i data-lucide="users"></i>
-                            <span>No se encontraron usuarios</span>
-                        </div>
-                    </td>
-                </tr>
+            usersContainer.innerHTML = `
+                <div class="personal-empty-state">
+                    <i data-lucide="users"></i>
+                    <h3>No se encontraron usuarios</h3>
+                    <p>Intenta ajustar los filtros o agregar nuevos usuarios al sistema</p>
+                </div>
             `;
+            // Re-inicializar iconos de Lucide
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
             return;
         }
 
-        tableBody.innerHTML = this.filteredUsers.map(user => `
-            <tr>
-                <td>
-                    <div class="user-info">
-                        <div class="user-avatar">
-                            <i data-lucide="user"></i>
-                        </div>
-                        <div>
-                            <div class="user-name">${user.username}</div>
-                            <div class="user-id">ID: ${user.id}</div>
-                        </div>
+        usersContainer.innerHTML = this.filteredUsers.map(user => `
+            <div class="personal-user-item">
+                <div class="personal-user-avatar ${user.role?.toLowerCase()}">
+                    ${this.getUserInitials(user.username)}
+                </div>
+                
+                <div class="personal-user-info">
+                    <div class="personal-user-basic">
+                        <div class="personal-user-name">${user.username}</div>
+                        <div class="personal-user-email">${user.email}</div>
                     </div>
-                </td>
-                <td>${user.email}</td>
-                <td>
-                    <span class="role-badge role-${user.role?.toLowerCase()}">${user.role}</span>
-                </td>
-                <td>
-                    <span class="status-badge status-${user.status?.toLowerCase()}">${user.status}</span>
-                </td>
-                <td>${this.formatDate(user.created_at)}</td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn-icon btn-edit" onclick="personalManager.editUser(${user.id})" title="Editar">
-                            <i data-lucide="edit"></i>
-                        </button>
-                        <button class="btn-icon btn-delete" onclick="personalManager.deleteUser(${user.id})" title="Eliminar">
-                            <i data-lucide="trash-2"></i>
-                        </button>
+                    
+                    <div class="personal-user-badges">
+                        <span class="personal-role-badge ${user.role?.toLowerCase()}">${user.role}</span>
+                        <span class="personal-status-badge ${user.status?.toLowerCase().replace(/\s+/g, '-')}">${user.status}</span>
                     </div>
-                </td>
-            </tr>
+                </div>
+                
+                <div class="personal-user-meta">
+                    <div>ID: ${user.id}</div>
+                    <div>${this.formatDate(user.created_at)}</div>
+                </div>
+                
+                <div class="personal-user-actions">
+                    <button class="personal-action-btn edit" onclick="personalManager.editUser(${user.id})" title="Editar usuario">
+                        <i data-lucide="edit"></i>
+                    </button>
+                    <button class="personal-action-btn delete" onclick="personalManager.deleteUser(${user.id})" title="Eliminar usuario">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </div>
         `).join('');
 
         // Re-inicializar iconos de Lucide
@@ -221,11 +233,11 @@ class PersonalManager {
         }
 
         this.updateRolePermissions(user ? user.role : '');
-        modal.style.display = 'flex';
+        modal.classList.add('active');
     }
 
     closeUserModal() {
-        document.getElementById('user-modal').style.display = 'none';
+        document.getElementById('user-modal').classList.remove('active');
         this.currentUser = null;
     }
 
@@ -404,11 +416,11 @@ class PersonalManager {
     openConfirmModal(message, action) {
         document.getElementById('confirm-message').textContent = message;
         this.confirmAction = action;
-        document.getElementById('confirm-modal').style.display = 'flex';
+        document.getElementById('confirm-modal').classList.add('active');
     }
 
     closeConfirmModal() {
-        document.getElementById('confirm-modal').style.display = 'none';
+        document.getElementById('confirm-modal').classList.remove('active');
         this.confirmAction = null;
     }
 
@@ -417,6 +429,15 @@ class PersonalManager {
             this.confirmAction();
         }
         this.closeConfirmModal();
+    }
+
+    getUserInitials(username) {
+        if (!username) return '?';
+        const names = username.trim().split(' ');
+        if (names.length === 1) {
+            return names[0].charAt(0).toUpperCase();
+        }
+        return (names[0].charAt(0) + names[names.length - 1].charAt(0)).toUpperCase();
     }
 
     formatDate(dateString) {
@@ -439,29 +460,47 @@ class PersonalManager {
     showNotification(message, type) {
         // Crear notificación temporal
         const notification = document.createElement('div');
-        notification.className = `notification notification-${type}`;
+        notification.className = `personal-alert ${type}`;
         notification.innerHTML = `
-            <div class="notification-content">
-                <i data-lucide="${type === 'success' ? 'check-circle' : 'alert-circle'}"></i>
-                <span>${message}</span>
-            </div>
+            <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info'}"></i>
+            <span>${message}</span>
         `;
 
-        document.body.appendChild(notification);
+        // Insertar al principio del main para mejor visibilidad
+        const main = document.querySelector('main');
+        if (main) {
+            main.insertBefore(notification, main.firstChild);
+        } else {
+            document.body.appendChild(notification);
+        }
 
         // Inicializar icono
         if (window.lucide) {
             window.lucide.createIcons();
         }
 
-        // Remover después de 3 segundos
+        // Remover después de 4 segundos
         setTimeout(() => {
-            notification.remove();
-        }, 3000);
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 4000);
     }
 }
 
 // Inicializar cuando se carga la página
 document.addEventListener('DOMContentLoaded', function() {
-    window.personalManager = new PersonalManager();
+    // Solo ejecutar en la página de personal
+    const currentPage = window.location.pathname.split("/").pop();
+    if (currentPage === 'personal.html' || document.getElementById('users-table-body')) {
+        console.log('🚀 Inicializando Personal Manager...');
+        
+        // Inicializar iconos de Lucide primero
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+        
+        // Crear instancia del manager
+        window.personalManager = new PersonalManager();
+    }
 });

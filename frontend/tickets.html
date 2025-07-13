@@ -51,8 +51,110 @@
                         </button>
                     </div>
 
-                    <div class="app-card overflow-hidden">
-                        <table class="app-table">
+                    <!-- Sección de búsqueda y filtros -->
+                    <div class="tickets-search-section">
+                        <div class="tickets-search-grid">
+                            <div class="tickets-filters-row">
+                                <div>
+                                    <label class="tickets-filter-label">Buscar tickets</label>
+                                    <div class="tickets-search-input">
+                                        <input type="text" id="tickets-search" placeholder="Buscar por título, cliente, descripción...">
+                                        <i data-lucide="search" class="search-icon"></i>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="tickets-filter-label">Estado</label>
+                                    <div class="tickets-filter-select">
+                                        <select id="tickets-filter-status" title="Filtrar por estado del ticket">
+                                            <option value="">Todos los estados</option>
+                                            <option value="abierto">Abierto</option>
+                                            <option value="progreso">En Progreso</option>
+                                            <option value="espera">En Espera</option>
+                                            <option value="resuelto">Resuelto</option>
+                                            <option value="cerrado">Cerrado</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="tickets-filter-label">Prioridad</label>
+                                    <div class="tickets-filter-select">
+                                        <select id="tickets-filter-priority" title="Filtrar por prioridad del ticket">
+                                            <option value="">Todas las prioridades</option>
+                                            <option value="baja">Baja</option>
+                                            <option value="media">Media</option>
+                                            <option value="alta">Alta</option>
+                                            <option value="urgente">Urgente</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="tickets-filter-label">Cliente</label>
+                                    <div class="tickets-filter-select">
+                                        <select id="tickets-filter-client" title="Filtrar por cliente">
+                                            <option value="">Todos los clientes</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <button class="tickets-clear-filters" id="tickets-clear-filters">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                                Limpiar filtros
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sección de estadísticas -->
+                    <div class="tickets-stats-grid">
+                        <div class="tickets-stat-card status-abierto">
+                            <div class="tickets-stat-header">
+                                <div class="tickets-stat-icon">
+                                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="tickets-stat-value" id="stats-abierto">0</div>
+                            <div class="tickets-stat-label">Abiertos</div>
+                        </div>
+                        <div class="tickets-stat-card status-progreso">
+                            <div class="tickets-stat-header">
+                                <div class="tickets-stat-icon">
+                                    <i data-lucide="play-circle" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="tickets-stat-value" id="stats-progreso">0</div>
+                            <div class="tickets-stat-label">En Progreso</div>
+                        </div>
+                        <div class="tickets-stat-card status-espera">
+                            <div class="tickets-stat-header">
+                                <div class="tickets-stat-icon">
+                                    <i data-lucide="pause-circle" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="tickets-stat-value" id="stats-espera">0</div>
+                            <div class="tickets-stat-label">En Espera</div>
+                        </div>
+                        <div class="tickets-stat-card status-resuelto">
+                            <div class="tickets-stat-header">
+                                <div class="tickets-stat-icon">
+                                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="tickets-stat-value" id="stats-resuelto">0</div>
+                            <div class="tickets-stat-label">Resueltos</div>
+                        </div>
+                        <div class="tickets-stat-card status-cerrado">
+                            <div class="tickets-stat-header">
+                                <div class="tickets-stat-icon">
+                                    <i data-lucide="x-circle" class="w-5 h-5"></i>
+                                </div>
+                            </div>
+                            <div class="tickets-stat-value" id="stats-cerrado">0</div>
+                            <div class="tickets-stat-label">Cerrados</div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de tickets -->
+                    <div class="tickets-table-container">
+                        <table class="tickets-table">
                             <thead>
                                 <tr>
                                     <th scope="col">Título</th>
@@ -67,6 +169,13 @@
                                 <!-- Las filas de tickets se insertarán aquí por JS -->
                             </tbody>
                         </table>
+                        
+                        <!-- Estado vacío -->
+                        <div id="tickets-empty-state" class="tickets-empty-state" style="display: none;">
+                            <i data-lucide="ticket" class="empty-icon"></i>
+                            <h3>No hay tickets disponibles</h3>
+                            <p>No se encontraron tickets que coincidan con los filtros seleccionados.</p>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -78,7 +187,7 @@
         <div class="base-modal-content modal-large">
             <div class="base-modal-header">
                 <h3 id="ticket-modal-title" class="base-modal-title">Nuevo Ticket</h3>
-                <button type="button" class="base-modal-close">
+                <button type="button" class="base-modal-close" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -160,7 +269,7 @@
                         <div class="base-form-grid">
                             <div class="base-form-group">
                                 <label class="base-form-label">Fecha de Vencimiento</label>
-                                <input type="datetime-local" name="due_date" class="base-form-input">
+                                <input type="datetime-local" name="due_date" class="base-form-input" title="Seleccionar fecha y hora de vencimiento">
                             </div>
                             
                             <div class="base-form-group">

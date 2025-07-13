@@ -5,7 +5,14 @@ let state = {
     clients: [],
     locations: [],
     equipment: [],
-    ticketPrefillData: null // Added for prefilling from URL params
+    ticketPrefillData: null,
+    filteredTickets: [],
+    currentFilters: {
+        search: '',
+        status: '',
+        priority: '',
+        client: ''
+    }
 };
 
 // --- DOM Elements ---
@@ -18,10 +25,22 @@ const addClientModalForm = document.getElementById('add-client-modal-form');
 const addLocationModalForm = document.getElementById('add-location-modal-form');
 const addEquipmentModalForm = document.getElementById('add-equipment-modal-form');
 
+// Nuevos elementos para filtros y búsqueda
+const searchInput = document.getElementById('tickets-search');
+const statusFilter = document.getElementById('tickets-filter-status');
+const priorityFilter = document.getElementById('tickets-filter-priority');
+const clientFilter = document.getElementById('tickets-filter-client');
+const clearFiltersBtn = document.getElementById('tickets-clear-filters');
+const emptyState = document.getElementById('tickets-empty-state');
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+    // Verificar que estamos en la página correcta
+    if (!ticketList) return;
+    
     fetchAllInitialData().then(() => {
-        checkForUrlParams(); // Check for URL params after initial data is loaded
+        checkForUrlParams();
+        setupFilters();
     });
 
     // --- Event Listeners ---
@@ -73,58 +92,290 @@ document.addEventListener('DOMContentLoaded', () => {
     if (addEquipmentModalForm) addEquipmentModalForm.addEventListener('submit', handleNewEquipmentSubmit);
 });
 
+// --- Funciones de filtrado y búsqueda ---
+function setupFilters() {
+    // Event listeners para filtros
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleSearchChange, 300));
+    }
+    if (statusFilter) {
+        statusFilter.addEventListener('change', handleFilterChange);
+    }
+    if (priorityFilter) {
+        priorityFilter.addEventListener('change', handleFilterChange);
+    }
+    if (clientFilter) {
+        clientFilter.addEventListener('change', handleFilterChange);
+    }
+    if (clearFiltersBtn) {
+        clearFiltersBtn.addEventListener('click', clearAllFilters);
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+function handleSearchChange(event) {
+    state.currentFilters.search = event.target.value.toLowerCase();
+    applyFilters();
+}
+
+function handleFilterChange(event) {
+    const filterId = event.target.id;
+    const value = event.target.value;
+    
+    if (filterId === 'tickets-filter-status') {
+        state.currentFilters.status = value;
+    } else if (filterId === 'tickets-filter-priority') {
+        state.currentFilters.priority = value;
+    } else if (filterId === 'tickets-filter-client') {
+        state.currentFilters.client = value;
+    }
+    
+    applyFilters();
+}
+
+function clearAllFilters() {
+    state.currentFilters = {
+        search: '',
+        status: '',
+        priority: '',
+        client: ''
+    };
+    
+    // Limpiar los inputs
+    if (searchInput) searchInput.value = '';
+    if (statusFilter) statusFilter.value = '';
+    if (priorityFilter) priorityFilter.value = '';
+    if (clientFilter) clientFilter.value = '';
+    
+    applyFilters();
+}
+
+function applyFilters() {
+    let filtered = [...state.tickets];
+    
+    // Filtro de búsqueda
+    if (state.currentFilters.search) {
+        filtered = filtered.filter(ticket => 
+            ticket.title.toLowerCase().includes(state.currentFilters.search) ||
+            ticket.description.toLowerCase().includes(state.currentFilters.search) ||
+            (ticket.client_name && ticket.client_name.toLowerCase().includes(state.currentFilters.search))
+        );
+    }
+    
+    // Filtro por estado
+    if (state.currentFilters.status) {
+        filtered = filtered.filter(ticket => 
+            ticket.status && ticket.status.toLowerCase() === state.currentFilters.status
+        );
+    }
+    
+    // Filtro por prioridad
+    if (state.currentFilters.priority) {
+        filtered = filtered.filter(ticket => 
+            ticket.priority && ticket.priority.toLowerCase() === state.currentFilters.priority
+        );
+    }
+    
+    // Filtro por cliente
+    if (state.currentFilters.client) {
+        filtered = filtered.filter(ticket => 
+            ticket.client_id && ticket.client_id.toString() === state.currentFilters.client
+        );
+    }
+    
+    state.filteredTickets = filtered;
+    renderTickets(filtered);
+    updateStatistics(filtered);
+}
+
+function updateStatistics(filteredTickets = null) {
+    const tickets = filteredTickets || state.tickets;
+    
+    const stats = {
+        abierto: 0,
+        progreso: 0,
+        espera: 0,
+        resuelto: 0,
+        cerrado: 0
+    };
+    
+    tickets.forEach(ticket => {
+        if (ticket.status) {
+            const status = ticket.status.toLowerCase().replace(' ', '');
+            const normalizedStatus = status === 'enprogreso' ? 'progreso' : 
+                                   status === 'enespera' ? 'espera' : status;
+            if (stats.hasOwnProperty(normalizedStatus)) {
+                stats[normalizedStatus]++;
+            }
+        }
+    });
+    
+    // Actualizar los elementos del DOM
+    const statElements = {
+        'stats-abierto': stats.abierto,
+        'stats-progreso': stats.progreso,
+        'stats-espera': stats.espera,
+        'stats-resuelto': stats.resuelto,
+        'stats-cerrado': stats.cerrado
+    };
+    
+    Object.entries(statElements).forEach(([elementId, value]) => {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.textContent = value;
+        }
+    });
+}
+
+function getClientInitials(clientName) {
+    if (!clientName) return '??';
+    return clientName.split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join('');
+}
+
+function getStatusClass(status) {
+    if (!status) return 'abierto';
+    const normalized = status.toLowerCase().replace(' ', '');
+    return normalized === 'enprogreso' ? 'progreso' : 
+           normalized === 'enespera' ? 'espera' : 
+           normalized;
+}
+
+function getPriorityClass(priority) {
+    if (!priority) return 'media';
+    return priority.toLowerCase();
+}
+
+function getSLAClass(dueDate) {
+    if (!dueDate) return 'sla-green';
+    
+    const due = new Date(dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return 'sla-red';
+    if (diffDays <= 3) return 'sla-yellow';
+    return 'sla-green';
+}
+
+function formatSLADate(dueDate) {
+    if (!dueDate) return 'N/A';
+    
+    const due = new Date(dueDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 0) return `Vencido (${Math.abs(diffDays)} días)`;
+    if (diffDays === 0) return 'Vence hoy';
+    if (diffDays === 1) return 'Vence mañana';
+    return `${diffDays} días`;
+}
+
 // --- Render Functions ---
 function renderTickets(tickets) {
+    if (!ticketList) return;
+    
     ticketList.innerHTML = '';
-    if (tickets && tickets.length > 0) {
-        tickets.forEach(ticket => {
-            const row = document.createElement('tr');
-            
-            let statusCellClass = '';
-            let dueDateText = 'N/A';
-            if (ticket.due_date) {
-                const dueDate = new Date(ticket.due_date);
-                const today = new Date();
-                today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
-                const diffTime = dueDate.getTime() - today.getTime();
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-                if (diffDays < 0) {
-                    statusCellClass = 'sla-red'; // Vencido
-                } else if (diffDays <= 3) {
-                    statusCellClass = 'sla-yellow'; // Próximo a vencer
-                } else {
-                    statusCellClass = 'sla-green'; // Lejos de vencer
-                }
-                dueDateText = dueDate.toLocaleDateString();
-            }
-
-            row.innerHTML = `
-                <td class="px-6 py-4 whitespace-nowrap">
-                    <div class="text-sm font-medium text-slate-900">
-                        <a href="ticket-detail.html?id=${ticket.id}" class="text-sky-600 hover:text-sky-800 hover:underline">${ticket.title}</a>
-                    </div>
-                </td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${ticket.client_name || 'N/A'}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm"><span class="status-badge ${statusCellClass}">${ticket.status}</span></td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${ticket.priority}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${dueDateText}</td>
-                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button class="p-1 text-slate-500 hover:text-sky-500 edit-ticket-btn" data-id="${ticket.id}"><i data-lucide="edit" class="w-4 h-4"></i></button>
-                    <button class="p-1 text-slate-500 hover:text-red-500 delete-ticket-btn" data-id="${ticket.id}"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                </td>`;
-            ticketList.appendChild(row);
-        });
+    
+    if (!tickets || tickets.length === 0) {
+        if (emptyState) {
+            emptyState.style.display = 'block';
+        }
+        return;
+    }
+    
+    if (emptyState) {
+        emptyState.style.display = 'none';
+    }
+    
+    tickets.forEach(ticket => {
+        const row = document.createElement('tr');
         
-        // Actualizar iconos Lucide después de renderizar
+        const statusClass = getStatusClass(ticket.status);
+        const priorityClass = getPriorityClass(ticket.priority);
+        const slaClass = getSLAClass(ticket.due_date);
+        
+        row.innerHTML = `
+            <td>
+                <div class="font-medium text-gray-900">${ticket.title || 'Sin título'}</div>
+                <div class="text-sm text-gray-500">${ticket.description ? ticket.description.substring(0, 100) + '...' : ''}</div>
+            </td>
+            <td>
+                <div class="tickets-client-info">
+                    <div class="tickets-client-avatar">
+                        ${getClientInitials(ticket.client_name)}
+                    </div>
+                    <div class="tickets-client-details">
+                        <div class="tickets-client-name">${ticket.client_name || 'Sin cliente'}</div>
+                        <div class="tickets-client-location">${ticket.location_name || 'Sin sede'}</div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="tickets-status-badge ${statusClass}">
+                    ${ticket.status || 'Abierto'}
+                </span>
+            </td>
+            <td>
+                <span class="tickets-priority-badge ${priorityClass}">
+                    ${ticket.priority || 'Media'}
+                </span>
+            </td>
+            <td>
+                <span class="tickets-sla-indicator ${slaClass}">
+                    ${formatSLADate(ticket.due_date)}
+                </span>
+            </td>
+            <td>
+                <div class="tickets-actions">
+                    <button class="tickets-action-btn view" onclick="window.location.href='ticket-detail.html?id=${ticket.id}'" title="Ver detalles">
+                        <i data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
+                    <button class="tickets-action-btn edit edit-ticket-btn" data-id="${ticket.id}" title="Editar ticket">
+                        <i data-lucide="edit" class="w-4 h-4"></i>
+                    </button>
+                    <button class="tickets-action-btn delete delete-ticket-btn" data-id="${ticket.id}" title="Eliminar ticket">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        
+        ticketList.appendChild(row);
+    });
+    
+    // Regenerar iconos de Lucide
+    if (window.lucide) {
         lucide.createIcons();
-    } else {
-        ticketList.innerHTML = '<tr><td colspan="6" class="p-4 text-center text-slate-500">No hay tickets registrados.</td></tr>';
     }
 }
 
 function populateSelect(selectElement, items, { placeholder, valueKey = 'id', nameKey = 'name' }) {
-    selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+    if (!selectElement) return;
+    
+    selectElement.innerHTML = '';
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = '';
+    placeholderOption.textContent = placeholder;
+    selectElement.appendChild(placeholderOption);
+    
     items.forEach(item => {
         const option = document.createElement('option');
         option.value = item[valueKey];
@@ -133,94 +384,147 @@ function populateSelect(selectElement, items, { placeholder, valueKey = 'id', na
     });
 }
 
+function populateClientFilter() {
+    if (!clientFilter) return;
+    
+    // Limpiar opciones actuales excepto la primera
+    clientFilter.innerHTML = '<option value="">Todos los clientes</option>';
+    
+    // Agregar clientes únicos
+    const uniqueClients = [...new Set(state.clients.map(client => ({ id: client.id, name: client.name })))];
+    uniqueClients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.id;
+        option.textContent = client.name;
+        clientFilter.appendChild(option);
+    });
+}
+
 // --- API Calls ---
 async function fetchAllInitialData() {
     try {
-        await Promise.all([fetchTickets(), fetchClients(), fetchEquipmentModels()]);
+        await Promise.all([
+            fetchTickets(),
+            fetchClients()
+        ]);
     } catch (error) {
-        console.error("Error fetching initial data:", error);
+        console.error('Error fetching initial data:', error);
     }
 }
 
 async function fetchTickets() {
     try {
         const response = await fetch(`${API_URL}/tickets`);
-        if (!response.ok) throw new Error(`Error fetching tickets: ${response.statusText}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const result = await response.json();
-        state.tickets = result.data || []; // Asegurar que sea un array
-        renderTickets(state.tickets);
+        state.tickets = result.data || [];
+        state.filteredTickets = [...state.tickets];
+        
+        populateClientFilter();
+        renderTickets(state.filteredTickets);
+        updateStatistics();
     } catch (error) {
-        console.error("Error fetching tickets:", error);
-        renderTickets([]); // Renderizar lista vacía o con mensaje de error
+        console.error('Error fetching tickets:', error);
+        state.tickets = [];
+        state.filteredTickets = [];
+        renderTickets([]);
     }
 }
 
 async function fetchClients() {
     try {
         const response = await fetch(`${API_URL}/clients`);
-        if (!response.ok) throw new Error(`Error fetching clients: ${response.statusText}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const result = await response.json();
-        state.clients = result.data || []; // Asegurar que sea un array
-        populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
+        state.clients = result.data || [];
+        
+        if (clientSelect) {
+            populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente' });
+        }
+        
+        populateClientFilter();
     } catch (error) {
-        console.error("Error fetching clients:", error);
-        populateSelect(clientSelect, [], { placeholder: 'Error al cargar clientes' });
+        console.error('Error fetching clients:', error);
+        state.clients = [];
     }
 }
 
 async function fetchLocations(clientId) {
     try {
-        const response = await fetch(`${API_URL}/clients/${clientId}/locations`);
-        if (!response.ok) throw new Error(`Error fetching locations: ${response.statusText}`);
+        const response = await fetch(`${API_URL}/locations?client_id=${clientId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const result = await response.json();
         state.locations = result.data || [];
-        populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
-        locationSelect.disabled = false;
+        
+        if (locationSelect) {
+            populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede' });
+            locationSelect.disabled = false;
+        }
     } catch (error) {
-        console.error("Error fetching locations:", error);
-        populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
-        locationSelect.disabled = false;
+        console.error('Error fetching locations:', error);
+        state.locations = [];
+        if (locationSelect) {
+            populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
+            locationSelect.disabled = false;
+        }
     }
 }
 
 async function fetchEquipment(locationId) {
     try {
-        const response = await fetch(`${API_URL}/locations/${locationId}/equipment`);
-        if (!response.ok) throw new Error(`Error fetching equipment: ${response.statusText}`);
+        const response = await fetch(`${API_URL}/equipment?location_id=${locationId}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const result = await response.json();
         state.equipment = result.data || [];
-        populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo (opcional)...' });
-        equipmentSelect.disabled = false;
+        
+        if (equipmentSelect) {
+            populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo' });
+            equipmentSelect.disabled = false;
+        }
     } catch (error) {
-        console.error("Error fetching equipment:", error);
-        populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
-        equipmentSelect.disabled = false;
+        console.error('Error fetching equipment:', error);
+        state.equipment = [];
+        if (equipmentSelect) {
+            populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
+            equipmentSelect.disabled = false;
+        }
     }
 }
 
 async function fetchEquipmentModels() {
     try {
-        const response = await fetch(`${API_URL}/models`);
-        if (!response.ok) throw new Error('Failed to fetch equipment models');
+        const response = await fetch(`${API_URL}/equipment-models`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
         const result = await response.json();
         const models = result.data || [];
+        
         const modelSelect = document.getElementById('new-equipment-model-select');
-        populateSelect(modelSelect, models, { placeholder: 'Seleccione un modelo (opcional)', valueKey: 'id', nameKey: 'name' });
+        if (modelSelect) {
+            populateSelect(modelSelect, models, { placeholder: 'Seleccione un modelo...' });
+        }
     } catch (error) {
-        console.error("Error fetching equipment models:", error);
+        console.error('Error fetching equipment models:', error);
     }
 }
 
 // --- Event Handlers ---
 function handleClientChange(e) {
     const clientId = e.target.value;
-    locationSelect.disabled = true;
-    locationSelect.innerHTML = '<option>Cargando sedes...</option>';
-    equipmentSelect.disabled = true;
-    equipmentSelect.innerHTML = '<option>Seleccione una sede primero...</option>';
     
-    addLocationBtn.disabled = !clientId;
-    addEquipmentBtn.disabled = true;
+    // Limpiar selects dependientes
+    if (locationSelect) {
+        locationSelect.disabled = true;
+        locationSelect.innerHTML = '<option>Cargando sedes...</option>';
+    }
+    if (equipmentSelect) {
+        equipmentSelect.disabled = true;
+        equipmentSelect.innerHTML = '<option>Seleccione una sede primero...</option>';
+    }
 
     if (clientId) {
         fetchLocations(clientId);
@@ -229,10 +533,12 @@ function handleClientChange(e) {
 
 function handleLocationChange(e) {
     const locationId = e.target.value;
-    equipmentSelect.disabled = true;
-    equipmentSelect.innerHTML = '<option>Cargando equipos...</option>';
     
-    addEquipmentBtn.disabled = !locationId;
+    // Limpiar select de equipos
+    if (equipmentSelect) {
+        equipmentSelect.disabled = true;
+        equipmentSelect.innerHTML = '<option>Cargando equipos...</option>';
+    }
 
     if (locationId) {
         fetchEquipment(locationId);

@@ -23,7 +23,7 @@
             <header class="app-header">
                 <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
                     <div class="flex items-center space-x-4">
-                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación" aria-label="Abrir menú de navegación">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación">
                             <i data-lucide="menu" class="h-6 w-6"></i>
                         </button>
                         <h1 class="text-xl font-bold text-gray-800">Inventario</h1>
@@ -35,49 +35,157 @@
             </header>
 
             <!-- Contenido principal -->
-            <main class="flex-1 overflow-y-auto section-spacing">
-                <div class="content-max-width">
-                    <!-- Controles superiores -->
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-semibold text-gray-800">Gestión de Inventario</h2>
-                        <button id="add-inventory-btn" class="btn-primary flex items-center" title="Agregar nuevo repuesto">
-                            <i data-lucide="plus" class="mr-2 h-5 w-5"></i>
-                            Nuevo Repuesto
-                        </button>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="w-full">
+                    <!-- Header mejorado con pestañas de vista -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800">Gestión de Inventario</h2>
+                                <p class="text-gray-600">Control de repuestos, órdenes de compra y asignaciones</p>
+                            </div>
+                            <div class="flex gap-3">
+                                <button id="add-purchase-order-btn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                                    <i data-lucide="shopping-cart" class="h-4 w-4"></i>
+                                    Nueva Orden de Compra
+                                </button>
+                                <button id="add-inventory-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                    <i data-lucide="plus" class="h-4 w-4"></i>
+                                    Nuevo Repuesto
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pestañas de navegación -->
+                        <div class="border-b border-gray-200">
+                            <nav class="flex space-x-8">
+                                <button id="tab-central" class="tab-button active" data-tab="central">
+                                    <i data-lucide="warehouse" class="h-4 w-4"></i>
+                                    Inventario Central
+                                </button>
+                                <button id="tab-technicians" class="tab-button" data-tab="technicians">
+                                    <i data-lucide="users" class="h-4 w-4"></i>
+                                    Por Técnicos
+                                </button>
+                                <button id="tab-orders" class="tab-button" data-tab="orders">
+                                    <i data-lucide="truck" class="h-4 w-4"></i>
+                                    Órdenes de Compra
+                                </button>
+                                <button id="tab-transactions" class="tab-button" data-tab="transactions">
+                                    <i data-lucide="activity" class="h-4 w-4"></i>
+                                    Movimientos
+                                </button>
+                            </nav>
+                        </div>
                     </div>
 
-                    <!-- Filtros -->
-                    <div class="app-card p-6 mb-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Filtros y búsqueda -->
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
-                                <label class="form-label">Categoría</label>
-                                                            <select id="category-filter" class="form-input" title="Filtrar por categoría">
-                                <option value="">Todas</option>
-                            </select>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Categoría</label>
+                                <select id="category-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Filtrar por categoría">
+                                    <option value="">Todas las categorías</option>
+                                    <option value="Electrónico">Electrónico</option>
+                                    <option value="Mecánico">Mecánico</option>
+                                    <option value="Eléctrico">Eléctrico</option>
+                                    <option value="Consumible">Consumible</option>
+                                </select>
                             </div>
                             <div>
-                                <label class="form-label">Estado</label>
-                                                            <select id="status-filter" class="form-input" title="Filtrar por estado">
-                                <option value="">Todos</option>
-                                <option value="disponible">Disponible</option>
-                                <option value="bajo-stock">Bajo Stock</option>
-                                <option value="agotado">Agotado</option>
-                            </select>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                                <select id="status-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Filtrar por estado">
+                                    <option value="">Todos los estados</option>
+                                    <option value="disponible">Disponible</option>
+                                    <option value="bajo-stock">Bajo Stock</option>
+                                    <option value="agotado">Agotado</option>
+                                    <option value="en-pedido">En Pedido</option>
+                                </select>
+                            </div>
+                            <div id="technician-filter-container" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Técnico</label>
+                                <select id="technician-filter" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="Filtrar por técnico">
+                                    <option value="">Todos los técnicos</option>
+                                </select>
                             </div>
                             <div>
-                                <label class="form-label">Buscar</label>
-                                <input type="text" id="search-input" placeholder="Buscar repuestos..." class="form-input">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                                <div class="relative">
+                                    <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4"></i>
+                                    <input type="text" id="search-input" placeholder="Buscar repuestos..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Lista de inventario -->
-                    <div class="app-card">
-                        <div class="p-6">
-                            <div id="inventory-container">
-                                <div class="text-center py-8">
-                                    <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-4"></div>
-                                    <p class="text-gray-500">Cargando inventario...</p>
+                    <!-- Contenido de las pestañas -->
+                    <div class="inventory-container">
+                        <!-- Pestaña Inventario Central -->
+                        <div id="content-central" class="tab-content active">
+                            <div class="p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-800">Inventario Central</h3>
+                                    <div class="flex items-center gap-4">
+                                        <span id="central-stats" class="text-sm text-gray-600">0 repuestos</span>
+                                        <button id="assign-to-technician-btn" class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1">
+                                            <i data-lucide="user-plus" class="h-3 w-3"></i>
+                                            Asignar a Técnico
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="central-inventory-container">
+                                    <div class="text-center py-8">
+                                        <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                        <p class="text-gray-500">Cargando inventario central...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Por Técnicos -->
+                        <div id="content-technicians" class="tab-content">
+                            <div class="p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-800">Inventario por Técnicos</h3>
+                                    <span id="technicians-stats" class="text-sm text-gray-600">0 asignaciones</span>
+                                </div>
+                                <div id="technicians-inventory-container">
+                                    <div class="text-center py-8">
+                                        <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                        <p class="text-gray-500">Cargando inventarios de técnicos...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Órdenes de Compra -->
+                        <div id="content-orders" class="tab-content">
+                            <div class="p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-800">Órdenes de Compra</h3>
+                                    <span id="orders-stats" class="text-sm text-gray-600">0 órdenes</span>
+                                </div>
+                                <div id="orders-container">
+                                    <div class="text-center py-8">
+                                        <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                        <p class="text-gray-500">Cargando órdenes de compra...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Movimientos -->
+                        <div id="content-transactions" class="tab-content">
+                            <div class="p-6">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 class="text-lg font-semibold text-gray-800">Historial de Movimientos</h3>
+                                    <span id="transactions-stats" class="text-sm text-gray-600">0 movimientos</span>
+                                </div>
+                                <div id="transactions-container">
+                                    <div class="text-center py-8">
+                                        <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                        <p class="text-gray-500">Cargando movimientos...</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -87,17 +195,17 @@
         </div>
     </div>
 
-    <!-- Modal de Inventario -->
+    <!-- Modal de Repuesto -->
     <div id="inventory-modal" class="base-modal">
         <div class="base-modal-content">
             <div class="base-modal-header">
                 <h3 id="inventory-modal-title" class="base-modal-title">Nuevo Repuesto</h3>
-                <button type="button" class="base-modal-close">
+                <button type="button" class="base-modal-close" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
-                <form id="inventory-form" class="base-form-grid">
+                <form id="inventory-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <input type="hidden" name="id">
                     
                     <div class="base-form-group">
@@ -107,12 +215,18 @@
                     
                     <div class="base-form-group">
                         <label class="base-form-label">SKU <span class="required">*</span></label>
-                        <input type="text" name="sku" class="base-form-input" required placeholder="Código SKU">
+                        <input type="text" name="sku" class="base-form-input" required placeholder="Código SKU único">
                     </div>
                     
                     <div class="base-form-group">
-                        <label class="base-form-label">Categoría</label>
-                        <input type="text" name="category" class="base-form-input" placeholder="Categoría del repuesto">
+                        <label class="base-form-label">Categoría <span class="required">*</span></label>
+                        <select name="category" class="base-form-input" required title="Seleccionar categoría del repuesto">
+                            <option value="">Seleccionar categoría</option>
+                            <option value="Electrónico">Electrónico</option>
+                            <option value="Mecánico">Mecánico</option>
+                            <option value="Eléctrico">Eléctrico</option>
+                            <option value="Consumible">Consumible</option>
+                        </select>
                     </div>
                     
                     <div class="base-form-group">
@@ -122,33 +236,130 @@
                     
                     <div class="base-form-group">
                         <label class="base-form-label">Stock Actual</label>
-                                            <input type="number" name="current_stock" class="base-form-input" min="0" value="0" title="Cantidad actual en stock">
-                </div>
-                
-                <div class="base-form-group">
-                    <label class="base-form-label">Stock Mínimo</label>
-                    <input type="number" name="min_stock" class="base-form-input" min="0" value="5" title="Cantidad mínima de stock">
+                        <input type="number" name="current_stock" class="base-form-input" min="0" value="0" title="Stock actual del repuesto">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Stock Mínimo <span class="required">*</span></label>
+                        <input type="number" name="min_stock" class="base-form-input" min="1" value="5" required>
                     </div>
                     
                     <div class="base-form-group">
                         <label class="base-form-label">Precio Unitario</label>
-                        <input type="number" name="unit_price" class="base-form-input" min="0" step="0.01" placeholder="0.00">
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                            <input type="number" name="unit_price" class="base-form-input pl-8" min="0" step="0.01" placeholder="0.00">
+                        </div>
                     </div>
                     
                     <div class="base-form-group">
-                        <label class="base-form-label">Ubicación</label>
-                        <input type="text" name="location" class="base-form-input" placeholder="Ubicación en almacén">
+                        <label class="base-form-label">Ubicación en Almacén</label>
+                        <input type="text" name="location" class="base-form-input" placeholder="Ej: A1-B2, Estante 3">
                     </div>
                     
-                    <div class="base-form-group full-width">
+                    <div class="base-form-group md:col-span-2">
                         <label class="base-form-label">Descripción</label>
-                        <textarea name="description" rows="3" class="base-form-textarea" placeholder="Descripción del repuesto"></textarea>
+                        <textarea name="description" rows="3" class="base-form-input" placeholder="Descripción detallada del repuesto"></textarea>
                     </div>
                 </form>
             </div>
             <div class="base-modal-footer">
                 <button type="button" class="base-btn-cancel">Cancelar</button>
-                <button type="submit" form="inventory-form" class="base-btn-save">Guardar Repuesto</button>
+                <button type="submit" form="inventory-form" class="base-btn-primary">Guardar Repuesto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Orden de Compra -->
+    <div id="purchase-order-modal" class="base-modal">
+        <div class="base-modal-content modal-large">
+            <div class="base-modal-header">
+                <h3 id="purchase-order-modal-title" class="base-modal-title">Nueva Orden de Compra</h3>
+                <button type="button" class="base-modal-close" title="Cerrar modal">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <form id="purchase-order-form">
+                    <input type="hidden" name="id">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Proveedor <span class="required">*</span></label>
+                            <input type="text" name="supplier" class="base-form-input" required placeholder="Nombre del proveedor">
+                        </div>
+                        
+                        <div class="base-form-group">
+                            <label class="base-form-label">Fecha Esperada</label>
+                            <input type="date" name="expected_date" class="base-form-input">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="text-lg font-semibold">Repuestos a Ordenar</h4>
+                            <button type="button" id="add-item-btn" class="bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1">
+                                <i data-lucide="plus" class="h-3 w-3"></i>
+                                Agregar Repuesto
+                            </button>
+                        </div>
+                        <div id="order-items-container">
+                            <!-- Los items de la orden se agregarán aquí dinámicamente -->
+                        </div>
+                    </div>
+
+                    <div class="base-form-group">
+                        <label class="base-form-label">Notas</label>
+                        <textarea name="notes" rows="3" class="base-form-input" placeholder="Notas adicionales sobre la orden..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel">Cancelar</button>
+                <button type="submit" form="purchase-order-form" class="base-btn-primary">Crear Orden</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Asignar a Técnico -->
+    <div id="assign-technician-modal" class="base-modal">
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">Asignar Repuestos a Técnico</h3>
+                <button type="button" class="base-modal-close" title="Cerrar modal">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <form id="assign-technician-form">
+                    <div class="base-form-group">
+                        <label class="base-form-label">Técnico <span class="required">*</span></label>
+                        <select name="technician_id" class="base-form-input" required>
+                            <option value="">Seleccionar técnico</option>
+                        </select>
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Repuesto <span class="required">*</span></label>
+                        <select name="spare_part_id" class="base-form-input" required>
+                            <option value="">Seleccionar repuesto</option>
+                        </select>
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Cantidad <span class="required">*</span></label>
+                        <input type="number" name="quantity" class="base-form-input" min="1" required>
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Notas</label>
+                        <textarea name="notes" rows="2" class="base-form-input" placeholder="Notas sobre la asignación..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel">Cancelar</button>
+                <button type="submit" form="assign-technician-form" class="base-btn-primary">Asignar</button>
             </div>
         </div>
     </div>

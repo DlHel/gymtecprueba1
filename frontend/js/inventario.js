@@ -1,335 +1,842 @@
-// API_URL se define en config.js
-
-let state = {
-    inventory: [],
-};
-
-// --- DOM Elements (Inicializados de forma segura) ---
-let dom = {};
-
-// --- Lógica de Modales Modernos ---
-const modals = {
-    open: (modalElem, title, data = {}) => {
-        console.log('Abriendo modal de inventario:', title, data);
+// Sistema de Inventario Mejorado - Gymtec ERP
+class InventoryManager {
+    constructor() {
+        this.currentTab = 'central';
+        this.data = {
+            centralInventory: [],
+            technicianInventory: [],
+            purchaseOrders: [],
+            transactions: [],
+            technicians: [],
+            spareParts: []
+        };
         
-        if (!modalElem) {
-            console.error('Modal element no encontrado!');
+        // Configurar la URL base de la API según el puerto actual
+        this.apiBaseUrl = this.getApiBaseUrl();
+        
+        this.init();
+    }
+
+    getApiBaseUrl() {
+        const hostname = window.location.hostname;
+        const port = window.location.port;
+        
+        if (hostname === 'localhost' || hostname === '127.0.0.1') {
+            return `http://${hostname}:3000/api`;
+        } else {
+            return `${window.location.protocol}//${hostname}:3000/api`;
+        }
+    }
+
+    init() {
+        console.log('🚀 Inicializando InventoryManager...');
+        this.setupEventListeners();
+        this.loadInitialData();
+        console.log('✅ InventoryManager inicializado');
+    }
+
+    setupEventListeners() {
+        // Pestañas de navegación
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.switchTab(btn.dataset.tab);
+            });
+        });
+
+        // Botones principales
+        document.getElementById('add-inventory-btn').addEventListener('click', () => {
+            this.openInventoryModal();
+        });
+
+        document.getElementById('add-purchase-order-btn').addEventListener('click', () => {
+            this.openPurchaseOrderModal();
+        });
+
+        document.getElementById('assign-to-technician-btn').addEventListener('click', () => {
+            this.openAssignTechnicianModal();
+        });
+
+        // Filtros y búsqueda
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            this.handleSearch(e.target.value);
+        });
+
+        document.getElementById('category-filter').addEventListener('change', (e) => {
+            this.handleFilter('category', e.target.value);
+        });
+
+        document.getElementById('status-filter').addEventListener('change', (e) => {
+            this.handleFilter('status', e.target.value);
+        });
+
+        document.getElementById('technician-filter').addEventListener('change', (e) => {
+            this.handleFilter('technician', e.target.value);
+        });
+
+        // Modales
+        this.setupModalEvents();
+
+        // Delegación de eventos para botones dinámicos
+        document.body.addEventListener('click', this.handleDynamicClicks.bind(this));
+    }
+
+    setupModalEvents() {
+        // Modal de inventario
+        const inventoryModal = document.getElementById('inventory-modal');
+        const inventoryForm = document.getElementById('inventory-form');
+        
+        inventoryForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveInventoryItem();
+        });
+
+        // Modal de orden de compra
+        const purchaseOrderModal = document.getElementById('purchase-order-modal');
+        const purchaseOrderForm = document.getElementById('purchase-order-form');
+        
+        purchaseOrderForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.savePurchaseOrder();
+        });
+
+        // Modal de asignar técnico
+        const assignModal = document.getElementById('assign-technician-modal');
+        const assignForm = document.getElementById('assign-technician-form');
+        
+        assignForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.assignToTechnician();
+        });
+
+        // Botones de cerrar modales
+        document.querySelectorAll('.base-modal-close, .base-btn-cancel').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const modal = e.target.closest('.base-modal');
+                if (modal) {
+                    this.closeModal(modal);
+                }
+            });
+        });
+
+        // Cerrar modal al hacer clic fuera
+        document.querySelectorAll('.base-modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    this.closeModal(modal);
+                }
+            });
+        });
+
+        // Agregar ítem a orden de compra
+        document.getElementById('add-item-btn').addEventListener('click', () => {
+            this.addOrderItem();
+        });
+    }
+
+    handleDynamicClicks(e) {
+        const target = e.target.closest('button');
+        if (!target) return;
+
+        // Botones de inventario
+        if (target.classList.contains('edit-inventory-btn')) {
+            const id = target.dataset.id;
+            this.editInventoryItem(id);
+        } else if (target.classList.contains('delete-inventory-btn')) {
+            const id = target.dataset.id;
+            this.deleteInventoryItem(id);
+        }
+        // Botones de órdenes de compra
+        else if (target.classList.contains('receive-order-btn')) {
+            const id = target.dataset.id;
+            this.receiveOrder(id);
+        } else if (target.classList.contains('cancel-order-btn')) {
+            const id = target.dataset.id;
+            this.cancelOrder(id);
+        }
+        // Botones de asignaciones
+        else if (target.classList.contains('return-item-btn')) {
+            const technicianId = target.dataset.technicianId;
+            const itemId = target.dataset.itemId;
+            this.returnFromTechnician(technicianId, itemId);
+        }
+        // Remover ítem de orden
+        else if (target.classList.contains('order-item-remove')) {
+            target.closest('.order-item').remove();
+        }
+    }
+
+    switchTab(tabName) {
+        // Actualizar botones de pestañas
+        document.querySelectorAll('.tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+        // Actualizar contenido
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`content-${tabName}`).classList.add('active');
+
+        // Mostrar/ocultar filtro de técnico
+        const technicianFilter = document.getElementById('technician-filter-container');
+        if (tabName === 'technicians') {
+            technicianFilter.classList.remove('hidden');
+        } else {
+            technicianFilter.classList.add('hidden');
+        }
+
+        this.currentTab = tabName;
+        this.loadTabData(tabName);
+    }
+
+    async loadInitialData() {
+        try {
+            // Cargar datos básicos
+            await Promise.all([
+                this.loadTechnicians(),
+                this.loadSpareParts()
+            ]);
+
+            // Cargar contenido de la pestaña actual
+            this.loadTabData(this.currentTab);
+        } catch (error) {
+            console.error('Error cargando datos iniciales:', error);
+            this.showNotification('Error al cargar datos del sistema', 'error');
+        }
+    }
+
+    async loadTabData(tabName) {
+        switch (tabName) {
+            case 'central':
+                await this.loadCentralInventory();
+                break;
+            case 'technicians':
+                await this.loadTechnicianInventory();
+                break;
+            case 'orders':
+                await this.loadPurchaseOrders();
+                break;
+            case 'transactions':
+                await this.loadTransactions();
+                break;
+        }
+    }
+
+    async loadCentralInventory() {
+        try {
+            console.log('📦 Cargando inventario central...');
+            const container = document.getElementById('central-inventory-container');
+            
+            const response = await fetch(`${this.apiBaseUrl}/inventory`);
+            if (!response.ok) throw new Error('Error al cargar inventario');
+            
+            const result = await response.json();
+            this.data.centralInventory = result.data || [];
+            
+            this.renderCentralInventory();
+            this.updateStats('central', this.data.centralInventory.length);
+            
+            console.log(`✅ Inventario central cargado: ${this.data.centralInventory.length} items`);
+        } catch (error) {
+            console.error('Error loading central inventory:', error);
+            this.showErrorState('central-inventory-container', 'Error al cargar el inventario central');
+        }
+    }
+
+    async loadTechnicianInventory() {
+        try {
+            console.log('👥 Cargando inventario de técnicos...');
+            
+            const response = await fetch(`${this.apiBaseUrl}/inventory/technicians`);
+            if (!response.ok) throw new Error('Error al cargar inventario de técnicos');
+            
+            const result = await response.json();
+            this.data.technicianInventory = result.data || [];
+            
+            this.renderTechnicianInventory();
+            this.updateStats('technicians', this.data.technicianInventory.length);
+            
+            console.log(`✅ Inventario de técnicos cargado: ${this.data.technicianInventory.length} asignaciones`);
+        } catch (error) {
+            console.error('Error loading technician inventory:', error);
+            this.showErrorState('technicians-inventory-container', 'Error al cargar inventario de técnicos');
+        }
+    }
+
+    async loadPurchaseOrders() {
+        try {
+            console.log('🚚 Cargando órdenes de compra...');
+            
+            const response = await fetch(`${this.apiBaseUrl}/purchase-orders`);
+            if (!response.ok) throw new Error('Error al cargar órdenes de compra');
+            
+            const result = await response.json();
+            this.data.purchaseOrders = result.data || [];
+            
+            this.renderPurchaseOrders();
+            this.updateStats('orders', this.data.purchaseOrders.length);
+            
+            console.log(`✅ Órdenes de compra cargadas: ${this.data.purchaseOrders.length} órdenes`);
+        } catch (error) {
+            console.error('Error loading purchase orders:', error);
+            this.showErrorState('orders-container', 'Error al cargar órdenes de compra');
+        }
+    }
+
+    async loadTransactions() {
+        try {
+            console.log('📊 Cargando transacciones...');
+            
+            const response = await fetch(`${this.apiBaseUrl}/inventory/transactions`);
+            if (!response.ok) throw new Error('Error al cargar transacciones');
+            
+            const result = await response.json();
+            this.data.transactions = result.data || [];
+            
+            this.renderTransactions();
+            this.updateStats('transactions', this.data.transactions.length);
+            
+            console.log(`✅ Transacciones cargadas: ${this.data.transactions.length} movimientos`);
+        } catch (error) {
+            console.error('Error loading transactions:', error);
+            this.showErrorState('transactions-container', 'Error al cargar transacciones');
+        }
+    }
+
+    async loadTechnicians() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/users?role=technician`);
+            if (!response.ok) throw new Error('Error al cargar técnicos');
+            
+            const result = await response.json();
+            this.data.technicians = result.data || [];
+            
+            // Poblar filtros y selects
+            this.populateTechnicianSelects();
+        } catch (error) {
+            console.error('Error loading technicians:', error);
+        }
+    }
+
+    async loadSpareParts() {
+        try {
+            const response = await fetch(`${this.apiBaseUrl}/inventory`);
+            if (!response.ok) throw new Error('Error al cargar repuestos');
+            
+            const result = await response.json();
+            this.data.spareParts = result.data || [];
+            
+            // Poblar selects de repuestos
+            this.populateSparePartSelects();
+        } catch (error) {
+            console.error('Error loading spare parts:', error);
+        }
+    }
+
+    renderCentralInventory() {
+        const container = document.getElementById('central-inventory-container');
+        
+        if (!this.data.centralInventory || this.data.centralInventory.length === 0) {
+            container.innerHTML = this.getEmptyState('inventario central', 'warehouse');
             return;
         }
+
+        const itemsHtml = this.data.centralInventory.map(item => {
+            const status = this.getItemStatus(item);
+            return `
+                <div class="inventory-item-card">
+                    <div class="inventory-item-header">
+                        <div>
+                            <h4 class="inventory-item-name">${item.name}</h4>
+                            <div class="inventory-item-sku">SKU: ${item.sku || 'N/A'}</div>
+                        </div>
+                        <div class="inventory-item-status ${status.class}">${status.text}</div>
+                    </div>
+                    
+                    <div class="inventory-item-details">
+                        <div class="inventory-item-detail">
+                            <div class="inventory-item-detail-label">Categoría</div>
+                            <div class="inventory-item-detail-value">${item.category || 'N/A'}</div>
+                        </div>
+                        <div class="inventory-item-detail">
+                            <div class="inventory-item-detail-label">Stock Actual</div>
+                            <div class="inventory-item-detail-value">${item.current_stock || 0}</div>
+                        </div>
+                        <div class="inventory-item-detail">
+                            <div class="inventory-item-detail-label">Stock Mínimo</div>
+                            <div class="inventory-item-detail-value">${item.min_stock || 0}</div>
+                        </div>
+                        <div class="inventory-item-detail">
+                            <div class="inventory-item-detail-label">Precio</div>
+                            <div class="inventory-item-detail-value">$${item.unit_price || '0.00'}</div>
+                        </div>
+                        <div class="inventory-item-detail">
+                            <div class="inventory-item-detail-label">Ubicación</div>
+                            <div class="inventory-item-detail-value">${item.location || 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="inventory-item-actions">
+                        <button class="inventory-action-btn outline edit-inventory-btn" data-id="${item.id}">
+                            <i data-lucide="edit" class="w-3 h-3"></i>
+                            Editar
+                        </button>
+                        <button class="inventory-action-btn danger delete-inventory-btn" data-id="${item.id}">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = itemsHtml;
+        lucide.createIcons();
+    }
+
+    renderTechnicianInventory() {
+        const container = document.getElementById('technicians-inventory-container');
         
-        const form = modalElem.querySelector('form');
-        if (!form) {
-            console.error('Form no encontrado en modal!');
+        if (!this.data.technicianInventory || this.data.technicianInventory.length === 0) {
+            container.innerHTML = this.getEmptyState('asignaciones de técnicos', 'users');
             return;
         }
+
+        // Agrupar por técnico
+        const groupedByTechnician = this.data.technicianInventory.reduce((acc, assignment) => {
+            const techId = assignment.technician_id;
+            if (!acc[techId]) {
+                acc[techId] = {
+                    technician: assignment.technician,
+                    items: []
+                };
+            }
+            acc[techId].items.push(assignment);
+            return acc;
+        }, {});
+
+        const techniciansHtml = Object.values(groupedByTechnician).map(group => {
+            const itemsHtml = group.items.map(item => `
+                <div class="inventory-item-card">
+                    <div class="inventory-item-header">
+                        <div>
+                            <h5 class="inventory-item-name">${item.spare_part_name}</h5>
+                            <div class="inventory-item-sku">Cantidad: ${item.quantity}</div>
+                        </div>
+                        <button class="inventory-action-btn secondary return-item-btn" 
+                                data-technician-id="${item.technician_id}" 
+                                data-item-id="${item.spare_part_id}">
+                            <i data-lucide="corner-up-left" class="w-3 h-3"></i>
+                            Devolver
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="technician-inventory-card">
+                    <div class="technician-inventory-header">
+                        <h3 class="technician-name">${group.technician.name}</h3>
+                        <div class="technician-role">${group.technician.role || 'Técnico'}</div>
+                        <div class="technician-stats">
+                            <div class="technician-stat">
+                                <i data-lucide="package" class="w-3 h-3"></i>
+                                <span>${group.items.length} repuestos</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="technician-inventory-content">
+                        ${itemsHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = techniciansHtml;
+        lucide.createIcons();
+    }
+
+    renderPurchaseOrders() {
+        const container = document.getElementById('orders-container');
+        
+        if (!this.data.purchaseOrders || this.data.purchaseOrders.length === 0) {
+            container.innerHTML = this.getEmptyState('órdenes de compra', 'truck');
+            return;
+        }
+
+        const ordersHtml = this.data.purchaseOrders.map(order => {
+            const itemsHtml = (order.items || []).map(item => `
+                <div class="purchase-order-item">
+                    <div class="purchase-order-item-name">${item.name}</div>
+                    <div class="purchase-order-item-quantity">${item.quantity} unidades</div>
+                </div>
+            `).join('');
+
+            return `
+                <div class="purchase-order-card">
+                    <div class="purchase-order-header">
+                        <div>
+                            <h4 class="purchase-order-number">Orden #${order.id}</h4>
+                            <div class="purchase-order-supplier">Proveedor: ${order.supplier}</div>
+                            <div class="text-sm text-gray-500">Fecha esperada: ${this.formatDate(order.expected_date)}</div>
+                        </div>
+                        <div class="purchase-order-status ${order.status}">${this.getOrderStatusText(order.status)}</div>
+                    </div>
+                    
+                    <div class="purchase-order-items">
+                        ${itemsHtml}
+                    </div>
+                    
+                    <div class="purchase-order-actions">
+                        ${order.status === 'pendiente' ? `
+                            <button class="inventory-action-btn primary receive-order-btn" data-id="${order.id}">
+                                <i data-lucide="check" class="w-3 h-3"></i>
+                                Marcar como Recibida
+                            </button>
+                            <button class="inventory-action-btn danger cancel-order-btn" data-id="${order.id}">
+                                <i data-lucide="x" class="w-3 h-3"></i>
+                                Cancelar
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = ordersHtml;
+        lucide.createIcons();
+    }
+
+    renderTransactions() {
+        const container = document.getElementById('transactions-container');
+        
+        if (!this.data.transactions || this.data.transactions.length === 0) {
+            container.innerHTML = this.getEmptyState('movimientos de inventario', 'activity');
+            return;
+        }
+
+        const transactionsHtml = this.data.transactions.map(transaction => {
+            return `
+                <div class="transaction-card">
+                    <div class="transaction-header">
+                        <div class="transaction-type ${transaction.type}">
+                            <i data-lucide="${this.getTransactionIcon(transaction.type)}" class="w-4 h-4"></i>
+                            ${this.getTransactionTypeText(transaction.type)}
+                        </div>
+                        <div class="transaction-date">${this.formatDateTime(transaction.created_at)}</div>
+                    </div>
+                    <div class="transaction-details">
+                        ${transaction.description}
+                        ${transaction.quantity ? ` - Cantidad: ${transaction.quantity}` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = transactionsHtml;
+        lucide.createIcons();
+    }
+
+    // Modal handlers
+    openInventoryModal(item = null) {
+        const modal = document.getElementById('inventory-modal');
+        const form = document.getElementById('inventory-form');
+        const title = document.getElementById('inventory-modal-title');
         
         form.reset();
-        const titleElement = modalElem.querySelector('h3');
-        if (titleElement) {
-            titleElement.textContent = title;
-        }
         
-        for (const [key, value] of Object.entries(data)) {
-            const input = form.querySelector(`[name="${key}"]`);
-            if (input) input.value = value;
-        }
-        
-        // Mostrar modal con animación
-        modalElem.style.display = 'flex';
-        modalElem.style.opacity = '1';
-        modalElem.style.pointerEvents = 'auto';
-        document.body.classList.add('modal-open');
-        
-        // Forzar reflow para que la transición funcione
-        modalElem.offsetHeight;
-        
-        modalElem.classList.add('is-open');
-        
-        // Configurar botón X de cerrar (cada vez que se abre el modal)
-        const closeBtn = modalElem.querySelector('.base-modal-close');
-        if (closeBtn) {
-            closeBtn.replaceWith(closeBtn.cloneNode(true));
-            const newCloseBtn = modalElem.querySelector('.base-modal-close');
-            newCloseBtn.addEventListener('click', () => modals.close(modalElem));
-        }
-        
-        // Actualizar iconos de Lucide después de configurar el modal
-        lucide.createIcons();
-    },
-    
-    close: (modalElem) => {
-        modalElem.classList.remove('is-open');
-        setTimeout(() => {
-            modalElem.style.display = 'none';
-        }, 300); // Esperar a que termine la animación
-        document.body.classList.remove('modal-open');
-    },
-    
-    setup: (modalElem, resource, onSuccess) => {
-        if (!modalElem) {
-            console.error('❌ Modal element no disponible para configuración');
-            return;
-        }
-        
-        const form = modalElem.querySelector('form');
-        if (!form) {
-            console.error('❌ Form no encontrado en modal para configuración');
-            return;
-        }
-        
-        // Event listener para botón cancelar
-        const cancelBtn = modalElem.querySelector('.base-btn-cancel');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => modals.close(modalElem));
+        if (item) {
+            title.textContent = 'Editar Repuesto';
+            this.populateForm(form, item);
         } else {
-            console.warn('⚠️ Botón cancelar no encontrado en modal');
+            title.textContent = 'Nuevo Repuesto';
         }
         
-        form.addEventListener('submit', async e => {
-            e.preventDefault();
-            const formData = new FormData(form);
-            try {
-                await api.save(resource, formData);
-                modals.close(modalElem);
-                if(onSuccess) await onSuccess();
-            } catch (error) {
-                console.error('❌ Error al guardar:', error);
-                alert(error.message);
-            }
-        });
+        this.showModal(modal);
+    }
+
+    openPurchaseOrderModal() {
+        const modal = document.getElementById('purchase-order-modal');
+        const form = document.getElementById('purchase-order-form');
         
-        console.log('✅ Modal configurado correctamente');
+        form.reset();
+        document.getElementById('order-items-container').innerHTML = '';
+        
+        this.showModal(modal);
     }
-};
 
-// --- API Functions ---
-const api = {
-    save: (resource, data) => {
-        const id = data.get('id');
-        const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
-        const method = id ? 'PUT' : 'POST';
-        return fetch(url, {
-            method,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.fromEntries(data)),
-        }).then(res => {
-            if (!res.ok) throw new Error(`Error al guardar ${resource}`);
-            return res.json().catch(() => ({}));
-        });
-    },
-    
-    delete: (resource, id) => {
-        return fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' })
-            .then(res => {
-                if (!res.ok) throw new Error(`Error al eliminar ${resource}`);
-                return res.json().catch(() => ({}));
-            });
+    openAssignTechnicianModal() {
+        const modal = document.getElementById('assign-technician-modal');
+        const form = document.getElementById('assign-technician-form');
+        
+        form.reset();
+        this.populateTechnicianSelects();
+        this.populateSparePartSelects();
+        
+        this.showModal(modal);
     }
-};
 
-// --- DOM Initialization ---
-function initializeDOMElements() {
-    console.log('🎯 Inicializando elementos DOM de inventario...');
-    
-    // Función auxiliar para obtener elementos de forma segura
-    const getElementSafe = (elementId, description) => {
-        const element = document.getElementById(elementId);
-        if (element) {
-            console.log(`✅ Elemento encontrado: ${elementId} (${description})`);
-            return element;
+    // Utility methods
+    getItemStatus(item) {
+        if (item.current_stock <= 0) {
+            return { class: 'agotado', text: 'Agotado' };
+        } else if (item.current_stock <= item.min_stock) {
+            return { class: 'bajo-stock', text: 'Bajo Stock' };
+        } else if (item.status === 'en-pedido') {
+            return { class: 'en-pedido', text: 'En Pedido' };
         } else {
-            console.warn(`⚠️ Elemento ${elementId} no encontrado (${description})`);
-            return null;
+            return { class: 'disponible', text: 'Disponible' };
         }
-    };
-    
-    dom.inventoryList = getElementSafe('inventory-container', 'contenedor de inventario');
-    dom.addInventoryBtn = getElementSafe('add-inventory-btn', 'botón agregar inventario');
-    dom.modal = getElementSafe('inventory-modal', 'modal de inventario');
-    dom.form = getElementSafe('inventory-form', 'formulario del modal');
-    
-    // Verificar elementos críticos
-    const criticalElements = ['inventory-container', 'add-inventory-btn'];
-    const missingCritical = criticalElements.filter(id => !document.getElementById(id));
-    
-    if (missingCritical.length > 0) {
-        console.error('❌ Elementos críticos no encontrados:', missingCritical);
-        console.error('❌ La página puede no estar completamente cargada');
-        return false;
-    }
-    
-    console.log('✅ Elementos DOM inicializados correctamente');
-    return true;
-}
-
-function setupEventListeners() {
-    console.log('🎯 Configurando event listeners de inventario...');
-    
-    // Event listener para botón agregar (con verificación)
-    if (dom.addInventoryBtn) {
-        dom.addInventoryBtn.addEventListener('click', () => {
-            if (dom.modal) {
-                modals.open(dom.modal, 'Nuevo Repuesto');
-            } else {
-                console.error('❌ Modal no disponible para agregar repuesto');
-            }
-        });
-        console.log('✅ Event listener agregado para botón agregar inventario');
     }
 
-    // Event listeners para botones de editar/eliminar (delegación de eventos)
-    document.body.addEventListener('click', async function(event) {
-        const button = event.target.closest('button');
-        if (!button) return;
-
-        if (button.matches('.edit-inventory-btn')) {
-            if (!dom.modal) {
-                console.error('❌ Modal no disponible para editar repuesto');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_URL}/inventory/${button.dataset.id}`);
-                const result = await response.json();
-                modals.open(dom.modal, 'Editar Repuesto', result.data);
-            } catch (error) {
-                console.error('❌ Error al cargar datos para edición:', error);
-            }
-        } else if (button.matches('.delete-inventory-btn')) {
-            if (confirm('¿Estás seguro de que quieres eliminar este repuesto? Esta acción no se puede deshacer.')) {
-                try {
-                    await api.delete('inventory', button.dataset.id);
-                    fetchInventory();
-                } catch (error) {
-                    console.error('❌ Error al eliminar repuesto:', error);
-                }
-            }
-        }
-    });
-    
-    console.log('✅ Event listeners configurados correctamente');
-}
-
-// --- Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando sistema de inventario...');
-    
-    // Inicializar elementos DOM
-    if (!initializeDOMElements()) {
-        console.error('❌ Fallo en inicialización de elementos DOM');
-        return;
-    }
-    
-    // Configurar event listeners
-    setupEventListeners();
-    
-    // Configurar modal si está disponible
-    if (dom.modal) {
-        modals.setup(dom.modal, 'inventory', fetchInventory);
-        console.log('✅ Modal configurado');
-    } else {
-        console.warn('⚠️ Modal no disponible para configuración');
-    }
-    
-    // Cargar datos de inventario
-    fetchInventory();
-    
-    console.log('✅ Sistema de inventario inicializado correctamente');
-});
-
-
-// --- Render Functions ---
-function renderInventory(inventoryItems) {
-    if (!dom.inventoryList) {
-        console.error('❌ Elemento inventory-container no disponible para renderizar');
-        return;
-    }
-    
-    if (inventoryItems && inventoryItems.length > 0) {
-        const tableHTML = `
-            <div class="overflow-x-auto">
-                <table class="app-table">
-                    <thead>
-                        <tr>
-                            <th>Nombre</th>
-                            <th>SKU</th>
-                            <th>Stock Actual</th>
-                            <th>Stock Mínimo</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${inventoryItems.map(item => {
-                            const stockStatus = item.current_stock <= item.minimum_stock
-                                ? '<span class="status-badge danger">Bajo Stock</span>'
-                                : '<span class="status-badge success">En Stock</span>';
-
-                            return `
-                                <tr>
-                                    <td><div class="font-medium text-slate-900">${item.name}</div></td>
-                                    <td class="text-slate-500">${item.sku || 'N/A'}</td>
-                                    <td class="text-slate-500">${item.current_stock}</td>
-                                    <td class="text-slate-500">${item.minimum_stock}</td>
-                                    <td>${stockStatus}</td>
-                                    <td class="text-right">
-                                        <button class="p-1 text-slate-500 hover:text-sky-500 edit-inventory-btn" data-id="${item.id}" title="Editar repuesto">
-                                            <i data-lucide="edit" class="w-4 h-4"></i>
-                                        </button>
-                                        <button class="p-1 text-slate-500 hover:text-red-500 delete-inventory-btn" data-id="${item.id}" title="Eliminar repuesto">
-                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
+    getEmptyState(type, icon) {
+        return `
+            <div class="inventory-empty-state">
+                <i data-lucide="${icon}" class="w-16 h-16 text-gray-400 mx-auto mb-4"></i>
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">No hay ${type}</h3>
+                <p class="text-gray-500 mb-4">Comienza agregando el primer elemento</p>
             </div>
         `;
-        dom.inventoryList.innerHTML = tableHTML;
-    } else {
-        dom.inventoryList.innerHTML = `
-            <div class="text-center py-12">
-                <div class="mx-auto w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                    <i data-lucide="package" class="w-12 h-12 text-gray-400"></i>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-2">No hay repuestos registrados</h3>
-                <p class="text-gray-500 mb-6">Comienza agregando el primer repuesto al inventario</p>
-                <button class="btn-primary" onclick="document.getElementById('add-inventory-btn').click()">
-                    Agregar Primer Repuesto
+    }
+
+    showErrorState(containerId, message) {
+        const container = document.getElementById(containerId);
+        container.innerHTML = `
+            <div class="inventory-empty-state">
+                <i data-lucide="alert-circle" class="w-16 h-16 text-red-400 mx-auto mb-4"></i>
+                <h3 class="text-lg font-semibold text-gray-700 mb-2">Error</h3>
+                <p class="text-red-500 mb-4">${message}</p>
+                <button onclick="location.reload()" class="inventory-action-btn primary">
+                    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                    Reintentar
                 </button>
             </div>
         `;
+        lucide.createIcons();
     }
-    lucide.createIcons();
-}
 
-// --- API Calls ---
-async function fetchInventory() {
-    try {
-        console.log('📦 Cargando datos de inventario...');
-        const response = await fetch(`${API_URL}/inventory`);
-        state.inventory = (await response.json()).data;
-        renderInventory(state.inventory);
-        console.log(`✅ Inventario cargado: ${state.inventory.length} items`);
-    } catch (error) {
-        console.error("❌ Error fetching inventory:", error);
-        if (dom.inventoryList) {
-            dom.inventoryList.innerHTML = `
-                <div class="text-center py-12">
-                    <div class="mx-auto w-24 h-24 bg-red-100 rounded-full flex items-center justify-center mb-4">
-                        <i data-lucide="alert-circle" class="w-12 h-12 text-red-600"></i>
-                    </div>
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Error al cargar inventario</h3>
-                    <p class="text-red-500 mb-6">Ha ocurrido un error al cargar los datos del inventario</p>
-                    <button class="btn-primary" onclick="fetchInventory()">
-                        Reintentar
-                    </button>
-                </div>
-            `;
+    updateStats(tab, count) {
+        const statsElement = document.getElementById(`${tab}-stats`);
+        if (statsElement) {
+            let text = '';
+            switch (tab) {
+                case 'central': text = `${count} repuestos`; break;
+                case 'technicians': text = `${count} asignaciones`; break;
+                case 'orders': text = `${count} órdenes`; break;
+                case 'transactions': text = `${count} movimientos`; break;
+            }
+            statsElement.textContent = text;
         }
     }
+
+    showModal(modal) {
+        modal.style.display = 'flex';
+        document.body.classList.add('modal-open');
+        setTimeout(() => {
+            modal.classList.add('is-open');
+        }, 10);
+    }
+
+    closeModal(modal) {
+        modal.classList.remove('is-open');
+        document.body.classList.remove('modal-open');
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+
+    populateForm(form, data) {
+        Object.keys(data).forEach(key => {
+            const input = form.querySelector(`[name="${key}"]`);
+            if (input) {
+                input.value = data[key] || '';
+            }
+        });
+    }
+
+    populateTechnicianSelects() {
+        const selects = document.querySelectorAll('select[name="technician_id"], #technician-filter');
+        selects.forEach(select => {
+            if (select.id === 'technician-filter') {
+                select.innerHTML = '<option value="">Todos los técnicos</option>';
+            } else {
+                select.innerHTML = '<option value="">Seleccionar técnico</option>';
+            }
+            
+            this.data.technicians.forEach(tech => {
+                const option = document.createElement('option');
+                option.value = tech.id;
+                option.textContent = tech.name;
+                select.appendChild(option);
+            });
+        });
+    }
+
+    populateSparePartSelects() {
+        const selects = document.querySelectorAll('select[name="spare_part_id"]');
+        selects.forEach(select => {
+            select.innerHTML = '<option value="">Seleccionar repuesto</option>';
+            
+            this.data.spareParts.forEach(part => {
+                const option = document.createElement('option');
+                option.value = part.id;
+                option.textContent = `${part.name} (Stock: ${part.current_stock})`;
+                select.appendChild(option);
+            });
+        });
+    }
+
+    formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleDateString('es-CL');
+    }
+
+    formatDateTime(dateString) {
+        if (!dateString) return 'N/A';
+        return new Date(dateString).toLocaleString('es-CL');
+    }
+
+    getOrderStatusText(status) {
+        const statusMap = {
+            'pendiente': 'Pendiente',
+            'en-transito': 'En Tránsito',
+            'recibida': 'Recibida',
+            'cancelada': 'Cancelada'
+        };
+        return statusMap[status] || status;
+    }
+
+    getTransactionTypeText(type) {
+        const typeMap = {
+            'entrada': 'Entrada',
+            'salida': 'Salida',
+            'asignacion': 'Asignación',
+            'devolucion': 'Devolución'
+        };
+        return typeMap[type] || type;
+    }
+
+    getTransactionIcon(type) {
+        const iconMap = {
+            'entrada': 'plus-circle',
+            'salida': 'minus-circle',
+            'asignacion': 'user-plus',
+            'devolucion': 'corner-up-left'
+        };
+        return iconMap[type] || 'circle';
+    }
+
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `inventory-alert ${type}`;
+        notification.innerHTML = `
+            <i data-lucide="${type === 'error' ? 'alert-circle' : 'info'}" class="w-5 h-5"></i>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(notification);
+        lucide.createIcons();
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 5000);
+    }
+
+    // Placeholder methods for API calls (to be implemented)
+    async saveInventoryItem() {
+        console.log('💾 Guardando repuesto...');
+        this.showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    async savePurchaseOrder() {
+        console.log('💾 Guardando orden de compra...');
+        this.showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    async assignToTechnician() {
+        console.log('💾 Asignando a técnico...');
+        this.showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    async editInventoryItem(id) {
+        console.log(`✏️ Editando repuesto ${id}...`);
+        this.showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    async deleteInventoryItem(id) {
+        if (confirm('¿Estás seguro de que quieres eliminar este repuesto?')) {
+            console.log(`🗑️ Eliminando repuesto ${id}...`);
+            this.showNotification('Funcionalidad en desarrollo', 'info');
+        }
+    }
+
+    async receiveOrder(id) {
+        console.log(`📦 Marcando orden ${id} como recibida...`);
+        this.showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    async cancelOrder(id) {
+        if (confirm('¿Estás seguro de que quieres cancelar esta orden?')) {
+            console.log(`❌ Cancelando orden ${id}...`);
+            this.showNotification('Funcionalidad en desarrollo', 'info');
+        }
+    }
+
+    async returnFromTechnician(technicianId, itemId) {
+        console.log(`↩️ Devolviendo repuesto ${itemId} del técnico ${technicianId}...`);
+        this.showNotification('Funcionalidad en desarrollo', 'info');
+    }
+
+    addOrderItem() {
+        const container = document.getElementById('order-items-container');
+        const itemHtml = `
+            <div class="order-item">
+                <div class="order-item-content">
+                    <select name="spare_part_id" class="base-form-input" required>
+                        <option value="">Seleccionar repuesto</option>
+                        ${this.data.spareParts.map(part => 
+                            `<option value="${part.id}">${part.name}</option>`
+                        ).join('')}
+                    </select>
+                    <input type="number" name="quantity" placeholder="Cantidad" class="base-form-input" min="1" required>
+                    <input type="number" name="unit_price" placeholder="Precio unitario" class="base-form-input" min="0" step="0.01">
+                </div>
+                <button type="button" class="order-item-remove">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                </button>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', itemHtml);
+        lucide.createIcons();
+    }
+
+    handleSearch(searchTerm) {
+        console.log(`🔍 Buscando: ${searchTerm}`);
+        // Implementar lógica de búsqueda
+    }
+
+    handleFilter(filterType, value) {
+        console.log(`🔽 Filtro ${filterType}: ${value}`);
+        // Implementar lógica de filtrado
+    }
 }
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    // Inicializar los iconos de Lucide
+    lucide.createIcons();
+    
+    // Inicializar el manager de inventario después de que el DOM esté listo
+    setTimeout(() => {
+        if (typeof InventoryManager !== 'undefined') {
+            window.inventoryManager = new InventoryManager();
+        } else {
+            console.error('❌ InventoryManager no está disponible');
+        }
+    }, 100);
+});
 
  

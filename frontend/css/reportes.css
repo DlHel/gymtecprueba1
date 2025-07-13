@@ -1,0 +1,766 @@
+/* CSS del Sistema de Reportes Mejorado - Gymtec ERP */
+
+/* === ESTADÍSTICAS RÁPIDAS === */
+.reports-stat-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.reports-stat-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.reports-stat-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.reports-stat-icon.blue {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.reports-stat-icon.green {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.reports-stat-icon.orange {
+    background-color: #fed7aa;
+    color: #ea580c;
+}
+
+.reports-stat-icon.purple {
+    background-color: #e9d5ff;
+    color: #7c3aed;
+}
+
+.reports-stat-content {
+    flex: 1;
+}
+
+.reports-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.2;
+}
+
+.reports-stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+}
+
+/* === TARJETAS DE TIPOS DE REPORTES === */
+.report-type-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.25rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.report-type-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    transform: translateY(-2px);
+}
+
+.report-type-card.selected {
+    border-color: #3b82f6;
+    background-color: #eff6ff;
+}
+
+.report-type-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 0.5rem;
+}
+
+.report-type-icon.technical {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.report-type-icon.tickets {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+}
+
+.report-type-icon.clients {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.report-type-icon.equipment {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+}
+
+.report-type-icon.inventory {
+    background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+    color: white;
+}
+
+.report-type-icon.financial {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.report-type-content {
+    flex: 1;
+}
+
+.report-type-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.5rem 0;
+}
+
+.report-type-description {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0 0 0.75rem 0;
+    line-height: 1.4;
+}
+
+.report-type-tags {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.tag {
+    background-color: #f3f4f6;
+    color: #374151;
+    padding: 0.125rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+/* === CONTENEDOR DE REPORTES === */
+.reports-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+}
+
+.reports-table-header {
+    padding: 1rem;
+    border-bottom: 1px solid #e5e7eb;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.reports-table-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.reports-table-container {
+    padding: 0;
+}
+
+.reports-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* === ITEMS DE REPORTE === */
+.report-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid #f3f4f6;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.report-item:hover {
+    background-color: #f8fafc;
+}
+
+.report-item:last-child {
+    border-bottom: none;
+}
+
+.report-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+}
+
+.report-icon.pdf {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.report-icon.excel {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.report-icon.csv {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.report-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.report-basic {
+    flex: 1;
+    min-width: 0;
+}
+
+.report-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.125rem 0;
+    line-height: 1.3;
+}
+
+.report-type {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.report-status {
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    flex-shrink: 0;
+}
+
+.report-status.completed {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.report-status.processing {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.report-status.failed {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.report-meta {
+    font-size: 0.6875rem;
+    color: #6b7280;
+    min-width: 120px;
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.report-actions {
+    display: flex;
+    gap: 0.375rem;
+    align-items: center;
+    margin-left: 1rem;
+    flex-shrink: 0;
+}
+
+.report-action-btn {
+    padding: 0.375rem 0.75rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    text-decoration: none;
+    line-height: 1.25;
+}
+
+.report-action-btn.download {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+.report-action-btn.download:hover {
+    background-color: #bfdbfe;
+    border-color: #93c5fd;
+}
+
+.report-action-btn.view {
+    background-color: #f3f4f6;
+    color: #374151;
+    border: 1px solid #d1d5db;
+}
+
+.report-action-btn.view:hover {
+    background-color: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.report-action-btn.delete {
+    background-color: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+.report-action-btn.delete:hover {
+    background-color: #fecaca;
+    border-color: #f87171;
+}
+
+/* === FORMULARIO DE REPORTES === */
+.reports-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.reports-form-section {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    background-color: #fafafa;
+}
+
+.reports-form-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 1rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.reports-form-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.reports-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    color: #374151;
+}
+
+.reports-checkbox input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid #d1d5db;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.reports-checkbox input:checked + .checkmark {
+    background-color: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.reports-checkbox input:checked + .checkmark:after {
+    content: '✓';
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+/* === VISTA PREVIA === */
+.report-preview-container {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 2rem;
+    min-height: 400px;
+    font-family: 'Times New Roman', serif;
+}
+
+.report-preview-header {
+    text-align: center;
+    border-bottom: 2px solid #3b82f6;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+.report-preview-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin: 0 0 0.5rem 0;
+}
+
+.report-preview-subtitle {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.report-preview-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    padding: 1rem;
+    background-color: #f8fafc;
+    border-radius: 6px;
+}
+
+.report-preview-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.report-preview-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.report-preview-value {
+    font-size: 0.875rem;
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.report-preview-content {
+    line-height: 1.6;
+    color: #374151;
+}
+
+.report-preview-section {
+    margin-bottom: 1.5rem;
+}
+
+.report-preview-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 0.75rem 0;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+/* === ESTADOS DE CARGA Y VACÍO === */
+.reports-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+}
+
+.reports-loading-spinner {
+    width: 2rem;
+    height: 2rem;
+    border: 3px solid #e5e7eb;
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.reports-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    text-align: center;
+    color: #6b7280;
+}
+
+.reports-empty-state i {
+    width: 4rem;
+    height: 4rem;
+    margin-bottom: 1rem;
+    color: #d1d5db;
+}
+
+.reports-empty-state h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #374151;
+}
+
+.reports-empty-state p {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* === RESPONSIVIDAD === */
+@media (max-width: 768px) {
+    .reports-stat-card {
+        padding: 0.75rem;
+    }
+
+    .reports-stat-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
+    .reports-stat-value {
+        font-size: 1.25rem;
+    }
+
+    .report-type-card {
+        padding: 1rem;
+    }
+
+    .report-type-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+
+    .report-item {
+        padding: 0.5rem 0.75rem;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .report-icon {
+        width: 2rem;
+        height: 2rem;
+        margin-right: 0.5rem;
+    }
+
+    .report-info {
+        flex: 1;
+        gap: 0.5rem;
+    }
+
+    .report-name {
+        font-size: 0.8125rem;
+    }
+
+    .report-type {
+        font-size: 0.6875rem;
+    }
+
+    .report-status {
+        font-size: 0.625rem;
+        padding: 0.0625rem 0.375rem;
+    }
+
+    .report-meta {
+        min-width: 100px;
+        font-size: 0.625rem;
+    }
+
+    .report-actions {
+        gap: 0.25rem;
+        margin-left: 0.5rem;
+    }
+
+    .report-action-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.625rem;
+    }
+
+    .reports-table-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+    }
+
+    .reports-table-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .reports-form-section {
+        padding: 0.75rem;
+    }
+
+    .report-preview-container {
+        padding: 1rem;
+    }
+
+    .report-preview-info {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .reports-stat-card {
+        padding: 0.5rem;
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .reports-stat-icon {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .reports-stat-value {
+        font-size: 1rem;
+    }
+
+    .reports-stat-label {
+        font-size: 0.75rem;
+    }
+
+    .report-type-card {
+        padding: 0.75rem;
+    }
+
+    .report-item {
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 0.75rem;
+        gap: 0.5rem;
+    }
+
+    .report-icon {
+        align-self: flex-start;
+        margin-right: 0;
+    }
+
+    .report-info {
+        width: 100%;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .report-meta {
+        width: 100%;
+        text-align: left;
+        min-width: auto;
+    }
+
+    .report-actions {
+        width: 100%;
+        justify-content: space-between;
+        margin-left: 0;
+    }
+
+    .report-action-btn {
+        flex: 1;
+        justify-content: center;
+        min-width: 60px;
+    }
+}
+
+/* === ALERTAS Y NOTIFICACIONES === */
+.reports-alert {
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.reports-alert.success {
+    background-color: #dcfce7;
+    color: #166534;
+    border-color: #bbf7d0;
+}
+
+.reports-alert.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border-color: #fecaca;
+}
+
+.reports-alert.info {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border-color: #bfdbfe;
+}
+
+.reports-alert.warning {
+    background-color: #fef3c7;
+    color: #92400e;
+    border-color: #fde68a;
+}
+
+/* === UTILIDADES === */
+.hidden {
+    display: none !important;
+}
+
+.required {
+    color: #dc2626;
+}
+
+.base-form-help {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+}
+
+/* === MODALES ESPECÍFICOS === */
+.modal-large {
+    max-width: 900px;
+}
+
+.modal-xl {
+    max-width: 1200px;
+} 

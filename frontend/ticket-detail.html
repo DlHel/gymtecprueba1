@@ -4,394 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalle del Ticket - Gymtec ERP</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/ticket-detail.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        /* Estilos específicos para el detalle de tickets */
-        .ticket-detail-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 1.5rem;
-        }
-        
-        .ticket-header {
-            background: white;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-            border-left: 4px solid var(--primary-600);
-        }
-        
-        .ticket-status-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.375rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.025em;
-        }
-        
-        .status-abierto { background-color: #dbeafe; color: #1e40af; }
-        .status-en-progreso { background-color: #fef3c7; color: #b45309; }
-        .status-en-espera { background-color: #fde68a; color: #92400e; }
-        .status-resuelto { background-color: #d1fae5; color: #065f46; }
-        .status-cerrado { background-color: #f3f4f6; color: #374151; }
-        
-        .priority-badge {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .priority-baja { background-color: #f0f9ff; color: #0369a1; }
-        .priority-media { background-color: #fef3c7; color: #b45309; }
-        .priority-alta { background-color: #fee2e2; color: #b91c1c; }
-        .priority-urgente { background-color: #fecaca; color: #991b1b; }
-        
-        .sla-indicator {
-            display: inline-flex;
-            align-items: center;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .sla-green { background-color: #dcfce7; color: #166534; }
-        .sla-yellow { background-color: #fef3c7; color: #b45309; }
-        .sla-red { background-color: #fee2e2; color: #b91c1c; }
-        
-        .detail-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 1rem;
-            margin-top: 1rem;
-        }
-        
-        .detail-item {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .detail-label {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.25rem;
-        }
-        
-        .detail-value {
-            font-size: 0.875rem;
-            color: #111827;
-            font-weight: 500;
-        }
-        
-        .section-card {
-            background: white;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-        }
-        
-        .section-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .timer-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            text-align: center;
-        }
-        
-        .timer-display {
-            font-size: 2.5rem;
-            font-weight: 700;
-            font-family: 'Courier New', monospace;
-            margin-bottom: 1rem;
-        }
-        
-        .timer-controls {
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-        }
-        
-        .timer-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .timer-start {
-            background-color: #10b981;
-            color: white;
-        }
-        
-        .timer-start:hover {
-            background-color: #059669;
-        }
-        
-        .timer-stop {
-            background-color: #ef4444;
-            color: white;
-        }
-        
-        .timer-stop:hover {
-            background-color: #dc2626;
-        }
-        
-        .time-entry-item, .time-entry-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: #f9fafb;
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-        
-        .checklist-item {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem;
-            background: #f9fafb;
-            border-radius: 0.5rem;
-            margin-bottom: 0.5rem;
-            transition: all 0.2s;
-        }
-        
-        .checklist-item.completed {
-            background: #ecfdf5;
-            border-left: 3px solid #10b981;
-        }
-        
-        .checklist-checkbox, .form-checkbox {
-            margin-right: 0.75rem;
-            width: 1.25rem;
-            height: 1.25rem;
-            cursor: pointer;
-        }
-        
-        .note-item, .note-card {
-            padding: 1rem;
-            background: #f9fafb;
-            border-radius: 0.5rem;
-            margin-bottom: 0.75rem;
-            border-left: 3px solid #e5e7eb;
-        }
-        
-        .note-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-        
-        .note-type, .note-type-badge {
-            font-size: 0.75rem;
-            font-weight: 600;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.25rem;
-            text-transform: uppercase;
-        }
-        
-        .note-type-comentario { background-color: #e0e7ff; color: #3730a3; }
-        .note-type-diagnostico { background-color: #fef3c7; color: #b45309; }
-        .note-type-solucion { background-color: #dcfce7; color: #166534; }
-        .note-type-seguimiento { background-color: #f3e8ff; color: #7c3aed; }
-        
-        .photo-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
-        }
-        
-        .photo-item, .photo-card, .photo-thumbnail {
-            position: relative;
-            aspect-ratio: 1;
-            border-radius: 0.5rem;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        
-        .photo-item:hover, .photo-card:hover {
-            transform: scale(1.02);
-        }
-        
-        .photo-overlay, .photo-info {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background: linear-gradient(transparent, rgba(0,0,0,0.7));
-            color: white;
-            padding: 0.5rem;
-            font-size: 0.75rem;
-        }
-        
-        .photo-type {
-            font-size: 0.6rem;
-            text-transform: uppercase;
-            opacity: 0.8;
-        }
-        
-        .action-buttons {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-        
-        .action-btn {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            font-weight: 500;
-            transition: all 0.2s;
-            border: none;
-            cursor: pointer;
-            text-decoration: none;
-        }
-        
-        .btn-primary-action {
-            background-color: var(--primary-600);
-            color: white;
-        }
-        
-        .btn-primary-action:hover {
-            background-color: var(--primary-700);
-        }
-        
-        .btn-secondary-action {
-            background-color: #f3f4f6;
-            color: #374151;
-            border: 1px solid #d1d5db;
-        }
-        
-        .btn-secondary-action:hover {
-            background-color: #e5e7eb;
-        }
-        
-        .tabs-container {
-            border-bottom: 1px solid #e5e7eb;
-            margin-bottom: 1.5rem;
-        }
-        
-        .tabs-nav {
-            display: flex;
-            gap: 0;
-        }
-        
-        .tab-button {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            background: transparent;
-            color: #6b7280;
-            font-weight: 500;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-        }
-        
-        .tab-button.active {
-            color: var(--primary-600);
-            border-bottom-color: var(--primary-600);
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .stat-card {
-            background: white;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            border-left: 3px solid var(--primary-600);
-        }
-        
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #111827;
-        }
-        
-        .stat-label {
-            font-size: 0.75rem;
-            color: #6b7280;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        
-        .spare-part-card {
-            padding: 1rem;
-            background: #f9fafb;
-            border-radius: 0.5rem;
-            margin-bottom: 0.75rem;
-            border-left: 3px solid #e5e7eb;
-        }
-        
-        @media (max-width: 768px) {
-            .ticket-detail-container {
-                padding: 1rem;
-            }
-            
-            .detail-grid {
-                grid-template-columns: 1fr;
-            }
-            
-            .timer-display {
-                font-size: 2rem;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-            }
-            
-            .tabs-nav {
-                overflow-x: auto;
-            }
-        }
-    </style>
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen">
@@ -399,179 +18,188 @@
         <div id="menu-placeholder"></div>
 
         <!-- Contenedor principal -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col">
             <!-- Header -->
-            <header class="app-header z-20">
+            <header class="app-header">
                 <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
                     <div class="flex items-center space-x-4">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
                         <a href="tickets.html" class="p-2 rounded-md hover:bg-gray-200 transition-colors" title="Volver a Tickets">
                             <i data-lucide="arrow-left" class="h-5 w-5"></i>
                         </a>
                         <h1 id="page-title" class="text-xl font-bold text-gray-800">Detalle del Ticket</h1>
                     </div>
-                    <div class="user-info">
-                        Felipe Maturana (Admin)
+                    <div class="flex items-center space-x-3">
+                        <!-- Atajos de teclado -->
+                        <div class="hidden md:flex items-center space-x-2 text-sm text-gray-500">
+                            <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+S</kbd>
+                            <span>Guardar</span>
+                            <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+P</kbd>
+                            <span>Imprimir</span>
+                        </div>
+                        <!-- Acciones principales -->
+                        <div class="flex items-center space-x-2">
+                            <button id="print-ticket-btn" class="p-2 rounded-md hover:bg-gray-200 transition-colors" title="Imprimir ticket (Ctrl+P)">
+                                <i data-lucide="printer" class="h-5 w-5"></i>
+                            </button>
+                            <button id="edit-ticket-btn" class="btn-primary" title="Editar ticket">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                                Editar
+                            </button>
+                        </div>
+                        <div class="user-info">
+                            Felipe Maturana (Admin)
+                        </div>
                     </div>
                 </div>
             </header>
             
             <!-- Contenido principal -->
-            <main class="flex-1 overflow-y-auto bg-gray-50">
+            <main class="flex-1 bg-gray-50">
                 <div class="ticket-detail-container">
                     <!-- Estado de carga -->
-                    <div id="loading-state" class="text-center py-12">
-                        <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-4"></div>
-                        <p class="text-gray-500">Cargando detalles del ticket...</p>
+                    <div id="loading-state" class="flex items-center justify-center h-full">
+                        <div class="text-center">
+                            <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-4"></div>
+                            <p class="text-gray-500">Cargando detalles del ticket...</p>
+                        </div>
                     </div>
 
                     <!-- Contenido del ticket -->
-                    <div id="ticket-content" class="hidden">
-                        <!-- Header del ticket -->
-                        <div class="ticket-header" id="ticket-header">
+                    <div id="ticket-content" class="hidden h-full flex flex-col">
+                        <!-- Header del ticket con información principal -->
+                        <div class="ticket-detail-header-improved" id="ticket-header">
                             <!-- Se cargará dinámicamente -->
                         </div>
 
-                        <!-- Estadísticas rápidas -->
-                        <div class="stats-grid" id="ticket-stats">
-                            <!-- Se cargará dinámicamente -->
-                        </div>
-
-                        <!-- Acciones Rápidas - Siempre visibles -->
-                        <div class="section-card sticky top-4 z-10 bg-white shadow-lg border border-gray-200">
-                            <div class="mb-3">
-                                <h3 class="text-sm font-semibold text-gray-700 mb-3">Acciones Rápidas</h3>
-                                <div class="flex flex-wrap gap-2" id="quick-actions">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
+                        <!-- Contenido unificado -->
+                        <div class="ticket-tabs-container-improved flex-1 flex flex-col">
+                            <!-- Título simple -->
+                            <div class="ticket-simple-header">
+                                <h3 class="ticket-simple-title">
+                                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                                    Detalle del Ticket
+                                </h3>
                             </div>
-                        </div>
 
-                        <!-- Pestañas principales -->
-                        <div class="tabs-container">
-                            <nav class="tabs-nav">
-                                <button class="tab-button active" data-tab="overview">Resumen</button>
-                                <button class="tab-button" data-tab="time-tracking">Control de Tiempo</button>
-                                <button class="tab-button" data-tab="checklist">Checklist</button>
-                                <button class="tab-button" data-tab="notes">Notas</button>
-                                <button class="tab-button" data-tab="spare-parts">Repuestos</button>
-                                <button class="tab-button" data-tab="photos">Fotos</button>
-                                <button class="tab-button" data-tab="history">Historial</button>
-                            </nav>
-                        </div>
+                            <!-- Contenido unificado -->
+                            <div class="ticket-content-wrapper flex-1">
+                                <div class="ticket-unified-layout">
+                                    <!-- Información principal -->
+                                    <div class="ticket-main-content">
+                                        <div class="ticket-section-card">
+                                            <div class="ticket-section-header">
+                                                <h3 class="ticket-section-title">
+                                                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                                                    Descripción del Problema
+                                                </h3>
+                                            </div>
+                                            <div id="ticket-description" class="ticket-description-content">
+                                                <!-- Se cargará dinámicamente -->
+                                            </div>
+                                        </div>
 
-                        <!-- Contenido de las pestañas -->
-                        <div id="tab-overview" class="tab-content active">
-                            <!-- Resumen general -->
-                            <div class="section-card">
-                                <h3 class="section-title">Información del Problema</h3>
-                                <div id="ticket-description">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
+                                        <!-- Sección de Agregar Nota -->
+                                        <div class="ticket-section-card">
+                                            <div class="ticket-section-header">
+                                                <h3 class="ticket-section-title">
+                                                    <i data-lucide="sticky-note" class="w-5 h-5"></i>
+                                                    Agregar Nota
+                                                </h3>
+                                            </div>
+                                            <div class="ticket-add-note-form">
+                                                <textarea id="new-note-text" class="ticket-note-textarea" placeholder="Escribe una nota sobre este ticket..."></textarea>
+                                                <button id="add-note-btn" class="ticket-action-btn primary">
+                                                    <i data-lucide="plus" class="w-4 h-4"></i>
+                                                    Agregar Nota
+                                                </button>
+                                            </div>
+                                        </div>
 
-                        <div id="tab-time-tracking" class="tab-content">
-                            <div class="section-card">
-                                <div class="timer-container">
-                                    <div class="timer-display" id="timer-display">00:00:00</div>
-                                    <div class="timer-controls">
-                                        <button id="timer-btn" class="timer-btn timer-start">
-                                            <i data-lucide="play" class="w-4 h-4"></i>
-                                            Iniciar
-                                        </button>
+                                        <!-- Sección de Agregar Foto -->
+                                        <div class="ticket-section-card">
+                                            <div class="ticket-section-header">
+                                                <h3 class="ticket-section-title">
+                                                    <i data-lucide="camera" class="w-5 h-5"></i>
+                                                    Agregar Foto
+                                                </h3>
+                                            </div>
+                                            <div class="ticket-add-photo-form">
+                                                <input type="file" id="photo-input" class="ticket-photo-input" accept="image/*" style="display: none;">
+                                                <button id="add-photo-btn" class="ticket-action-btn primary">
+                                                    <i data-lucide="camera" class="w-4 h-4"></i>
+                                                    Seleccionar Foto
+                                                </button>
+                                                <div id="photo-preview" class="ticket-photo-preview hidden">
+                                                    <img id="preview-image" class="ticket-preview-image" alt="Vista previa">
+                                                    <button id="upload-photo-btn" class="ticket-action-btn primary">
+                                                        <i data-lucide="upload" class="w-4 h-4"></i>
+                                                        Subir Foto
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Galería de Fotos -->
+                                        <div class="ticket-section-card">
+                                            <div class="ticket-section-header">
+                                                <h3 class="ticket-section-title">
+                                                    <i data-lucide="image" class="w-5 h-5"></i>
+                                                    Fotos del Ticket
+                                                </h3>
+                                            </div>
+                                            <div id="photos-grid" class="ticket-photos-grid-improved">
+                                                <!-- Se cargará dinámicamente -->
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            </div>
 
-                            <div class="section-card">
-                                <h3 class="section-title">Historial de Tiempo</h3>
-                                <div id="time-entries-list">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
+                                    <!-- Estadísticas laterales -->
+                                    <div class="ticket-sidebar-content">
+                                        <div class="ticket-section-card">
+                                            <div class="ticket-section-header">
+                                                <h3 class="ticket-section-title">
+                                                    <i data-lucide="bar-chart-3" class="w-5 h-5"></i>
+                                                    Estadísticas
+                                                </h3>
+                                            </div>
+                                            <div class="ticket-stats-vertical" id="ticket-stats">
+                                                <!-- Se cargará dinámicamente -->
+                                            </div>
+                                        </div>
 
-                        <div id="tab-checklist" class="tab-content">
-                            <div class="section-card">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h3 class="section-title mb-0">Lista de Verificación</h3>
-                                    <button id="add-checklist-btn" class="btn-primary flex items-center gap-2">
-                                        <i data-lucide="plus" class="w-4 h-4"></i>
-                                        Agregar Ítem
-                                    </button>
-                                </div>
-                                <div id="checklist-items">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="tab-notes" class="tab-content">
-                            <div class="section-card">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h3 class="section-title mb-0">Notas del Ticket</h3>
-                                    <button id="add-note-btn" class="btn-primary flex items-center gap-2">
-                                        <i data-lucide="plus" class="w-4 h-4"></i>
-                                        Agregar Nota
-                                    </button>
-                                </div>
-                                <div id="notes-list">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="tab-spare-parts" class="tab-content">
-                            <div class="section-card">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h3 class="section-title mb-0">Repuestos Utilizados</h3>
-                                    <button id="add-spare-part-btn" class="btn-primary flex items-center gap-2">
-                                        <i data-lucide="plus" class="w-4 h-4"></i>
-                                        Agregar Repuesto
-                                    </button>
-                                </div>
-                                <div id="spare-parts-list">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="tab-photos" class="tab-content">
-                            <div class="section-card">
-                                <div class="flex justify-between items-center mb-4">
-                                    <h3 class="section-title mb-0">Fotos del Servicio</h3>
-                                    <button id="add-photo-btn" class="btn-primary flex items-center gap-2">
-                                        <i data-lucide="plus" class="w-4 h-4"></i>
-                                        Agregar Foto
-                                    </button>
-                                </div>
-                                <div id="photos-grid" class="photo-grid">
-                                    <!-- Se cargará dinámicamente -->
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="tab-history" class="tab-content">
-                            <div class="section-card">
-                                <h3 class="section-title">Historial de Cambios</h3>
-                                <div id="history-list">
-                                    <!-- Se cargará dinámicamente -->
+                                        <div class="ticket-section-card">
+                                            <div class="ticket-section-header">
+                                                <h3 class="ticket-section-title">
+                                                    <i data-lucide="activity" class="w-5 h-5"></i>
+                                                    Estado del Ticket
+                                                </h3>
+                                            </div>
+                                            <div class="ticket-status-actions" id="status-actions">
+                                                <!-- Se cargará dinámicamente -->
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Estado de error -->
-                    <div id="error-state" class="text-center py-12 hidden">
-                        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <i data-lucide="alert-circle" class="w-8 h-8 text-red-600"></i>
+                    <div id="error-state" class="flex items-center justify-center h-full hidden">
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i data-lucide="alert-circle" class="w-8 h-8 text-red-600"></i>
+                            </div>
+                            <h3 class="text-lg font-semibold text-gray-900 mb-2">Error al cargar el ticket</h3>
+                            <p id="error-message" class="text-gray-500 mb-4">Ha ocurrido un error al cargar los detalles del ticket.</p>
+                            <button onclick="location.reload()" class="btn-primary">
+                                <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                                Reintentar
+                            </button>
                         </div>
-                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Error al cargar el ticket</h3>
-                        <p id="error-message" class="text-gray-500 mb-4">Ha ocurrido un error al cargar los detalles del ticket.</p>
-                        <button onclick="location.reload()" class="btn-primary">
-                            <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
-                            Reintentar
-                        </button>
                     </div>
                 </div>
             </main>

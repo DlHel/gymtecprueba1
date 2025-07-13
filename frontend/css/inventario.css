@@ -1,32 +1,749 @@
-/* ============================================
-   INVENTARIO CSS - MIGRADO AL SISTEMA UNIFICADO
-   ============================================ */
+/* CSS del Sistema de Inventario Mejorado - Gymtec ERP */
 
-/* 
-   NOTA: El modal de inventario ha sido migrado al sistema unificado de modales.
-   Todas las clases específicas (.inventory-modal, .inventory-form-*, etc.) 
-   han sido reemplazadas por las clases base (.base-modal, .base-form-*, etc.)
-   
-   El CSS específico del modal se ha eliminado para evitar duplicación.
-   Los estilos ahora se heredan del sistema unificado en style.css
-*/
+/* === CONTENEDOR PRINCIPAL === */
+.inventory-container {
+    background-color: #ffffff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
 
-/* Estilos específicos de inventario que NO son modales pueden ir aquí */
-.inventory-status-badge {
-    padding: 0.25rem 0.5rem;
+/* === PESTAÑAS DE NAVEGACIÓN === */
+.tab-button {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: none;
+    color: #6b7280;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+}
+
+.tab-button:hover {
+    color: #374151;
+    background-color: #f9fafb;
+}
+
+.tab-button.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background-color: #eff6ff;
+}
+
+/* === CONTENIDO DE PESTAÑAS === */
+.tab-content {
+    display: none;
+    background-color: #f8fafc;
+    border-radius: 0 0 8px 8px;
+    min-height: 300px;
+    padding: 1rem;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* === TARJETAS DE INVENTARIO === */
+.inventory-item-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.inventory-item-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    border-color: #3b82f6;
+    transform: translateY(-1px);
+}
+
+.inventory-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.inventory-item-name {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+    line-height: 1.3;
+}
+
+.inventory-item-sku {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-family: monospace;
+    margin-top: 0.125rem;
+}
+
+.inventory-item-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    flex-shrink: 0;
+}
+
+.inventory-item-status.disponible {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.inventory-item-status.bajo-stock {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.inventory-item-status.agotado {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.inventory-item-status.en-pedido {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.inventory-item-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+    align-items: center;
+}
+
+.inventory-item-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 80px;
+}
+
+.inventory-item-detail-label {
+    font-size: 0.625rem;
+    color: #6b7280;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    line-height: 1.2;
+}
+
+.inventory-item-detail-value {
+    font-size: 0.8125rem;
+    color: #1f2937;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.inventory-item-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.375rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+/* === BOTONES DE ACCIÓN === */
+.inventory-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.75rem;
     border-radius: 0.375rem;
     font-size: 0.75rem;
     font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
 }
 
-.inventory-status-low {
-    background-color: #fef2f2;
+.inventory-action-btn.primary {
+    background-color: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.inventory-action-btn.primary:hover {
+    background-color: #2563eb;
+    border-color: #2563eb;
+}
+
+.inventory-action-btn.secondary {
+    background-color: #6b7280;
+    color: white;
+    border-color: #6b7280;
+}
+
+.inventory-action-btn.secondary:hover {
+    background-color: #4b5563;
+    border-color: #4b5563;
+}
+
+.inventory-action-btn.danger {
+    background-color: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.inventory-action-btn.danger:hover {
+    background-color: #dc2626;
+    border-color: #dc2626;
+}
+
+.inventory-action-btn.outline {
+    background-color: transparent;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+
+.inventory-action-btn.outline:hover {
+    background-color: #f9fafb;
+    color: #374151;
+    border-color: #9ca3af;
+}
+
+/* === TARJETAS DE TÉCNICOS === */
+.technician-inventory-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.technician-inventory-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.technician-inventory-header {
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    color: white;
+    padding: 0.75rem;
+}
+
+.technician-name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+}
+
+.technician-role {
+    font-size: 0.875rem;
+    opacity: 0.9;
+}
+
+.technician-stats {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+}
+
+.technician-stat {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+}
+
+.technician-inventory-content {
+    padding: 0.75rem;
+}
+
+.technician-inventory-empty {
+    text-align: center;
+    padding: 2rem;
+    color: #6b7280;
+}
+
+.technician-inventory-empty i {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 0.5rem;
+    color: #d1d5db;
+}
+
+/* === ÓRDENES DE COMPRA === */
+.purchase-order-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.purchase-order-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.purchase-order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+}
+
+.purchase-order-number {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.purchase-order-supplier {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.purchase-order-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.purchase-order-status.pendiente {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.purchase-order-status.en-transito {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.purchase-order-status.recibida {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.purchase-order-status.cancelada {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.purchase-order-items {
+    margin-bottom: 1rem;
+}
+
+.purchase-order-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.purchase-order-item:last-child {
+    border-bottom: none;
+}
+
+.purchase-order-item-name {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.purchase-order-item-quantity {
+    color: #6b7280;
+    font-size: 0.875rem;
+}
+
+.purchase-order-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+/* === TRANSACCIONES === */
+.transaction-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.transaction-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-1px);
+}
+
+.transaction-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.transaction-type {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.transaction-date {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.transaction-details {
+    font-size: 0.875rem;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.transaction-type.entrada {
+    color: #059669;
+}
+
+.transaction-type.salida {
     color: #dc2626;
 }
 
-.inventory-status-ok {
-    background-color: #f0fdf4;
-    color: #16a34a;
+.transaction-type.asignacion {
+    color: #2563eb;
 }
 
-/* Cualquier otro estilo específico de inventario (no modales) */ 
+.transaction-type.devolucion {
+    color: #7c3aed;
+}
+
+/* === ELEMENTOS DE ORDEN DE COMPRA === */
+.order-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    background: #f9fafb;
+}
+
+.order-item-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.order-item-remove {
+    background: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: background-color 0.2s ease;
+}
+
+.order-item-remove:hover {
+    background: #dc2626;
+}
+
+/* === ESTADOS VACÍOS Y LOADING === */
+.inventory-empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: #6b7280;
+}
+
+.inventory-empty-state i {
+    width: 4rem;
+    height: 4rem;
+    margin: 0 auto 1rem;
+    color: #d1d5db;
+}
+
+.inventory-empty-state h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+}
+
+.inventory-empty-state p {
+    margin-bottom: 1.5rem;
+    max-width: 300px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.inventory-loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+}
+
+.inventory-loading-spinner {
+    width: 3rem;
+    height: 3rem;
+    border: 4px solid #f3f4f6;
+    border-top: 4px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* === ALERTAS Y NOTIFICACIONES === */
+.inventory-alert {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    font-size: 0.875rem;
+}
+
+.inventory-alert.warning {
+    background-color: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+}
+
+.inventory-alert.error {
+    background-color: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+}
+
+.inventory-alert.success {
+    background-color: #dcfce7;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+}
+
+.inventory-alert.info {
+    background-color: #dbeafe;
+    color: #1e40af;
+    border: 1px solid #bfdbfe;
+}
+
+/* === RESPONSIVE DESIGN === */
+@media (max-width: 768px) {
+    .tab-button {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+    
+    .tab-button span {
+        display: none;
+    }
+    
+    .inventory-item-details {
+        flex-direction: column;
+        gap: 0.375rem;
+        align-items: flex-start;
+    }
+    
+    .inventory-item-detail {
+        min-width: auto;
+        width: 100%;
+    }
+    
+    .inventory-item-actions {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .technician-stats {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .purchase-order-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .purchase-order-actions {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .order-item-content {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .tab-button {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .inventory-item-card,
+    .technician-inventory-card,
+    .purchase-order-card,
+    .transaction-card {
+        padding: 0.5rem;
+        margin-bottom: 0.375rem;
+    }
+    
+    .technician-inventory-header {
+        padding: 0.5rem;
+    }
+    
+    .inventory-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+    
+    .inventory-item-status {
+        align-self: flex-start;
+    }
+}
+
+/* === UTILIDADES === */
+.hidden {
+    display: none !important;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.flex {
+    display: flex;
+}
+
+.justify-between {
+    justify-content: space-between;
+}
+
+.items-center {
+    align-items: center;
+}
+
+.gap-2 {
+    gap: 0.5rem;
+}
+
+.gap-4 {
+    gap: 1rem;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
+
+.p-4 {
+    padding: 1rem;
+}
+
+.rounded-lg {
+    border-radius: 0.5rem;
+}
+
+.shadow-sm {
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+}
+
+.border {
+    border-width: 1px;
+}
+
+.border-gray-200 {
+    border-color: #e5e7eb;
+}
+
+.bg-white {
+    background-color: white;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+.text-gray-600 {
+    color: #4b5563;
+}
+
+.font-medium {
+    font-weight: 500;
+}
+
+.font-semibold {
+    font-weight: 600;
+}
+
+/* === SOPORTE PARA MODALES === */
+.modal-large {
+    max-width: 900px;
+}
+
+/* === GRID RESPONSIVO === */
+.grid {
+    display: grid;
+}
+
+.grid-cols-1 {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+}
+
+.grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (min-width: 768px) {
+    .md\:grid-cols-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+    
+    .md\:grid-cols-3 {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    
+    .md\:grid-cols-4 {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+    
+    .md\:col-span-2 {
+        grid-column: span 2 / span 2;
+    }
+} 

@@ -15,12 +15,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="flex h-screen">
+    <div class="flex min-h-screen">
         <!-- El menú se cargará aquí -->
         <div id="menu-placeholder"></div>
 
         <!-- Contenido principal -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col">
             <!-- Header -->
             <header class="app-header">
                 <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
@@ -40,29 +40,75 @@
             </header>
 
             <!-- Contenido principal -->
-            <main class="flex-1 overflow-y-auto section-spacing">
-                <div class="content-max-width">
-                    <div class="flex justify-between items-center mb-6">
-                        <h2 class="text-2xl font-semibold">Gestión de Clientes</h2>
-                        <button id="add-client-btn" class="btn-primary flex items-center" title="Agregar nuevo cliente">
-                            <i data-lucide="plus" class="mr-2 h-5 w-5"></i> Nuevo Cliente
-                        </button>
+            <main class="flex-1 bg-gray-50">
+                <!-- Header mejorado con gradiente -->
+                <div class="clients-header-improved">
+                    <div class="clients-header-content">
+                        <div class="clients-title-section">
+                            <h1 class="clients-main-title">
+                                <i data-lucide="users" class="w-6 h-6"></i>
+                                Gestión de Clientes
+                            </h1>
+                            <p class="clients-subtitle">Administra la información de tus clientes y sus sedes</p>
+                        </div>
+                        <div class="clients-actions">
+                            <button id="add-client-btn" class="clients-action-btn primary" title="Agregar nuevo cliente">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Nuevo Cliente
+                            </button>
+                        </div>
                     </div>
+                </div>
 
-                    <!-- Buscador -->
-                    <div class="app-card mb-6">
-                        <div class="p-4">
-                            <input type="text" id="clientSearch" placeholder="Buscar cliente por nombre, RUT o razón social..." class="form-input w-full">
+                <!-- Contenido principal con layout mejorado -->
+                <div class="clients-main-content">
+                    <!-- Panel de búsqueda y filtros -->
+                    <div class="clients-search-panel">
+                        <div class="clients-search-container">
+                            <div class="clients-search-input-wrapper">
+                                <i data-lucide="search" class="clients-search-icon"></i>
+                                <input type="text" id="clientSearch" placeholder="Buscar por nombre, RUT o razón social..." class="clients-search-input">
+                            </div>
+                            <div class="clients-search-stats" id="search-stats">
+                                <span class="clients-total-count">0 clientes</span>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Contenedor para la lista de clientes y detalles -->
-                    <div id="content-container" class="space-y-6">
-                        <!-- La lista de clientes se renderizará aquí -->
-                        <div id="client-list-container"></div>
-                        
-                        <!-- El detalle del cliente seleccionado se renderizará aquí -->
-                        <div id="detail-container"></div>
+                    <!-- Layout de dos columnas -->
+                    <div class="clients-layout-container">
+                        <!-- Lista de clientes (izquierda) -->
+                        <div class="clients-list-panel">
+                            <div class="clients-list-header">
+                                <h3 class="clients-panel-title">
+                                    <i data-lucide="list" class="w-4 h-4"></i>
+                                    Lista de Clientes
+                                </h3>
+                            </div>
+                            <div class="clients-list-content" id="client-list-container">
+                                <!-- Loading state -->
+                                <div class="clients-loading-state" id="loading-clients">
+                                    <div class="clients-loading-spinner"></div>
+                                    <p>Cargando clientes...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel de detalles (derecha) -->
+                        <div class="clients-detail-panel" id="detail-container">
+                            <!-- Estado vacío -->
+                            <div class="clients-empty-state" id="empty-detail">
+                                <div class="clients-empty-icon">
+                                    <i data-lucide="user-plus" class="w-16 h-16"></i>
+                                </div>
+                                <h3 class="clients-empty-title">Selecciona un cliente</h3>
+                                <p class="clients-empty-text">Elige un cliente de la lista para ver sus detalles, sedes y equipos</p>
+                                <button id="add-client-btn-empty" class="clients-action-btn primary">
+                                    <i data-lucide="plus" class="w-4 h-4"></i>
+                                    Crear Primer Cliente
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
