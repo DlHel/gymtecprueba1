@@ -10,16 +10,13 @@ let state = {
 
 // --- DOM Elements ---
 const ticketList = document.getElementById('ticket-list');
-const clientSelect = document.getElementById('ticket-client-select');
-const locationSelect = document.getElementById('ticket-location-select');
-const equipmentSelect = document.getElementById('ticket-equipment-select');
-const ticketModalForm = document.getElementById('ticket-modal-form');
+const clientSelect = document.querySelector('[name="client_id"]');
+const locationSelect = document.querySelector('[name="location_id"]');
+const equipmentSelect = document.querySelector('[name="equipment_id"]');
+const ticketModalForm = document.getElementById('ticket-form');
 const addClientModalForm = document.getElementById('add-client-modal-form');
 const addLocationModalForm = document.getElementById('add-location-modal-form');
 const addEquipmentModalForm = document.getElementById('add-equipment-modal-form');
-
-const addLocationBtn = document.getElementById('add-new-location-from-ticket-btn');
-const addEquipmentBtn = document.getElementById('add-new-equipment-from-ticket-btn');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -29,33 +26,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- Event Listeners ---
     document.getElementById('add-ticket-btn').addEventListener('click', () => openModal('ticket-modal'));
-    document.getElementById('ticket-modal-cancel-btn').addEventListener('click', () => closeModal('ticket-modal'));
-    document.getElementById('ticket-modal-close-btn').addEventListener('click', () => closeModal('ticket-modal')); // Para el botón X del modal (migrado a base-modal-close)
+    
+    // Listeners para cerrar modales usando el nuevo sistema base-modal
+    document.querySelector('#ticket-modal .base-modal-close').addEventListener('click', () => closeModal('ticket-modal'));
+    document.querySelector('#ticket-modal .base-btn-cancel').addEventListener('click', () => closeModal('ticket-modal'));
+    
+    // Listeners para tabs del modal
+    document.querySelectorAll('#ticket-modal .base-tab-button').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabId = tab.dataset.tab;
+            
+            // Remover active de todos los tabs
+            document.querySelectorAll('#ticket-modal .base-tab-button').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('#ticket-modal .base-tab-content').forEach(content => content.classList.remove('active'));
+            
+            // Activar el tab seleccionado
+            tab.classList.add('active');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+        });
+    });
     
     // Listeners para el nuevo modal de cliente
-    document.getElementById('add-new-client-from-ticket-btn').addEventListener('click', () => openModal('add-client-modal'));
     document.getElementById('add-client-modal-cancel-btn').addEventListener('click', () => closeModal('add-client-modal'));
     document.getElementById('add-client-modal-close-btn').addEventListener('click', () => closeModal('add-client-modal'));
 
     // Listeners para el modal de sede
-    addLocationBtn.addEventListener('click', () => {
-        const clientId = clientSelect.value;
-        if (clientId) {
-            addLocationModalForm.querySelector('[name="client_id"]').value = clientId;
-            openModal('add-location-modal');
-        }
-    });
     document.getElementById('add-location-modal-cancel-btn').addEventListener('click', () => closeModal('add-location-modal'));
     document.getElementById('add-location-modal-close-btn').addEventListener('click', () => closeModal('add-location-modal'));
 
     // Listeners para el modal de equipo
-    addEquipmentBtn.addEventListener('click', () => {
-        const locationId = locationSelect.value;
-        if (locationId) {
-            addEquipmentModalForm.querySelector('[name="location_id"]').value = locationId;
-            openModal('add-equipment-modal');
-        }
-    });
     document.getElementById('add-equipment-modal-cancel-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
     document.getElementById('add-equipment-modal-close-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
 
@@ -66,12 +65,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (button.matches('.delete-ticket-btn')) deleteItem('tickets', button.dataset.id, fetchTickets);
     });
 
-    clientSelect.addEventListener('change', handleClientChange);
-    locationSelect.addEventListener('change', handleLocationChange);
-    ticketModalForm.addEventListener('submit', handleFormSubmit);
-    addClientModalForm.addEventListener('submit', handleNewClientSubmit);
-    addLocationModalForm.addEventListener('submit', handleNewLocationSubmit);
-    addEquipmentModalForm.addEventListener('submit', handleNewEquipmentSubmit);
+    if (clientSelect) clientSelect.addEventListener('change', handleClientChange);
+    if (locationSelect) locationSelect.addEventListener('change', handleLocationChange);
+    if (ticketModalForm) ticketModalForm.addEventListener('submit', handleFormSubmit);
+    if (addClientModalForm) addClientModalForm.addEventListener('submit', handleNewClientSubmit);
+    if (addLocationModalForm) addLocationModalForm.addEventListener('submit', handleNewLocationSubmit);
+    if (addEquipmentModalForm) addEquipmentModalForm.addEventListener('submit', handleNewEquipmentSubmit);
 });
 
 // --- Render Functions ---

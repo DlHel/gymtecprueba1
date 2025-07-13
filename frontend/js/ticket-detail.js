@@ -148,8 +148,7 @@ function renderTicketDetail() {
     renderPhotos();
     renderHistory();
     
-    // Reinicializar iconos
-    lucide.createIcons();
+    // Los iconos se inicializan individualmente en cada función de renderizado
 }
 
 function renderTicketHeader(ticket) {
@@ -188,6 +187,9 @@ function renderTicketHeader(ticket) {
             </div>
         </div>
     `;
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderTicketStats() {
@@ -199,45 +201,50 @@ function renderTicketStats() {
     const totalTasks = state.checklist.length;
     
     stats.innerHTML = `
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <div class="stat-card">
-                <div class="stat-icon bg-blue-100 text-blue-600">
-                    <i data-lucide="clock" class="w-5 h-5"></i>
+        <div class="flex items-center justify-between bg-gray-50 rounded-lg p-3 mb-4">
+            <div class="flex items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-semibold text-gray-900">${formatDuration(totalTime)}</span>
+                        <span class="text-xs text-gray-500 ml-1">tiempo</span>
+                    </div>
                 </div>
-                <div>
-                    <div class="stat-value">${formatDuration(totalTime)}</div>
-                    <div class="stat-label">Tiempo Total</div>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-semibold text-gray-900">${completedTasks}/${totalTasks}</span>
+                        <span class="text-xs text-gray-500 ml-1">tareas</span>
+                    </div>
                 </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-green-100 text-green-600">
-                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center">
+                        <i data-lucide="message-circle" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-semibold text-gray-900">${state.notes.length}</span>
+                        <span class="text-xs text-gray-500 ml-1">notas</span>
+                    </div>
                 </div>
-                <div>
-                    <div class="stat-value">${completedTasks}/${totalTasks}</div>
-                    <div class="stat-label">Tareas</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-purple-100 text-purple-600">
-                    <i data-lucide="message-circle" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <div class="stat-value">${state.notes.length}</div>
-                    <div class="stat-label">Notas</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon bg-orange-100 text-orange-600">
-                    <i data-lucide="camera" class="w-5 h-5"></i>
-                </div>
-                <div>
-                    <div class="stat-value">${state.photos.length}</div>
-                    <div class="stat-label">Fotos</div>
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center">
+                        <i data-lucide="camera" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <span class="text-sm font-semibold text-gray-900">${state.photos.length}</span>
+                        <span class="text-xs text-gray-500 ml-1">fotos</span>
+                    </div>
                 </div>
             </div>
         </div>
     `;
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderTicketDescription(ticket) {
@@ -260,30 +267,70 @@ function renderQuickActions(ticket) {
     
     console.log('🎯 Renderizando acciones rápidas...');
     
-    actions.innerHTML = `
-        <button onclick="showAddNoteModal()" class="action-btn btn-primary-action">
-            <i data-lucide="message-circle-plus" class="w-4 h-4"></i>
-            Agregar Nota
-        </button>
-        <button onclick="showAddChecklistModal()" class="action-btn btn-secondary-action">
-            <i data-lucide="list-plus" class="w-4 h-4"></i>
-            Agregar Tarea
-        </button>
-        <button onclick="showAddSparePartModal()" class="action-btn btn-secondary-action">
-            <i data-lucide="package-plus" class="w-4 h-4"></i>
-            Agregar Repuesto
-        </button>
-        <button onclick="showAddPhotoModal()" class="action-btn btn-secondary-action">
-            <i data-lucide="camera-plus" class="w-4 h-4"></i>
-            Subir Foto
-        </button>
-        <button onclick="printTicket()" class="action-btn btn-secondary-action">
-            <i data-lucide="printer" class="w-4 h-4"></i>
-            Imprimir
-        </button>
-    `;
+    // Crear botones de acciones rápidas usando el sistema CSS unificado
+    const buttons = [
+        {
+            onclick: 'showAddNoteModal()',
+            class: 'quick-action-btn primary',
+            icon: 'message-circle-plus',
+            text: 'Nota'
+        },
+        {
+            onclick: 'showAddChecklistModal()',
+            class: 'quick-action-btn success',
+            icon: 'list-plus',
+            text: 'Tarea'
+        },
+        {
+            onclick: 'showAddSparePartModal()',
+            class: 'quick-action-btn warning',
+            icon: 'package-plus',
+            text: 'Repuesto'
+        },
+        {
+            onclick: 'showAddPhotoModal()',
+            class: 'quick-action-btn secondary',
+            icon: 'camera',
+            text: 'Foto'
+        },
+        {
+            onclick: 'printTicket()',
+            class: 'quick-action-btn secondary',
+            icon: 'printer',
+            text: 'Imprimir'
+        }
+    ];
     
-    console.log('✅ Acciones rápidas renderizadas');
+    // Limpiar contenedor
+    actions.innerHTML = '';
+    
+    // Crear botones individualmente en el DOM
+    buttons.forEach((btnConfig, index) => {
+        const button = document.createElement('button');
+        button.onclick = function() { eval(btnConfig.onclick); };
+        button.className = btnConfig.class;
+        
+        const icon = document.createElement('i');
+        icon.setAttribute('data-lucide', btnConfig.icon);
+        icon.className = 'w-3.5 h-3.5';
+        
+        const text = document.createTextNode(' ' + btnConfig.text);
+        
+        button.appendChild(icon);
+        button.appendChild(text);
+        
+        actions.appendChild(button);
+        
+        console.log(`➕ Botón ${index + 1} creado:`, btnConfig.text);
+    });
+    
+    // Inicializar iconos de Lucide después de crear los botones
+    setTimeout(() => {
+        lucide.createIcons();
+        console.log('✅ Iconos de Lucide inicializados para acciones rápidas');
+    }, 10);
+    
+    console.log('✅ Acciones rápidas renderizadas:', buttons.length, 'botones');
 }
 
 function renderTimeEntries() {
@@ -318,6 +365,9 @@ function renderTimeEntries() {
             </div>
         </div>
     `).join('');
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderChecklist() {
@@ -346,6 +396,9 @@ function renderChecklist() {
             </div>
         </div>
     `).join('');
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderNotes() {
@@ -375,6 +428,9 @@ function renderNotes() {
             <div class="text-xs text-gray-500">Por: ${note.author}</div>
         </div>
     `).join('');
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderSpareParts() {
@@ -421,6 +477,9 @@ function renderSpareParts() {
             </div>
         </div>
     `;
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderPhotos() {
@@ -469,6 +528,9 @@ function renderHistory() {
             </div>
         </div>
     `).join('');
+    
+    // Inicializar iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
 }
 
 // === FUNCIONES DE EVENTOS ===
@@ -700,17 +762,47 @@ function editTicket(ticketId) {
     
     if (!state.currentTicket) {
         console.error('❌ No hay ticket cargado para editar');
-        showNotification('Error: No se pudo cargar el ticket para editar', 'error');
+        if (typeof showNotification === 'function') {
+            showNotification('Error: No se pudo cargar el ticket para editar', 'error');
+        } else {
+            alert('Error: No se pudo cargar el ticket para editar');
+        }
         return;
     }
     
-    // Crear y mostrar el modal de edición
-    const modal = createEditTicketModal(state.currentTicket);
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    lucide.createIcons();
+    // Verificar si la función existe
+    if (typeof createEditTicketModal !== 'function') {
+        console.error('❌ La función createEditTicketModal no está definida');
+        if (typeof showNotification === 'function') {
+            showNotification('Error: Función de modal no encontrada', 'error');
+        } else {
+            alert('Error: Función de modal no encontrada');
+        }
+        return;
+    }
     
-    console.log('✅ Modal de edición abierto correctamente');
+    try {
+        // Crear y mostrar el modal de edición
+        const modal = createEditTicketModal(state.currentTicket);
+        document.body.appendChild(modal);
+        
+        // Mostrar el modal usando el sistema base
+        modal.style.display = 'flex';
+        setTimeout(() => {
+            modal.classList.add('is-open');
+        }, 10);
+        
+        lucide.createIcons();
+        
+        console.log('✅ Modal de edición abierto correctamente');
+    } catch (error) {
+        console.error('❌ Error al crear el modal:', error);
+        if (typeof showNotification === 'function') {
+            showNotification('Error al abrir el modal de edición', 'error');
+        } else {
+            alert('Error al abrir el modal de edición');
+        }
+    }
 }
 
 function changeStatus(currentStatus) {

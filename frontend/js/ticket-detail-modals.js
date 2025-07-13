@@ -635,11 +635,16 @@ async function submitEditTicket(button) {
     const formData = new FormData(form);
     
     const data = {
+        // Campos editables del formulario
         title: formData.get('title'),
         description: formData.get('description'),
         priority: formData.get('priority'),
         status: formData.get('status'),
-        due_date: formData.get('due_date') || null
+        due_date: formData.get('due_date') || null,
+        // Campos requeridos que no se editan en este modal
+        client_id: state.currentTicket.client_id,
+        location_id: state.currentTicket.location_id,
+        equipment_id: state.currentTicket.equipment_id
     };
     
     try {
@@ -668,7 +673,9 @@ async function submitEditTicket(button) {
             
             showNotification('Ticket actualizado exitosamente', 'success');
         } else {
-            throw new Error('Error al actualizar ticket');
+            // Obtener el error específico del servidor
+            const errorData = await response.json().catch(() => null);
+            throw new Error(errorData?.error || errorData?.message || 'Error al actualizar ticket');
         }
     } catch (error) {
         console.error('Error updating ticket:', error);

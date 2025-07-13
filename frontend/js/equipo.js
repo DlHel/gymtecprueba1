@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = 'http://localhost:3000/api';
+    const API_URL = window.API_URL || 'http://localhost:3000/api';
     const mainContent = document.getElementById('main-content');
     const pageTitle = document.getElementById('page-title');
     const backButton = document.querySelector('header a');
@@ -17,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
         addEquipmentNote: (id, note) => fetch(`${API_URL}/equipment/${id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ note })
+            body: JSON.stringify(note)
         }).then(res => res.json()),
         deleteEquipmentNote: (noteId) => fetch(`${API_URL}/equipment/notes/${noteId}`, {
             method: 'DELETE'

@@ -565,9 +565,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 titleElement.textContent = title;
             }
             
-            for (const [key, value] of Object.entries(data)) {
-                const input = form.querySelector(`[name="${key}"]`);
-                if (input) input.value = value;
+            // Mapear campos especiales para equipos
+            if (modalElem.id === 'equipment-modal' && data.id) {
+                // Es edición de equipo - mapear campos correctamente
+                const fieldMapping = {
+                    'id': 'id',
+                    'location_id': 'location_id', 
+                    'type': 'type',
+                    'name': 'name',
+                    'brand': 'brand',
+                    'model': 'model',
+                    'serial_number': 'serial_number',
+                    'acquisition_date': 'acquisition_date',
+                    'notes': 'notes'
+                };
+                
+                for (const [formField, dataField] of Object.entries(fieldMapping)) {
+                    const input = form.querySelector(`[name="${formField}"]`);
+                    if (input && data[dataField] !== undefined) {
+                        if (formField === 'acquisition_date' && data[dataField]) {
+                            // Formatear fecha para input type="date"
+                            input.value = data[dataField].split('T')[0];
+                        } else {
+                            input.value = data[dataField] || '';
+                        }
+                    }
+                }
+            } else {
+                // Población normal para otros modales
+                for (const [key, value] of Object.entries(data)) {
+                    const input = form.querySelector(`[name="${key}"]`);
+                    if (input) input.value = value || '';
+                }
             }
             
             console.log('Mostrando modal...');

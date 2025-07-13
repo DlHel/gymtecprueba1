@@ -21,34 +21,61 @@ class ModelosManager {
     }
 
     init() {
+        console.log('🚀 Inicializando ModelosManager...');
+        
+        // Verificar que los elementos críticos estén disponibles
+        const criticalElements = ['models-grid', 'search-models', 'filter-category'];
+        const missingElements = criticalElements.filter(id => !document.getElementById(id));
+        
+        if (missingElements.length > 0) {
+            console.error('❌ Elementos críticos no encontrados:', missingElements);
+            console.error('❌ La página puede no estar completamente cargada');
+            return;
+        }
+        
         this.setupEventListeners();
         this.setupTabs();
         this.setupFileUploads();
         this.loadModels();
+        
+        console.log('✅ ModelosManager inicializado correctamente');
     }
 
     setupEventListeners() {
+        console.log('🎯 Configurando event listeners...');
+        
+        // Función auxiliar para agregar event listeners con protección
+        const addEventListenerSafe = (elementId, event, handler, description) => {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.addEventListener(event, handler);
+                console.log(`✅ Event listener agregado para ${elementId}`);
+            } else {
+                console.warn(`⚠️ Elemento ${elementId} no encontrado (${description})`);
+            }
+        };
+        
         // Botones principales
-        document.getElementById('add-model-btn').addEventListener('click', () => this.openModelModal());
-        document.getElementById('close-model-modal').addEventListener('click', () => this.closeModelModal());
-        document.getElementById('close-model-view').addEventListener('click', () => this.closeViewModal());
-        document.getElementById('cancel-model').addEventListener('click', () => this.closeModelModal());
+        addEventListenerSafe('add-model-btn', 'click', () => this.openModelModal(), 'botón agregar modelo');
+        addEventListenerSafe('close-model-modal', 'click', () => this.closeModelModal(), 'botón cerrar modal');
+        addEventListenerSafe('close-model-view', 'click', () => this.closeViewModal(), 'botón cerrar vista');
+        addEventListenerSafe('cancel-model', 'click', () => this.closeModelModal(), 'botón cancelar');
         
         // Formulario
-        document.getElementById('model-form').addEventListener('submit', (e) => this.handleSubmit(e));
+        addEventListenerSafe('model-form', 'submit', (e) => this.handleSubmit(e), 'formulario de modelo');
         
         // Búsqueda y filtros
-        document.getElementById('search-models').addEventListener('input', async (e) => await this.filterModels());
-        document.getElementById('filter-category').addEventListener('change', async (e) => await this.filterModels());
+        addEventListenerSafe('search-models', 'input', async (e) => await this.filterModels(), 'campo de búsqueda');
+        addEventListenerSafe('filter-category', 'change', async (e) => await this.filterModels(), 'filtro de categoría');
         
-        // Botones de agregar elementos
-        document.getElementById('add-spare-part').addEventListener('click', () => this.addSparePartRow());
-        document.getElementById('add-checklist-item').addEventListener('click', () => this.addChecklistRow());
+        // Botones de agregar elementos (estos pueden no estar en la página principal)
+        addEventListenerSafe('add-spare-part', 'click', () => this.addSparePartRow(), 'botón agregar repuesto');
+        addEventListenerSafe('add-checklist-item', 'click', () => this.addChecklistRow(), 'botón agregar checklist');
         
         // Validación en tiempo real
         this.setupRealTimeValidation();
         
-        // Modal de edición desde vista (se configurará dinámicamente)
+        console.log('✅ Event listeners configurados');
     }
 
     setupRealTimeValidation() {
@@ -175,13 +202,20 @@ class ModelosManager {
 
 
     setupTabs() {
-        const tabButtons = document.querySelectorAll('.tab-button');
-        tabButtons.forEach(button => {
-            button.addEventListener('click', (e) => {
-                const tabName = e.target.dataset.tab;
-                this.switchTab(tabName);
+        console.log('📋 Configurando pestañas...');
+        
+        const tabButtons = document.querySelectorAll('.tab-button, .base-tab-button');
+        if (tabButtons.length > 0) {
+            tabButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const tabName = e.target.dataset.tab;
+                    this.switchTab(tabName);
+                });
             });
-        });
+            console.log(`✅ ${tabButtons.length} pestañas configuradas`);
+        } else {
+            console.warn('⚠️ No se encontraron botones de pestañas');
+        }
     }
 
     switchTab(tabName) {
@@ -197,49 +231,63 @@ class ModelosManager {
     }
 
     setupFileUploads() {
+        console.log('📁 Configurando uploads de archivos...');
+        
         // Upload de fotos
         const photoArea = document.getElementById('photo-upload-area');
         const photoInput = document.getElementById('photo-input');
         
-        photoArea.addEventListener('click', () => photoInput.click());
-        photoArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            photoArea.classList.add('dragover');
-        });
-        photoArea.addEventListener('dragleave', () => {
-            photoArea.classList.remove('dragover');
-        });
-        photoArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            photoArea.classList.remove('dragover');
-            this.handlePhotoFiles(e.dataTransfer.files);
-        });
-        
-        photoInput.addEventListener('change', (e) => {
-            this.handlePhotoFiles(e.target.files);
-        });
+        if (photoArea && photoInput) {
+            photoArea.addEventListener('click', () => photoInput.click());
+            photoArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                photoArea.classList.add('dragover');
+            });
+            photoArea.addEventListener('dragleave', () => {
+                photoArea.classList.remove('dragover');
+            });
+            photoArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                photoArea.classList.remove('dragover');
+                this.handlePhotoFiles(e.dataTransfer.files);
+            });
+            
+            photoInput.addEventListener('change', (e) => {
+                this.handlePhotoFiles(e.target.files);
+            });
+            
+            console.log('✅ Upload de fotos configurado');
+        } else {
+            console.warn('⚠️ Elementos de upload de fotos no encontrados');
+        }
 
         // Upload de manuales
         const manualArea = document.getElementById('manual-upload-area');
         const manualInput = document.getElementById('manual-input');
         
-        manualArea.addEventListener('click', () => manualInput.click());
-        manualArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            manualArea.classList.add('dragover');
-        });
-        manualArea.addEventListener('dragleave', () => {
-            manualArea.classList.remove('dragover');
-        });
-        manualArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            manualArea.classList.remove('dragover');
-            this.handleManualFiles(e.dataTransfer.files);
-        });
-        
-        manualInput.addEventListener('change', (e) => {
-            this.handleManualFiles(e.target.files);
-        });
+        if (manualArea && manualInput) {
+            manualArea.addEventListener('click', () => manualInput.click());
+            manualArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                manualArea.classList.add('dragover');
+            });
+            manualArea.addEventListener('dragleave', () => {
+                manualArea.classList.remove('dragover');
+            });
+            manualArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                manualArea.classList.remove('dragover');
+                this.handleManualFiles(e.dataTransfer.files);
+            });
+            
+            manualInput.addEventListener('change', (e) => {
+                this.handleManualFiles(e.target.files);
+            });
+            
+            console.log('✅ Upload de manuales configurado');
+        } else {
+            console.warn('⚠️ Elementos de upload de manuales no encontrados');
+        }
     }
 
     async handlePhotoFiles(files) {
@@ -975,11 +1023,11 @@ class ModelosManager {
         if (modelData.power) modelData.power = parseInt(modelData.power);
         
         // NO enviar datos adicionales complejos para evitar payload grande
-        // Solo enviar campos básicos del modelo
+        // Solo enviar campos básicos del modelo que coinciden con la BD
         const basicFields = ['name', 'brand', 'category', 'model_code', 'description', 'weight', 'dimensions', 'voltage', 'power', 'specifications'];
         const cleanModelData = {};
         basicFields.forEach(field => {
-            if (modelData[field] !== undefined && modelData[field] !== null) {
+            if (modelData[field] !== undefined && modelData[field] !== null && modelData[field] !== '') {
                 cleanModelData[field] = modelData[field];
             }
         });
@@ -1157,7 +1205,7 @@ class ModelosManager {
                     ` : ''}
                     
                     <!-- Botón de editar flotante -->
-                    <button onclick="event.stopPropagation(); modelosManager.openModelModal(modelosManager.models.find(m => m.id === '${model.id}'))" 
+                    <button onclick="event.stopPropagation(); modelosManager.openModelModal(modelosManager.models.find(m => m.id == ${model.id}))" 
                             class="edit-button-floating">
                         <i data-lucide="edit" class="w-4 h-4"></i>
                     </button>
@@ -1262,11 +1310,18 @@ class ModelosManager {
         modal.classList.add('is-open');
         document.body.classList.add('modal-open');
         
-        // Configurar botón de editar
-        document.getElementById('edit-model-btn').onclick = () => {
-            this.closeViewModal();
-            this.openModelModal(model);
-        };
+        // Configurar botón de editar con delay para asegurar que esté en el DOM
+        setTimeout(() => {
+            const editBtn = document.getElementById('edit-model-btn');
+            if (editBtn) {
+                editBtn.onclick = () => {
+                    this.closeViewModal();
+                    this.openModelModal(model);
+                };
+            } else {
+                console.error('Botón edit-model-btn no encontrado en el DOM');
+            }
+        }, 100);
         
         lucide.createIcons();
     }

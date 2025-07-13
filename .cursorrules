@@ -1,0 +1,297 @@
+# Gymtec ERP - Cursor AI Rules
+# Proyecto: Sistema ERP para Gimnasios
+# Stack: Node.js + Express + MySQL2 + JavaScript Vanilla
+
+## Contexto del Proyecto
+Eres un experto en desarrollo del sistema ERP Gymtec para gimnasios. Trabajas con:
+- **Backend**: Node.js + Express + MySQL2 + Multer + dotenv
+- **Frontend**: HTML5 + CSS3 + JavaScript Vanilla (SIN frameworks como React/Vue/Angular)
+- **Base de datos**: MySQL con schema específico para gimnasios
+- **Módulos**: Clientes (con RUT), Equipos (con QR), Tickets, Inventario, Personal, Contratos, Reportes
+
+## Stack Tecnológico Específico
+
+### Backend Dependencies (package.json confirmado)
+- `express`: Framework web minimalista
+- `mysql2`: Driver MySQL moderno
+- `multer`: Upload de archivos (imágenes y manuales)
+- `cors`: Manejo de CORS
+- `dotenv`: Variables de entorno
+- `axios` y `node-fetch`: Peticiones HTTP
+- `nodemon`: Desarrollo (dev dependency)
+
+### Frontend (JavaScript Vanilla)
+- **NO usar frameworks**: React, Vue, Angular, jQuery, etc.
+- **SÍ usar**: Vanilla JavaScript moderno (ES6+)
+- **Estructura modular**: Un archivo JS por módulo (clientes.js, tickets.js, etc.)
+- **Fetch API**: Para todas las peticiones AJAX
+- **DOM directo**: addEventListener, querySelector, etc.
+
+### Base de Datos MySQL
+- **Tablas principales**: Clients, Locations, Equipment, EquipmentModels, Tickets, Users, SpareParts
+- **Características**: RUT único, custom_id para equipos, estados de tickets, roles de usuarios
+- **Relaciones**: FK bien definidas, índices optimizados
+
+## Patrones de Código Específicos
+
+### Backend Express (server.js)
+```javascript
+// Estructura de rutas típica del proyecto
+app.get('/api/clients', (req, res) => {
+    const sql = `SELECT c.*, COUNT(l.id) as location_count
+                 FROM Clients c
+                 LEFT JOIN Locations l ON c.id = l.client_id
+                 GROUP BY c.id
+                 ORDER BY c.name`;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({ message: "success", data: rows });
+    });
+});
+```
+
+### Frontend JavaScript Vanilla
+```javascript
+// Patrón típico del proyecto
+document.addEventListener('DOMContentLoaded', () => {
+    // Estado de la aplicación
+    const state = {
+        clients: [],
+        currentClient: null
+    };
+    
+    // Selectores DOM
+    const dom = {
+        clientSearch: document.getElementById('clientSearch'),
+        addClientBtn: document.getElementById('add-client-btn')
+    };
+    
+    // API calls con fetch
+    const api = {
+        getClients: async () => {
+            try {
+                const response = await fetch(`${API_URL}/clients`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('Error:', error);
+                throw error;
+            }
+        }
+    };
+});
+```
+
+### Upload de Archivos con Multer
+```javascript
+// Configuración típica del proyecto
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        cb(null, modelsDir);
+    },
+    filename: function (req, file, cb) {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'model-' + uniqueSuffix + path.extname(file.originalname));
+    }
+});
+```
+
+## Reglas de Desarrollo
+
+### JavaScript (Frontend y Backend)
+- **Usar const/let**: NUNCA var
+- **Arrow functions**: Para callbacks y funciones pequeñas
+- **async/await**: SIEMPRE en lugar de callbacks o .then()
+- **Template literals**: Para strings complejos
+- **Destructuring**: Para extraer propiedades
+- **Spread operator**: Para copiar arrays/objetos
+
+### Manejo de Errores Específico
+```javascript
+// Patrón de manejo de errores del proyecto
+try {
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    const data = await response.json();
+    return data;
+} catch (error) {
+    console.error('Error específico:', error);
+    // Mostrar mensaje al usuario
+    showNotification('Error al cargar datos', 'error');
+    throw error;
+}
+```
+
+### MySQL2 con Pool de Conexiones
+```javascript
+// Patrón típico para consultas
+const executeQuery = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                console.error('Database error:', err);
+                reject(err);
+                return;
+            }
+            resolve(rows);
+        });
+    });
+};
+```
+
+### Validación de Datos
+- **Backend**: Usar el sistema de validators.js existente
+- **Frontend**: Validación en tiempo real + validación antes de envío
+- **Base de datos**: Constraints y índices únicos
+
+### Sistema de Archivos
+- **Imágenes**: Subir a /uploads/models/ con nombres únicos
+- **Manuales**: Procesar en memoria y guardar en base64
+- **Límites**: 5MB para imágenes, 10MB para manuales
+- **Tipos permitidos**: JPEG, PNG, GIF, WebP para imágenes; PDF, DOC, DOCX para manuales
+
+## Estructura del Proyecto
+
+### Directorios Backend
+```
+backend/
+├── src/
+│   ├── server.js          # Servidor principal
+│   ├── db-adapter.js      # Adaptador de base de datos
+│   └── validators.js      # Validaciones
+├── database/
+│   ├── mysql-schema.sql   # Schema de la base de datos
+│   └── setup-mysql.js     # Setup inicial
+└── uploads/
+    └── models/            # Imágenes de modelos
+```
+
+### Directorios Frontend
+```
+frontend/
+├── js/
+│   ├── config.js         # Configuración (API_URL)
+│   ├── clientes.js       # Módulo de clientes
+│   ├── tickets.js        # Módulo de tickets
+│   └── [modulo].js       # Un archivo por módulo
+├── css/
+│   ├── style.css         # Estilos principales
+│   └── [modulo].css      # Estilos específicos
+└── [modulo].html         # Páginas HTML
+```
+
+## Nomenclatura Específica del Proyecto
+
+### Variables JavaScript
+- `camelCase`: clientData, equipmentList, currentTicket
+- `UPPER_SNAKE_CASE`: API_URL, MAX_FILE_SIZE
+- Descriptivo: `clientSearchTerm` no `term`
+
+### Base de Datos
+- Tablas: `PascalCase` (Clients, Equipment, TicketNotes)
+- Columnas: `snake_case` (client_id, created_at, custom_id)
+- Índices: `idx_[tabla]_[campo]` (idx_clients_rut)
+
+### Archivos
+- HTML: `kebab-case` (ticket-detail.html)
+- JS: `kebab-case` (ticket-detail.js)
+- CSS: `kebab-case` (ticket-detail.css)
+
+## Funcionalidades Específicas Gymtec
+
+### Gestión de Clientes
+- RUT único y validado
+- Direcciones en formato "Calle + Número, Comuna"
+- Relación con múltiples sedes (Locations)
+
+### Gestión de Equipos
+- Códigos personalizados únicos (custom_id)
+- Generación de códigos QR
+- Fotos y manuales asociados
+- Estados y mantenimientos
+
+### Sistema de Tickets
+- Estados: 'Abierto', 'En Progreso', 'En Espera', 'Resuelto', 'Cerrado'
+- Prioridades: 'Baja', 'Media', 'Alta', 'Urgente'
+- Fotos y notas adjuntas
+- Historial de cambios
+
+### Inventario
+- Control de stock de repuestos
+- Alertas de stock mínimo
+- Relación con tickets y equipos
+
+## Buenas Prácticas Específicas
+
+### Seguridad
+- Validar TODOS los inputs (validateClient, validateEquipment, etc.)
+- Usar parámetros preparados en SQL
+- Sanitizar datos antes de mostrar en HTML
+- Validar tipos de archivo en uploads
+
+### Performance
+- Usar índices en consultas MySQL
+- Implementar paginación para listas largas
+- Lazy loading para imágenes
+- Debouncing en búsquedas
+
+### UX/UI
+- Feedback visual para todas las acciones
+- Notificaciones informativas
+- Manejo de estados de carga
+- Validación en tiempo real
+
+### Manejo de Extensiones del Navegador
+```javascript
+// Patrón específico del proyecto para extensiones problemáticas
+const originalFetch = window.fetch;
+window.fetch = function(...args) {
+    return new Promise((resolve, reject) => {
+        const attemptFetch = (attempt = 0) => {
+            originalFetch.apply(this, args)
+                .then(resolve)
+                .catch(error => {
+                    const isExtensionError = error.message && 
+                        error.message.includes('message channel closed');
+                    if (isExtensionError && attempt < maxRetries) {
+                        setTimeout(() => attemptFetch(attempt + 1), 100 * (attempt + 1));
+                    } else {
+                        reject(error);
+                    }
+                });
+        };
+        attemptFetch();
+    });
+};
+```
+
+## Comandos del Proyecto
+
+### Desarrollo
+- `cd backend && npm run dev`: Iniciar servidor con nodemon
+- `cd backend && npm start`: Iniciar servidor producción
+- `cd backend && npm run migrate`: Migrar base de datos
+- `cd backend && npm run seed`: Sembrar datos iniciales
+
+### Base de Datos
+- Usar `mysql2` con connection pooling
+- Ejecutar migraciones desde backend/
+- Respaldar datos regularmente
+
+## Reglas Críticas para Cursor
+
+1. **NO sugerir frameworks**: Este proyecto usa JavaScript vanilla
+2. **Seguir patrones existentes**: Revisar archivos como clientes.js para patrones
+3. **Validar siempre**: Tanto frontend como backend
+4. **Usar async/await**: No callbacks ni promesas .then()
+5. **Manejar errores**: Try-catch en todas las operaciones async
+6. **Nomenclatura consistente**: Seguir convenciones establecidas
+7. **Modular por funcionalidad**: Un archivo JS por módulo
+8. **Optimizar MySQL**: Usar índices y consultas eficientes
+
+¿Necesitas que implemente alguna funcionalidad específica o tienes dudas sobre algún patrón del proyecto? 

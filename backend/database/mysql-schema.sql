@@ -331,4 +331,192 @@ CREATE TABLE IF NOT EXISTS `ModelManuals` (
     INDEX `idx_model_manuals_model` (`model_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- === TABLAS PARA FUNCIONALIDADES AVANZADAS ===
+
+-- Configuración del sistema
+CREATE TABLE IF NOT EXISTS `SystemConfig` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `category` VARCHAR(100) NOT NULL,
+    `key` VARCHAR(100) NOT NULL,
+    `value` TEXT NOT NULL,
+    `description` TEXT,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `unique_config` (`category`, `key`),
+    INDEX `idx_system_config_category` (`category`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Cotizaciones
+CREATE TABLE IF NOT EXISTS `Quotes` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `client_id` INT(11) NOT NULL,
+    `location_id` INT(11),
+    `quote_number` VARCHAR(50) UNIQUE,
+    `title` VARCHAR(300) NOT NULL,
+    `description` TEXT,
+    `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `status` ENUM('Borrador', 'Enviada', 'Aprobada', 'Rechazada', 'Expirada') DEFAULT 'Borrador',
+    `valid_until` DATE,
+    `items` JSON,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`client_id`) REFERENCES `Clients` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`location_id`) REFERENCES `Locations` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_quotes_client` (`client_id`),
+    INDEX `idx_quotes_status` (`status`),
+    INDEX `idx_quotes_number` (`quote_number`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Facturas
+CREATE TABLE IF NOT EXISTS `Invoices` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `client_id` INT(11) NOT NULL,
+    `location_id` INT(11),
+    `quote_id` INT(11),
+    `invoice_number` VARCHAR(50) UNIQUE NOT NULL,
+    `title` VARCHAR(300) NOT NULL,
+    `description` TEXT,
+    `total_amount` DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    `status` ENUM('Pendiente', 'Enviada', 'Pagada', 'Vencida', 'Cancelada') DEFAULT 'Pendiente',
+    `due_date` DATE,
+    `paid_at` TIMESTAMP NULL,
+    `items` JSON,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`client_id`) REFERENCES `Clients` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`location_id`) REFERENCES `Locations` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (`quote_id`) REFERENCES `Quotes` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_invoices_client` (`client_id`),
+    INDEX `idx_invoices_status` (`status`),
+    INDEX `idx_invoices_number` (`invoice_number`),
+    INDEX `idx_invoices_due_date` (`due_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Control de horario y asistencia
+CREATE TABLE IF NOT EXISTS `TimeEntries` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) NOT NULL,
+    `entry_type` ENUM('Entrada', 'Salida', 'Pausa', 'Regreso') NOT NULL,
+    `ticket_id` INT(11),
+    `location_id` INT(11),
+    `latitude` DECIMAL(10,8),
+    `longitude` DECIMAL(11,8),
+    `notes` TEXT,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`ticket_id`) REFERENCES `Tickets` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (`location_id`) REFERENCES `Locations` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_time_entries_user` (`user_id`),
+    INDEX `idx_time_entries_date` (`created_at`),
+    INDEX `idx_time_entries_type` (`entry_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Periodos de trabajo calculados
+CREATE TABLE IF NOT EXISTS `WorkPeriods` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) NOT NULL,
+    `start_time` TIMESTAMP NOT NULL,
+    `end_time` TIMESTAMP NULL,
+    `total_hours` DECIMAL(5,2) DEFAULT 0.00,
+    `regular_hours` DECIMAL(5,2) DEFAULT 0.00,
+    `overtime_hours` DECIMAL(5,2) DEFAULT 0.00,
+    `overtime_approved` BOOLEAN DEFAULT FALSE,
+    `notes` TEXT,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX `idx_work_periods_user` (`user_id`),
+    INDEX `idx_work_periods_start` (`start_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Plantillas de checklist por tipo de equipo
+CREATE TABLE IF NOT EXISTS `ChecklistTemplates` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `equipment_type` VARCHAR(100),
+    `model_id` INT(11),
+    `items` JSON NOT NULL,
+    `is_active` BOOLEAN DEFAULT TRUE,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`model_id`) REFERENCES `EquipmentModels` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_checklist_templates_type` (`equipment_type`),
+    INDEX `idx_checklist_templates_model` (`model_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Reportes guardados
+CREATE TABLE IF NOT EXISTS `SavedReports` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `description` TEXT,
+    `report_type` VARCHAR(100) NOT NULL,
+    `parameters` JSON,
+    `created_by` INT(11),
+    `is_public` BOOLEAN DEFAULT FALSE,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`created_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_saved_reports_type` (`report_type`),
+    INDEX `idx_saved_reports_created_by` (`created_by`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- === ACTUALIZACIÓN DE TABLA USERS ===
+
+-- Agregar campos faltantes a Users si no existen
+ALTER TABLE `Users` 
+ADD COLUMN IF NOT EXISTS `email` VARCHAR(100) UNIQUE AFTER `username`,
+ADD COLUMN IF NOT EXISTS `role` ENUM('Admin', 'Tecnico', 'Cliente', 'Supervisor') DEFAULT 'Tecnico' AFTER `password`,
+ADD COLUMN IF NOT EXISTS `status` ENUM('Activo', 'Inactivo', 'Suspendido') DEFAULT 'Activo' AFTER `role`;
+
+-- Agregar índices para campos nuevos
+CREATE INDEX IF NOT EXISTS `idx_users_email` ON `Users` (`email`);
+CREATE INDEX IF NOT EXISTS `idx_users_role` ON `Users` (`role`);
+CREATE INDEX IF NOT EXISTS `idx_users_status` ON `Users` (`status`);
+
+-- === DATOS INICIALES DE CONFIGURACIÓN ===
+
+-- Configuraciones por defecto del sistema
+INSERT IGNORE INTO `SystemConfig` (`category`, `key`, `value`, `description`) VALUES
+('general', 'company_name', 'Gymtec', 'Nombre de la empresa'),
+('general', 'company_email', 'info@gymtec.cl', 'Email principal de la empresa'),
+('general', 'company_phone', '+56 2 1234 5678', 'Teléfono principal de la empresa'),
+('tickets', 'default_priority', 'Media', 'Prioridad por defecto para nuevos tickets'),
+('tickets', 'auto_assign', 'false', 'Asignar tickets automáticamente'),
+('tickets', 'sla_response_hours', '24', 'Tiempo de respuesta SLA en horas'),
+('tickets', 'sla_resolution_hours', '72', 'Tiempo de resolución SLA en horas'),
+('inventory', 'low_stock_threshold', '10', 'Umbral para alerta de stock bajo'),
+('notifications', 'email_enabled', 'true', 'Habilitar notificaciones por email'),
+('notifications', 'whatsapp_enabled', 'false', 'Habilitar notificaciones por WhatsApp'),
+('financial', 'quote_validity_days', '30', 'Días de validez de cotizaciones'),
+('financial', 'invoice_due_days', '30', 'Días de vencimiento de facturas'),
+('work_hours', 'regular_hours_per_day', '8', 'Horas regulares por día'),
+('work_hours', 'overtime_multiplier', '1.5', 'Multiplicador para horas extra');
+
+-- Plantillas de checklist básicas
+INSERT IGNORE INTO `ChecklistTemplates` (`name`, `equipment_type`, `items`) VALUES
+('Checklist General Cardio', 'Cardio', '[
+    {"title": "Inspección visual externa", "description": "Verificar estado general del equipo"},
+    {"title": "Limpieza y desinfección", "description": "Limpiar superficies y desinfectar puntos de contacto"},
+    {"title": "Verificar funcionamiento de pantalla", "description": "Comprobar que la pantalla enciende y responde"},
+    {"title": "Probar botones y controles", "description": "Verificar que todos los botones funcionan correctamente"},
+    {"title": "Verificar sistema de lubricación", "description": "Revisar niveles y funcionamiento del sistema de lubricación"},
+    {"title": "Inspeccionar cableado", "description": "Verificar que no hay cables sueltos o dañados"},
+    {"title": "Prueba de funcionamiento completo", "description": "Ejecutar ciclo completo de prueba del equipo"}
+]'),
+('Checklist General Fuerza', 'Fuerza', '[
+    {"title": "Inspección visual externa", "description": "Verificar estado general del equipo"},
+    {"title": "Limpieza y desinfección", "description": "Limpiar superficies y desinfectar puntos de contacto"},
+    {"title": "Verificar ajustes y seguros", "description": "Comprobar que los ajustes y sistemas de seguridad funcionan"},
+    {"title": "Inspeccionar cables y poleas", "description": "Verificar estado de cables, poleas y sistemas de transmisión"},
+    {"title": "Lubricar puntos de fricción", "description": "Aplicar lubricación en puntos necesarios"},
+    {"title": "Verificar pesos y contrapesos", "description": "Comprobar que los pesos están correctamente asegurados"},
+    {"title": "Prueba de funcionamiento completo", "description": "Ejecutar movimientos completos del equipo"}
+]');
+
 COMMIT; 

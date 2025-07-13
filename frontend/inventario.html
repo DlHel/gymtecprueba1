@@ -4,53 +4,82 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventario - Gymtec ERP</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/inventario.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        .modal { display: none; }
-    </style>
 </head>
 <body>
     <div class="flex h-screen">
         <!-- El menú se cargará aquí -->
         <div id="menu-placeholder"></div>
 
-        <!-- Contenido Principal -->
-        <div class="flex-1 flex flex-col overflow-y-auto">
-            <header class="app-header flex-shrink-0">
-                <div class="flex items-center justify-between p-4">
-                    <h1 id="page-title">Inventario</h1>
-                    <div class="user-info">Felipe Maturana (Admin)</div>
+        <!-- Contenido principal -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación" aria-label="Abrir menú de navegación">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-800">Inventario</h1>
+                    </div>
+                    <div class="user-info">
+                        Felipe Maturana (Admin)
+                    </div>
                 </div>
             </header>
-            
+
+            <!-- Contenido principal -->
             <main class="flex-1 overflow-y-auto section-spacing">
                 <div class="content-max-width">
-                    <div class="app-card">
-                        <div class="p-4 border-b" style="border-color: var(--border-primary);">
-                            <div class="flex justify-between items-center">
-                                <h2 class="text-lg font-semibold">Inventario de Repuestos</h2>
-                                <button id="add-inventory-btn" class="btn-secondary" title="Agregar repuesto"><i data-lucide="plus-circle" class="w-6 h-6"></i></button>
+                    <!-- Controles superiores -->
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-semibold text-gray-800">Gestión de Inventario</h2>
+                        <button id="add-inventory-btn" class="btn-primary flex items-center" title="Agregar nuevo repuesto">
+                            <i data-lucide="plus" class="mr-2 h-5 w-5"></i>
+                            Nuevo Repuesto
+                        </button>
+                    </div>
+
+                    <!-- Filtros -->
+                    <div class="app-card p-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="form-label">Categoría</label>
+                                                            <select id="category-filter" class="form-input" title="Filtrar por categoría">
+                                <option value="">Todas</option>
+                            </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Estado</label>
+                                                            <select id="status-filter" class="form-input" title="Filtrar por estado">
+                                <option value="">Todos</option>
+                                <option value="disponible">Disponible</option>
+                                <option value="bajo-stock">Bajo Stock</option>
+                                <option value="agotado">Agotado</option>
+                            </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Buscar</label>
+                                <input type="text" id="search-input" placeholder="Buscar repuestos..." class="form-input">
                             </div>
                         </div>
-                        <div class="overflow-x-auto">
-                            <table class="app-table">
-                                <thead>
-                                    <tr>
-                                        <th>Nombre</th>
-                                        <th>SKU</th>
-                                        <th>Stock Actual</th>
-                                        <th>Stock Mínimo</th>
-                                        <th>Estado</th>
-                                        <th style="text-align: right;">Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="inventory-list"></tbody>
-                            </table>
+                    </div>
+
+                    <!-- Lista de inventario -->
+                    <div class="app-card">
+                        <div class="p-6">
+                            <div id="inventory-container">
+                                <div class="text-center py-8">
+                                    <div class="animate-spin w-8 h-8 border-4 border-primary-200 border-t-primary-600 rounded-full mx-auto mb-4"></div>
+                                    <p class="text-gray-500">Cargando inventario...</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -58,9 +87,9 @@
         </div>
     </div>
 
-    <!-- Modal para Añadir/Editar Repuesto - MIGRADO AL SISTEMA UNIFICADO -->
-    <div id="inventory-modal" class="base-modal" style="display: none;">
-        <div class="base-modal-content modal-small">
+    <!-- Modal de Inventario -->
+    <div id="inventory-modal" class="base-modal">
+        <div class="base-modal-content">
             <div class="base-modal-header">
                 <h3 id="inventory-modal-title" class="base-modal-title">Nuevo Repuesto</h3>
                 <button type="button" class="base-modal-close">
@@ -68,40 +97,64 @@
                 </button>
             </div>
             <div class="base-modal-body">
-                <form id="inventory-modal-form" class="base-form-grid">
+                <form id="inventory-form" class="base-form-grid">
                     <input type="hidden" name="id">
                     
+                    <div class="base-form-group">
+                        <label class="base-form-label">Nombre <span class="required">*</span></label>
+                        <input type="text" name="name" class="base-form-input" required placeholder="Nombre del repuesto">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">SKU <span class="required">*</span></label>
+                        <input type="text" name="sku" class="base-form-input" required placeholder="Código SKU">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Categoría</label>
+                        <input type="text" name="category" class="base-form-input" placeholder="Categoría del repuesto">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Marca</label>
+                        <input type="text" name="brand" class="base-form-input" placeholder="Marca del repuesto">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Stock Actual</label>
+                                            <input type="number" name="current_stock" class="base-form-input" min="0" value="0" title="Cantidad actual en stock">
+                </div>
+                
+                <div class="base-form-group">
+                    <label class="base-form-label">Stock Mínimo</label>
+                    <input type="number" name="min_stock" class="base-form-input" min="0" value="5" title="Cantidad mínima de stock">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Precio Unitario</label>
+                        <input type="number" name="unit_price" class="base-form-input" min="0" step="0.01" placeholder="0.00">
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Ubicación</label>
+                        <input type="text" name="location" class="base-form-input" placeholder="Ubicación en almacén">
+                    </div>
+                    
                     <div class="base-form-group full-width">
-                        <label for="inventory-name" class="base-form-label">Nombre del Repuesto <span class="required">*</span></label>
-                        <input type="text" id="inventory-name" name="name" class="base-form-input" required placeholder="Ingrese el nombre del repuesto">
-                    </div>
-                    
-                    <div class="base-form-group">
-                        <label for="inventory-sku" class="base-form-label">SKU</label>
-                        <input type="text" id="inventory-sku" name="sku" class="base-form-input" placeholder="Código SKU del repuesto">
-                    </div>
-                    
-                    <div class="base-form-group">
-                        <label for="inventory-current-stock" class="base-form-label">Stock Actual <span class="required">*</span></label>
-                        <input type="number" id="inventory-current-stock" name="current_stock" value="0" class="base-form-input" required min="0">
-                    </div>
-                    
-                    <div class="base-form-group">
-                        <label for="inventory-minimum-stock" class="base-form-label">Stock Mínimo <span class="required">*</span></label>
-                        <input type="number" id="inventory-minimum-stock" name="minimum_stock" value="0" class="base-form-input" required min="0">
+                        <label class="base-form-label">Descripción</label>
+                        <textarea name="description" rows="3" class="base-form-textarea" placeholder="Descripción del repuesto"></textarea>
                     </div>
                 </form>
             </div>
             <div class="base-modal-footer">
-                <button type="button" id="inventory-modal-cancel-btn" class="base-btn-cancel">Cancelar</button>
-                <button type="submit" form="inventory-modal-form" class="base-btn-save">Guardar Repuesto</button>
+                <button type="button" class="base-btn-cancel">Cancelar</button>
+                <button type="submit" form="inventory-form" class="base-btn-save">Guardar Repuesto</button>
             </div>
         </div>
     </div>
 
-    <!-- Configuración de API URL (debe ir PRIMERO) -->
+    <!-- Scripts -->
     <script src="js/config.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/nav-loader.js"></script>
     <script src="js/inventario.js"></script>
 </body>
