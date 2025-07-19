@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Botón Agregar Tarea - Gymtec ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/ticket-detail.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto p-6">
+        <h1 class="text-2xl font-bold mb-6">🧪 Test Botón Agregar Tarea</h1>
+        
+        <!-- Estado de Correcciones -->
+        <div class="bg-white p-4 rounded border mb-6">
+            <h2 class="font-bold mb-4 text-green-700">✅ Correcciones Aplicadas:</h2>
+            <ul class="space-y-1 text-sm">
+                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-green-500 mr-2"></i> CSS: Cambiado de <code>show</code> a <code>is-open</code></li>
+                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-green-500 mr-2"></i> JS: Event listener configurado correctamente</li>
+                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-green-500 mr-2"></i> Modal: HTML generado dinámicamente</li>
+                <li class="flex items-center"><i data-lucide="check" class="w-4 h-4 text-green-500 mr-2"></i> Form: Campos title y description funcionales</li>
+            </ul>
+        </div>
+        
+        <!-- Botón de Prueba -->
+        <div class="bg-white p-6 rounded border mb-6 text-center">
+            <h3 class="text-lg font-semibold mb-4">Prueba del Botón Agregar Tarea</h3>
+            <button id="add-checklist-btn" class="ticket-action-btn primary">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Agregar Tarea
+            </button>
+            <p class="text-gray-600 text-sm mt-2">Haz clic para probar que el modal se abra correctamente</p>
+        </div>
+        
+        <!-- Log de Acciones -->
+        <div class="bg-white p-4 rounded border">
+            <h4 class="font-bold mb-2">📝 Log de Acciones</h4>
+            <div id="action-log" class="space-y-1 text-sm max-h-40 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script>
+        // Log function
+        function logAction(message, type = 'info') {
+            const logDiv = document.getElementById('action-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const colors = {
+                'info': 'text-blue-600',
+                'success': 'text-green-600', 
+                'error': 'text-red-600'
+            };
+            
+            const entry = document.createElement('div');
+            entry.className = colors[type] || 'text-gray-600';
+            entry.innerHTML = `<span class="text-gray-400">[${timestamp}]</span> ${message}`;
+            
+            logDiv.insertBefore(entry, logDiv.firstChild);
+            
+            if (logDiv.children.length > 20) {
+                logDiv.removeChild(logDiv.lastChild);
+            }
+        }
+        
+        // Estado simulado
+        window.state = {
+            currentTicket: { 
+                id: 'TEST-001',
+                title: "Test Botón Agregar Tarea"
+            },
+            checklist: []
+        };
+        
+        // Función del modal (copiada de ticket-detail.js con correcciones)
+        function showAddChecklistModal() {
+            logAction('🎯 Botón "Agregar Tarea" presionado', 'info');
+            
+            // Crear modal dinámico para agregar tarea al checklist
+            const modal = document.createElement('div');
+            modal.className = 'base-modal';
+            modal.id = 'add-checklist-modal';
+                         modal.innerHTML = `
+                 <div class="base-modal-content modal-small">
+                     <div class="base-modal-header">
+                         <h3 class="base-modal-title">
+                             <i data-lucide="plus-circle" class="w-5 h-5 text-blue-600 mr-2"></i>
+                             Agregar Nueva Tarea
+                         </h3>
+                         <button type="button" class="base-modal-close" onclick="closeChecklistModal()">
+                             <i data-lucide="x" class="w-5 h-5"></i>
+                         </button>
+                     </div>
+                     
+                     <div class="base-modal-body">
+                         <form id="add-checklist-form" class="space-y-6">
+                             <div class="form-group">
+                                 <label for="checklist-title" class="form-label required">
+                                     <i data-lucide="check-square" class="w-4 h-4 text-blue-500"></i>
+                                     Título de la tarea
+                                 </label>
+                                 <input type="text" 
+                                        id="checklist-title" 
+                                        name="title" 
+                                        class="form-input form-input-modern" 
+                                        placeholder="Ej: Verificar conexiones eléctricas, lubricar componentes..."
+                                        required 
+                                        maxlength="200"
+                                        autocomplete="off">
+                                 <p class="form-help-text">Descripción clara y específica de la tarea a realizar</p>
+                             </div>
+                             
+                             <div class="form-group">
+                                 <label for="checklist-description" class="form-label">
+                                     <i data-lucide="align-left" class="w-4 h-4 text-green-500"></i>
+                                     Descripción detallada
+                                     <span class="text-sm text-gray-500 font-normal ml-1">(opcional)</span>
+                                 </label>
+                                 <textarea id="checklist-description" 
+                                           name="description" 
+                                           class="form-textarea form-textarea-modern" 
+                                           rows="4" 
+                                           placeholder="Instrucciones específicas, herramientas necesarias, precauciones de seguridad..."
+                                           maxlength="500"></textarea>
+                                 <p class="form-help-text">Detalles adicionales que ayuden al técnico a completar la tarea</p>
+                             </div>
+                         </form>
+                     </div>
+                     
+                     <div class="base-modal-footer">
+                         <button type="button" class="base-btn base-btn-secondary" onclick="closeChecklistModal()">
+                             <i data-lucide="x" class="w-4 h-4"></i>
+                             Cancelar
+                         </button>
+                         <button type="button" class="base-btn base-btn-primary" onclick="submitChecklistItem()">
+                             <i data-lucide="plus" class="w-4 h-4"></i>
+                             Agregar Tarea
+                         </button>
+                     </div>
+                 </div>
+             `;
+            
+            document.body.appendChild(modal);
+            logAction('✅ Modal HTML creado e insertado en DOM', 'success');
+            
+            // Mostrar modal (CORREGIDO: usar is-open en lugar de show)
+            setTimeout(() => {
+                modal.classList.add('is-open');
+                document.getElementById('checklist-title').focus();
+                lucide.createIcons();
+                logAction('✅ Modal mostrado con clase "is-open"', 'success');
+                logAction('🎯 Focus puesto en campo título', 'info');
+            }, 10);
+        }
+        
+        function closeChecklistModal() {
+            const modal = document.getElementById('add-checklist-modal');
+            if (modal) {
+                modal.classList.remove('is-open');
+                setTimeout(() => modal.remove(), 300);
+                logAction('✅ Modal cerrado y removido del DOM', 'success');
+            }
+        }
+        
+        function submitChecklistItem() {
+            const form = document.getElementById('add-checklist-form');
+            const formData = new FormData(form);
+            
+            const title = formData.get('title').trim();
+            const description = formData.get('description').trim();
+            
+            if (!title) {
+                alert('El título de la tarea es obligatorio');
+                return;
+            }
+            
+            logAction(`✅ Tarea creada: "${title}"`, 'success');
+            if (description) {
+                logAction(`📝 Con descripción: "${description}"`, 'info');
+            }
+            
+            closeChecklistModal();
+            alert(`✅ ¡Excelente!\n\nTarea creada exitosamente:\n"${title}"\n\nEn la implementación real, esta tarea se guardaría en la base de datos.`);
+        }
+        
+        // Configurar event listener al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            
+            // Configurar event listener del botón (igual que en ticket-detail.js)
+            const addChecklistBtn = document.getElementById('add-checklist-btn');
+            if (addChecklistBtn) {
+                addChecklistBtn.addEventListener('click', showAddChecklistModal);
+                logAction('✅ Event listener configurado en botón "Agregar Tarea"', 'success');
+            } else {
+                logAction('❌ No se encontró el botón "add-checklist-btn"', 'error');
+            }
+            
+            logAction('🚀 Página de prueba inicializada', 'info');
+        });
+    </script>
+</body>
+</html> 

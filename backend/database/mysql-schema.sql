@@ -143,6 +143,80 @@ CREATE TABLE IF NOT EXISTS `SpareParts` (
     INDEX `idx_spare_parts_sku` (`sku`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Gestión avanzada de inventario
+CREATE TABLE IF NOT EXISTS `TechnicianInventory` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `technician_id` INT(11) NOT NULL,
+    `spare_part_id` INT(11) NOT NULL,
+    `quantity` INT(11) NOT NULL DEFAULT 0,
+    `assigned_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `assigned_by` INT(11),
+    `status` ENUM('Asignado', 'En Uso', 'Devuelto') DEFAULT 'Asignado',
+    `notes` TEXT,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`technician_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`spare_part_id`) REFERENCES `SpareParts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`assigned_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_technician_inventory_tech` (`technician_id`),
+    INDEX `idx_technician_inventory_part` (`spare_part_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `PurchaseOrders` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `order_number` VARCHAR(50) UNIQUE NOT NULL,
+    `supplier` VARCHAR(200) NOT NULL,
+    `status` ENUM('Pendiente', 'Aprobada', 'Enviada', 'Recibida', 'Cancelada') DEFAULT 'Pendiente',
+    `order_date` DATE NOT NULL,
+    `expected_delivery` DATE,
+    `received_date` DATE,
+    `total_amount` DECIMAL(10,2) DEFAULT 0.00,
+    `notes` TEXT,
+    `created_by` INT(11),
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`created_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_purchase_orders_number` (`order_number`),
+    INDEX `idx_purchase_orders_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `PurchaseOrderItems` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `purchase_order_id` INT(11) NOT NULL,
+    `spare_part_id` INT(11) NOT NULL,
+    `quantity_ordered` INT(11) NOT NULL,
+    `quantity_received` INT(11) DEFAULT 0,
+    `unit_cost` DECIMAL(8,2) NOT NULL,
+    `total_cost` DECIMAL(10,2) GENERATED ALWAYS AS (`quantity_ordered` * `unit_cost`) STORED,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`purchase_order_id`) REFERENCES `PurchaseOrders` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`spare_part_id`) REFERENCES `SpareParts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX `idx_purchase_order_items_order` (`purchase_order_id`),
+    INDEX `idx_purchase_order_items_part` (`spare_part_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS `InventoryTransactions` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `spare_part_id` INT(11) NOT NULL,
+    `transaction_type` ENUM('Entrada', 'Salida', 'Ajuste', 'Asignación', 'Devolución') NOT NULL,
+    `quantity` INT(11) NOT NULL,
+    `quantity_before` INT(11) NOT NULL,
+    `quantity_after` INT(11) NOT NULL,
+    `reference_type` ENUM('Ticket', 'Purchase Order', 'Manual Adjustment', 'Technician Assignment') DEFAULT 'Manual Adjustment',
+    `reference_id` INT(11),
+    `technician_id` INT(11),
+    `performed_by` INT(11),
+    `notes` TEXT,
+    `transaction_date` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`spare_part_id`) REFERENCES `SpareParts` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (`technician_id`) REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    FOREIGN KEY (`performed_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL ON UPDATE CASCADE,
+    INDEX `idx_inventory_transactions_part` (`spare_part_id`),
+    INDEX `idx_inventory_transactions_type` (`transaction_type`),
+    INDEX `idx_inventory_transactions_date` (`transaction_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Módulo 2: Gestión de Contratos y SLAs
 CREATE TABLE IF NOT EXISTS `Contracts` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,

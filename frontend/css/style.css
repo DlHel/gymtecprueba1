@@ -1044,6 +1044,127 @@ video {
     gap: 1rem;
 }
 
+/* === Estilos Mejorados para Modales === */
+
+/* Botones base para modales */
+.base-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    text-decoration: none;
+    min-width: 120px;
+    justify-content: center;
+}
+
+.base-btn-primary {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #2563eb;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.base-btn-primary:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: #1d4ed8;
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+}
+
+.base-btn-secondary {
+    background: white;
+    color: #64748b;
+    border-color: #e2e8f0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.base-btn-secondary:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #475569;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Campos de formulario modernos */
+.form-input-modern,
+.form-textarea-modern {
+    width: 100%;
+    padding: 0.875rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background: white;
+    resize: none;
+}
+
+.form-input-modern:focus,
+.form-textarea-modern:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    background: #fefefe;
+}
+
+.form-input-modern::placeholder,
+.form-textarea-modern::placeholder {
+    color: #9ca3af;
+    font-style: italic;
+}
+
+/* Labels mejorados */
+.form-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.form-label.required::after {
+    content: "*";
+    color: #ef4444;
+    margin-left: 0.25rem;
+}
+
+/* Texto de ayuda */
+.form-help-text {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+    line-height: 1.4;
+    font-style: italic;
+}
+
+/* Grupos de formulario */
+.form-group {
+    margin-bottom: 0;
+}
+
+/* Título del modal mejorado */
+.base-modal-title {
+    display: flex;
+    align-items: center;
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+/* Header del modal con gradiente mejorado */
+.base-modal-header {
+    background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+    border-bottom: 2px solid #e2e8f0;
+}
+
 /* Grid de Formulario Unificado */
 .base-form-grid {
     display: grid;

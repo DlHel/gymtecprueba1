@@ -560,6 +560,67 @@ app.get('/api/inventory', (req, res) => {
     });
 });
 
+// GET technician inventory
+app.get('/api/inventory/technicians', (req, res) => {
+    const sql = `
+        SELECT 
+            ti.*,
+            u.username as technician_name,
+            u.email as technician_email,
+            sp.name as spare_part_name,
+            sp.sku as spare_part_sku,
+            sp.current_stock,
+            assigned_user.username as assigned_by_name
+        FROM TechnicianInventory ti
+        LEFT JOIN Users u ON ti.technician_id = u.id
+        LEFT JOIN SpareParts sp ON ti.spare_part_id = sp.id
+        LEFT JOIN Users assigned_user ON ti.assigned_by = assigned_user.id
+        ORDER BY ti.assigned_at DESC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error en consulta de inventario de técnicos:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        res.json({
+            "message": "success",
+            "data": rows
+        });
+    });
+});
+
+// GET inventory transactions
+app.get('/api/inventory/transactions', (req, res) => {
+    const sql = `
+        SELECT 
+            it.*,
+            sp.name as spare_part_name,
+            sp.sku as spare_part_sku,
+            u_tech.username as technician_name,
+            u_performed.username as performed_by_name
+        FROM InventoryTransactions it
+        LEFT JOIN SpareParts sp ON it.spare_part_id = sp.id
+        LEFT JOIN Users u_tech ON it.technician_id = u_tech.id
+        LEFT JOIN Users u_performed ON it.performed_by = u_performed.id
+        ORDER BY it.transaction_date DESC
+        LIMIT 100
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error en consulta de transacciones de inventario:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        res.json({
+            "message": "success",
+            "data": rows
+        });
+    });
+});
+
 // POST new spare part
 app.post('/api/inventory', (req, res) => {
     const { name, sku, current_stock, minimum_stock } = req.body;
@@ -610,6 +671,173 @@ app.delete("/api/inventory/:id", (req, res) => {
             return res.status(400).json({"error": err.message});
         }
         res.json({"message":"deleted", changes: this.changes});
+    });
+});
+
+// --- API Routes for Purchase Orders ---
+
+// GET all purchase orders
+app.get('/api/purchase-orders', (req, res) => {
+    const sql = `
+        SELECT 
+            po.*,
+            u.username as created_by_name,
+            COUNT(poi.id) as items_count,
+            SUM(poi.total_cost) as calculated_total
+        FROM PurchaseOrders po
+        LEFT JOIN Users u ON po.created_by = u.id
+        LEFT JOIN PurchaseOrderItems poi ON po.id = poi.purchase_order_id
+        GROUP BY po.id
+        ORDER BY po.created_at DESC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error en consulta de órdenes de compra:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        res.json({
+            "message": "success",
+            "data": rows
+        });
+    });
+});
+
+// GET purchase order by ID with items
+app.get('/api/purchase-orders/:id', (req, res) => {
+    const orderId = req.params.id;
+    
+    const orderSql = `
+        SELECT 
+            po.*,
+            u.username as created_by_name
+        FROM PurchaseOrders po
+        LEFT JOIN Users u ON po.created_by = u.id
+        WHERE po.id = ?
+    `;
+    
+    const itemsSql = `
+        SELECT 
+            poi.*,
+            sp.name as spare_part_name,
+            sp.sku as spare_part_sku
+        FROM PurchaseOrderItems poi
+        LEFT JOIN SpareParts sp ON poi.spare_part_id = sp.id
+        WHERE poi.purchase_order_id = ?
+    `;
+    
+    db.get(orderSql, [orderId], (err, order) => {
+        if (err) {
+            return res.status(500).json({ "error": err.message });
+        }
+        if (!order) {
+            return res.status(404).json({ "error": "Orden de compra no encontrada" });
+        }
+        
+        db.all(itemsSql, [orderId], (err, items) => {
+            if (err) {
+                return res.status(500).json({ "error": err.message });
+            }
+            
+            res.json({
+                "message": "success",
+                "data": {
+                    ...order,
+                    items: items
+                }
+            });
+        });
+    });
+});
+
+// POST new purchase order
+app.post('/api/purchase-orders', (req, res) => {
+    const { order_number, supplier, order_date, expected_delivery, notes, items } = req.body;
+    
+    if (!order_number || !supplier || !order_date) {
+        return res.status(400).json({ "error": "order_number, supplier y order_date son requeridos" });
+    }
+    
+    // Calcular total
+    const total_amount = items ? items.reduce((sum, item) => sum + (item.quantity_ordered * item.unit_cost), 0) : 0;
+    
+    const orderSql = `
+        INSERT INTO PurchaseOrders 
+        (order_number, supplier, order_date, expected_delivery, total_amount, notes, created_by) 
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const orderParams = [order_number, supplier, order_date, expected_delivery || null, total_amount, notes || null, 1]; // TODO: usar usuario actual
+    
+    db.run(orderSql, orderParams, function(err) {
+        if (err) {
+            return res.status(400).json({ "error": err.message });
+        }
+        
+        const orderId = this.lastID;
+        
+        // Insertar items si existen
+        if (items && items.length > 0) {
+            const itemSql = `
+                INSERT INTO PurchaseOrderItems 
+                (purchase_order_id, spare_part_id, quantity_ordered, unit_cost, total_cost) 
+                VALUES (?, ?, ?, ?, ?)
+            `;
+            
+            let completed = 0;
+            const errors = [];
+            
+            items.forEach(item => {
+                const total_cost = item.quantity_ordered * item.unit_cost;
+                db.run(itemSql, [orderId, item.spare_part_id, item.quantity_ordered, item.unit_cost, total_cost], (err) => {
+                    completed++;
+                    if (err) errors.push(err.message);
+                    
+                    if (completed === items.length) {
+                        if (errors.length > 0) {
+                            return res.status(400).json({ "error": "Error insertando items: " + errors.join(", ") });
+                        }
+                        res.status(201).json({
+                            "message": "success",
+                            "data": { id: orderId, ...req.body }
+                        });
+                    }
+                });
+            });
+        } else {
+            res.status(201).json({
+                "message": "success",
+                "data": { id: orderId, ...req.body }
+            });
+        }
+    });
+});
+
+// PUT update purchase order status
+app.put('/api/purchase-orders/:id/status', (req, res) => {
+    const { status, received_date } = req.body;
+    const orderId = req.params.id;
+    
+    if (!status) {
+        return res.status(400).json({ "error": "status es requerido" });
+    }
+    
+    const sql = `
+        UPDATE PurchaseOrders 
+        SET status = ?, received_date = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [status, received_date || null, orderId], function(err) {
+        if (err) {
+            return res.status(400).json({ "error": err.message });
+        }
+        
+        res.json({
+            "message": "success",
+            "data": { id: orderId, status, received_date }
+        });
     });
 });
 
@@ -1571,29 +1799,50 @@ app.put('/api/tickets/checklist/:itemId', (req, res) => {
     const { itemId } = req.params;
     const { is_completed, completed_by } = req.body;
     
+    // Validar parámetros
+    if (typeof is_completed !== 'boolean') {
+        return res.status(400).json({ 
+            error: "El campo 'is_completed' debe ser un valor booleano (true/false)" 
+        });
+    }
+    
+    if (!itemId || isNaN(parseInt(itemId))) {
+        return res.status(400).json({ 
+            error: "ID de item de checklist inválido" 
+        });
+    }
+    
+    console.log('🔄 Actualizando checklist item:', { itemId, is_completed, completed_by });
+    
     const sql = `UPDATE TicketChecklists SET 
                  is_completed = ?, 
                  completed_at = ?, 
                  completed_by = ? 
                  WHERE id = ?`;
     const params = [
-        is_completed,
+        is_completed ? 1 : 0, // Convertir explícitamente para SQLite
         is_completed ? new Date().toISOString() : null,
         is_completed ? (completed_by || 'Sistema') : null,
-        itemId
+        parseInt(itemId)
     ];
     
     db.run(sql, params, function(err) {
         if (err) {
+            console.error('❌ Error updating checklist item:', err);
             res.status(400).json({ error: err.message });
             return;
         }
         if (this.changes === 0) {
+            console.warn('⚠️ No checklist item found with ID:', itemId);
             return res.status(404).json({ error: "Item de checklist no encontrado" });
         }
+        
+        console.log('✅ Checklist item updated successfully:', { itemId, changes: this.changes });
         res.json({
             message: "success",
-            changes: this.changes
+            changes: this.changes,
+            itemId: parseInt(itemId),
+            is_completed: is_completed
         });
     });
 });
@@ -1830,7 +2079,7 @@ function logTicketChange(ticketId, fieldChanged, oldValue, newValue, changedBy =
 }
 
 // GET enhanced ticket detail with all related data
-app.get('/api/tickets/:id/detail', (req, res) => {
+app.get('/api/tickets/:id/detail', async (req, res) => {
     const ticketId = req.params.id;
     
     // Query principal del ticket con joins
@@ -1845,6 +2094,7 @@ app.get('/api/tickets/:id/detail', (req, res) => {
             e.serial_number as equipment_serial,
             em.name as equipment_model_name,
             em.brand as equipment_brand,
+            em.category as equipment_category,
             u.username as technician_name
         FROM Tickets t
         LEFT JOIN Clients c ON t.client_id = c.id
@@ -1855,7 +2105,7 @@ app.get('/api/tickets/:id/detail', (req, res) => {
         WHERE t.id = ?
     `;
     
-    db.get(ticketSql, [ticketId], (err, ticket) => {
+    db.get(ticketSql, [ticketId], async (err, ticket) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
@@ -1864,52 +2114,78 @@ app.get('/api/tickets/:id/detail', (req, res) => {
             return res.status(404).json({ error: "Ticket no encontrado" });
         }
         
-        // Obtener datos relacionados en paralelo
-        Promise.all([
-            new Promise((resolve, reject) => {
-                db.all('SELECT * FROM TicketTimeEntries WHERE ticket_id = ? ORDER BY created_at DESC', 
-                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
-            }),
-            new Promise((resolve, reject) => {
-                db.all('SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC', 
-                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
-            }),
-            new Promise((resolve, reject) => {
-                db.all('SELECT * FROM TicketChecklists WHERE ticket_id = ? ORDER BY order_index ASC', 
-                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
-            }),
-            new Promise((resolve, reject) => {
-                db.all(`SELECT tsp.*, sp.name as spare_part_name, sp.sku as spare_part_sku 
-                        FROM TicketSpareParts tsp 
-                        JOIN SpareParts sp ON tsp.spare_part_id = sp.id 
-                        WHERE tsp.ticket_id = ? ORDER BY tsp.used_at DESC`, 
-                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
-            }),
-            new Promise((resolve, reject) => {
-                db.all('SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC', 
-                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
-            }),
-            new Promise((resolve, reject) => {
-                db.all('SELECT * FROM TicketHistory WHERE ticket_id = ? ORDER BY changed_at DESC', 
-                       [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
-            })
-        ]).then(([timeEntries, notes, checklist, spareParts, photos, history]) => {
+        try {
+            // Obtener datos relacionados en paralelo
+            const [timeEntries, notes, checklist, spareParts, photos, history] = await Promise.all([
+                new Promise((resolve, reject) => {
+                    db.all('SELECT * FROM TicketTimeEntries WHERE ticket_id = ? ORDER BY created_at DESC', 
+                           [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+                }),
+                new Promise((resolve, reject) => {
+                    db.all('SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC', 
+                           [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+                }),
+                new Promise((resolve, reject) => {
+                    db.all('SELECT * FROM TicketChecklists WHERE ticket_id = ? ORDER BY order_index ASC', 
+                           [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+                }),
+                new Promise((resolve, reject) => {
+                    db.all(`SELECT tsp.*, sp.name as spare_part_name, sp.sku as spare_part_sku 
+                            FROM TicketSpareParts tsp 
+                            JOIN SpareParts sp ON tsp.spare_part_id = sp.id 
+                            WHERE tsp.ticket_id = ? ORDER BY tsp.used_at DESC`, 
+                           [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+                }),
+                new Promise((resolve, reject) => {
+                    db.all('SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC', 
+                           [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+                }),
+                new Promise((resolve, reject) => {
+                    db.all('SELECT * FROM TicketHistory WHERE ticket_id = ? ORDER BY changed_at DESC', 
+                           [ticketId], (err, rows) => err ? reject(err) : resolve(rows));
+                })
+            ]);
+            
+            // 🎯 NUEVA FUNCIONALIDAD: Auto-generar checklist desde template si está vacío
+            let finalChecklist = checklist;
+            
+            if (ticket.equipment_id && checklist.length === 0) {
+                console.log('🔧 Ticket tiene equipo pero no checklist, generando desde template...');
+                try {
+                    const autoChecklist = await createChecklistFromTemplate(ticketId, ticket.equipment_id);
+                    if (autoChecklist.length > 0) {
+                        finalChecklist = autoChecklist;
+                        console.log(`✅ Auto-generado checklist con ${autoChecklist.length} tareas para ticket ${ticketId} (${ticket.equipment_category || 'equipo'})`);
+                        
+                        // Log del evento
+                        logTicketChange(ticketId, 'checklist_auto_generated', '', `Auto-generado desde template de ${ticket.equipment_category || 'equipo'}`);
+                    }
+                } catch (error) {
+                    console.error('❌ Error auto-generando checklist:', error);
+                    // Continuar sin checklist automático
+                }
+            }
+            
             res.json({
                 message: "success",
                 data: {
                     ...ticket,
                     time_entries: timeEntries,
                     notes: notes,
-                    checklist: checklist,
+                    checklist: finalChecklist,
                     spare_parts: spareParts,
                     photos: photos,
-                    history: history
+                    history: history,
+                    // Información adicional sobre el checklist
+                    checklist_auto_generated: finalChecklist.length > 0 && checklist.length === 0,
+                    equipment_category: ticket.equipment_category
                 }
             });
-        }).catch(error => {
+            
+        } catch (error) {
             console.error('❌ Error obteniendo datos relacionados del ticket:', error);
             res.status(500).json({ error: "Error obteniendo datos completos del ticket" });
-        });
+        }
     });
 });
 
@@ -2354,3 +2630,133 @@ app.post('/api/time-entries', (req, res) => {
 app.listen(port, () => {
     console.log(`Gymtec ERP backend listening at http://localhost:${port}`);
 }); 
+
+// --- API Routes for Checklist Templates ---
+
+// GET checklist template for equipment
+app.get('/api/equipment/:equipmentId/checklist-template', (req, res) => {
+    const { equipmentId } = req.params;
+    
+    const sql = `
+        SELECT ct.*
+        FROM ChecklistTemplates ct
+        JOIN Equipment e ON (
+            (ct.model_id = e.model_id) OR 
+            (ct.equipment_type = (SELECT em.category FROM EquipmentModels em WHERE em.id = e.model_id))
+        )
+        WHERE e.id = ?
+        AND ct.is_active = TRUE
+        ORDER BY ct.model_id DESC, ct.created_at DESC
+        LIMIT 1
+    `;
+    
+    db.all(sql, [equipmentId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching checklist template:', err.message);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (rows.length === 0) {
+            res.json({ message: "No checklist template found for this equipment", data: null });
+            return;
+        }
+        
+        const template = rows[0];
+        console.log('✅ Checklist template found:', template.name);
+        
+        // Parsear items JSON
+        try {
+            template.items = JSON.parse(template.items);
+        } catch (e) {
+            console.warn('⚠️ Error parsing template items JSON:', e);
+            template.items = [];
+        }
+        
+        res.json({ message: "success", data: template });
+    });
+});
+
+// Función para crear checklist automáticamente desde template
+async function createChecklistFromTemplate(ticketId, equipmentId) {
+    return new Promise((resolve, reject) => {
+        // Primero obtener el template
+        const templateSql = `
+            SELECT ct.*
+            FROM ChecklistTemplates ct
+            JOIN Equipment e ON (
+                (ct.model_id = e.model_id) OR 
+                (ct.equipment_type = (SELECT em.category FROM EquipmentModels em WHERE em.id = e.model_id))
+            )
+            WHERE e.id = ?
+            AND ct.is_active = TRUE
+            ORDER BY ct.model_id DESC, ct.created_at DESC
+            LIMIT 1
+        `;
+        
+        db.get(templateSql, [equipmentId], (err, template) => {
+            if (err) {
+                console.error('❌ Error fetching template for auto-checklist:', err);
+                reject(err);
+                return;
+            }
+            
+            if (!template) {
+                console.log('ℹ️ No template found for equipment:', equipmentId);
+                resolve([]);
+                return;
+            }
+            
+            console.log('🎯 Creating auto-checklist from template:', template.name);
+            
+            // Parsear items del template
+            let templateItems;
+            try {
+                templateItems = JSON.parse(template.items);
+            } catch (e) {
+                console.warn('⚠️ Error parsing template items:', e);
+                resolve([]);
+                return;
+            }
+            
+            // Crear tareas del checklist para el ticket
+            const promises = templateItems.map((item, index) => {
+                return new Promise((resolveItem, rejectItem) => {
+                    const insertSql = `
+                        INSERT INTO TicketChecklists 
+                        (ticket_id, title, description, is_completed, order_index)
+                        VALUES (?, ?, ?, FALSE, ?)
+                    `;
+                    
+                    db.run(insertSql, [
+                        ticketId,
+                        item.title,
+                        item.description || '',
+                        index
+                    ], function(err) {
+                        if (err) {
+                            console.error('❌ Error creating checklist item:', err);
+                            rejectItem(err);
+                            return;
+                        }
+                        
+                        resolveItem({
+                            id: this.lastID,
+                            title: item.title,
+                            description: item.description || '',
+                            is_completed: false,
+                            order_index: index
+                        });
+                    });
+                });
+            });
+            
+            Promise.all(promises)
+                .then(createdItems => {
+                    console.log(`✅ Created ${createdItems.length} checklist items from template "${template.name}"`);
+                    resolve(createdItems);
+                })
+                .catch(reject);
+        });
+    });
+} 

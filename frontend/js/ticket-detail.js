@@ -149,7 +149,9 @@ async function loadTicketDetail(ticketId) {
             equipment_serial: data.equipment_serial || '',
             equipment_model_name: data.equipment_model_name || '',
             equipment_brand: data.equipment_brand || '',
-            assigned_to: data.technician_name || 'Sin asignar'
+            assigned_to: data.technician_name || 'Sin asignar',
+            checklist_auto_generated: data.checklist_auto_generated, // Nuevo campo
+            equipment_category: data.equipment_category // Nuevo campo
         };
         
         // Cargar datos relacionados
@@ -204,6 +206,8 @@ function renderTicketDetail() {
     renderTicketDescription(state.currentTicket);
     renderTicketStats();
     renderStatusActions(state.currentTicket);
+    renderChecklist();  // ✅ Agregar llamada a renderChecklist
+    updateChecklistCounter();  // ✅ Agregar llamada a updateChecklistCounter
     renderPhotos();
     
     // Configurar event listeners para los nuevos elementos
@@ -440,62 +444,38 @@ function renderStatusActions(ticket) {
 
 // === CONFIGURACIÓN DE EVENTOS UNIFICADOS ===
 function setupUnifiedEventListeners() {
-    // Botón de agregar nota
+    console.log('⚡ Configurando event listeners unificados...');
+    
+    // Botón para agregar nota
     const addNoteBtn = document.getElementById('add-note-btn');
-    const noteTextarea = document.getElementById('new-note-text');
-    
-    if (addNoteBtn && noteTextarea) {
-        addNoteBtn.addEventListener('click', async () => {
-            const noteText = noteTextarea.value.trim();
-            if (noteText) {
-                await addNote(noteText);
-                noteTextarea.value = ''; // Limpiar textarea después de agregar
-            }
-        });
-        
-        // Permitir agregar nota con Ctrl+Enter
-        noteTextarea.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                e.preventDefault();
-                addNoteBtn.click();
-            }
-        });
+    if (addNoteBtn) {
+        addNoteBtn.addEventListener('click', handleAddNote);
     }
     
-    // Botón de seleccionar foto
+    // Botón para agregar checklist
+    const addChecklistBtn = document.getElementById('add-checklist-btn');
+    if (addChecklistBtn) {
+        addChecklistBtn.addEventListener('click', showAddChecklistModal);
+    }
+    
+    // Botón para agregar foto
     const addPhotoBtn = document.getElementById('add-photo-btn');
-    const photoInput = document.getElementById('photo-input');
-    const photoPreview = document.getElementById('photo-preview');
-    const previewImage = document.getElementById('preview-image');
-    const uploadPhotoBtn = document.getElementById('upload-photo-btn');
-    
-    if (addPhotoBtn && photoInput) {
+    if (addPhotoBtn) {
         addPhotoBtn.addEventListener('click', () => {
-            photoInput.click();
-        });
-        
-        photoInput.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    photoPreview.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
+            document.getElementById('photo-input').click();
         });
     }
     
+    // Input de foto
+    const photoInput = document.getElementById('photo-input');
+    if (photoInput) {
+        photoInput.addEventListener('change', handlePhotoSelection);
+    }
+    
+    // Botón para subir foto
+    const uploadPhotoBtn = document.getElementById('upload-photo-btn');
     if (uploadPhotoBtn) {
-        uploadPhotoBtn.addEventListener('click', async () => {
-            const file = photoInput.files[0];
-            if (file) {
-                await uploadPhoto(file);
-                photoInput.value = '';
-                photoPreview.classList.add('hidden');
-            }
-        });
+        uploadPhotoBtn.addEventListener('click', handlePhotoUpload);
     }
     
     // Botón de cambio de estado
@@ -575,36 +555,120 @@ function renderTimeEntries() {
 }
 
 function renderChecklist() {
+    console.log('🎯 Ejecutando renderChecklist()');
     const checklistItems = document.getElementById('checklist-items');
-    if (!checklistItems) return;
+    console.log('📋 Elemento checklist-items encontrado:', !!checklistItems);
+    console.log('📝 Datos del checklist:', state.checklist);
+    
+    if (!checklistItems) {
+        console.warn('❌ No se encontró el elemento #checklist-items');
+        return;
+    }
     
     if (state.checklist.length === 0) {
-        checklistItems.innerHTML = `
-            <div class="ticket-empty-state">
+        console.log('📋 No hay tareas en el checklist, mostrando estado vacío');
+        
+        // Mostrar mensaje específico si hay equipo pero no template
+        const hasEquipment = state.currentTicket?.equipment_id;
+        const emptyMessage = hasEquipment 
+            ? `<div class="ticket-empty-state">
+                <i data-lucide="check-square" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
+                <h3>No hay checklist disponible</h3>
+                <p>No se encontró una guía de mantenimiento para este tipo de equipo</p>
+                <button onclick="showAddChecklistModal()" class="ticket-action-btn primary mt-3">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Agregar Tarea Manual
+                </button>
+            </div>`
+            : `<div class="ticket-empty-state">
                 <i data-lucide="check-square" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
                 <h3>No hay tareas pendientes</h3>
-                <p>Agrega tareas para organizar mejor el trabajo en este ticket</p>
-            </div>
-        `;
+                <p>Este ticket no tiene equipo asociado o no requiere checklist</p>
+                <button onclick="showAddChecklistModal()" class="ticket-action-btn primary mt-3">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Agregar Primera Tarea
+                </button>
+            </div>`;
+        
+        checklistItems.innerHTML = emptyMessage;
     } else {
-        checklistItems.innerHTML = state.checklist.map(item => `
-            <div class="ticket-checklist-item ${item.is_completed ? 'completed' : ''}">
-                <input type="checkbox" ${item.is_completed ? 'checked' : ''} 
-                       onchange="toggleChecklistItem(${item.id}, this.checked)">
-                <div class="item-content">
-                    <div class="item-title">${item.title}</div>
-                    ${item.description ? `<div class="item-description">${item.description}</div>` : ''}
+        console.log(`📝 Renderizando ${state.checklist.length} tareas del checklist`);
+        
+        // Header informativo si el checklist fue auto-generado
+        let headerInfo = '';
+        if (state.currentTicket?.checklist_auto_generated) {
+            const category = state.currentTicket?.equipment_category || 'equipo';
+            headerInfo = `
+                <div class="checklist-auto-generated-info">
+                    <div class="auto-generated-badge">
+                        <i data-lucide="zap" class="w-4 h-4"></i>
+                        <span>Guía de mantenimiento automática para equipos de ${category}</span>
+                    </div>
+                    <p class="auto-generated-description">
+                        Este checklist se generó automáticamente basado en las mejores prácticas de mantenimiento 
+                        para equipos de tipo <strong>${category}</strong>. Puedes marcar, editar o agregar más tareas según necesites.
+                    </p>
                 </div>
-                <div class="item-actions">
-                    <button class="ticket-action-btn danger" onclick="deleteChecklistItem(${item.id})">
+            `;
+        }
+        
+        const checklistHTML = state.checklist
+            .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+            .map(item => `
+            <div class="ticket-checklist-item ${item.is_completed ? 'completed' : ''}">
+                <div class="checklist-item-checkbox">
+                    <input type="checkbox" 
+                           ${item.is_completed ? 'checked' : ''} 
+                           data-item-id="${item.id}"
+                           onchange="toggleChecklistItem(${item.id}, this.checked)"
+                           class="form-checkbox">
+                </div>
+                <div class="checklist-item-content">
+                    <div class="checklist-item-title">${item.title}</div>
+                    ${item.description ? `<div class="checklist-item-description">${item.description}</div>` : ''}
+                    ${item.is_completed && item.completed_at ? `
+                        <div class="checklist-item-meta">
+                            <i data-lucide="check-circle" class="w-3 h-3"></i>
+                            Completada por ${item.completed_by || 'Usuario'} el ${formatDateTime(item.completed_at)}
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="checklist-item-actions">
+                    <button class="ticket-action-btn danger" onclick="deleteChecklistItem(${item.id})" title="Eliminar tarea">
                         <i data-lucide="trash-2" class="w-4 h-4"></i>
                     </button>
                 </div>
             </div>
         `).join('');
+        
+        checklistItems.innerHTML = headerInfo + checklistHTML;
     }
     
+    console.log('✅ Checklist renderizado exitosamente');
     setTimeout(() => lucide.createIcons(), 10);
+}
+
+function updateChecklistCounter() {
+    const counter = document.getElementById('checklist-counter');
+    if (!counter) return;
+    
+    const completedTasks = state.checklist.filter(item => item.is_completed).length;
+    const totalTasks = state.checklist.length;
+    
+    counter.textContent = `${completedTasks}/${totalTasks}`;
+    
+    // Actualizar color del contador según progreso
+    counter.className = 'ticket-counter-badge';
+    if (totalTasks > 0) {
+        const progress = completedTasks / totalTasks;
+        if (progress === 1) {
+            counter.classList.add('completed');
+        } else if (progress > 0.5) {
+            counter.classList.add('progress');
+        } else {
+            counter.classList.add('pending');
+        }
+    }
 }
 
 function renderNotes() {
@@ -1145,202 +1209,251 @@ function showAddNoteModal() {
 }
 
 function showAddChecklistModal() {
-    const title = prompt('Título de la tarea:');
-    if (title) {
-        addChecklistItem(title);
-    }
-}
-
-async function showAddSparePartModal() {
-    try {
-        const response = await fetch(`${API_URL}/spare-parts`);
-        const result = await response.json();
-        const spareParts = result.data || [];
-        
-        if (spareParts.length === 0) {
-            alert('No hay repuestos disponibles en el inventario');
-            return;
-        }
-        
-        const modal = createSparePartModal(spareParts);
-        document.body.appendChild(modal);
-        modal.style.display = 'flex';
+    // Crear modal dinámico para agregar tarea al checklist
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.id = 'add-checklist-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content modal-small">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-blue-600 mr-2"></i>
+                    Agregar Nueva Tarea
+                </h3>
+                <button type="button" class="base-modal-close" onclick="closeChecklistModal()">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            
+            <div class="base-modal-body">
+                <form id="add-checklist-form" class="space-y-6">
+                    <div class="form-group">
+                        <label for="checklist-title" class="form-label required">
+                            <i data-lucide="check-square" class="w-4 h-4 text-blue-500"></i>
+                            Título de la tarea
+                        </label>
+                        <input type="text" 
+                               id="checklist-title" 
+                               name="title" 
+                               class="form-input form-input-modern" 
+                               placeholder="Ej: Verificar conexiones eléctricas, lubricar componentes..."
+                               required 
+                               maxlength="200"
+                               autocomplete="off">
+                        <p class="form-help-text">Descripción clara y específica de la tarea a realizar</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="checklist-description" class="form-label">
+                            <i data-lucide="align-left" class="w-4 h-4 text-green-500"></i>
+                            Descripción detallada
+                            <span class="text-sm text-gray-500 font-normal ml-1">(opcional)</span>
+                        </label>
+                        <textarea id="checklist-description" 
+                                  name="description" 
+                                  class="form-textarea form-textarea-modern" 
+                                  rows="4" 
+                                  placeholder="Instrucciones específicas, herramientas necesarias, precauciones de seguridad..."
+                                  maxlength="500"></textarea>
+                        <p class="form-help-text">Detalles adicionales que ayuden al técnico a completar la tarea</p>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn base-btn-secondary" onclick="closeChecklistModal()">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="base-btn base-btn-primary" onclick="submitChecklistItem()">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Agregar Tarea
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Mostrar modal
+    setTimeout(() => {
+        modal.classList.add('is-open');
+        document.getElementById('checklist-title').focus();
         lucide.createIcons();
-        
-    } catch (error) {
-        console.error('Error loading spare parts:', error);
-        alert('Error al cargar repuestos disponibles');
+    }, 10);
+}
+
+function closeChecklistModal() {
+    const modal = document.getElementById('add-checklist-modal');
+    if (modal) {
+        modal.classList.remove('is-open');
+        setTimeout(() => modal.remove(), 300);
     }
 }
 
-function showAddPhotoModal() {
-    const modal = createPhotoModal();
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    lucide.createIcons();
-}
-
-function printTicket() {
-    // Crear una versión imprimible del ticket
-    const printWindow = window.open('', '_blank');
-    const ticket = state.currentTicket;
+async function submitChecklistItem() {
+    const form = document.getElementById('add-checklist-form');
+    const formData = new FormData(form);
     
-    if (!ticket) return;
+    const title = formData.get('title').trim();
+    const description = formData.get('description').trim();
     
-    printWindow.document.write(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Ticket #${ticket.id} - ${ticket.title}</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 20px; }
-                .header { border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px; }
-                .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-                .section { margin-bottom: 20px; }
-                .section h3 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
-                @media print { body { margin: 0; } }
-            </style>
-        </head>
-        <body>
-            <div class="header">
-                <h1>Ticket #${ticket.id}: ${ticket.title}</h1>
-                <p>Generado el: ${new Date().toLocaleString('es-ES')}</p>
-            </div>
-            
-            <div class="info-grid">
-                <div><strong>Cliente:</strong> ${ticket.client_name}</div>
-                <div><strong>Sede:</strong> ${ticket.location_name}</div>
-                <div><strong>Equipo:</strong> ${ticket.equipment_name}</div>
-                <div><strong>Estado:</strong> ${ticket.status}</div>
-                <div><strong>Prioridad:</strong> ${ticket.priority}</div>
-                <div><strong>Asignado a:</strong> ${ticket.assigned_to || 'Sin asignar'}</div>
-            </div>
-            
-            <div class="section">
-                <h3>Descripción</h3>
-                <p>${ticket.description || 'Sin descripción'}</p>
-            </div>
-            
-            <div class="section">
-                <h3>Estadísticas</h3>
-                <p><strong>Tiempo total:</strong> ${formatDuration(calculateTotalTime())}</p>
-                <p><strong>Tareas completadas:</strong> ${state.checklist.filter(t => t.is_completed).length}/${state.checklist.length}</p>
-                <p><strong>Notas:</strong> ${state.notes.length}</p>
-                <p><strong>Repuestos utilizados:</strong> ${state.spareParts.length}</p>
-                <p><strong>Fotos:</strong> ${state.photos.length}</p>
-            </div>
-        </body>
-        </html>
-    `);
-    
-    printWindow.document.close();
-    printWindow.print();
-}
-
-function viewPhoto(photoId) {
-    const photo = state.photos.find(p => p.id === photoId);
-    if (!photo) return;
-    
-    const modal = createPhotoViewerModal(photo);
-    document.body.appendChild(modal);
-    modal.style.display = 'flex';
-    lucide.createIcons();
-}
-
-function exportTimeEntries() {
-    if (state.timeEntries.length === 0) {
-        alert('No hay registros de tiempo para exportar');
+    if (!title) {
+        alert('El título de la tarea es obligatorio');
         return;
     }
     
-    const csvContent = [
-        ['Inicio', 'Duración', 'Descripción'],
-        ...state.timeEntries.map(entry => [
-            formatDateTime(entry.start_time),
-            formatDuration(entry.duration_seconds),
-            entry.description || ''
-        ])
-    ].map(row => row.join(',')).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `ticket-${state.currentTicket.id}-tiempos.csv`;
-    link.click();
-}
-
-// === FUNCIONES CRUD ===
-async function addNote(noteText) {
     try {
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                note: noteText,
-                author: 'Usuario' // Aquí podrías usar el usuario actual
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-
-        const result = await response.json();
-        console.log('Nota agregada exitosamente:', result);
+        const submitBtn = document.querySelector('#add-checklist-modal .base-btn-primary');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Agregando...';
         
-        // Recargar las notas para mostrar la nueva nota
-        await loadTicketDetail(state.currentTicket.id);
+        await addChecklistItem(title, description);
+        closeChecklistModal();
         
     } catch (error) {
-        console.error('Error al agregar nota:', error);
-        showError('Error al agregar la nota');
+        console.error('Error al agregar tarea:', error);
+        alert('Error al agregar la tarea. Inténtalo de nuevo.');
+        
+        const submitBtn = document.querySelector('#add-checklist-modal .base-btn-primary');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="plus" class="w-4 h-4"></i> Agregar Tarea';
     }
 }
 
-async function addChecklistItem(title) {
-    // Implementación existente...
-    console.log('Agregando tarea:', title);
+async function addChecklistItem(title, description = '') {
+    try {
+        console.log('🎯 Agregando nueva tarea al checklist:', { title, description });
+        
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/checklist`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title,
+                description,
+                order_index: state.checklist.length
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Tarea agregada exitosamente:', result);
+        
+        // Agregar al estado local
+        const newItem = {
+            id: result.data.id,
+            title,
+            description,
+            is_completed: false,
+            completed_at: null,
+            completed_by: null,
+            order_index: state.checklist.length,
+            created_at: new Date().toISOString()
+        };
+        
+        state.checklist.push(newItem);
+        
+        // Re-renderizar checklist
+        renderChecklist();
+        updateChecklistCounter();
+        renderTicketStats();
+        
+        console.log('🔄 Checklist actualizado en interfaz');
+        
+    } catch (error) {
+        console.error('❌ Error al agregar tarea al checklist:', error);
+        throw error;
+    }
 }
 
 async function toggleChecklistItem(itemId, isCompleted) {
-    // Implementación existente...
-    console.log('Cambiando estado de tarea:', itemId, isCompleted);
-}
-
-async function deleteTimeEntry(entryId) {
-    // Implementación existente...
-    console.log('Eliminando entrada de tiempo:', entryId);
-}
-
-async function deleteNote(noteId) {
     try {
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes/${noteId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-
-        console.log('Nota eliminada exitosamente');
+        console.log('🔄 Cambiando estado de tarea:', { itemId, isCompleted, type: typeof isCompleted });
         
-        // Recargar las notas para reflejar la eliminación
-        await loadTicketDetail(state.currentTicket.id);
+        // Asegurar que is_completed sea boolean
+        const completed = Boolean(isCompleted);
+        
+        const response = await fetch(`${API_URL}/tickets/checklist/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                is_completed: completed,
+                completed_by: completed ? 'Felipe Maturana' : null
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Error response:', { status: response.status, statusText: response.statusText, data: errorData });
+            throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Estado de tarea actualizado:', result);
+        
+        // Actualizar estado local DESPUÉS de confirmar éxito del backend
+        const item = state.checklist.find(item => item.id == itemId); // Usar == por si hay diferencia de tipos
+        if (item) {
+            item.is_completed = completed;
+            item.completed_at = completed ? new Date().toISOString() : null;
+            item.completed_by = completed ? 'Felipe Maturana' : null;
+            console.log('🔄 Item actualizado localmente:', item);
+        } else {
+            console.warn('⚠️ Item no encontrado en estado local:', itemId);
+        }
+        
+        // Re-renderizar checklist sin recargar la página
+        renderChecklist();
+        updateChecklistCounter();
+        renderTicketStats();
         
     } catch (error) {
-        console.error('Error al eliminar nota:', error);
-        showError('Error al eliminar la nota');
+        console.error('❌ Error al cambiar estado de tarea:', error);
+        
+        // Revertir el checkbox si hay error
+        const checkbox = document.querySelector(`input[data-item-id="${itemId}"]`);
+        if (checkbox) {
+            checkbox.checked = !isCompleted;
+            console.log('🔄 Checkbox revertido:', { itemId, originalState: !isCompleted });
+        }
+        
+        alert(`Error al actualizar el estado de la tarea: ${error.message}`);
     }
 }
 
 async function deleteChecklistItem(itemId) {
-    // Implementación existente...
-    console.log('Eliminando tarea:', itemId);
+    if (!confirm('¿Estás seguro de que quieres eliminar esta tarea?')) {
+        return;
+    }
+    
+    try {
+        console.log('🗑️ Eliminando tarea del checklist:', itemId);
+        
+        const response = await fetch(`${API_URL}/tickets/checklist/${itemId}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        console.log('✅ Tarea eliminada exitosamente');
+        
+        // Remover del estado local
+        state.checklist = state.checklist.filter(item => item.id !== itemId);
+        
+        // Re-renderizar checklist
+        renderChecklist();
+        updateChecklistCounter();
+        renderTicketStats();
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar tarea:', error);
+        alert('Error al eliminar la tarea. Inténtalo de nuevo.');
+    }
 }
 
 async function deleteSparePartUsage(usageId) {
@@ -1353,3 +1466,158 @@ window.renderTicketHeader = renderTicketHeader;
 window.renderNotes = renderNotes;
 window.renderStatusActions = renderStatusActions;
 window.state = window.state; // Ya asignado arriba, pero para claridad
+
+// === FUNCIONES DE MANEJO DE EVENTOS ===
+
+async function handleAddNote() {
+    const noteTextarea = document.getElementById('new-note-text');
+    if (!noteTextarea) return;
+    
+    const noteText = noteTextarea.value.trim();
+    if (!noteText) {
+        alert('Por favor escribe una nota antes de agregarla');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                note: noteText,
+                note_type: 'General',
+                author: 'Felipe Maturana'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Nota agregada exitosamente:', result);
+        
+        // Agregar al estado local
+        const newNote = {
+            id: result.data.id,
+            note: noteText,
+            note_type: 'General',
+            author: 'Felipe Maturana',
+            is_internal: false,
+            created_at: new Date().toISOString()
+        };
+        
+        state.notes.unshift(newNote);
+        
+        // Limpiar textarea y actualizar interfaz
+        noteTextarea.value = '';
+        renderTicketDescription(state.currentTicket); // Actualizar el resumen que muestra notas
+        renderTicketStats();
+        
+        console.log('🔄 Nota agregada y interfaz actualizada');
+        
+    } catch (error) {
+        console.error('❌ Error al agregar nota:', error);
+        alert('Error al agregar la nota. Inténtalo de nuevo.');
+    }
+}
+
+function handlePhotoSelection(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    const photoPreview = document.getElementById('photo-preview');
+    const previewImage = document.getElementById('preview-image');
+    
+    if (!photoPreview || !previewImage) return;
+    
+    // Validar tipo de archivo
+    if (!file.type.startsWith('image/')) {
+        alert('Por favor selecciona solo archivos de imagen');
+        e.target.value = '';
+        return;
+    }
+    
+    // Validar tamaño (5MB máximo)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('El archivo es demasiado grande. Máximo 5MB.');
+        e.target.value = '';
+        return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        previewImage.src = e.target.result;
+        photoPreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+async function handlePhotoUpload() {
+    const photoInput = document.getElementById('photo-input');
+    const file = photoInput.files[0];
+    
+    if (!file) {
+        alert('No hay foto seleccionada');
+        return;
+    }
+    
+    try {
+        const uploadBtn = document.getElementById('upload-photo-btn');
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Subiendo...';
+        
+        // Convertir imagen a base64
+        const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+        
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                photo_data: base64,
+                description: `Foto del ticket ${state.currentTicket.id}`,
+                category: 'general'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Foto subida exitosamente:', result);
+        
+        // Agregar al estado local
+        const newPhoto = {
+            id: result.data.id,
+            photo_data: base64,
+            description: `Foto del ticket ${state.currentTicket.id}`,
+            category: 'general',
+            uploaded_at: new Date().toISOString()
+        };
+        
+        state.photos.push(newPhoto);
+        
+        // Limpiar input y ocultar preview
+        photoInput.value = '';
+        document.getElementById('photo-preview').classList.add('hidden');
+        
+        // Actualizar interfaz
+        renderPhotos();
+        renderTicketStats();
+        
+        console.log('🔄 Foto agregada y interfaz actualizada');
+        
+    } catch (error) {
+        console.error('❌ Error al subir foto:', error);
+        alert('Error al subir la foto. Inténtalo de nuevo.');
+    } finally {
+        const uploadBtn = document.getElementById('upload-photo-btn');
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Subir Foto';
+    }
+}
