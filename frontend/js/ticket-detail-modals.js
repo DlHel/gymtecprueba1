@@ -194,23 +194,33 @@ function createStatusChangeModal(currentStatus) {
     
     const modal = document.createElement('div');
     modal.className = 'base-modal';
+    modal.id = 'status-change-modal';
     modal.innerHTML = `
-        <div class="base-modal-content">
+        <div class="base-modal-content modal-small">
             <div class="base-modal-header">
-                <h3 class="base-modal-title">Cambiar Estado del Ticket</h3>
-                <button class="base-modal-close" onclick="this.closest('.base-modal').remove()">
+                <h3 class="base-modal-title">
+                    <i data-lucide="refresh-cw" class="w-5 h-5 text-blue-600 mr-2"></i>
+                    Cambiar Estado del Ticket
+                </h3>
+                <button class="base-modal-close" onclick="closeStatusModal()">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
                 <form id="status-form">
                     <div class="form-group">
-                        <label class="form-label">Estado Actual</label>
-                        <input type="text" value="${currentStatus}" class="form-input" readonly>
+                        <label class="form-label">
+                            <i data-lucide="info" class="w-4 h-4 text-gray-500"></i>
+                            Estado Actual
+                        </label>
+                        <input type="text" value="${currentStatus}" class="form-input form-input-modern" readonly>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Nuevo Estado</label>
-                        <select name="new_status" class="form-input" required>
+                        <label class="form-label required">
+                            <i data-lucide="arrow-right" class="w-4 h-4 text-blue-500"></i>
+                            Nuevo Estado
+                        </label>
+                        <select name="new_status" class="form-input form-input-modern" required>
                             <option value="">Seleccionar nuevo estado</option>
                             ${statuses.filter(s => s !== currentStatus).map(status => `
                                 <option value="${status}">${status}</option>
@@ -218,14 +228,25 @@ function createStatusChangeModal(currentStatus) {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Comentario (opcional)</label>
-                        <textarea name="comment" class="form-textarea" rows="3" placeholder="Razón del cambio de estado..."></textarea>
+                        <label class="form-label">
+                            <i data-lucide="message-square" class="w-4 h-4 text-green-500"></i>
+                            Comentario 
+                            <span class="text-sm text-gray-500 font-normal ml-1">(opcional)</span>
+                        </label>
+                        <textarea name="comment" class="form-textarea form-textarea-modern" rows="3" placeholder="Razón del cambio de estado, observaciones..."></textarea>
+                        <p class="form-help-text">Este comentario se agregará como nota al ticket</p>
                     </div>
                 </form>
             </div>
             <div class="base-modal-footer">
-                <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()">Cancelar</button>
-                <button type="button" class="btn-primary" onclick="submitStatusChange(this)">Cambiar Estado</button>
+                <button type="button" class="base-btn base-btn-secondary" onclick="closeStatusModal()">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="base-btn base-btn-primary" onclick="submitStatusChange(this)">
+                    <i data-lucide="check" class="w-4 h-4"></i>
+                    Cambiar Estado
+                </button>
             </div>
         </div>
     `;
@@ -452,9 +473,24 @@ async function submitStatusChange(button) {
     const newStatus = formData.get('new_status');
     const comment = formData.get('comment');
     
+    console.log('🔄 Iniciando cambio de estado:', { 
+        ticketId: state.currentTicket.id, 
+        currentStatus: state.currentTicket.status, 
+        newStatus, 
+        comment 
+    });
+    
+    if (!newStatus) {
+        alert('Debe seleccionar un nuevo estado');
+        return;
+    }
+    
     try {
         button.disabled = true;
-        button.textContent = 'Cambiando...';
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Cambiando...';
+        
+        console.log('📡 Enviando request de cambio de estado...');
         
         const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
             method: 'PUT',
@@ -464,6 +500,8 @@ async function submitStatusChange(button) {
                 status: newStatus
             })
         });
+        
+        console.log('📨 Respuesta del servidor:', { status: response.status, ok: response.ok });
         
         if (response.ok) {
             // Agregar nota del cambio si hay comentario
@@ -479,14 +517,23 @@ async function submitStatusChange(button) {
                 });
             }
             
-            modal.remove();
+            // Cerrar modal con animación
+            modal.classList.remove('is-open');
+            setTimeout(() => modal.remove(), 300);
+            
+            console.log('✅ Actualizando estado local del ticket...');
             
             // Actualizar el estado local del ticket
+            const oldStatus = state.currentTicket.status;
             state.currentTicket.status = newStatus;
             state.currentTicket.updated_at = new Date().toISOString();
             
+            console.log(`🔄 Estado cambiado de "${oldStatus}" a "${newStatus}"`);
+            
             // Si hay comentario, agregarlo a las notas localmente
-            if (comment) {
+            if (comment && comment.trim()) {
+                console.log('📝 Agregando comentario como nota:', comment);
+                
                 const newNote = {
                     id: Date.now(),
                     note: `Estado cambiado a "${newStatus}": ${comment}`,
@@ -495,23 +542,38 @@ async function submitStatusChange(button) {
                     is_internal: false,
                     created_at: new Date().toISOString()
                 };
+                
+                // Agregar al inicio del array de notas
                 state.notes.unshift(newNote);
+                console.log('📋 Total de notas después de agregar:', state.notes.length);
+                console.log('📋 Nueva nota agregada:', newNote);
             }
             
-            // Re-renderizar header y notas
+            console.log('🎨 Re-renderizando componentes...');
+            
+            // Re-renderizar TODOS los componentes afectados
             renderTicketHeader(state.currentTicket);
+            renderStatusActions(state.currentTicket); // ✅ ¡Esta era la llamada faltante!
             renderNotes();
+            renderTicketStats();
+            
+            // Actualizar los iconos
             lucide.createIcons();
             
+            console.log('✅ Interfaz actualizada completamente');
             showNotification(`Estado cambiado a "${newStatus}"`, 'success');
         } else {
-            throw new Error('Error al cambiar estado');
+            const errorData = await response.json().catch(() => ({}));
+            console.error('❌ Error del servidor:', { status: response.status, error: errorData });
+            throw new Error(`HTTP ${response.status}: ${errorData.error || response.statusText}`);
         }
     } catch (error) {
-        console.error('Error changing status:', error);
-        showNotification('Error al cambiar el estado', 'error');
+        console.error('❌ Error cambiando estado del ticket:', error);
+        showNotification(`Error al cambiar el estado: ${error.message}`, 'error');
+        
         button.disabled = false;
-        button.textContent = 'Cambiar Estado';
+        button.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i> Cambiar Estado';
+        lucide.createIcons();
     }
 }
 

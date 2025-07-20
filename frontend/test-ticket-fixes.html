@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ticket Modal Fixes - Gymtec ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tickets.css">
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-section { margin: 20px 0; padding: 20px; border: 1px solid #ccc; }
+        .test-button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 10px; }
+        .test-info { background: #f0f8ff; padding: 10px; margin: 10px 0; border-left: 4px solid #007cba; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test de Correcciones - Modal de Tickets</h1>
+    
+    <div class="test-section">
+        <h2>✅ Z-Index Fixes</h2>
+        <div class="test-info">
+            <strong>Correcciones aplicadas:</strong>
+            <ul>
+                <li>Modal agregar cliente: z-index 1055</li>
+                <li>Modal agregar sede: z-index 1055</li>
+                <li>Modal agregar equipo: z-index 1055</li>
+                <li>Modal principal tickets: z-index 1050</li>
+            </ul>
+        </div>
+        <button class="test-button" onclick="openModal('ticket-modal')">🎫 Abrir Modal Tickets</button>
+    </div>
+
+    <div class="test-section">
+        <h2>🔍 Debug de Sedes</h2>
+        <div class="test-info">
+            <strong>Logs agregados en consola:</strong>
+            <ul>
+                <li>Log del clientId seleccionado</li>
+                <li>Log de respuesta de API de sedes</li>
+                <li>Log de sedes filtradas</li>
+            </ul>
+            <p><strong>Instrucciones:</strong> Abre la consola del navegador (F12) y observa los logs cuando selecciones un cliente.</p>
+        </div>
+        <button class="test-button" onclick="testSedeFiltering()">🗂️ Test Filtrado Sedes</button>
+    </div>
+
+    <div class="test-section">
+        <h2>📊 Estado del Sistema</h2>
+        <div id="system-status">Verificando...</div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        
+        // Test básico de z-index
+        function openModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'flex';
+                document.body.style.overflow = 'hidden';
+            } else {
+                alert('Modal no encontrado: ' + modalId);
+            }
+        }
+
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+                document.body.style.overflow = 'auto';
+            }
+        }
+
+        // Test de filtrado de sedes
+        async function testSedeFiltering() {
+            console.group('🔍 Test Filtrado de Sedes');
+            
+            try {
+                // Primero obtener clientes
+                const clientsResponse = await fetch(`${API_URL}/clients`);
+                const clientsResult = await clientsResponse.json();
+                console.log('Clientes disponibles:', clientsResult.data);
+                
+                if (clientsResult.data && clientsResult.data.length > 0) {
+                    const firstClient = clientsResult.data[0];
+                    console.log('Testando con cliente:', firstClient.name, '(ID:', firstClient.id, ')');
+                    
+                    // Obtener sedes del cliente
+                    const locationsResponse = await fetch(`${API_URL}/locations?client_id=${firstClient.id}`);
+                    const locationsResult = await locationsResponse.json();
+                    console.log('Sedes del cliente', firstClient.name, ':', locationsResult.data);
+                    
+                    // Obtener TODAS las sedes (sin filtro)
+                    const allLocationsResponse = await fetch(`${API_URL}/locations`);
+                    const allLocationsResult = await allLocationsResponse.json();
+                    console.log('TODAS las sedes (sin filtro):', allLocationsResult.data);
+                    
+                    // Comparar
+                    const filteredCount = locationsResult.data ? locationsResult.data.length : 0;
+                    const totalCount = allLocationsResult.data ? allLocationsResult.data.length : 0;
+                    
+                    console.log(`📊 Comparación:`);
+                    console.log(`   - Sedes filtradas: ${filteredCount}`);
+                    console.log(`   - Total sedes: ${totalCount}`);
+                    
+                    if (filteredCount === totalCount && totalCount > 0) {
+                        console.warn('⚠️  PROBLEMA: Las sedes filtradas son iguales al total');
+                    } else {
+                        console.log('✅ Filtrado funcionando correctamente');
+                    }
+                } else {
+                    console.warn('No hay clientes para probar');
+                }
+                
+            } catch (error) {
+                console.error('Error en test de filtrado:', error);
+            }
+            
+            console.groupEnd();
+        }
+
+        // Verificar estado del sistema
+        async function checkSystemStatus() {
+            const statusDiv = document.getElementById('system-status');
+            
+            try {
+                // Test backend
+                const response = await fetch(`${API_URL}/clients`);
+                if (response.ok) {
+                    const result = await response.json();
+                    statusDiv.innerHTML = `
+                        <div style="color: green;">✅ Backend funcionando</div>
+                        <div>📊 Clientes disponibles: ${result.data ? result.data.length : 0}</div>
+                        <div>🌐 API URL: ${API_URL}</div>
+                        <div>⚡ Timestamp: ${new Date().toLocaleTimeString()}</div>
+                    `;
+                } else {
+                    statusDiv.innerHTML = `<div style="color: red;">❌ Backend no responde (${response.status})</div>`;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div style="color: red;">❌ Error conectando al backend: ${error.message}</div>`;
+            }
+        }
+
+        // Ejecutar verificación al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSystemStatus();
+            console.log('🔧 Test page loaded - Open tickets.html to test the fixes!');
+        });
+    </script>
+
+    <!-- Modal básico para test de z-index -->
+    <div id="ticket-modal" class="base-modal" style="display: none;">
+        <div class="base-modal-content modal-large">
+            <div class="base-modal-header">
+                <h3>Test Modal de Tickets</h3>
+                <button type="button" onclick="closeModal('ticket-modal')" class="base-modal-close">×</button>
+            </div>
+            <div class="base-modal-body">
+                <p>Este es el modal principal de tickets (z-index: 1050)</p>
+                <div style="margin: 20px 0;">
+                    <button class="test-button" onclick="openModal('add-client-modal')">➕ Agregar Cliente</button>
+                    <button class="test-button" onclick="openModal('add-location-modal')">➕ Agregar Sede</button>
+                    <button class="test-button" onclick="openModal('add-equipment-modal')">➕ Agregar Equipo</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modales de prueba -->
+    <div id="add-client-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center" style="display: none; z-index: var(--z-modal-nested);">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3>Modal Cliente (z-index: 1055)</h3>
+                <button onclick="closeModal('add-client-modal')">×</button>
+            </div>
+            <p>Este modal debe aparecer POR ENCIMA del modal de tickets.</p>
+            <button class="test-button" onclick="closeModal('add-client-modal')">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="add-location-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center" style="display: none; z-index: var(--z-modal-nested);">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3>Modal Sede (z-index: 1055)</h3>
+                <button onclick="closeModal('add-location-modal')">×</button>
+            </div>
+            <p>Este modal debe aparecer POR ENCIMA del modal de tickets.</p>
+            <button class="test-button" onclick="closeModal('add-location-modal')">Cerrar</button>
+        </div>
+    </div>
+
+    <div id="add-equipment-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center" style="display: none; z-index: var(--z-modal-nested);">
+        <div class="relative mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="flex justify-between items-center pb-3 border-b">
+                <h3>Modal Equipo (z-index: 1055)</h3>
+                <button onclick="closeModal('add-equipment-modal')">×</button>
+            </div>
+            <p>Este modal debe aparecer POR ENCIMA del modal de tickets.</p>
+            <button class="test-button" onclick="closeModal('add-equipment-modal')">Cerrar</button>
+        </div>
+    </div>
+</body>
+</html> 

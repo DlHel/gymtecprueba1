@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔄 Test Cambio Estado Corregido - Gymtec ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/ticket-detail.css">
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto p-6">
+        <h1 class="text-2xl font-bold mb-6">🔄 Cambio de Estado - Problema Resuelto</h1>
+        
+        <!-- Problemas Identificados -->
+        <div class="bg-red-50 border border-red-200 p-4 rounded-lg mb-6">
+            <h2 class="font-bold text-red-800 mb-4">🐛 Problemas Identificados:</h2>
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <i data-lucide="x-circle" class="w-5 h-5 text-red-600 mt-0.5"></i>
+                    <div>
+                        <p class="font-semibold text-red-800">Estado visual no se actualiza</p>
+                        <p class="text-sm text-red-600">Faltaba llamar a <code>renderStatusActions()</code> después del cambio</p>
+                    </div>
+                </div>
+                <div class="flex items-start gap-3">
+                    <i data-lucide="x-circle" class="w-5 h-5 text-red-600 mt-0.5"></i>
+                    <div>
+                        <p class="font-semibold text-red-800">Comentario no aparece en notas</p>
+                        <p class="text-sm text-red-600">El comentario se guardaba localmente pero no se renderizaba correctamente</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Soluciones Aplicadas -->
+        <div class="bg-green-50 border border-green-200 p-4 rounded-lg mb-6">
+            <h2 class="font-bold text-green-800 mb-4">✅ Correcciones Aplicadas:</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-3">
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-green-800">Renderizado completo</p>
+                            <p class="text-sm text-green-600">Se llama a <code>renderStatusActions()</code></p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-green-800">Logging detallado</p>
+                            <p class="text-sm text-green-600">Debug paso a paso en consola</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-3">
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-green-800">Notas mejoradas</p>
+                            <p class="text-sm text-green-600">Comentarios se guardan y muestran</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-3">
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600 mt-0.5"></i>
+                        <div>
+                            <p class="font-semibold text-green-800">Modal mejorado</p>
+                            <p class="text-sm text-green-600">Animaciones suaves y UX profesional</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Simulador de Estado -->
+        <div class="bg-white p-6 rounded border mb-6">
+            <h3 class="text-lg font-bold mb-4">🧪 Simulador de Cambio de Estado</h3>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Estado Actual Simulado -->
+                <div class="space-y-4">
+                    <h4 class="font-semibold">Estado Actual del Ticket</h4>
+                    <div class="ticket-section-card">
+                        <div class="ticket-section-header">
+                            <h5 class="ticket-section-title">
+                                <i data-lucide="activity" class="w-5 h-5"></i>
+                                Estado del Ticket
+                            </h5>
+                        </div>
+                        <div class="ticket-status-actions" id="demo-status-actions">
+                            <div class="ticket-status-badge abierto">
+                                <i data-lucide="activity" class="w-4 h-4"></i>
+                                Abierto
+                            </div>
+                            
+                            <div class="ticket-badge priority-media">
+                                <i data-lucide="flag" class="w-4 h-4"></i>
+                                Media
+                            </div>
+                            
+                            <div class="ticket-badge sla-green">
+                                <i data-lucide="clock" class="w-4 h-4"></i>
+                                A tiempo
+                            </div>
+                            
+                            <button onclick="testStatusChange()" class="ticket-action-btn primary">
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                                Cambiar Estado
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Notas Simuladas -->
+                <div class="space-y-4">
+                    <h4 class="font-semibold">Notas del Ticket</h4>
+                    <div class="ticket-section-card">
+                        <div class="ticket-section-header">
+                            <h5 class="ticket-section-title">
+                                <i data-lucide="sticky-note" class="w-5 h-5"></i>
+                                Notas
+                            </h5>
+                        </div>
+                        <div id="demo-notes-list">
+                            <div class="ticket-note-item">
+                                <div class="ticket-note-header">
+                                    <div class="ticket-note-author">
+                                        <i data-lucide="user" class="w-4 h-4"></i>
+                                        Felipe Maturana
+                                    </div>
+                                    <div class="ticket-note-date">Hace 10 minutos</div>
+                                </div>
+                                <div class="ticket-note-content">Ticket creado para mantenimiento preventivo del equipo.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Instrucciones -->
+        <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mb-6">
+            <h3 class="font-bold text-blue-800 mb-4">📋 Cómo Probar las Correcciones:</h3>
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">1</div>
+                    <p>Haz clic en "Cambiar Estado" en el simulador de arriba</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">2</div>
+                    <p>Selecciona "En Progreso" y agrega un comentario como "Iniciando diagnóstico del equipo"</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">3</div>
+                    <p>Haz clic en "Cambiar Estado" y observa los cambios</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-bold">4</div>
+                    <p>Abre DevTools Console para ver los logs detallados del proceso</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Resultados Esperados -->
+        <div class="bg-purple-50 border border-purple-200 p-4 rounded-lg">
+            <h3 class="font-bold text-purple-800 mb-4">🎯 Resultados Esperados:</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ul class="space-y-2">
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4 text-purple-600"></i>
+                        <span class="text-sm">El badge de estado cambia a "En Progreso"</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4 text-purple-600"></i>
+                        <span class="text-sm">El color del badge se actualiza automáticamente</span>
+                    </li>
+                </ul>
+                <ul class="space-y-2">
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4 text-purple-600"></i>
+                        <span class="text-sm">Aparece nueva nota con el comentario</span>
+                    </li>
+                    <li class="flex items-center gap-2">
+                        <i data-lucide="check" class="w-4 h-4 text-purple-600"></i>
+                        <span class="text-sm">Console muestra logs informativos sin errores</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- Ir al Ticket Real -->
+        <div class="text-center mt-8">
+            <button onclick="window.open('/ticket-detail.html?id=36', '_blank')" class="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-8 py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-200 transform hover:-translate-y-1">
+                <i data-lucide="external-link" class="w-5 h-5 inline mr-2"></i>
+                Probar en Ticket Real #36
+            </button>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/ticket-detail-modals.js"></script>
+    <script>
+        // Estado simulado para la demo
+        let demoState = {
+            status: 'Abierto',
+            notes: [
+                {
+                    id: 1,
+                    note: 'Ticket creado para mantenimiento preventivo del equipo.',
+                    author: 'Felipe Maturana',
+                    created_at: new Date(Date.now() - 10*60*1000).toISOString()
+                }
+            ]
+        };
+        
+        function testStatusChange() {
+            // Simular apertura de modal de cambio de estado
+            const modal = createStatusChangeModal('Abierto');
+            document.body.appendChild(modal);
+            
+            setTimeout(() => {
+                modal.classList.add('is-open');
+                lucide.createIcons();
+                
+                // Interceptar el submit para simular el cambio
+                const form = modal.querySelector('#status-form');
+                const submitBtn = modal.querySelector('.base-btn-primary');
+                
+                submitBtn.onclick = function() {
+                    simulateStatusChange(modal, form);
+                };
+            }, 10);
+        }
+        
+        function simulateStatusChange(modal, form) {
+            const formData = new FormData(form);
+            const newStatus = formData.get('new_status');
+            const comment = formData.get('comment');
+            
+            if (!newStatus) {
+                alert('Debe seleccionar un nuevo estado');
+                return;
+            }
+            
+            console.log('🔄 [DEMO] Simulando cambio de estado:', { newStatus, comment });
+            
+            // Simular el proceso de cambio
+            setTimeout(() => {
+                // Cerrar modal
+                modal.classList.remove('is-open');
+                setTimeout(() => modal.remove(), 300);
+                
+                console.log('✅ [DEMO] Actualizando estado visual...');
+                
+                // Actualizar el badge de estado
+                const statusActions = document.getElementById('demo-status-actions');
+                statusActions.innerHTML = `
+                    <div class="ticket-status-badge progreso">
+                        <i data-lucide="activity" class="w-4 h-4"></i>
+                        ${newStatus}
+                    </div>
+                    
+                    <div class="ticket-badge priority-media">
+                        <i data-lucide="flag" class="w-4 h-4"></i>
+                        Media
+                    </div>
+                    
+                    <div class="ticket-badge sla-green">
+                        <i data-lucide="clock" class="w-4 h-4"></i>
+                        A tiempo
+                    </div>
+                    
+                    <button onclick="testStatusChange()" class="ticket-action-btn primary">
+                        <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                        Cambiar Estado
+                    </button>
+                `;
+                
+                // Si hay comentario, agregarlo a las notas
+                if (comment && comment.trim()) {
+                    console.log('📝 [DEMO] Agregando comentario como nota:', comment);
+                    
+                    const notesList = document.getElementById('demo-notes-list');
+                    const newNoteHTML = `
+                        <div class="ticket-note-item" style="animation: slideIn 0.3s ease;">
+                            <div class="ticket-note-header">
+                                <div class="ticket-note-author">
+                                    <i data-lucide="user" class="w-4 h-4"></i>
+                                    Felipe Maturana
+                                </div>
+                                <div class="ticket-note-date">Ahora mismo</div>
+                            </div>
+                            <div class="ticket-note-content">Estado cambiado a "${newStatus}": ${comment}</div>
+                        </div>
+                    `;
+                    
+                    notesList.insertAdjacentHTML('afterbegin', newNoteHTML);
+                }
+                
+                lucide.createIcons();
+                
+                console.log('✅ [DEMO] ¡Cambio de estado simulado exitosamente!');
+                
+                // Mostrar notificación de éxito
+                showDemoNotification(`Estado cambiado a "${newStatus}"`, 'success');
+                
+            }, 500);
+        }
+        
+        function showDemoNotification(message, type) {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'success' ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+            }`;
+            notification.style.transform = 'translateX(400px)';
+            notification.style.transition = 'transform 0.3s ease';
+            notification.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i>
+                    ${message}
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            lucide.createIcons();
+            
+            // Animar entrada
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 10);
+            
+            // Remover después de 3 segundos
+            setTimeout(() => {
+                notification.style.transform = 'translateX(400px)';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+        
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            
+            // Agregar estilos para animaciones
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateY(-20px); opacity: 0; }
+                    to { transform: translateY(0); opacity: 1; }
+                }
+                .ticket-status-badge.progreso {
+                    background-color: #fbbf24;
+                    color: #92400e;
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</body>
+</html> 

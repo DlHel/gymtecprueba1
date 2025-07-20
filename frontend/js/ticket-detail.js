@@ -1192,12 +1192,25 @@ function changeStatus(currentStatus) {
     try {
         const modal = createStatusChangeModal(currentStatus);
         document.body.appendChild(modal);
-        modal.style.display = 'flex';
-        lucide.createIcons();
+        
+        // Mostrar modal con clase correcta
+        setTimeout(() => {
+            modal.classList.add('is-open');
+            lucide.createIcons();
+        }, 10);
+        
         console.log('✅ Modal de cambio de estado abierto correctamente');
     } catch (error) {
         console.error('❌ Error al abrir modal de cambio de estado:', error);
         alert('Error al abrir el modal de cambio de estado');
+    }
+}
+
+function closeStatusModal() {
+    const modal = document.getElementById('status-change-modal');
+    if (modal) {
+        modal.classList.remove('is-open');
+        setTimeout(() => modal.remove(), 300);
     }
 }
 
@@ -1463,8 +1476,9 @@ async function deleteSparePartUsage(usageId) {
 
 // === EXPOSICIÓN GLOBAL DE FUNCIONES PARA MODALES ===
 window.renderTicketHeader = renderTicketHeader;
-window.renderNotes = renderNotes;
 window.renderStatusActions = renderStatusActions;
+window.renderNotes = renderNotes;
+window.renderTicketStats = renderTicketStats;
 window.state = window.state; // Ya asignado arriba, pero para claridad
 
 // === FUNCIONES DE MANEJO DE EVENTOS ===
@@ -1574,13 +1588,23 @@ async function handlePhotoUpload() {
             reader.readAsDataURL(file);
         });
         
+        // Obtener información del archivo
+        const fileName = file.name || 'foto.jpg';
+        const mimeType = file.type || 'image/jpeg';
+        const fileSize = file.size || 0;
+        
+        console.log('📸 Información del archivo:', { fileName, mimeType, fileSize });
+        
         const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 photo_data: base64,
+                file_name: fileName,
+                mime_type: mimeType,
+                file_size: fileSize,
                 description: `Foto del ticket ${state.currentTicket.id}`,
-                category: 'general'
+                photo_type: 'Evidencia'
             })
         });
         

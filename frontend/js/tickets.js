@@ -453,11 +453,14 @@ async function fetchClients() {
 
 async function fetchLocations(clientId) {
     try {
+        console.log('Fetching locations for client:', clientId);
         const response = await fetch(`${API_URL}/locations?client_id=${clientId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
+        console.log('Locations API response:', result);
         state.locations = result.data || [];
+        console.log('Filtered locations for client', clientId, ':', state.locations);
         
         if (locationSelect) {
             populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede' });
@@ -695,11 +698,16 @@ async function openModal(modalId, data = {}) {
 
     // Lógica específica solo para el modal de tickets
     if (modalId === 'ticket-modal') {
-        const form = document.getElementById('ticket-modal-form');
+        const form = document.getElementById('ticket-form');
         form.reset();
         form.querySelector('input[name="id"]').value = '';
         document.getElementById('ticket-modal-title').textContent = 'Nuevo Ticket';
-        document.getElementById('ticket-status-wrapper').classList.add('hidden');
+        
+        // Ocultar wrapper de status si existe (para nuevos tickets)
+        const statusWrapper = document.getElementById('ticket-status-wrapper');
+        if (statusWrapper) {
+            statusWrapper.classList.add('hidden');
+        }
 
         // Reset and disable dependent dropdowns
         locationSelect.innerHTML = '<option value="">Seleccione un cliente primero...</option>';
@@ -715,7 +723,12 @@ async function openModal(modalId, data = {}) {
 
         if (effectiveData.id) { // Editing an existing ticket
             document.getElementById('ticket-modal-title').textContent = 'Editar Ticket';
-            document.getElementById('ticket-status-wrapper').classList.remove('hidden');
+            
+            // Mostrar wrapper de status si existe (para tickets existentes)
+            const statusWrapper = document.getElementById('ticket-status-wrapper');
+            if (statusWrapper) {
+                statusWrapper.classList.remove('hidden');
+            }
 
             try {
                 const response = await fetch(`${API_URL}/tickets/${effectiveData.id}`);

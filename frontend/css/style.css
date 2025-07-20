@@ -801,6 +801,7 @@ video {
   --z-fixed: 1030;
   --z-modal-backdrop: 1040;
   --z-modal: 1050;
+  --z-modal-nested: 1055;
   --z-drawer: 1060;
   --z-popover: 1070;
   --z-tooltip: 1080;
