@@ -196,7 +196,9 @@ app.delete("/api/clients/:id", (req, res) => {
 // --- API Routes for Locations (Sedes) ---
 // GET all locations
 app.get('/api/locations', (req, res) => {
-    db.all(`
+    const { client_id } = req.query;
+    
+    let sql = `
         SELECT 
             l.*,
             c.name as client_name,
@@ -204,9 +206,20 @@ app.get('/api/locations', (req, res) => {
         FROM Locations l
         LEFT JOIN Clients c ON l.client_id = c.id
         LEFT JOIN Equipment e ON l.id = e.location_id
-        GROUP BY l.id, l.name, l.address, l.client_id, c.name
-        ORDER BY c.name, l.name
-    `, (err, rows) => {
+    `;
+    
+    let params = [];
+    
+    // Filtrar por client_id si se proporciona
+    if (client_id) {
+        sql += ` WHERE l.client_id = ?`;
+        params.push(client_id);
+    }
+    
+    sql += ` GROUP BY l.id, l.name, l.address, l.client_id, c.name
+             ORDER BY c.name, l.name`;
+    
+    db.all(sql, params, (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
@@ -334,7 +347,9 @@ app.delete("/api/locations/:id", (req, res) => {
 // --- API Routes for Equipment ---
 // GET all equipment
 app.get('/api/equipment', (req, res) => {
-    db.all(`
+    const { location_id } = req.query;
+    
+    let sql = `
         SELECT 
             e.*,
             l.name as location_name,
@@ -345,13 +360,27 @@ app.get('/api/equipment', (req, res) => {
         LEFT JOIN Locations l ON e.location_id = l.id
         LEFT JOIN Clients c ON l.client_id = c.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
-        ORDER BY c.name, l.name, e.name
-    `, (err, rows) => {
+    `;
+    
+    let params = [];
+    
+    // Filtrar por location_id si se proporciona
+    if (location_id) {
+        sql += ` WHERE e.location_id = ?`;
+        params.push(location_id);
+    }
+    
+    sql += ` ORDER BY c.name, l.name, e.name`;
+    
+    db.all(sql, params, (err, rows) => {
         if (err) {
             res.status(500).json({ error: err.message });
             return;
         }
-        res.json(rows);
+        res.json({ 
+            message: "success",
+            data: rows 
+        });
     });
 });
 

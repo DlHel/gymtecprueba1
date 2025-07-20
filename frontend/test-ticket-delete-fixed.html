@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Eliminación Tickets Corregida</title>
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tickets.css">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>✅ Test - Eliminación de Tickets (Corregida)</h1>
+        
+        <div class="test-section">
+            <h2>Estado del Sistema</h2>
+            <div id="status-info" class="info-box">
+                <p><strong>Backend:</strong> <span id="backend-status">❓ Verificando...</span></p>
+                <p><strong>Tickets disponibles:</strong> <span id="tickets-count">0</span></p>
+                <p><strong>Última acción:</strong> <span id="last-action">Ninguna</span></p>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Simulación de Tabla de Tickets</h2>
+            <div class="tickets-table-container">
+                <table class="tickets-table">
+                    <thead>
+                        <tr>
+                            <th>Título</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="test-ticket-list">
+                        <tr>
+                            <td colspan="4" class="text-center">Cargando tickets...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h2>Log de Actividad</h2>
+            <div id="activity-log" class="log-container">
+                <!-- Los logs aparecerán aquí -->
+            </div>
+            <button id="clear-log" class="base-btn base-btn-secondary">Limpiar Log</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script>
+        const activityLog = document.getElementById('activity-log');
+        const lastActionSpan = document.getElementById('last-action');
+        
+        function logActivity(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            activityLog.appendChild(logEntry);
+            activityLog.scrollTop = activityLog.scrollHeight;
+            lastActionSpan.textContent = message;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        // Funciones copiadas del archivo principal con mejoras
+        async function deleteItem(resource, id, callback) {
+            logActivity(`🔍 Iniciando eliminación de ${resource} ID: ${id}`, 'info');
+            
+            if (!confirm('¿Seguro que quieres eliminar este elemento?')) {
+                logActivity('❌ Eliminación cancelada por el usuario', 'warning');
+                return;
+            }
+            
+            try {
+                logActivity(`📡 Enviando DELETE a ${API_URL}/${resource}/${id}`, 'info');
+                
+                const response = await fetch(`${API_URL}/${resource}/${id}`, { 
+                    method: 'DELETE' 
+                });
+                
+                logActivity(`📨 Respuesta: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al eliminar');
+                }
+                
+                const result = await response.json();
+                logActivity(`✅ Eliminación exitosa: ${JSON.stringify(result)}`, 'success');
+                
+                if (callback) {
+                    logActivity('🔄 Ejecutando callback...', 'info');
+                    callback();
+                }
+                
+            } catch (error) {
+                logActivity(`❌ Error: ${error.message}`, 'error');
+                alert(`Error al eliminar: ${error.message}`);
+            }
+        }
+
+        async function loadAndRenderTickets() {
+            const ticketList = document.getElementById('test-ticket-list');
+            const countSpan = document.getElementById('tickets-count');
+            
+            try {
+                logActivity('📡 Cargando tickets del backend...', 'info');
+                const response = await fetch(`${API_URL}/tickets`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                const tickets = result.data || [];
+                
+                logActivity(`✅ Tickets cargados: ${tickets.length}`, 'success');
+                countSpan.textContent = tickets.length;
+                
+                // Renderizar tickets
+                ticketList.innerHTML = '';
+                
+                if (tickets.length === 0) {
+                    ticketList.innerHTML = '<tr><td colspan="4" class="text-center text-gray-500">No hay tickets disponibles</td></tr>';
+                    return;
+                }
+                
+                tickets.slice(0, 5).forEach(ticket => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>
+                            <div class="font-medium text-gray-900">${ticket.title || 'Sin título'}</div>
+                            <div class="text-sm text-gray-500">ID: ${ticket.id}</div>
+                        </td>
+                        <td>
+                            <div class="text-sm">${ticket.client_name || 'Sin cliente'}</div>
+                        </td>
+                        <td>
+                            <span class="tickets-status-badge">${ticket.status || 'Abierto'}</span>
+                        </td>
+                        <td>
+                            <div class="tickets-actions">
+                                <button class="tickets-action-btn edit edit-ticket-btn" data-id="${ticket.id}" title="Editar ticket">
+                                    <i data-lucide="edit" class="w-4 h-4"></i>
+                                </button>
+                                <button class="tickets-action-btn delete delete-ticket-btn" data-id="${ticket.id}" title="Eliminar ticket">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    `;
+                    
+                    // Agregar event listeners directamente (método corregido)
+                    const deleteBtn = row.querySelector('.delete-ticket-btn');
+                    const editBtn = row.querySelector('.edit-ticket-btn');
+                    
+                    if (deleteBtn) {
+                        deleteBtn.addEventListener('click', (e) => {
+                            logActivity(`🗑️ Botón eliminar clickeado para ticket ${ticket.id}`, 'info');
+                            e.preventDefault();
+                            e.stopPropagation();
+                            deleteItem('tickets', ticket.id, loadAndRenderTickets);
+                        });
+                    }
+                    
+                    if (editBtn) {
+                        editBtn.addEventListener('click', (e) => {
+                            logActivity(`✏️ Botón editar clickeado para ticket ${ticket.id}`, 'info');
+                            e.preventDefault();
+                            e.stopPropagation();
+                            alert(`Editar ticket ${ticket.id} (funcionalidad de prueba)`);
+                        });
+                    }
+                    
+                    ticketList.appendChild(row);
+                });
+                
+                // Regenerar iconos
+                if (window.lucide) {
+                    lucide.createIcons();
+                }
+                
+                logActivity('🎨 Tabla renderizada correctamente', 'success');
+                
+            } catch (error) {
+                logActivity(`❌ Error al cargar tickets: ${error.message}`, 'error');
+                ticketList.innerHTML = `<tr><td colspan="4" class="text-center text-red-500">Error: ${error.message}</td></tr>`;
+            }
+        }
+
+        // Verificar conexión con backend
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(`${API_URL}/tickets`);
+                const status = document.getElementById('backend-status');
+                if (response.ok) {
+                    status.textContent = '✅ Conectado';
+                    status.className = 'text-green-600';
+                    logActivity('✅ Backend conectado exitosamente', 'success');
+                    return true;
+                } else {
+                    status.textContent = '❌ Error de conexión';
+                    status.className = 'text-red-600';
+                    logActivity('❌ Error de conexión con backend', 'error');
+                    return false;
+                }
+            } catch (error) {
+                const status = document.getElementById('backend-status');
+                status.textContent = '❌ Sin conexión';
+                status.className = 'text-red-600';
+                logActivity(`❌ Sin conexión con backend: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', async () => {
+            logActivity('🚀 Test de eliminación corregida iniciado', 'info');
+            
+            // Limpiar log
+            document.getElementById('clear-log').addEventListener('click', () => {
+                activityLog.innerHTML = '';
+                logActivity('🧹 Log limpiado', 'info');
+            });
+            
+            // Verificar backend y cargar datos
+            const backendOk = await checkBackendConnection();
+            if (backendOk) {
+                await loadAndRenderTickets();
+            }
+            
+            lucide.createIcons();
+        });
+    </script>
+
+    <style>
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .test-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .test-section h2 {
+            margin-top: 0;
+            color: #374151;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        
+        .info-box {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .log-container {
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.875rem;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 1rem;
+        }
+        
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .timestamp {
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+        
+        .log-info { color: #3b82f6; }
+        .log-success { color: #10b981; }
+        .log-warning { color: #f59e0b; }
+        .log-error { color: #ef4444; }
+        
+        .text-center { text-align: center; }
+        .text-green-600 { color: #059669; }
+        .text-red-600 { color: #dc2626; }
+        .text-gray-500 { color: #6b7280; }
+        .text-red-500 { color: #ef4444; }
+        
+        .font-medium { font-weight: 500; }
+        .text-gray-900 { color: #111827; }
+        .text-sm { font-size: 0.875rem; }
+    </style>
+</body>
+</html>

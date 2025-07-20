@@ -320,10 +320,18 @@
 
 .tickets-table th:first-child {
     border-top-left-radius: 12px;
+    width: 80px; /* Ancho fijo para la columna del número */
 }
 
 .tickets-table th:last-child {
     border-top-right-radius: 12px;
+}
+
+/* Estilo específico para la columna del número de ticket */
+.tickets-table td:first-child {
+    width: 80px;
+    text-align: center;
+    font-weight: 600;
 }
 
 .tickets-table td {
@@ -531,6 +539,13 @@
     justify-content: center;
     min-width: 2rem;
     height: 2rem;
+    position: relative;
+    pointer-events: auto;
+}
+
+/* Asegurar que los iconos no bloqueen los clicks */
+.tickets-action-btn i, .tickets-action-btn svg {
+    pointer-events: none;
 }
 
 .tickets-action-btn:hover {
@@ -724,5 +739,222 @@
     .tickets-sla-indicator {
         font-size: 0.625rem;
         padding: 0.25rem 0.5rem;
+    }
+}
+
+/* ============================================
+   SISTEMA DE FOTOS PARA TICKETS
+   ============================================ */
+
+/* Zona de arrastrar y soltar */
+.ticket-photo-drop-zone {
+    border: 2px dashed #d1d5db;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    background: #f9fafb;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    position: relative;
+}
+
+.ticket-photo-drop-zone:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+}
+
+.ticket-photo-drop-zone.dragover {
+    border-color: #2563eb;
+    background: #dbeafe;
+    transform: scale(1.02);
+}
+
+.drop-zone-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.ticket-photo-input {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Campo de comentario */
+.ticket-photo-comment-section {
+    margin-top: 1rem;
+}
+
+.ticket-photo-comment-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    resize: vertical;
+    transition: border-color 0.2s ease;
+}
+
+.ticket-photo-comment-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Contenedor de previsualizaciones */
+.ticket-photos-preview-container {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+}
+
+.ticket-photos-preview-container.hidden {
+    display: none;
+}
+
+.photos-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.ticket-photos-count {
+    font-weight: 500;
+    color: #374151;
+    font-size: 0.875rem;
+}
+
+.clear-photos-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: #fee2e2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.clear-photos-btn:hover {
+    background: #fecaca;
+    border-color: #f87171;
+}
+
+/* Grid de previsualizaciones */
+.photos-preview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.75rem;
+}
+
+.ticket-photo-preview-item {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid #e5e7eb;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.ticket-photo-preview-item:hover {
+    border-color: #3b82f6;
+    transform: scale(1.05);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.ticket-photo-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ticket-photo-remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    background: rgba(220, 38, 38, 0.9);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.ticket-photo-preview-item:hover .ticket-photo-remove-btn {
+    opacity: 1;
+}
+
+.ticket-photo-remove-btn:hover {
+    background: #dc2626;
+    transform: scale(1.1);
+}
+
+/* Estados de carga */
+.ticket-photo-uploading {
+    position: relative;
+    overflow: hidden;
+}
+
+.ticket-photo-uploading::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(59, 130, 246, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ticket-photo-uploading::before {
+    content: '📤';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.5rem;
+    z-index: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .photos-preview-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 0.5rem;
+    }
+    
+    .ticket-photo-drop-zone {
+        padding: 1.5rem;
+    }
+    
+    .photos-preview-header {
+        flex-direction: column;
+        gap: 0.5rem;
+        align-items: stretch;
     }
 } 

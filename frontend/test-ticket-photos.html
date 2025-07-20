@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Fotos en Tickets</title>
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tickets.css">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test - Sistema de Fotos en Tickets</h1>
+        
+        <div class="test-section">
+            <h2>Prueba de Creación de Ticket con Fotos</h2>
+            <button id="test-open-modal" class="base-btn base-btn-primary">
+                Abrir Modal de Ticket
+            </button>
+        </div>
+        
+        <div class="test-section">
+            <h2>Estado del Sistema</h2>
+            <div id="test-status" class="p-4 bg-gray-100 rounded-lg">
+                <p><strong>Fotos seleccionadas:</strong> <span id="photos-count">0</span></p>
+                <p><strong>Backend conectado:</strong> <span id="backend-status">❓ Verificando...</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Ticket (simplificado para testing) -->
+    <div id="ticket-modal" class="base-modal" style="display: none;">
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h2 id="ticket-modal-title">Nuevo Ticket</h2>
+                <button type="button" class="base-modal-close">×</button>
+            </div>
+            
+            <form id="ticket-form" class="base-modal-body">
+                <input type="hidden" name="id" value="">
+                
+                <!-- Tabs -->
+                <div class="base-tabs">
+                    <div class="base-tabs-header">
+                        <button type="button" class="base-tab-button active" data-tab="general">General</button>
+                        <button type="button" class="base-tab-button" data-tab="details">Detalles</button>
+                        <button type="button" class="base-tab-button" data-tab="photos">Fotos</button>
+                    </div>
+                    
+                    <!-- Tab General -->
+                    <div id="tab-general" class="base-tab-content active">
+                        <div class="base-form-grid">
+                            <div class="base-form-group">
+                                <label class="base-form-label">Título</label>
+                                <input type="text" name="title" class="base-form-input" required>
+                            </div>
+                            <div class="base-form-group">
+                                <label class="base-form-label">Descripción</label>
+                                <textarea name="description" class="base-form-textarea" rows="3" required></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab Detalles -->
+                    <div id="tab-details" class="base-tab-content">
+                        <div class="base-form-grid">
+                            <div class="base-form-group">
+                                <label class="base-form-label">Prioridad</label>
+                                <select name="priority" class="base-form-input">
+                                    <option value="Baja">Baja</option>
+                                    <option value="Media">Media</option>
+                                    <option value="Alta">Alta</option>
+                                    <option value="Urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Tab Fotos -->
+                    <div id="tab-photos" class="base-tab-content">
+                        <div class="space-y-4">
+                            <!-- Zona de arrastrar y soltar -->
+                            <div id="ticket-photo-drop-zone" class="ticket-photo-drop-zone">
+                                <div class="drop-zone-content">
+                                    <i data-lucide="camera" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                    <p class="text-gray-600 mb-2">Arrastra fotos aquí o haz clic para seleccionar</p>
+                                    <p class="text-sm text-gray-400">Máximo 1MB por foto. Formatos: JPG, PNG, GIF</p>
+                                </div>
+                                <input type="file" id="ticket-photo-input" class="ticket-photo-input" accept="image/*" multiple style="display: none;">
+                            </div>
+                            
+                            <!-- Campo de comentario -->
+                            <div class="ticket-photo-comment-section">
+                                <label for="ticket-photo-comment" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Comentario (opcional)
+                                </label>
+                                <textarea 
+                                    id="ticket-photo-comment" 
+                                    class="ticket-photo-comment-input" 
+                                    rows="2" 
+                                    placeholder="Describe qué muestran estas fotos..."
+                                ></textarea>
+                            </div>
+                            
+                            <!-- Vista previa de fotos seleccionadas -->
+                            <div id="ticket-photos-preview-container" class="ticket-photos-preview-container hidden">
+                                <div class="photos-preview-header">
+                                    <span class="ticket-photos-count">0 fotos seleccionadas</span>
+                                    <button type="button" id="ticket-clear-photos-btn" class="clear-photos-btn">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                        Limpiar
+                                    </button>
+                                </div>
+                                <div id="ticket-photos-preview-grid" class="photos-preview-grid">
+                                    <!-- Las previsualizaciones se insertan aquí -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn base-btn-cancel">Cancelar</button>
+                <button type="submit" form="ticket-form" class="base-btn base-btn-primary">Crear Ticket</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script>
+        // Variables globales necesarias
+        let selectedPhotos = [];
+        let state = { ticketPrefillData: null };
+
+        // Simular funciones básicas para el test
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // Funciones de fotos (copiadas del archivo principal)
+        function setupTicketPhotoUpload() {
+            const dropZone = document.getElementById('ticket-photo-drop-zone');
+            const fileInput = document.getElementById('ticket-photo-input');
+            const clearBtn = document.getElementById('ticket-clear-photos-btn');
+            
+            if (!dropZone || !fileInput) return;
+
+            // Configurar drag and drop
+            dropZone.addEventListener('click', () => fileInput.click());
+            
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('dragover');
+            });
+            
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+            });
+            
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('dragover');
+                handleTicketPhotoFiles(e.dataTransfer.files);
+            });
+            
+            fileInput.addEventListener('change', (e) => {
+                handleTicketPhotoFiles(e.target.files);
+            });
+            
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearTicketPhotos);
+            }
+        }
+
+        function handleTicketPhotoFiles(files) {
+            if (!files || files.length === 0) return;
+            
+            const maxFileSize = 1 * 1024 * 1024; // 1MB
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+            
+            Array.from(files).forEach(file => {
+                // Validar tipo de archivo
+                if (!allowedTypes.includes(file.type)) {
+                    alert(`❌ Formato no válido: ${file.name}. Solo se permiten JPG, PNG y GIF.`);
+                    return;
+                }
+                
+                // Validar tamaño
+                if (file.size > maxFileSize) {
+                    alert(`❌ Archivo muy grande: ${file.name}. Máximo 1MB.`);
+                    return;
+                }
+                
+                // Convertir a base64 y agregar a la lista
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const photoData = {
+                        id: Date.now() + Math.random(),
+                        name: file.name,
+                        size: file.size,
+                        type: file.type,
+                        data: e.target.result
+                    };
+                    
+                    selectedPhotos.push(photoData);
+                    updateTicketPhotosPreview();
+                    updateTestStatus();
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function updateTicketPhotosPreview() {
+            const container = document.getElementById('ticket-photos-preview-container');
+            const grid = document.getElementById('ticket-photos-preview-grid');
+            const countSpan = document.querySelector('.ticket-photos-count');
+            
+            if (!container || !grid) return;
+            
+            // Mostrar/ocultar contenedor
+            if (selectedPhotos.length === 0) {
+                container.classList.add('hidden');
+                return;
+            }
+            
+            container.classList.remove('hidden');
+            
+            // Actualizar contador
+            if (countSpan) {
+                countSpan.textContent = `${selectedPhotos.length} foto${selectedPhotos.length !== 1 ? 's' : ''} seleccionada${selectedPhotos.length !== 1 ? 's' : ''}`;
+            }
+            
+            // Limpiar grid
+            grid.innerHTML = '';
+            
+            // Agregar previsualizaciones
+            selectedPhotos.forEach(photo => {
+                const item = document.createElement('div');
+                item.className = 'ticket-photo-preview-item';
+                item.innerHTML = `
+                    <img src="${photo.data}" alt="${photo.name}" class="ticket-photo-preview-img">
+                    <button type="button" class="ticket-photo-remove-btn" onclick="removeTicketPhoto('${photo.id}')">
+                        ×
+                    </button>
+                `;
+                grid.appendChild(item);
+            });
+        }
+
+        function removeTicketPhoto(photoId) {
+            selectedPhotos = selectedPhotos.filter(photo => photo.id !== photoId);
+            updateTicketPhotosPreview();
+            updateTestStatus();
+        }
+
+        function clearTicketPhotos() {
+            if (selectedPhotos.length === 0) return;
+            
+            if (confirm('¿Seguro que quieres limpiar todas las fotos seleccionadas?')) {
+                selectedPhotos = [];
+                updateTicketPhotosPreview();
+                updateTestStatus();
+                
+                // Limpiar input file
+                const fileInput = document.getElementById('ticket-photo-input');
+                if (fileInput) fileInput.value = '';
+                
+                // Limpiar comentario
+                const commentInput = document.getElementById('ticket-photo-comment');
+                if (commentInput) commentInput.value = '';
+            }
+        }
+
+        function initializeTicketPhotoSystem() {
+            setupTicketPhotoUpload();
+            selectedPhotos = [];
+            updateTicketPhotosPreview();
+        }
+
+        function updateTestStatus() {
+            const photosCount = document.getElementById('photos-count');
+            if (photosCount) {
+                photosCount.textContent = selectedPhotos.length;
+            }
+        }
+
+        // Verificar conexión con backend
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const status = document.getElementById('backend-status');
+                if (response.ok) {
+                    status.textContent = '✅ Conectado';
+                    status.className = 'text-green-600';
+                } else {
+                    status.textContent = '❌ Error de conexión';
+                    status.className = 'text-red-600';
+                }
+            } catch (error) {
+                const status = document.getElementById('backend-status');
+                status.textContent = '❌ Sin conexión';
+                status.className = 'text-red-600';
+            }
+        }
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            // Verificar backend
+            checkBackendConnection();
+            
+            // Botón para abrir modal
+            document.getElementById('test-open-modal').addEventListener('click', () => {
+                const modal = document.getElementById('ticket-modal');
+                modal.style.display = 'flex';
+                initializeTicketPhotoSystem();
+                lucide.createIcons();
+            });
+            
+            // Tabs
+            document.querySelectorAll('.base-tab-button').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.dataset.tab;
+                    
+                    // Remover active de todos los tabs
+                    document.querySelectorAll('.base-tab-button').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.base-tab-content').forEach(content => content.classList.remove('active'));
+                    
+                    // Activar el tab seleccionado
+                    tab.classList.add('active');
+                    document.getElementById(`tab-${tabId}`).classList.add('active');
+                });
+            });
+            
+            // Cerrar modal
+            document.querySelector('.base-modal-close').addEventListener('click', () => closeModal('ticket-modal'));
+            document.querySelector('.base-btn-cancel').addEventListener('click', () => closeModal('ticket-modal'));
+            
+            // Form submit (para testing)
+            document.getElementById('ticket-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+                alert(`🧪 Test completado!\n\nFotos seleccionadas: ${selectedPhotos.length}\nComentario: "${document.getElementById('ticket-photo-comment').value}"`);
+                closeModal('ticket-modal');
+            });
+            
+            // Iconos
+            lucide.createIcons();
+        });
+    </script>
+
+    <style>
+        .test-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .test-section h2 {
+            margin-top: 0;
+            color: #374151;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .space-y-4 > * + * {
+            margin-top: 1rem;
+        }
+        
+        .text-green-600 {
+            color: #059669;
+        }
+        
+        .text-red-600 {
+            color: #dc2626;
+        }
+    </style>
+</body>
+</html>

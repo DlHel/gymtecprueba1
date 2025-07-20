@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug - Eliminación de Tickets</title>
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tickets.css">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🐛 Debug - Eliminación de Tickets</h1>
+        
+        <div class="debug-section">
+            <h2>Estado del Sistema</h2>
+            <div id="debug-status" class="debug-box">
+                <p><strong>Backend conectado:</strong> <span id="backend-status">❓ Verificando...</span></p>
+                <p><strong>Total de tickets:</strong> <span id="tickets-count">0</span></p>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <h2>Tickets de Prueba</h2>
+            <div id="debug-tickets-container" class="debug-box">
+                <p>Cargando tickets...</p>
+            </div>
+        </div>
+        
+        <div class="debug-section">
+            <h2>Log de Eventos</h2>
+            <div id="debug-log" class="debug-box log-container">
+                <!-- Los logs aparecerán aquí -->
+            </div>
+            <button id="clear-log" class="base-btn base-btn-secondary">Limpiar Log</button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script>
+        const debugLog = document.getElementById('debug-log');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+            debugLog.appendChild(logEntry);
+            debugLog.scrollTop = debugLog.scrollHeight;
+            console.log(`[DEBUG] ${message}`);
+        }
+
+        // Función mejorada de eliminación con debug
+        async function deleteItemDebug(resource, id, callback) {
+            log(`🔍 Iniciando eliminación de ${resource} con ID: ${id}`, 'info');
+            
+            if (!confirm('¿Seguro que quieres eliminar este elemento?')) {
+                log('❌ Eliminación cancelada por el usuario', 'warning');
+                return;
+            }
+            
+            try {
+                log(`📡 Enviando DELETE request a: ${API_URL}/${resource}/${id}`, 'info');
+                
+                const response = await fetch(`${API_URL}/${resource}/${id}`, { 
+                    method: 'DELETE' 
+                });
+                
+                log(`📨 Respuesta recibida. Status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al eliminar');
+                }
+                
+                const result = await response.json();
+                log(`✅ Eliminación exitosa. Respuesta: ${JSON.stringify(result)}`, 'success');
+                
+                if (callback) {
+                    log('🔄 Ejecutando callback...', 'info');
+                    callback();
+                }
+                
+            } catch (error) {
+                log(`❌ Error al eliminar: ${error.message}`, 'error');
+                console.error(`Error deleting ${resource}:`, error);
+                alert(`Error al eliminar: ${error.message}`);
+            }
+        }
+
+        // Verificar conexión con backend
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(`${API_URL}/tickets`);
+                const status = document.getElementById('backend-status');
+                if (response.ok) {
+                    const data = await response.json();
+                    status.textContent = '✅ Conectado';
+                    status.className = 'text-green-600';
+                    log('✅ Backend conectado exitosamente', 'success');
+                    return true;
+                } else {
+                    status.textContent = '❌ Error de conexión';
+                    status.className = 'text-red-600';
+                    log('❌ Error de conexión con backend', 'error');
+                    return false;
+                }
+            } catch (error) {
+                const status = document.getElementById('backend-status');
+                status.textContent = '❌ Sin conexión';
+                status.className = 'text-red-600';
+                log(`❌ Sin conexión con backend: ${error.message}`, 'error');
+                return false;
+            }
+        }
+
+        // Cargar y mostrar tickets
+        async function loadDebugTickets() {
+            const container = document.getElementById('debug-tickets-container');
+            const countSpan = document.getElementById('tickets-count');
+            
+            try {
+                log('📡 Cargando tickets...', 'info');
+                const response = await fetch(`${API_URL}/tickets`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const result = await response.json();
+                const tickets = result.data || [];
+                
+                log(`📊 Tickets cargados: ${tickets.length}`, 'success');
+                countSpan.textContent = tickets.length;
+                
+                if (tickets.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500">No hay tickets disponibles</p>';
+                    return;
+                }
+                
+                container.innerHTML = tickets.slice(0, 5).map(ticket => `
+                    <div class="debug-ticket-item">
+                        <div class="ticket-info">
+                            <strong>ID ${ticket.id}:</strong> ${ticket.title || 'Sin título'}
+                            <br><small>Estado: ${ticket.status || 'N/A'} | Prioridad: ${ticket.priority || 'N/A'}</small>
+                        </div>
+                        <div class="ticket-actions">
+                            <button class="debug-btn debug-btn-danger" 
+                                    onclick="testDeleteTicket(${ticket.id})"
+                                    title="Eliminar ticket">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                log(`❌ Error al cargar tickets: ${error.message}`, 'error');
+                container.innerHTML = `<p class="text-red-500">Error: ${error.message}</p>`;
+            }
+        }
+
+        // Función de prueba para eliminar ticket
+        function testDeleteTicket(ticketId) {
+            log(`🎯 Prueba de eliminación iniciada para ticket ID: ${ticketId}`, 'info');
+            deleteItemDebug('tickets', ticketId, () => {
+                log('🔄 Callback ejecutado - Recargando tickets...', 'info');
+                loadDebugTickets();
+            });
+        }
+
+        // Event listener para debug de clicks
+        document.addEventListener('click', (event) => {
+            const button = event.target.closest('button');
+            if (button && button.classList.contains('debug-btn-danger')) {
+                log(`🖱️ Click detectado en botón de eliminar`, 'info');
+            }
+        });
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', async () => {
+            log('🚀 Iniciando debug de eliminación de tickets...', 'info');
+            
+            // Limpiar log
+            document.getElementById('clear-log').addEventListener('click', () => {
+                debugLog.innerHTML = '';
+                log('🧹 Log limpiado', 'info');
+            });
+            
+            // Verificar backend y cargar datos
+            const backendOk = await checkBackendConnection();
+            if (backendOk) {
+                await loadDebugTickets();
+            }
+            
+            lucide.createIcons();
+        });
+    </script>
+
+    <style>
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .debug-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .debug-section h2 {
+            margin-top: 0;
+            color: #374151;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 0.5rem;
+        }
+        
+        .debug-box {
+            padding: 1rem;
+            background: #f8fafc;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .log-container {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+        
+        .log-entry {
+            padding: 0.25rem 0;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+        
+        .timestamp {
+            color: #6b7280;
+            font-size: 0.75rem;
+        }
+        
+        .log-info { color: #3b82f6; }
+        .log-success { color: #10b981; }
+        .log-warning { color: #f59e0b; }
+        .log-error { color: #ef4444; }
+        
+        .debug-ticket-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            background: white;
+        }
+        
+        .ticket-info {
+            flex: 1;
+        }
+        
+        .ticket-actions {
+            margin-left: 1rem;
+        }
+        
+        .debug-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+        
+        .debug-btn-danger {
+            background: #fee2e2;
+            border-color: #fecaca;
+            color: #dc2626;
+        }
+        
+        .debug-btn-danger:hover {
+            background: #fecaca;
+            border-color: #f87171;
+        }
+        
+        .text-green-600 {
+            color: #059669;
+        }
+        
+        .text-red-600 {
+            color: #dc2626;
+        }
+        
+        .text-gray-500 {
+            color: #6b7280;
+        }
+        
+        .text-red-500 {
+            color: #ef4444;
+        }
+    </style>
+</body>
+</html>

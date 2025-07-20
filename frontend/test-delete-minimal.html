@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Mínimo - Delete Button</title>
+    
+    <!-- Estilos base -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/tickets.css">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Test Mínimo - Botón de Eliminar</h1>
+        
+        <div class="test-section">
+            <h2>Botón de Prueba</h2>
+            <p>Hace clic en el botón para verificar si el event listener funciona:</p>
+            
+            <div class="tickets-actions">
+                <button class="tickets-action-btn delete delete-ticket-btn" data-id="123" title="Eliminar ticket de prueba">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </div>
+            
+            <div id="test-result" class="mt-4 p-4 bg-gray-100 rounded"></div>
+        </div>
+
+        <div class="test-section">
+            <h2>Event Listener Test</h2>
+            <button id="manual-test" class="base-btn base-btn-primary">
+                Probar deleteItem Directamente
+            </button>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script>
+        const testResult = document.getElementById('test-result');
+        
+        function updateResult(message, type = 'info') {
+            const color = type === 'success' ? 'green' : type === 'error' ? 'red' : 'blue';
+            testResult.innerHTML += `<div style="color: ${color}; margin: 0.5rem 0;">[${new Date().toLocaleTimeString()}] ${message}</div>`;
+            console.log(message);
+        }
+
+        // Función deleteItem copiada del archivo original
+        async function deleteItem(resource, id, callback) {
+            updateResult(`🔍 deleteItem llamada con resource: ${resource}, id: ${id}`, 'info');
+            
+            if (!confirm('¿Seguro que quieres eliminar este elemento?')) {
+                updateResult('❌ Eliminación cancelada por el usuario', 'error');
+                return;
+            }
+            
+            updateResult(`📡 Enviando DELETE request a: ${API_URL}/${resource}/${id}`, 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+                
+                updateResult(`📨 Respuesta recibida. Status: ${response.status} ${response.statusText}`, 
+                    response.ok ? 'success' : 'error');
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    updateResult('❌ Delete falló con error: ' + JSON.stringify(errorData), 'error');
+                    throw new Error(errorData.error || 'Error al eliminar');
+                }
+                
+                const result = await response.json();
+                updateResult('✅ Eliminación exitosa. Respuesta: ' + JSON.stringify(result), 'success');
+                
+                updateResult('🔄 Llamando función callback...', 'info');
+                if (callback) callback();
+                
+            } catch (error) {
+                updateResult(`❌ Error al eliminar: ${error.message}`, 'error');
+                console.error(`Error deleting ${resource}:`, error);
+                alert(`Error al eliminar: ${error.message}`);
+            }
+        }
+
+        // Función mock para fetchTickets
+        function mockFetchTickets() {
+            updateResult('🔄 mockFetchTickets llamada (callback ejecutado)', 'success');
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            updateResult('🚀 Test inicializado', 'info');
+            
+            // Event listener copiado del archivo original
+            document.body.addEventListener('click', (event) => {
+                const button = event.target.closest('button');
+                if (!button) return;
+                
+                updateResult(`🖱️ Botón clickeado: ${button.className}, data-id: ${button.dataset.id}`, 'info');
+                
+                if (button.matches('.edit-ticket-btn')) {
+                    updateResult('✏️ Botón de editar clickeado para ticket: ' + button.dataset.id, 'info');
+                }
+                
+                if (button.matches('.delete-ticket-btn')) {
+                    updateResult('🗑️ Botón de eliminar clickeado para ticket: ' + button.dataset.id, 'info');
+                    deleteItem('tickets', button.dataset.id, mockFetchTickets);
+                }
+            });
+
+            // Test directo
+            document.getElementById('manual-test').addEventListener('click', () => {
+                updateResult('🎯 Prueba manual iniciada', 'info');
+                deleteItem('tickets', '999', mockFetchTickets);
+            });
+            
+            lucide.createIcons();
+        });
+    </script>
+
+    <style>
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .test-section {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            background: white;
+        }
+        
+        .test-section h2 {
+            margin-top: 0;
+            color: #374151;
+        }
+        
+        .mt-4 { margin-top: 1rem; }
+        .p-4 { padding: 1rem; }
+        .bg-gray-100 { background-color: #f3f4f6; }
+        .rounded { border-radius: 0.375rem; }
+    </style>
+</body>
+</html>

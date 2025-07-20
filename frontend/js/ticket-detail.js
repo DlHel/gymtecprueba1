@@ -94,6 +94,9 @@ async function loadTicketDetail(ticketId) {
         showLoading();
         console.log(`📡 Cargando detalle del ticket ${ticketId}...`);
         
+        // Resetear sistema de fotos para evitar event listeners duplicados
+        resetPhotoSystem();
+        
         const response = await fetch(`${API_URL}/tickets/${ticketId}/detail`, {
             method: 'GET',
             headers: {
@@ -458,25 +461,11 @@ function setupUnifiedEventListeners() {
         addChecklistBtn.addEventListener('click', showAddChecklistModal);
     }
     
-    // Botón para agregar foto
-    const addPhotoBtn = document.getElementById('add-photo-btn');
-    if (addPhotoBtn) {
-        addPhotoBtn.addEventListener('click', () => {
-            document.getElementById('photo-input').click();
-        });
-    }
+    // === CONFIGURACIÓN DE SUBIDA DE FOTOS MÚLTIPLES ===
+    setupPhotoUpload();
     
-    // Input de foto
-    const photoInput = document.getElementById('photo-input');
-    if (photoInput) {
-        photoInput.addEventListener('change', handlePhotoSelection);
-    }
-    
-    // Botón para subir foto
-    const uploadPhotoBtn = document.getElementById('upload-photo-btn');
-    if (uploadPhotoBtn) {
-        uploadPhotoBtn.addEventListener('click', handlePhotoUpload);
-    }
+    // === CONFIGURACIÓN DE INTERFAZ UNIFICADA ===
+    initUnifiedInterface();
     
     // Botón de cambio de estado
     const changeStatusBtn = document.getElementById('change-status-btn');
@@ -763,14 +752,18 @@ function renderPhotos() {
         `;
     } else {
         photosGrid.innerHTML = state.photos.map(photo => `
-            <div class="ticket-photo-item" onclick="viewPhoto(${photo.id})">
-                <img src="${photo.file_path || (photo.photo_data ? `data:${photo.mime_type};base64,${photo.photo_data}` : '')}" 
+            <div class="ticket-photo-item" data-photo-id="${photo.id}">
+                <img src="${photo.file_path || (photo.photo_data ? `${photo.photo_data}` : '')}" 
                      alt="${photo.description || photo.file_name || 'Foto del ticket'}" 
-                     loading="lazy">
+                     loading="lazy"
+                     onclick="viewPhoto(${photo.id})">
                 <div class="ticket-photo-overlay">
                     <div class="ticket-photo-type">${photo.photo_type || 'General'}</div>
                     ${photo.description ? `<div class="ticket-photo-description">${photo.description}</div>` : ''}
                 </div>
+                <button type="button" class="ticket-photo-delete-btn" onclick="deletePhoto(${photo.id})" title="Eliminar foto">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
             </div>
         `).join('');
     }
@@ -1645,3 +1638,864 @@ async function handlePhotoUpload() {
         uploadBtn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Subir Foto';
     }
 }
+
+// === NUEVA FUNCIONALIDAD DE FOTOS MÚLTIPLES ===
+
+// Variable global para almacenar archivos seleccionados
+let selectedFiles = [];
+let photoSystemInitialized = false; // Bandera para evitar inicializaciones múltiples
+
+function setupPhotoUpload() {
+    // Evitar múltiples inicializaciones
+    if (photoSystemInitialized) {
+        console.log('📸 Sistema de fotos ya inicializado, omitiendo...');
+        return;
+    }
+    
+    const dropZone = document.getElementById('photo-drop-zone');
+    const photoInput = document.getElementById('photo-input');
+    const uploadBtn = document.getElementById('upload-photos-btn');
+    const clearBtn = document.getElementById('clear-photos-btn');
+    
+    if (!dropZone || !photoInput) {
+        console.warn('⚠️ Elementos de foto no encontrados en ticket-detail');
+        return;
+    }
+
+    console.log('📸 Inicializando sistema de fotos en ticket-detail...');
+    
+    // Limpiar event listeners existentes clonando elementos
+    const newDropZone = dropZone.cloneNode(true);
+    dropZone.parentNode.replaceChild(newDropZone, dropZone);
+    
+    const newPhotoInput = photoInput.cloneNode(true);
+    photoInput.parentNode.replaceChild(newPhotoInput, photoInput);
+    
+    // Configurar event listeners en elementos nuevos
+    newDropZone.addEventListener('click', () => newPhotoInput.click());
+    newDropZone.addEventListener('dragover', handleDragOver);
+    newDropZone.addEventListener('dragleave', handleDragLeave);
+    newDropZone.addEventListener('drop', handleDrop);
+    
+    // Event listener para selección de archivos
+    newPhotoInput.addEventListener('change', handleMultiplePhotoSelection);
+    
+    // Event listeners para botones (si existen)
+    if (uploadBtn) {
+        const newUploadBtn = uploadBtn.cloneNode(true);
+        uploadBtn.parentNode.replaceChild(newUploadBtn, uploadBtn);
+        newUploadBtn.addEventListener('click', handleMultiplePhotoUpload);
+    }
+    
+    if (clearBtn) {
+        const newClearBtn = clearBtn.cloneNode(true);
+        clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
+        newClearBtn.addEventListener('click', clearSelectedPhotos);
+    }
+    
+    photoSystemInitialized = true;
+    console.log('✅ Sistema de fotos inicializado en ticket-detail');
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    e.currentTarget.classList.remove('drag-over');
+    
+    const files = Array.from(e.dataTransfer.files);
+    processSelectedFiles(files);
+}
+
+function handleMultiplePhotoSelection(e) {
+    const files = Array.from(e.target.files);
+    processSelectedFiles(files);
+}
+
+function processSelectedFiles(files) {
+    // Filtrar solo archivos de imagen
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length === 0) {
+        alert('Por favor selecciona solo archivos de imagen');
+        return;
+    }
+    
+    // Validar tamaño máximo (1MB por archivo para evitar problemas con MySQL)
+    const maxSize = 1 * 1024 * 1024; // 1MB
+    const oversizedFiles = imageFiles.filter(file => file.size > maxSize);
+    if (oversizedFiles.length > 0) {
+        alert(`Algunos archivos son demasiado grandes. Máximo 1MB por foto para evitar problemas con la base de datos.\nArchivos problemáticos: ${oversizedFiles.map(f => f.name).join(', ')}`);
+        return;
+    }
+    
+    // Agregar archivos al array (evitar duplicados por nombre)
+    imageFiles.forEach(file => {
+        const existingIndex = selectedFiles.findIndex(f => f.name === file.name);
+        if (existingIndex === -1) {
+            selectedFiles.push(file);
+        } else {
+            selectedFiles[existingIndex] = file; // Reemplazar si ya existe
+        }
+    });
+    
+    updatePhotosPreview();
+}
+
+function updatePhotosPreview() {
+    const previewContainer = document.getElementById('photos-preview-container');
+    const previewGrid = document.getElementById('photos-preview-grid');
+    const photosCount = document.querySelector('.photos-count');
+    
+    if (!previewContainer || !previewGrid) return;
+    
+    if (selectedFiles.length === 0) {
+        previewContainer.classList.add('hidden');
+        return;
+    }
+    
+    previewContainer.classList.remove('hidden');
+    photosCount.textContent = `${selectedFiles.length} foto${selectedFiles.length !== 1 ? 's' : ''} seleccionada${selectedFiles.length !== 1 ? 's' : ''}`;
+    
+    // Generar preview para cada archivo
+    previewGrid.innerHTML = selectedFiles.map((file, index) => {
+        const url = URL.createObjectURL(file);
+        return `
+            <div class="photo-preview-item" data-index="${index}">
+                <img src="${url}" alt="${file.name}" onload="this.onload=null;">
+                <button type="button" class="photo-preview-remove" onclick="removeSelectedPhoto(${index})">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                </button>
+                <div class="photo-preview-name" title="${file.name}">${file.name}</div>
+            </div>
+        `;
+    }).join('');
+    
+    // Recrear iconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
+}
+
+function removeSelectedPhoto(index) {
+    // Liberar el objeto URL antes de eliminar
+    const previewItem = document.querySelector(`[data-index="${index}"] img`);
+    if (previewItem && previewItem.src.startsWith('blob:')) {
+        URL.revokeObjectURL(previewItem.src);
+    }
+    
+    selectedFiles.splice(index, 1);
+    updatePhotosPreview();
+}
+
+// Hacer la función disponible globalmente
+window.removeSelectedPhoto = removeSelectedPhoto;
+
+function clearSelectedPhotos() {
+    console.log('🧹 Limpiando fotos seleccionadas en ticket-detail...');
+    
+    // Liberar todas las URLs de objeto
+    const previewImages = document.querySelectorAll('#photos-preview-grid img');
+    previewImages.forEach(img => {
+        if (img.src.startsWith('blob:')) {
+            URL.revokeObjectURL(img.src);
+        }
+    });
+    
+    selectedFiles = [];
+    updatePhotosPreview();
+    
+    const photoInput = document.getElementById('photo-input');
+    if (photoInput) photoInput.value = '';
+    
+    const photoComment = document.getElementById('photo-comment');
+    if (photoComment) photoComment.value = '';
+    
+    console.log('✅ Fotos seleccionadas limpiadas');
+}
+
+function resetPhotoSystem() {
+    console.log('🧹 Reseteando sistema de fotos en ticket-detail...');
+    
+    // Limpiar fotos seleccionadas
+    clearSelectedPhotos();
+    
+    // Resetear bandera de inicialización
+    photoSystemInitialized = false;
+    
+    console.log('✅ Sistema de fotos reseteado en ticket-detail');
+}
+
+async function handleMultiplePhotoUpload() {
+    if (selectedFiles.length === 0) {
+        alert('No hay fotos seleccionadas');
+        return;
+    }
+    
+    const comment = document.getElementById('photo-comment').value.trim();
+    const uploadBtn = document.getElementById('upload-photos-btn');
+    
+    try {
+        // Deshabilitar botón y mostrar progreso
+        uploadBtn.disabled = true;
+        uploadBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Subiendo fotos...';
+        
+        console.log(`📸 Iniciando subida de ${selectedFiles.length} fotos...`);
+        
+        // Subir cada foto individualmente
+        const uploadPromises = selectedFiles.map(async (file, index) => {
+            try {
+                console.log(`📤 Procesando archivo ${index + 1}:`, {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type
+                });
+                
+                // Convertir a base64
+                const base64 = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => resolve(e.target.result);
+                    reader.readAsDataURL(file);
+                });
+                
+                console.log(`📝 Base64 generado para ${file.name}:`, {
+                    length: base64.length,
+                    starts: base64.substring(0, 50) + '...'
+                });
+                
+                const description = comment || `Foto ${index + 1} del ticket ${state.currentTicket.id}`;
+                
+                const payload = {
+                    photo_data: base64,
+                    file_name: file.name,
+                    mime_type: file.type,
+                    file_size: file.size,
+                    description: description,
+                    photo_type: 'Evidencia'
+                };
+                
+                console.log(`📋 Payload para ${file.name}:`, {
+                    ...payload,
+                    photo_data: payload.photo_data.substring(0, 100) + '...'
+                });
+                
+                const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                console.log(`📡 Respuesta del servidor para ${file.name}:`, {
+                    status: response.status,
+                    statusText: response.statusText,
+                    ok: response.ok
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`❌ Error del servidor para ${file.name}:`, errorText);
+                    throw new Error(`Error al subir ${file.name}: HTTP ${response.status} - ${errorText}`);
+                }
+                
+                const result = await response.json();
+                console.log(`✅ Foto ${file.name} subida exitosamente:`, result);
+                
+                return {
+                    id: result.data.id,
+                    photo_data: base64,
+                    description: description,
+                    file_name: file.name,
+                    category: 'general',
+                    uploaded_at: new Date().toISOString()
+                };
+                
+            } catch (error) {
+                console.error(`❌ Error al subir ${file.name}:`, error);
+                throw error;
+            }
+        });
+        
+        // Esperar a que todas las fotos se suban
+        const uploadedPhotos = await Promise.all(uploadPromises);
+        
+        // Agregar fotos al estado local
+        state.photos.push(...uploadedPhotos);
+        
+        // Limpiar formulario
+        clearSelectedPhotos();
+        
+        // Actualizar interfaz
+        renderPhotos();
+        renderTicketStats();
+        
+        console.log(`🎉 ${uploadedPhotos.length} fotos subidas exitosamente`);
+        alert(`${uploadedPhotos.length} foto${uploadedPhotos.length !== 1 ? 's' : ''} subida${uploadedPhotos.length !== 1 ? 's' : ''} exitosamente`);
+        
+    } catch (error) {
+        console.error('❌ Error al subir fotos:', error);
+        alert('Error al subir las fotos. Inténtalo de nuevo.');
+    } finally {
+        // Restaurar botón
+        uploadBtn.disabled = false;
+        uploadBtn.innerHTML = '<i data-lucide="upload" class="w-4 h-4"></i> Subir Fotos';
+    }
+}
+
+// === FUNCIONES PARA MANEJAR FOTOS EXISTENTES ===
+
+// Función para ver foto en modal
+function viewPhoto(photoId) {
+    const photo = state.photos.find(p => p.id === photoId);
+    if (!photo) return;
+    
+    // Crear modal simple para ver la foto
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50';
+    modal.innerHTML = `
+        <div class="relative max-w-4xl max-h-full p-4">
+            <button onclick="this.parentElement.parentElement.remove()" class="absolute -top-2 -right-2 bg-white rounded-full p-2 shadow-lg hover:bg-gray-100 transition-colors">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+            <img src="${photo.photo_data}" alt="${photo.description || 'Foto del ticket'}" class="max-w-full max-h-full object-contain rounded-lg">
+            <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white p-4 rounded-b-lg">
+                <h3 class="font-semibold">${photo.file_name || 'Foto del ticket'}</h3>
+                ${photo.description ? `<p class="text-sm text-gray-200">${photo.description}</p>` : ''}
+                <p class="text-xs text-gray-300">Subida: ${formatDateTime(photo.created_at)}</p>
+            </div>
+        </div>
+    `;
+    
+    // Cerrar modal al hacer click fuera
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
+    
+    document.body.appendChild(modal);
+    setTimeout(() => lucide.createIcons(), 10);
+}
+
+// Función para eliminar foto
+async function deletePhoto(photoId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta foto? Esta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ Eliminando foto ${photoId}...`);
+        
+        const response = await fetch(`${API_URL}/tickets/photos/${photoId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error al eliminar foto: HTTP ${response.status} - ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Foto eliminada exitosamente:', result);
+        
+        // Remover foto del estado local
+        state.photos = state.photos.filter(photo => photo.id !== photoId);
+        
+        // Actualizar interfaz
+        renderPhotos();
+        renderTicketStats();
+        
+        console.log('🔄 Foto eliminada y interfaz actualizada');
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar foto:', error);
+        alert('Error al eliminar la foto. Inténtalo de nuevo.');
+    }
+}
+
+// === INTERFAZ UNIFICADA DE COMENTARIOS MODERNA ===
+// Variables para la interfaz unificada
+let unifiedAttachments = [];
+let unifiedDropZone = null;
+let unifiedTextarea = null;
+let unifiedSubmitBtn = null;
+
+// Inicializar interfaz unificada moderna
+function initUnifiedInterface() {
+    console.log('📝 Inicializando interfaz unificada moderna...');
+    
+    unifiedTextarea = document.getElementById('unified-comment-textarea');
+    unifiedSubmitBtn = document.getElementById('send-comment-btn');
+    unifiedDropZone = document.getElementById('unified-drop-zone');
+    
+    if (!unifiedTextarea || !unifiedSubmitBtn || !unifiedDropZone) {
+        console.warn('⚠️ Elementos de interfaz unificada no encontrados');
+        return;
+    }
+    
+    // Event listeners para el textarea
+    unifiedTextarea.addEventListener('input', handleUnifiedTextChange);
+    unifiedTextarea.addEventListener('paste', handleUnifiedPaste);
+    unifiedTextarea.addEventListener('keydown', handleUnifiedKeydown);
+    
+    // Auto-resize del textarea
+    unifiedTextarea.addEventListener('input', autoResizeTextarea);
+    
+    // Event listeners para drag & drop
+    unifiedDropZone.addEventListener('click', () => {
+        const fileInput = document.getElementById('unified-file-input');
+        if (fileInput) fileInput.click();
+    });
+    
+    unifiedDropZone.addEventListener('dragover', handleUnifiedDragOver);
+    unifiedDropZone.addEventListener('dragleave', handleUnifiedDragLeave);
+    unifiedDropZone.addEventListener('drop', handleUnifiedDrop);
+    
+    // Event listener para selección de archivos
+    const fileInput = document.getElementById('unified-file-input');
+    if (fileInput) {
+        fileInput.addEventListener('change', handleUnifiedFileSelect);
+    }
+    
+    // Event listener para botón de envío
+    unifiedSubmitBtn.addEventListener('click', handleUnifiedSubmit);
+    
+    // Event listeners para botones de toolbar
+    const attachPhotosBtn = document.getElementById('attach-photos-btn');
+    if (attachPhotosBtn) {
+        attachPhotosBtn.addEventListener('click', () => {
+            const fileInput = document.getElementById('unified-file-input');
+            if (fileInput) fileInput.click();
+        });
+    }
+    
+    // Contador de caracteres
+    setupCharacterCounter();
+    
+    console.log('✅ Interfaz unificada moderna inicializada');
+}
+
+// Auto-resize del textarea
+function autoResizeTextarea() {
+    unifiedTextarea.style.height = 'auto';
+    const newHeight = Math.min(Math.max(unifiedTextarea.scrollHeight, 52), 200);
+    unifiedTextarea.style.height = newHeight + 'px';
+}
+
+// Configurar contador de caracteres
+function setupCharacterCounter() {
+    const charCount = document.getElementById('char-count');
+    if (!charCount) return;
+    
+    unifiedTextarea.addEventListener('input', () => {
+        const count = unifiedTextarea.value.length;
+        charCount.textContent = count;
+        
+        // Cambiar color según la longitud
+        if (count > 500) {
+            charCount.style.color = '#dc2626';
+        } else if (count > 300) {
+            charCount.style.color = '#f59e0b';
+        } else {
+            charCount.style.color = '#6b7280';
+        }
+    });
+}
+
+// Manejar atajos de teclado
+function handleUnifiedKeydown(e) {
+    // Cmd/Ctrl + Enter para enviar
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault();
+        if (!unifiedSubmitBtn.disabled) {
+            handleUnifiedSubmit();
+        }
+    }
+}
+
+// Manejar cambios en el textarea
+function handleUnifiedTextChange() {
+    const hasText = unifiedTextarea.value.trim().length > 0;
+    const hasAttachments = unifiedAttachments.length > 0;
+    
+    unifiedSubmitBtn.disabled = !hasText && !hasAttachments;
+    
+    // Actualizar placeholder del drop zone
+    updateDropZonePlaceholder(hasText);
+}
+
+// Actualizar placeholder de la zona de drop
+function updateDropZonePlaceholder(hasText) {
+    const dropPrimary = unifiedDropZone.querySelector('.drop-primary');
+    const dropSecondary = unifiedDropZone.querySelector('.drop-secondary');
+    
+    if (hasText) {
+        dropPrimary.textContent = 'Agrega imágenes a tu comentario';
+        dropSecondary.textContent = 'Las fotos ayudan a explicar mejor el problema';
+    } else {
+        dropPrimary.textContent = 'Arrastra imágenes aquí';
+        dropSecondary.textContent = 'o haz clic para explorar';
+    }
+}
+
+// Manejar paste de imágenes
+function handleUnifiedPaste(e) {
+    const items = Array.from(e.clipboardData.items);
+    const imageItems = items.filter(item => item.type.startsWith('image/'));
+    
+    if (imageItems.length > 0) {
+        e.preventDefault();
+        imageItems.forEach(item => {
+            const file = item.getAsFile();
+            if (file) {
+                addUnifiedAttachment(file);
+            }
+        });
+        
+        // Mostrar mensaje de confirmación
+        showToast('✅ Imagen pegada desde el portapapeles', 'success');
+    }
+}
+
+// Manejar drag over
+function handleUnifiedDragOver(e) {
+    e.preventDefault();
+    unifiedDropZone.classList.add('dragover');
+    unifiedDropZone.setAttribute('data-active', 'true');
+}
+
+// Manejar drag leave
+function handleUnifiedDragLeave(e) {
+    e.preventDefault();
+    unifiedDropZone.classList.remove('dragover');
+    unifiedDropZone.setAttribute('data-active', 'false');
+}
+
+// Manejar drop
+function handleUnifiedDrop(e) {
+    e.preventDefault();
+    unifiedDropZone.classList.remove('dragover');
+    unifiedDropZone.setAttribute('data-active', 'false');
+    
+    const files = Array.from(e.dataTransfer.files);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    if (imageFiles.length > 0) {
+        imageFiles.forEach(file => addUnifiedAttachment(file));
+        showToast(`✅ ${imageFiles.length} imagen(es) agregada(s)`, 'success');
+    } else {
+        showToast('⚠️ Solo se permiten archivos de imagen', 'warning');
+    }
+}
+
+// Manejar selección de archivos
+function handleUnifiedFileSelect(e) {
+    const files = Array.from(e.target.files);
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    
+    imageFiles.forEach(file => addUnifiedAttachment(file));
+    
+    if (imageFiles.length > 0) {
+        showToast(`✅ ${imageFiles.length} imagen(es) seleccionada(s)`, 'success');
+    }
+    
+    // Limpiar input
+    e.target.value = '';
+}
+
+// Agregar archivo adjunto
+function addUnifiedAttachment(file) {
+    // Validar tamaño (1MB máximo)
+    if (file.size > 1024 * 1024) {
+        showToast(`❌ "${file.name}" es demasiado grande (máx. 1MB)`, 'error');
+        return;
+    }
+    
+    // Validar tipo
+    if (!file.type.startsWith('image/')) {
+        showToast(`❌ "${file.name}" no es una imagen válida`, 'error');
+        return;
+    }
+    
+    // Crear objeto de adjunto
+    const attachment = {
+        id: Date.now() + Math.random(),
+        file: file,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        preview: null
+    };
+    
+    // Crear preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        attachment.preview = e.target.result;
+        unifiedAttachments.push(attachment);
+        renderUnifiedAttachments();
+        handleUnifiedTextChange();
+    };
+    reader.readAsDataURL(file);
+}
+
+// Renderizar adjuntos modernos
+function renderUnifiedAttachments() {
+    let container = document.getElementById('attachments-preview');
+    
+    if (unifiedAttachments.length === 0) {
+        if (container) {
+            container.classList.add('hidden');
+        }
+        return;
+    }
+    
+    // Mostrar contenedor si está oculto
+    if (container) {
+        container.classList.remove('hidden');
+        container.innerHTML = unifiedAttachments.map(attachment => `
+            <div class="attachment-item-modern" data-id="${attachment.id}">
+                <img src="${attachment.preview}" alt="${attachment.name}" class="attachment-preview-modern">
+                <div class="attachment-info-modern">
+                    <div class="attachment-name-modern">${attachment.name}</div>
+                    <div class="attachment-size-modern">${(attachment.size / 1024).toFixed(1)} KB</div>
+                </div>
+                <button type="button" class="attachment-remove-modern" onclick="removeUnifiedAttachment('${attachment.id}')" title="Remover imagen">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        `).join('');
+        
+        // Re-inicializar iconos de Lucide
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }
+}
+
+// Remover adjunto
+function removeUnifiedAttachment(attachmentId) {
+    const attachment = unifiedAttachments.find(att => att.id == attachmentId);
+    if (attachment) {
+        showToast(`🗑️ "${attachment.name}" removida`, 'info');
+    }
+    
+    unifiedAttachments = unifiedAttachments.filter(att => att.id != attachmentId);
+    renderUnifiedAttachments();
+    handleUnifiedTextChange();
+}
+
+// Manejar envío del comentario unificado
+async function handleUnifiedSubmit() {
+    const comment = unifiedTextarea.value.trim();
+    const hasText = comment.length > 0;
+    const hasAttachments = unifiedAttachments.length > 0;
+    
+    if (!hasText && !hasAttachments) {
+        showToast('⚠️ Escribe un comentario o agrega una imagen', 'warning');
+        return;
+    }
+    
+    try {
+        // Mostrar estado de carga
+        const interface = document.querySelector('.unified-comment-interface-modern');
+        const statusContainer = document.getElementById('composer-status');
+        
+        interface.classList.add('loading');
+        if (statusContainer) {
+            statusContainer.classList.remove('hidden');
+            statusContainer.querySelector('.status-text').textContent = 'Enviando comentario...';
+        }
+        
+        // Deshabilitar botón
+        unifiedSubmitBtn.disabled = true;
+        unifiedSubmitBtn.querySelector('.send-text').textContent = 'Enviando...';
+        
+        // Si hay texto, agregar como nota
+        if (hasText) {
+            await addUnifiedNote(comment);
+        }
+        
+        // Si hay adjuntos, subirlos
+        if (hasAttachments) {
+            await uploadUnifiedAttachments(comment);
+        }
+        
+        // Mostrar éxito
+        showToast('✅ Comentario enviado exitosamente', 'success');
+        
+        // Limpiar interfaz
+        clearUnifiedInterface();
+        
+        // Actualizar interfaz
+        renderNotes();
+        renderPhotos();
+        renderTicketStats();
+        
+        console.log('✅ Comentario unificado enviado exitosamente');
+        
+    } catch (error) {
+        console.error('❌ Error al enviar comentario unificado:', error);
+        showToast('❌ Error al enviar el comentario', 'error');
+    } finally {
+        // Remover estado de carga
+        const interface = document.querySelector('.unified-comment-interface-modern');
+        const statusContainer = document.getElementById('composer-status');
+        
+        interface.classList.remove('loading');
+        if (statusContainer) {
+            statusContainer.classList.add('hidden');
+        }
+        
+        // Restaurar botón
+        unifiedSubmitBtn.disabled = false;
+        unifiedSubmitBtn.querySelector('.send-text').textContent = 'Enviar';
+    }
+}
+
+// Agregar nota mediante interfaz unificada
+async function addUnifiedNote(comment) {
+    const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            note: comment,
+            note_type: 'Comentario',
+            author: 'Felipe Maturana',
+            is_internal: false
+        })
+    });
+    
+    if (!response.ok) {
+        throw new Error(`Error al agregar nota: HTTP ${response.status}`);
+    }
+    
+    return await response.json();
+}
+
+// Subir adjuntos mediante interfaz unificada
+async function uploadUnifiedAttachments(comment) {
+    const uploadPromises = unifiedAttachments.map(async (attachment) => {
+        // Convertir archivo a base64
+        const base64 = await new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(attachment.file);
+        });
+        
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                photo_data: base64,
+                file_name: attachment.name,
+                mime_type: attachment.type,
+                file_size: attachment.size,
+                description: comment || `Foto del ticket ${state.currentTicket.id}`,
+                photo_type: 'Evidencia'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error al subir ${attachment.name}: HTTP ${response.status}`);
+        }
+        
+        return await response.json();
+    });
+    
+    return await Promise.all(uploadPromises);
+}
+
+// Limpiar interfaz unificada
+function clearUnifiedInterface() {
+    unifiedTextarea.value = '';
+    unifiedTextarea.style.height = '52px';
+    unifiedAttachments = [];
+    renderUnifiedAttachments();
+    handleUnifiedTextChange();
+    
+    // Resetear contador de caracteres
+    const charCount = document.getElementById('char-count');
+    if (charCount) {
+        charCount.textContent = '0';
+        charCount.style.color = '#6b7280';
+    }
+}
+
+// Sistema de toasts para feedback
+function showToast(message, type = 'info') {
+    // Crear toast si no existe
+    let toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        toastContainer = document.createElement('div');
+        toastContainer.id = 'toast-container';
+        toastContainer.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        `;
+        document.body.appendChild(toastContainer);
+    }
+    
+    // Crear toast
+    const toast = document.createElement('div');
+    const colors = {
+        success: '#10b981',
+        error: '#ef4444',
+        warning: '#f59e0b',
+        info: '#6366f1'
+    };
+    
+    toast.style.cssText = `
+        background: ${colors[type] || colors.info};
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transform: translateX(100%);
+        transition: transform 0.3s ease;
+        max-width: 300px;
+    `;
+    
+    toast.textContent = message;
+    toastContainer.appendChild(toast);
+    
+    // Animar entrada
+    requestAnimationFrame(() => {
+        toast.style.transform = 'translateX(0)';
+    });
+    
+    // Remover después de 4 segundos
+    setTimeout(() => {
+        toast.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            if (toast.parentNode) {
+                toast.parentNode.removeChild(toast);
+            }
+        }, 300);
+    }, 4000);
+}
+
+// Hacer funciones disponibles globalmente
+window.viewPhoto = viewPhoto;
+window.deletePhoto = deletePhoto;
+window.removeUnifiedAttachment = removeUnifiedAttachment;
+window.initUnifiedInterface = initUnifiedInterface;

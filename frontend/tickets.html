@@ -157,6 +157,7 @@
                         <table class="tickets-table">
                             <thead>
                                 <tr>
+                                    <th scope="col" style="text-align: center;">Ticket #</th>
                                     <th scope="col">Título</th>
                                     <th scope="col">Cliente</th>
                                     <th scope="col">Estado</th>
@@ -196,6 +197,7 @@
                 <nav class="base-tab-nav">
                     <button class="base-tab-button active" data-tab="general">General</button>
                     <button class="base-tab-button" data-tab="details">Detalles</button>
+                    <button class="base-tab-button" data-tab="photos">Fotos</button>
                 </nav>
             </div>
             
@@ -252,6 +254,18 @@
                             </select>
                             </div>
                             
+                            <!-- Campo de Status (oculto para nuevos tickets) -->
+                            <div id="ticket-status-wrapper" class="base-form-group hidden">
+                                <label class="base-form-label">Estado</label>
+                                <select name="status" class="base-form-input" title="Estado del ticket">
+                                    <option value="Abierto">Abierto</option>
+                                    <option value="En Progreso">En Progreso</option>
+                                    <option value="En Espera">En Espera</option>
+                                    <option value="Resuelto">Resuelto</option>
+                                    <option value="Cerrado">Cerrado</option>
+                                </select>
+                            </div>
+                            
                             <div class="base-form-group full-width">
                                 <label class="base-form-label">Título <span class="required">*</span></label>
                                 <input type="text" name="title" class="base-form-input" required placeholder="Título descriptivo del problema">
@@ -282,6 +296,48 @@
                             <div class="base-form-group full-width">
                                 <label class="base-form-label">Observaciones Iniciales</label>
                                 <textarea name="initial_observations" rows="3" class="base-form-textarea" placeholder="Observaciones adicionales"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Pestaña Fotos -->
+                    <div id="tab-photos" class="base-tab-content">
+                        <div class="space-y-4">
+                            <!-- Zona de arrastrar y soltar -->
+                            <div id="ticket-photo-drop-zone" class="ticket-photo-drop-zone">
+                                <div class="drop-zone-content">
+                                    <i data-lucide="camera" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                    <p class="text-gray-600 mb-2">Arrastra fotos aquí o haz clic para seleccionar</p>
+                                    <p class="text-sm text-gray-400">Máximo 1MB por foto. Formatos: JPG, PNG, GIF</p>
+                                </div>
+                                <input type="file" id="ticket-photo-input" class="ticket-photo-input" accept="image/*" multiple style="display: none;">
+                            </div>
+                            
+                            <!-- Campo de comentario -->
+                            <div class="ticket-photo-comment-section">
+                                <label for="ticket-photo-comment" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Comentario (opcional)
+                                </label>
+                                <textarea 
+                                    id="ticket-photo-comment" 
+                                    class="ticket-photo-comment-input" 
+                                    rows="2" 
+                                    placeholder="Describe qué muestran estas fotos..."
+                                ></textarea>
+                            </div>
+                            
+                            <!-- Vista previa de fotos seleccionadas -->
+                            <div id="ticket-photos-preview-container" class="ticket-photos-preview-container hidden">
+                                <div class="photos-preview-header">
+                                    <span class="ticket-photos-count">0 fotos seleccionadas</span>
+                                    <button type="button" id="ticket-clear-photos-btn" class="clear-photos-btn">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                        Limpiar
+                                    </button>
+                                </div>
+                                <div id="ticket-photos-preview-grid" class="photos-preview-grid">
+                                    <!-- Las previsualizaciones se insertan aquí -->
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -101,43 +101,112 @@
                                             </div>
                                         </div>
 
-                                        <!-- Sección de Agregar Nota -->
+                                        <!-- Sección Unificada: Agregar Comentarios y Fotos -->
                                         <div class="ticket-section-card">
                                             <div class="ticket-section-header">
                                                 <h3 class="ticket-section-title">
-                                                    <i data-lucide="sticky-note" class="w-5 h-5"></i>
-                                                    Agregar Nota
+                                                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                                                    Agregar Comentario
                                                 </h3>
+                                                <div class="section-subtitle">
+                                                    Escribe comentarios y adjunta fotos en una sola interfaz
+                                                </div>
                                             </div>
-                                            <div class="ticket-add-note-form">
-                                                <textarea id="new-note-text" class="ticket-note-textarea" placeholder="Escribe una nota sobre este ticket..."></textarea>
-                                                <button id="add-note-btn" class="ticket-action-btn primary">
-                                                    <i data-lucide="plus" class="w-4 h-4"></i>
-                                                    Agregar Nota
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        <!-- Sección de Agregar Foto -->
-                                        <div class="ticket-section-card">
-                                            <div class="ticket-section-header">
-                                                <h3 class="ticket-section-title">
-                                                    <i data-lucide="camera" class="w-5 h-5"></i>
-                                                    Agregar Foto
-                                                </h3>
-                                            </div>
-                                            <div class="ticket-add-photo-form">
-                                                <input type="file" id="photo-input" class="ticket-photo-input" accept="image/*" style="display: none;">
-                                                <button id="add-photo-btn" class="ticket-action-btn primary">
-                                                    <i data-lucide="camera" class="w-4 h-4"></i>
-                                                    Seleccionar Foto
-                                                </button>
-                                                <div id="photo-preview" class="ticket-photo-preview hidden">
-                                                    <img id="preview-image" class="ticket-preview-image" alt="Vista previa">
-                                                    <button id="upload-photo-btn" class="ticket-action-btn primary">
-                                                        <i data-lucide="upload" class="w-4 h-4"></i>
-                                                        Subir Foto
-                                                    </button>
+                                            
+                                            <!-- Interfaz Unificada Moderna -->
+                                            <div class="unified-comment-interface-modern">
+                                                <!-- Área de composición principal -->
+                                                <div class="composer-container">
+                                                    <!-- Textarea expandible -->
+                                                    <div class="composer-input-wrapper">
+                                                        <textarea 
+                                                            id="unified-comment-textarea" 
+                                                            class="composer-textarea" 
+                                                            placeholder="¿Qué está pasando con este ticket? Comparte actualizaciones, adjunta fotos..."
+                                                            rows="1"
+                                                        ></textarea>
+                                                        
+                                                        <!-- Indicador de caracteres -->
+                                                        <div class="character-counter">
+                                                            <span id="char-count">0</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <!-- Zona de drop elegante -->
+                                                    <div id="unified-drop-zone" class="drop-zone-elegant" data-active="false">
+                                                        <div class="drop-zone-content">
+                                                            <div class="drop-icon-container">
+                                                                <i data-lucide="image-plus" class="drop-icon"></i>
+                                                            </div>
+                                                            <div class="drop-text">
+                                                                <p class="drop-primary">Arrastra imágenes aquí</p>
+                                                                <p class="drop-secondary">o haz clic para explorar</p>
+                                                            </div>
+                                                            <div class="drop-badge">
+                                                                JPG, PNG, GIF • Máx. 1MB
+                                                            </div>
+                                                        </div>
+                                                        <input type="file" id="unified-file-input" class="file-input-hidden" accept="image/*" multiple>
+                                                    </div>
+                                                    
+                                                    <!-- Vista previa de adjuntos -->
+                                                    <div id="attachments-preview" class="attachments-preview-modern hidden">
+                                                        <!-- Los adjuntos aparecerán aquí -->
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Barra de herramientas moderna -->
+                                                <div class="composer-toolbar">
+                                                    <div class="toolbar-section left">
+                                                        <button type="button" id="attach-photos-btn" class="toolbar-action-btn" title="Adjuntar fotos">
+                                                            <i data-lucide="camera" class="w-4 h-4"></i>
+                                                            <span class="action-label">Fotos</span>
+                                                        </button>
+                                                        
+                                                        <button type="button" id="attach-files-btn" class="toolbar-action-btn" title="Adjuntar archivos">
+                                                            <i data-lucide="paperclip" class="w-4 h-4"></i>
+                                                            <span class="action-label">Adjuntar</span>
+                                                        </button>
+                                                        
+                                                        <button type="button" id="add-emoji-btn" class="toolbar-action-btn" title="Agregar emoji">
+                                                            <i data-lucide="smile" class="w-4 h-4"></i>
+                                                        </button>
+                                                        
+                                                        <div class="toolbar-divider"></div>
+                                                        
+                                                        <button type="button" id="format-bold-btn" class="toolbar-format-btn" title="Negrita">
+                                                            <i data-lucide="bold" class="w-4 h-4"></i>
+                                                        </button>
+                                                        
+                                                        <button type="button" id="format-italic-btn" class="toolbar-format-btn" title="Cursiva">
+                                                            <i data-lucide="italic" class="w-4 h-4"></i>
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <div class="toolbar-section right">
+                                                        <div class="send-options">
+                                                            <button type="button" id="save-draft-btn" class="draft-btn" title="Guardar borrador">
+                                                                <i data-lucide="save" class="w-4 h-4"></i>
+                                                                Borrador
+                                                            </button>
+                                                            
+                                                            <button id="send-comment-btn" class="send-btn" disabled title="Enviar comentario">
+                                                                <div class="send-btn-content">
+                                                                    <i data-lucide="send" class="w-4 h-4"></i>
+                                                                    <span class="send-text">Enviar</span>
+                                                                </div>
+                                                                <div class="send-shortcut">⌘↵</div>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Indicadores de estado -->
+                                                <div class="composer-status hidden" id="composer-status">
+                                                    <div class="status-indicator">
+                                                        <i data-lucide="clock" class="w-4 h-4"></i>
+                                                        <span class="status-text">Enviando...</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>

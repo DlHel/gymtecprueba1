@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Locations API</title>
+</head>
+<body>
+    <h1>Test de API de Locations</h1>
+    
+    <div>
+        <label>Cliente:</label>
+        <select id="clientSelect">
+            <option value="">Seleccione un cliente</option>
+        </select>
+    </div>
+    
+    <div>
+        <label>Sede:</label>
+        <select id="locationSelect">
+            <option value="">Seleccione un cliente primero</option>
+        </select>
+    </div>
+    
+    <div>
+        <label>Equipo:</label>
+        <select id="equipmentSelect">
+            <option value="">Seleccione una sede primero</option>
+        </select>
+    </div>
+    
+    <div>
+        <h3>Logs:</h3>
+        <div id="logs" style="border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px;"></div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script>
+        const clientSelect = document.getElementById('clientSelect');
+        const locationSelect = document.getElementById('locationSelect');
+        const equipmentSelect = document.getElementById('equipmentSelect');
+        const logsDiv = document.getElementById('logs');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            logsDiv.innerHTML += `[${timestamp}] ${message}<br>`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+            console.log(message);
+        }
+        
+        async function loadClients() {
+            try {
+                log('🔄 Cargando clientes...');
+                const response = await fetch(`${API_URL}/clients`);
+                const result = await response.json();
+                const clients = result.data || [];
+                
+                log(`✅ Cargados ${clients.length} clientes`);
+                
+                clients.forEach(client => {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.textContent = client.name;
+                    clientSelect.appendChild(option);
+                });
+                
+            } catch (error) {
+                log(`❌ Error cargando clientes: ${error.message}`);
+            }
+        }
+        
+        async function loadLocations(clientId) {
+            try {
+                log(`🔄 Cargando sedes para cliente ${clientId}...`);
+                const url = `${API_URL}/locations?client_id=${clientId}`;
+                log(`🔗 URL: ${url}`);
+                
+                const response = await fetch(url);
+                log(`📡 Response status: ${response.status}`);
+                
+                const result = await response.json();
+                log(`📄 Response data: ${JSON.stringify(result)}`);
+                
+                const locations = result.data || [];
+                log(`📍 Sedes encontradas: ${locations.length}`);
+                
+                // Limpiar select
+                locationSelect.innerHTML = '<option value="">Seleccione una sede</option>';
+                equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero</option>';
+                
+                locations.forEach((location, index) => {
+                    const option = document.createElement('option');
+                    option.value = location.id;
+                    option.textContent = location.name;
+                    locationSelect.appendChild(option);
+                    log(`➕ Agregada sede ${index + 1}: ${location.name} (ID: ${location.id})`);
+                });
+                
+                log(`✅ Select de sedes poblado con ${locations.length} sedes`);
+                
+            } catch (error) {
+                log(`❌ Error cargando sedes: ${error.message}`);
+            }
+        }
+        
+        async function loadEquipment(locationId) {
+            try {
+                log(`🔄 Cargando equipos para sede ${locationId}...`);
+                const url = `${API_URL}/equipment?location_id=${locationId}`;
+                log(`🔗 URL: ${url}`);
+                
+                const response = await fetch(url);
+                log(`📡 Response status: ${response.status}`);
+                
+                const result = await response.json();
+                log(`📄 Response data: ${JSON.stringify(result)}`);
+                
+                const equipment = result.data || [];
+                log(`🏋️ Equipos encontrados: ${equipment.length}`);
+                
+                // Limpiar select
+                equipmentSelect.innerHTML = '<option value="">Seleccione un equipo</option>';
+                
+                equipment.forEach((equip, index) => {
+                    const option = document.createElement('option');
+                    option.value = equip.id;
+                    option.textContent = `${equip.name} (${equip.type})`;
+                    equipmentSelect.appendChild(option);
+                    log(`➕ Agregado equipo ${index + 1}: ${equip.name} - ${equip.type} (ID: ${equip.id})`);
+                });
+                
+                log(`✅ Select de equipos poblado con ${equipment.length} equipos`);
+                
+            } catch (error) {
+                log(`❌ Error cargando equipos: ${error.message}`);
+            }
+        }
+        
+        clientSelect.addEventListener('change', (e) => {
+            const clientId = e.target.value;
+            log(`🎯 Cliente seleccionado: ${clientId}`);
+            
+            if (clientId) {
+                loadLocations(clientId);
+            } else {
+                locationSelect.innerHTML = '<option value="">Seleccione un cliente primero</option>';
+                equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero</option>';
+                log('🔄 Reset de selects de sedes y equipos');
+            }
+        });
+        
+        locationSelect.addEventListener('change', (e) => {
+            const locationId = e.target.value;
+            log(`🎯 Sede seleccionada: ${locationId}`);
+            
+            if (locationId) {
+                loadEquipment(locationId);
+            } else {
+                equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero</option>';
+                log('🔄 Reset del select de equipos');
+            }
+        });
+        
+        // Cargar datos iniciales
+        loadClients();
+        log('🚀 Página cargada, ready para testing completo');
+    </script>
+</body>
+</html>
