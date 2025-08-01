@@ -211,7 +211,8 @@ function renderTicketDetail() {
     renderStatusActions(state.currentTicket);
     renderChecklist();  // ✅ Agregar llamada a renderChecklist
     updateChecklistCounter();  // ✅ Agregar llamada a updateChecklistCounter
-    renderPhotos();
+    renderNotes();      // ✅ Renderizar notas/comentarios unificados
+    renderPhotos();     // ✅ Renderizar mensaje informativo de fotos
     
     // Configurar event listeners para los nuevos elementos
     setupUnifiedEventListeners();
@@ -308,33 +309,6 @@ function renderTicketDescription(ticket) {
     const description = document.getElementById('ticket-description');
     if (!description) return;
     
-    // Generar HTML de las notas
-    let notesHtml = '';
-    if (state.notes.length > 0) {
-        notesHtml = `
-            <div class="ticket-notes-in-summary">
-                <h4 class="font-semibold text-blue-800 mb-3">
-                    <i data-lucide="sticky-note" class="w-4 h-4 inline mr-1"></i>
-                    Notas del Ticket (${state.notes.length})
-                </h4>
-                <div class="ticket-notes-summary-list">
-                    ${state.notes.map(note => `
-                        <div class="ticket-note-summary-item">
-                            <div class="ticket-note-summary-header">
-                                <span class="ticket-note-author">
-                                    <i data-lucide="user" class="w-3 h-3"></i>
-                                    ${note.author || 'Usuario'}
-                                </span>
-                                <span class="ticket-note-date">${formatDateTime(note.created_at)}</span>
-                            </div>
-                            <div class="ticket-note-summary-content">${note.note || note.content || 'Sin contenido'}</div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-        `;
-    }
-    
     description.innerHTML = `
         <div class="ticket-description-text">
             ${ticket.description || 'Sin descripción disponible'}
@@ -357,7 +331,6 @@ function renderTicketDescription(ticket) {
                 <p class="text-green-700">${ticket.solution}</p>
             </div>
         ` : ''}
-        ${notesHtml}
     `;
     
     setTimeout(() => lucide.createIcons(), 10);
@@ -660,42 +633,117 @@ function updateChecklistCounter() {
     }
 }
 
+// Función para agrupar notas y fotos relacionadas
+function groupUnifiedActivity() {
+    const activities = [];
+    
+    // === SEPARAR COMPLETAMENTE NOTAS Y FOTOS ===
+    // Ya no intentamos asociar automáticamente - cada elemento es independiente
+    
+    // Agregar todas las notas como actividades separadas
+    state.notes.forEach(note => {
+        activities.push({
+            type: 'note',  // Cambiado de 'unified' a 'note'
+            id: `note-${note.id}`,
+            note: note,
+            photos: [],  // Sin fotos asociadas automáticamente
+            created_at: note.created_at,
+            author: note.author
+        });
+    });
+    
+    // Agregar todas las fotos como actividades separadas
+    state.photos.forEach(photo => {
+        activities.push({
+            type: 'photo',  // Cambiado de 'photo-only' a 'photo'
+            id: `photo-${photo.id}`,
+            photos: [photo],
+            note: null,  // Sin nota asociada automáticamente
+            created_at: photo.created_at,
+            author: photo.author || 'Usuario'
+        });
+    });
+    
+    // Ordenar por fecha (más reciente primero)
+    return activities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
 function renderNotes() {
     const notesList = document.getElementById('notes-list');
     if (!notesList) return;
     
-    if (state.notes.length === 0) {
+    const activities = groupUnifiedActivity();
+    
+    if (activities.length === 0) {
         notesList.innerHTML = `
             <div class="ticket-empty-state">
                 <i data-lucide="sticky-note" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
-                <h3>No hay notas</h3>
-                <p>Agrega notas para documentar el progreso del ticket</p>
+                <h3>No hay actividad</h3>
+                <p>Agrega comentarios y fotos para documentar el progreso del ticket</p>
             </div>
         `;
     } else {
-        notesList.innerHTML = state.notes.map(note => `
-            <div class="ticket-note-item">
-                <div class="ticket-note-header">
-                    <div class="ticket-note-author">
-                        <i data-lucide="user" class="w-4 h-4"></i>
-                        ${note.author || 'Usuario'}
+        notesList.innerHTML = activities.map(activity => {
+            if (activity.type === 'note') {
+                // Solo comentario (sin fotos asociadas automáticamente)
+                const note = activity.note;
+                
+                return `
+                    <div class="ticket-note-activity">
+                        <div class="ticket-note-header">
+                            <div class="ticket-note-author">
+                                <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                ${note.author || 'Usuario'}
+                            </div>
+                            <div class="ticket-note-date">${formatDateTime(note.created_at)}</div>
+                        </div>
+                        <div class="ticket-note-content">${note.note || note.content || 'Sin contenido'}</div>
+                        <div class="ticket-note-actions">
+                            <button class="ticket-action-btn danger" onclick="deleteNote(${note.id})">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                Eliminar comentario
+                            </button>
+                        </div>
                     </div>
-                    <div class="ticket-note-date">${formatDateTime(note.created_at)}</div>
-                </div>
-                <div class="ticket-note-content">${note.note || note.content || 'Sin contenido'}</div>
-                <div class="ticket-note-actions">
-                    <button class="ticket-action-btn danger" onclick="deleteNote(${note.id})">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        Eliminar
-                    </button>
-                </div>
-            </div>
-        `).join('');
+                `;
+            } else if (activity.type === 'photo') {
+                // Solo foto (independiente de comentarios)
+                const photos = activity.photos;
+                const photo = photos[0]; // Solo debería haber una foto por actividad
+                
+                return `
+                    <div class="ticket-photo-activity">
+                        <div class="ticket-note-header">
+                            <div class="ticket-note-author">
+                                <i data-lucide="camera" class="w-4 h-4"></i>
+                                ${activity.author || 'Usuario'} agregó una foto
+                            </div>
+                            <div class="ticket-note-date">${formatDateTime(activity.created_at)}</div>
+                        </div>
+                        <div class="ticket-photo-single">
+                            <div class="ticket-unified-photo" data-photo-id="${photo.id}">
+                                <img src="${photo.file_path || photo.photo_data}" 
+                                     alt="${photo.description || photo.file_name || 'Foto del ticket'}" 
+                                     loading="lazy"
+                                     onclick="viewPhoto(${photo.id})">
+                                <div class="ticket-photo-overlay">
+                                    <div class="ticket-photo-type">${photo.photo_type || 'General'}</div>
+                                    ${photo.description ? `<div class="ticket-photo-description">${photo.description}</div>` : ''}
+                                </div>
+                                <button type="button" class="ticket-photo-delete-btn" onclick="deletePhoto(${photo.id})" title="Eliminar foto">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }).join('');
     }
     
-    // Actualizar también el resumen para mostrar las notas actualizadas
-    if (state.currentTicket) {
-        renderTicketDescription(state.currentTicket);
+    // Actualizar contador de notas
+    if (elements.notesCounter) {
+        elements.notesCounter.textContent = state.notes.length;
     }
     
     setTimeout(() => lucide.createIcons(), 10);
@@ -742,31 +790,15 @@ function renderPhotos() {
     const photosGrid = document.getElementById('photos-grid');
     if (!photosGrid) return;
     
-    if (state.photos.length === 0) {
-        photosGrid.innerHTML = `
-            <div class="ticket-empty-state">
-                <i data-lucide="camera" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
-                <h3>No hay fotos</h3>
-                <p>Agrega fotos para documentar visualmente el ticket</p>
-            </div>
-        `;
-    } else {
-        photosGrid.innerHTML = state.photos.map(photo => `
-            <div class="ticket-photo-item" data-photo-id="${photo.id}">
-                <img src="${photo.file_path || (photo.photo_data ? `${photo.photo_data}` : '')}" 
-                     alt="${photo.description || photo.file_name || 'Foto del ticket'}" 
-                     loading="lazy"
-                     onclick="viewPhoto(${photo.id})">
-                <div class="ticket-photo-overlay">
-                    <div class="ticket-photo-type">${photo.photo_type || 'General'}</div>
-                    ${photo.description ? `<div class="ticket-photo-description">${photo.description}</div>` : ''}
-                </div>
-                <button type="button" class="ticket-photo-delete-btn" onclick="deletePhoto(${photo.id})" title="Eliminar foto">
-                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
-            </div>
-        `).join('');
-    }
+    // Mostrar mensaje explicativo en lugar de duplicar fotos
+    photosGrid.innerHTML = `
+        <div class="ticket-empty-state">
+            <i data-lucide="info" class="w-12 h-12 mx-auto mb-4 text-blue-400"></i>
+            <h3>Fotos integradas en comentarios</h3>
+            <p>Las fotos ahora se muestran junto con los comentarios en la sección de actividad.</p>
+            <p class="text-sm text-gray-500 mt-2">Esta mejora permite ver el contexto completo de cada foto.</p>
+        </div>
+    `;
     
     setTimeout(() => lucide.createIcons(), 10);
 }
@@ -1518,7 +1550,7 @@ async function handleAddNote() {
         
         // Limpiar textarea y actualizar interfaz
         noteTextarea.value = '';
-        renderTicketDescription(state.currentTicket); // Actualizar el resumen que muestra notas
+        renderNotes(); // Re-renderizar la lista de actividad
         renderTicketStats();
         
         console.log('🔄 Nota agregada y interfaz actualizada');
@@ -1732,11 +1764,11 @@ function processSelectedFiles(files) {
         return;
     }
     
-    // Validar tamaño máximo (1MB por archivo para evitar problemas con MySQL)
-    const maxSize = 1 * 1024 * 1024; // 1MB
+    // Validar tamaño máximo (5MB por archivo - mismo límite que backend)
+    const maxSize = FILE_LIMITS.IMAGE_MAX_SIZE; // 5MB
     const oversizedFiles = imageFiles.filter(file => file.size > maxSize);
     if (oversizedFiles.length > 0) {
-        alert(`Algunos archivos son demasiado grandes. Máximo 1MB por foto para evitar problemas con la base de datos.\nArchivos problemáticos: ${oversizedFiles.map(f => f.name).join(', ')}`);
+        alert(`Algunos archivos son demasiado grandes. Máximo ${FILE_LIMITS.IMAGE_MAX_SIZE_TEXT} por foto.\nArchivos problemáticos: ${oversizedFiles.map(f => f.name).join(', ')}`);
         return;
     }
     
@@ -2011,7 +2043,7 @@ async function deletePhoto(photoId) {
         state.photos = state.photos.filter(photo => photo.id !== photoId);
         
         // Actualizar interfaz
-        renderPhotos();
+        renderNotes(); // Usar nuevo sistema de renderizado
         renderTicketStats();
         
         console.log('🔄 Foto eliminada y interfaz actualizada');
@@ -2214,9 +2246,9 @@ function handleUnifiedFileSelect(e) {
 
 // Agregar archivo adjunto
 function addUnifiedAttachment(file) {
-    // Validar tamaño (1MB máximo)
-    if (file.size > 1024 * 1024) {
-        showToast(`❌ "${file.name}" es demasiado grande (máx. 1MB)`, 'error');
+    // Validar tamaño (5MB máximo - mismo límite que backend)
+    if (file.size > FILE_LIMITS.IMAGE_MAX_SIZE) {
+        showToast(`❌ "${file.name}" es demasiado grande (máx. ${FILE_LIMITS.IMAGE_MAX_SIZE_TEXT})`, 'error');
         return;
     }
     
@@ -2380,7 +2412,25 @@ async function addUnifiedNote(comment) {
         throw new Error(`Error al agregar nota: HTTP ${response.status}`);
     }
     
-    return await response.json();
+    const result = await response.json();
+    
+    // Actualizar estado local con la nueva nota
+    if (result.data) {
+        const newNote = {
+            id: result.data.id,
+            note: comment,
+            note_type: 'Comentario',
+            author: 'Felipe Maturana',
+            is_internal: false,
+            created_at: new Date().toISOString()
+        };
+        
+        // Agregar al inicio del array para que aparezca primero
+        state.notes.unshift(newNote);
+        console.log('✅ Nota agregada al estado local:', newNote);
+    }
+    
+    return result;
 }
 
 // Subir adjuntos mediante interfaz unificada
@@ -2412,10 +2462,33 @@ async function uploadUnifiedAttachments(comment) {
             throw new Error(`Error al subir ${attachment.name}: HTTP ${response.status}`);
         }
         
-        return await response.json();
+        const result = await response.json();
+        
+        // Actualizar estado local con la nueva foto
+        if (result.data) {
+            const newPhoto = {
+                id: result.data.id,
+                photo_data: base64,
+                file_name: attachment.name,
+                file_path: result.data.file_path || null,
+                mime_type: attachment.type,
+                file_size: attachment.size,
+                description: comment || `Foto del ticket ${state.currentTicket.id}`,
+                photo_type: 'Evidencia',
+                created_at: new Date().toISOString()
+            };
+            
+            // Agregar al inicio del array para que aparezca primero
+            state.photos.unshift(newPhoto);
+            console.log('✅ Foto agregada al estado local:', newPhoto.file_name);
+        }
+        
+        return result;
     });
     
-    return await Promise.all(uploadPromises);
+    const results = await Promise.all(uploadPromises);
+    console.log(`✅ ${results.length} fotos subidas y agregadas al estado local`);
+    return results;
 }
 
 // Limpiar interfaz unificada
@@ -2497,5 +2570,44 @@ function showToast(message, type = 'info') {
 // Hacer funciones disponibles globalmente
 window.viewPhoto = viewPhoto;
 window.deletePhoto = deletePhoto;
+
+// Función para eliminar nota
+async function deleteNote(noteId) {
+    if (!confirm('¿Estás seguro de que deseas eliminar este comentario? Esta acción no se puede deshacer.')) {
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ Eliminando nota ${noteId}...`);
+        
+        const response = await fetch(`${API_URL}/notes/${noteId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error al eliminar nota: HTTP ${response.status} - ${errorText}`);
+        }
+        
+        const result = await response.json();
+        console.log('✅ Nota eliminada exitosamente:', result);
+        
+        // Remover nota del estado local
+        state.notes = state.notes.filter(note => note.id !== noteId);
+        
+        // Actualizar interfaz
+        renderNotes(); // Usar nuevo sistema de renderizado
+        renderTicketStats();
+        
+        console.log('🔄 Nota eliminada y interfaz actualizada');
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar nota:', error);
+        alert('Error al eliminar el comentario. Inténtalo de nuevo.');
+    }
+}
+
+window.deleteNote = deleteNote;
 window.removeUnifiedAttachment = removeUnifiedAttachment;
 window.initUnifiedInterface = initUnifiedInterface;

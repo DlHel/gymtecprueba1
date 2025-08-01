@@ -449,8 +449,9 @@ async function submitPhotoForm(button) {
                 state.photos.unshift(result.data);
             }
             
-            // Re-renderizar solo las fotos
-            renderPhotos();
+            // Re-renderizar la actividad completa (incluye fotos y notas)
+            renderNotes();
+            renderTicketStats();
             lucide.createIcons();
             
             showNotification('Foto subida exitosamente', 'success');
