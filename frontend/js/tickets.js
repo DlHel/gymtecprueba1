@@ -78,32 +78,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-equipment-modal-close-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
 
     document.body.addEventListener('click', (event) => {
-        // Buscar el botón más cercano desde el elemento clickeado
         const button = event.target.closest('button');
         if (!button) return;
-        
-        // También verificar si se hizo click directamente en un icono dentro del botón
-        const clickedElement = event.target;
-        const isIconClick = clickedElement.tagName === 'I' || clickedElement.tagName === 'SVG' || clickedElement.tagName === 'PATH';
-        
-        console.log('🖱️ Button clicked:', {
-            className: button.className,
-            dataId: button.dataset.id,
-            clickedElement: clickedElement.tagName,
-            isIconClick: isIconClick
-        });
-        
-        if (button.matches('.edit-ticket-btn')) {
-            console.log('✏️ Edit button clicked for ticket:', button.dataset.id);
-            openModal('ticket-modal', { id: button.dataset.id });
-        }
-        
-        if (button.matches('.delete-ticket-btn')) {
-            console.log('🗑️ Delete button clicked for ticket:', button.dataset.id);
-            event.preventDefault();
-            event.stopPropagation();
-            deleteItem('tickets', button.dataset.id, fetchTickets);
-        }
+        if (button.matches('.edit-ticket-btn')) openModal('ticket-modal', { id: button.dataset.id });
+        if (button.matches('.delete-ticket-btn')) deleteItem('tickets', button.dataset.id, fetchTickets);
     });
 
     if (clientSelect) clientSelect.addEventListener('change', handleClientChange);
@@ -335,12 +313,12 @@ function renderTickets(tickets) {
         const slaClass = getSLAClass(ticket.due_date);
         
         row.innerHTML = `
-            <td>
-                <div class="font-semibold text-blue-600 text-center">#${ticket.id}</div>
+            <td class="ticket-id-cell">
+                <span class="ticket-number">#${ticket.id}</span>
             </td>
             <td>
-                <div class="font-medium text-gray-900">${ticket.title || 'Sin título'}</div>
-                <div class="text-sm text-gray-500">${ticket.description ? ticket.description.substring(0, 100) + '...' : ''}</div>
+                <div class="font-medium text-gray-900 ticket-title">${ticket.title || 'Sin título'}</div>
+                <div class="text-sm text-gray-500">${ticket.description ? ticket.description.substring(0, 80) + '...' : ''}</div>
             </td>
             <td>
                 <div class="tickets-client-info">
@@ -384,28 +362,6 @@ function renderTickets(tickets) {
         `;
         
         ticketList.appendChild(row);
-        
-        // Agregar event listeners específicos para los botones de esta fila
-        const deleteBtn = row.querySelector('.delete-ticket-btn');
-        const editBtn = row.querySelector('.edit-ticket-btn');
-        
-        if (deleteBtn) {
-            deleteBtn.addEventListener('click', (e) => {
-                console.log('🗑️ Direct delete button click for ticket:', ticket.id);
-                e.preventDefault();
-                e.stopPropagation();
-                deleteItem('tickets', ticket.id, fetchTickets);
-            });
-        }
-        
-        if (editBtn) {
-            editBtn.addEventListener('click', (e) => {
-                console.log('✏️ Direct edit button click for ticket:', ticket.id);
-                e.preventDefault();
-                e.stopPropagation();
-                openModal('ticket-modal', { id: ticket.id });
-            });
-        }
     });
     
     // Regenerar iconos de Lucide
@@ -415,17 +371,7 @@ function renderTickets(tickets) {
 }
 
 function populateSelect(selectElement, items, { placeholder, valueKey = 'id', nameKey = 'name' }) {
-    if (!selectElement) {
-        console.log('🔍 [DEBUG] populateSelect: selectElement is null');
-        return;
-    }
-    
-    console.log('🔍 [DEBUG] populateSelect called with:', {
-        selectElement: selectElement.name || selectElement.id,
-        itemsCount: items.length,
-        placeholder,
-        items: items
-    });
+    if (!selectElement) return;
     
     selectElement.innerHTML = '';
     const placeholderOption = document.createElement('option');
@@ -433,15 +379,12 @@ function populateSelect(selectElement, items, { placeholder, valueKey = 'id', na
     placeholderOption.textContent = placeholder;
     selectElement.appendChild(placeholderOption);
     
-    items.forEach((item, index) => {
+    items.forEach(item => {
         const option = document.createElement('option');
         option.value = item[valueKey];
         option.textContent = item[nameKey];
         selectElement.appendChild(option);
-        console.log(`🔍 [DEBUG] Added option ${index + 1}:`, option.textContent, '(value:', option.value, ')');
     });
-    
-    console.log('🔍 [DEBUG] Final select innerHTML:', selectElement.innerHTML);
 }
 
 function populateClientFilter() {
@@ -513,29 +456,21 @@ async function fetchClients() {
 
 async function fetchLocations(clientId) {
     try {
-        console.log('🔍 [DEBUG] Fetching locations for client:', clientId);
-        console.log('🔍 [DEBUG] API_URL:', API_URL);
-        const url = `${API_URL}/locations?client_id=${clientId}`;
-        console.log('🔍 [DEBUG] Full URL:', url);
-        
-        const response = await fetch(url);
-        console.log('🔍 [DEBUG] Response status:', response.status);
+        console.log('Fetching locations for client:', clientId);
+        const response = await fetch(`${API_URL}/locations?client_id=${clientId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
-        console.log('🔍 [DEBUG] Raw API response:', result);
+        console.log('Locations API response:', result);
         state.locations = result.data || [];
-        console.log('🔍 [DEBUG] Filtered locations for client', clientId, ':', state.locations);
-        console.log('🔍 [DEBUG] Number of locations:', state.locations.length);
+        console.log('Filtered locations for client', clientId, ':', state.locations);
         
         if (locationSelect) {
-            console.log('🔍 [DEBUG] Populating locationSelect with', state.locations.length, 'items');
             populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede' });
             locationSelect.disabled = false;
-            console.log('🔍 [DEBUG] locationSelect innerHTML after populate:', locationSelect.innerHTML);
         }
     } catch (error) {
-        console.error('❌ [ERROR] Error fetching locations:', error);
+        console.error('Error fetching locations:', error);
         state.locations = [];
         if (locationSelect) {
             populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
@@ -546,29 +481,18 @@ async function fetchLocations(clientId) {
 
 async function fetchEquipment(locationId) {
     try {
-        console.log('🔍 [DEBUG] Fetching equipment for location:', locationId);
-        console.log('🔍 [DEBUG] API_URL:', API_URL);
-        const url = `${API_URL}/equipment?location_id=${locationId}`;
-        console.log('🔍 [DEBUG] Full URL:', url);
-        
-        const response = await fetch(url);
-        console.log('🔍 [DEBUG] Equipment response status:', response.status);
+        const response = await fetch(`${API_URL}/equipment?location_id=${locationId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
-        console.log('🔍 [DEBUG] Raw equipment API response:', result);
         state.equipment = result.data || [];
-        console.log('🔍 [DEBUG] Filtered equipment for location', locationId, ':', state.equipment);
-        console.log('🔍 [DEBUG] Number of equipment:', state.equipment.length);
         
         if (equipmentSelect) {
-            console.log('🔍 [DEBUG] Populating equipmentSelect with', state.equipment.length, 'items');
             populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo' });
             equipmentSelect.disabled = false;
-            console.log('🔍 [DEBUG] equipmentSelect innerHTML after populate:', equipmentSelect.innerHTML);
         }
     } catch (error) {
-        console.error('❌ [ERROR] Error fetching equipment:', error);
+        console.error('Error fetching equipment:', error);
         state.equipment = [];
         if (equipmentSelect) {
             populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
@@ -597,13 +521,11 @@ async function fetchEquipmentModels() {
 // --- Event Handlers ---
 function handleClientChange(e) {
     const clientId = e.target.value;
-    console.log('🔍 [DEBUG] handleClientChange called with clientId:', clientId);
     
     // Limpiar selects dependientes
     if (locationSelect) {
         locationSelect.disabled = true;
         locationSelect.innerHTML = '<option>Cargando sedes...</option>';
-        console.log('🔍 [DEBUG] Reset locationSelect to loading state');
     }
     if (equipmentSelect) {
         equipmentSelect.disabled = true;
@@ -611,10 +533,7 @@ function handleClientChange(e) {
     }
 
     if (clientId) {
-        console.log('🔍 [DEBUG] Calling fetchLocations with clientId:', clientId);
         fetchLocations(clientId);
-    } else {
-        console.log('🔍 [DEBUG] No clientId provided, not fetching locations');
     }
 }
 
@@ -658,35 +577,6 @@ async function handleFormSubmit(e) {
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Error desconocido');
-        }
-        
-        const ticketData = await response.json();
-        console.log('📋 Respuesta del ticket:', ticketData);
-        
-        // Mejorar extracción del ID del ticket
-        let ticketId = id;
-        if (!ticketId) {
-            // Para tickets nuevos, el ID está en data.id según la respuesta del backend
-            ticketId = ticketData.data?.id || ticketData.id || ticketData.lastID;
-        }
-        
-        console.log('🎯 Ticket ID obtenido:', ticketId);
-        
-        if (!ticketId) {
-            console.error('❌ No se pudo obtener el ID del ticket de la respuesta');
-            throw new Error('No se pudo obtener el ID del ticket creado');
-        }
-        
-        // Si es un nuevo ticket y hay fotos seleccionadas, adjuntarlas
-        if (!id && selectedPhotos.length > 0) {
-            try {
-                console.log(`📸 Intentando adjuntar ${selectedPhotos.length} fotos al ticket ${ticketId}`);
-                await attachTicketPhotos(ticketId);
-                console.log('✅ Ticket creado con fotos adjuntadas');
-            } catch (photoError) {
-                console.error('❌ Error al adjuntar fotos:', photoError);
-                alert(`Ticket creado exitosamente, pero hubo un error al subir las fotos: ${photoError.message}`);
-            }
         }
         
         closeModal('ticket-modal');
@@ -850,43 +740,25 @@ async function openModal(modalId, data = {}) {
                 const ticketData = result.data;
 
                 form.querySelector('input[name="id"]').value = ticketData.id;
-                
-                // Usar una forma más segura de asignar valores
-                const setFormValue = (name, value) => {
-                    const element = form.querySelector(`[name="${name}"]`);
-                    if (element && value !== undefined && value !== null) {
-                        element.value = value;
-                    }
-                };
-                
-                setFormValue('title', ticketData.title || '');
-                setFormValue('description', ticketData.description || '');
-                setFormValue('priority', ticketData.priority || 'media');
-                setFormValue('status', ticketData.status || 'Abierto');
-                
-                // Manejar fecha de vencimiento
+                form.elements.title.value = ticketData.title;
+                form.elements.description.value = ticketData.description;
+                form.elements.priority.value = ticketData.priority;
+                form.elements.status.value = ticketData.status;
+
                 if (ticketData.due_date) {
-                    const dueDateElement = form.querySelector('[name="due_date"]');
-                    if (dueDateElement) {
-                        // Convertir datetime a formato datetime-local
-                        const dateObj = new Date(ticketData.due_date);
-                        const localISOTime = new Date(dateObj.getTime() - dateObj.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-                        dueDateElement.value = localISOTime;
-                    }
+                    form.elements.due_date.value = ticketData.due_date.split('T')[0];
                 }
-                
-                setFormValue('client_id', ticketData.client_id);
-                setFormValue('assigned_technician_id', ticketData.assigned_technician_id);
-                setFormValue('initial_observations', ticketData.initial_observations || '');
+
+                form.elements.client_id.value = ticketData.client_id;
 
                 if (ticketData.client_id) {
                     await fetchLocations(ticketData.client_id);
-                    setFormValue('location_id', ticketData.location_id);
+                    form.elements.location_id.value = ticketData.location_id;
                 }
 
                 if (ticketData.location_id) {
                     await fetchEquipment(ticketData.location_id);
-                    setFormValue('equipment_id', ticketData.equipment_id);
+                    form.elements.equipment_id.value = ticketData.equipment_id;
                 }
 
             } catch (error) {
@@ -896,24 +768,19 @@ async function openModal(modalId, data = {}) {
                 return; // Detener ejecución si falla la carga
             }
         } else if (effectiveData.client_id) { // Prefill for new ticket
-            setFormValue('client_id', effectiveData.client_id);
+            form.elements.client_id.value = effectiveData.client_id;
             if (effectiveData.client_id) {
                 await fetchLocations(effectiveData.client_id);
                 if (effectiveData.location_id) {
-                    setFormValue('location_id', effectiveData.location_id);
+                    form.elements.location_id.value = effectiveData.location_id;
                     await fetchEquipment(effectiveData.location_id);
                     if (effectiveData.equipment_id) {
-                        setFormValue('equipment_id', effectiveData.equipment_id);
+                        form.elements.equipment_id.value = effectiveData.equipment_id;
                     }
                 }
             }
         }
         state.ticketPrefillData = null;
-        
-        // Inicializar sistema de fotos para nuevos tickets
-        if (!effectiveData.id) {
-            initializeTicketPhotoSystem();
-        }
     }
      // Lógica específica para el modal de añadir cliente
     else if (modalId === 'add-client-modal') {
@@ -992,10 +859,7 @@ async function checkForUrlParams() {
 
 function closeModal(modalId) {
     const modal = document.getElementById(modalId);
-    
-    // Limpiar estado específico de fotos cuando se cierra el modal de tickets
     if (modalId === 'ticket-modal') {
-        resetTicketPhotoSystem();
         modal.classList.remove('is-open');
         setTimeout(() => {
             modal.style.display = 'none';
@@ -1004,336 +868,20 @@ function closeModal(modalId) {
         modal.classList.remove('flex');
         modal.style.display = 'none';
     }
-    
     document.body.classList.remove('modal-open');
 }
 
 async function deleteItem(resource, id, callback) {
-    console.log(`🔍 deleteItem called with resource: ${resource}, id: ${id}`);
-    
-    if (!confirm('¿Seguro que quieres eliminar este elemento?')) {
-        console.log('❌ Delete cancelled by user');
-        return;
-    }
-    
-    console.log(`📡 Sending DELETE request to: ${API_URL}/${resource}/${id}`);
-    
+    if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
     try {
         const response = await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
-        
-        console.log(`📨 Response received. Status: ${response.status} ${response.statusText}`);
-        
         if (!response.ok) {
             const errorData = await response.json();
-            console.error('❌ Delete failed with error:', errorData);
             throw new Error(errorData.error || 'Error al eliminar');
         }
-        
-        const result = await response.json();
-        console.log('✅ Delete successful. Response:', result);
-        
-        console.log('🔄 Calling callback function...');
         callback();
-        
     } catch (error) {
-        console.error(`❌ Error deleting ${resource}:`, error);
+        console.error(`Error deleting ${resource}:`, error);
         alert(`Error al eliminar: ${error.message}`);
     }
-}
-
-// ============================================
-//           SISTEMA DE FOTOS PARA TICKETS
-// ============================================
-
-let selectedPhotos = [];
-let photoSystemInitialized = false; // Bandera para evitar inicializaciones múltiples
-
-function setupTicketPhotoUpload() {
-    // Evitar múltiples inicializaciones
-    if (photoSystemInitialized) {
-        console.log('📸 Sistema de fotos ya inicializado, omitiendo...');
-        return;
-    }
-    
-    const dropZone = document.getElementById('ticket-photo-drop-zone');
-    const fileInput = document.getElementById('ticket-photo-input');
-    const clearBtn = document.getElementById('ticket-clear-photos-btn');
-    
-    if (!dropZone || !fileInput) {
-        console.warn('⚠️ Elementos de foto no encontrados');
-        return;
-    }
-
-    console.log('📸 Inicializando sistema de fotos...');
-
-    // Limpiar event listeners existentes si los hay
-    const newDropZone = dropZone.cloneNode(true);
-    dropZone.parentNode.replaceChild(newDropZone, dropZone);
-    
-    const newFileInput = fileInput.cloneNode(true);
-    fileInput.parentNode.replaceChild(newFileInput, fileInput);
-
-    // Configurar drag and drop en los elementos nuevos
-    newDropZone.addEventListener('click', () => newFileInput.click());
-    
-    newDropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        newDropZone.classList.add('dragover');
-    });
-    
-    newDropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        newDropZone.classList.remove('dragover');
-    });
-    
-    newDropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        newDropZone.classList.remove('dragover');
-        handleTicketPhotoFiles(e.dataTransfer.files);
-    });
-    
-    newFileInput.addEventListener('change', (e) => {
-        handleTicketPhotoFiles(e.target.files);
-    });
-    
-    if (clearBtn) {
-        // Limpiar event listeners del botón también
-        const newClearBtn = clearBtn.cloneNode(true);
-        clearBtn.parentNode.replaceChild(newClearBtn, clearBtn);
-        newClearBtn.addEventListener('click', clearTicketPhotos);
-    }
-    
-    photoSystemInitialized = true;
-    console.log('✅ Sistema de fotos inicializado');
-}
-
-function handleTicketPhotoFiles(files) {
-    if (!files || files.length === 0) return;
-    
-    const maxFileSize = 1 * 1024 * 1024; // 1MB
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-    
-    Array.from(files).forEach(file => {
-        // Validar tipo de archivo
-        if (!allowedTypes.includes(file.type)) {
-            alert(`❌ Formato no válido: ${file.name}. Solo se permiten JPG, PNG y GIF.`);
-            return;
-        }
-        
-        // Validar tamaño
-        if (file.size > maxFileSize) {
-            alert(`❌ Archivo muy grande: ${file.name}. Máximo 1MB.`);
-            return;
-        }
-        
-        // Convertir a base64 y agregar a la lista
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const photoData = {
-                id: Date.now() + Math.random(),
-                name: file.name,
-                size: file.size,
-                type: file.type,
-                data: e.target.result
-            };
-            
-            selectedPhotos.push(photoData);
-            updateTicketPhotosPreview();
-        };
-        reader.readAsDataURL(file);
-    });
-}
-
-function updateTicketPhotosPreview() {
-    const container = document.getElementById('ticket-photos-preview-container');
-    const grid = document.getElementById('ticket-photos-preview-grid');
-    const countSpan = document.querySelector('.ticket-photos-count');
-    
-    if (!container || !grid) return;
-    
-    // Mostrar/ocultar contenedor
-    if (selectedPhotos.length === 0) {
-        container.classList.add('hidden');
-        return;
-    }
-    
-    container.classList.remove('hidden');
-    
-    // Actualizar contador
-    if (countSpan) {
-        countSpan.textContent = `${selectedPhotos.length} foto${selectedPhotos.length !== 1 ? 's' : ''} seleccionada${selectedPhotos.length !== 1 ? 's' : ''}`;
-    }
-    
-    // Limpiar grid
-    grid.innerHTML = '';
-    
-    // Agregar previsualizaciones
-    selectedPhotos.forEach(photo => {
-        const item = document.createElement('div');
-        item.className = 'ticket-photo-preview-item';
-        item.innerHTML = `
-            <img src="${photo.data}" alt="${photo.name}" class="ticket-photo-preview-img">
-            <button type="button" class="ticket-photo-remove-btn" onclick="removeTicketPhoto('${photo.id}')">
-                ×
-            </button>
-        `;
-        grid.appendChild(item);
-    });
-}
-
-function removeTicketPhoto(photoId) {
-    selectedPhotos = selectedPhotos.filter(photo => photo.id !== photoId);
-    updateTicketPhotosPreview();
-}
-
-function clearTicketPhotos() {
-    if (selectedPhotos.length === 0) return;
-    
-    if (confirm('¿Seguro que quieres limpiar todas las fotos seleccionadas?')) {
-        selectedPhotos = [];
-        updateTicketPhotosPreview();
-        
-        // Limpiar input file
-        const fileInput = document.getElementById('ticket-photo-input');
-        if (fileInput) fileInput.value = '';
-        
-        // Limpiar comentario
-        const commentInput = document.getElementById('ticket-photo-comment');
-        if (commentInput) commentInput.value = '';
-    }
-}
-
-function getTicketPhotoComment() {
-    const commentInput = document.getElementById('ticket-photo-comment');
-    return commentInput ? commentInput.value.trim() : '';
-}
-
-// Función para adjuntar fotos al crear el ticket
-async function attachTicketPhotos(ticketId) {
-    if (!ticketId) {
-        console.error('❌ ticketId es undefined o null');
-        throw new Error('ID de ticket no válido');
-    }
-    
-    if (selectedPhotos.length === 0) return;
-    
-    const comment = getTicketPhotoComment();
-    
-    try {
-        console.log(`📸 Adjuntando ${selectedPhotos.length} fotos al ticket ${ticketId}...`);
-        
-        for (const photo of selectedPhotos) {
-            console.log('📤 Procesando foto:', {
-                name: photo.name,
-                size: photo.size,
-                type: photo.type,
-                hasData: !!photo.data,
-                dataLength: photo.data ? photo.data.length : 0
-            });
-            
-            // Validar que la foto tenga todos los campos necesarios
-            if (!photo.data) {
-                console.error('❌ Foto sin datos:', photo);
-                throw new Error(`La foto ${photo.name} no tiene datos base64`);
-            }
-            
-            if (!photo.type) {
-                console.error('❌ Foto sin tipo MIME:', photo);
-                throw new Error(`La foto ${photo.name} no tiene tipo MIME`);
-            }
-            
-            const photoData = {
-                photo_data: photo.data,          // Cambio: image_data -> photo_data
-                file_name: photo.name,           // Cambio: filename -> file_name  
-                mime_type: photo.type,           // Agregar: mime_type requerido
-                file_size: photo.size || 0,      // Agregar: file_size (con fallback)
-                description: comment || `Foto inicial del ticket ${ticketId}`, // Cambio: comment -> description
-                photo_type: 'Evidencia'          // Agregar: photo_type
-            };
-            
-            console.log('📋 Datos de foto a enviar:', {
-                file_name: photoData.file_name,
-                mime_type: photoData.mime_type,
-                file_size: photoData.file_size,
-                description: photoData.description,
-                photo_type: photoData.photo_type,
-                photo_data_length: photoData.photo_data ? photoData.photo_data.length : 0,
-                photo_data_preview: photoData.photo_data ? `${photoData.photo_data.substring(0, 50)}...` : 'NO DATA'
-            });
-            
-            const response = await fetch(`${API_URL}/tickets/${ticketId}/photos`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(photoData)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                console.error('❌ Error del servidor:', errorData);
-                throw new Error(errorData.error || 'Error al subir foto');
-            }
-            
-            const result = await response.json();
-            console.log('✅ Foto subida exitosamente:', result);
-        }
-        
-        console.log('🎉 Todas las fotos adjuntadas exitosamente');
-        
-        // Limpiar fotos seleccionadas
-        selectedPhotos = [];
-        updateTicketPhotosPreview();
-        
-        // Limpiar input y comentario
-        const fileInput = document.getElementById('ticket-photo-input');
-        if (fileInput) fileInput.value = '';
-        
-        const commentInput = document.getElementById('ticket-photo-comment');
-        if (commentInput) commentInput.value = '';
-        
-    } catch (error) {
-        console.error('❌ Error al adjuntar fotos:', error);
-        throw error; // Re-lanzar para que el formulario principal pueda manejarlo
-    }
-}
-
-// Inicializar sistema de fotos cuando se abre el modal
-function initializeTicketPhotoSystem() {
-    console.log('🔄 Inicializando sistema de fotos del ticket...');
-    
-    // Limpiar estado previo
-    resetTicketPhotoSystem();
-    
-    setupTicketPhotoUpload();
-    updateTicketPhotosPreview();
-    
-    console.log('✅ Sistema de fotos del ticket inicializado');
-}
-
-function resetTicketPhotoSystem() {
-    console.log('🧹 Limpiando estado del sistema de fotos...');
-    
-    // Limpiar array de fotos
-    selectedPhotos = [];
-    
-    // Resetear bandera de inicialización para permitir nueva configuración
-    photoSystemInitialized = false;
-    
-    // Limpiar preview de fotos si existe
-    const previewContainer = document.getElementById('ticket-photos-preview');
-    if (previewContainer) {
-        previewContainer.innerHTML = '';
-    }
-    
-    // Resetear input de archivo
-    const fileInput = document.getElementById('ticket-photo-input');
-    if (fileInput) {
-        fileInput.value = '';
-    }
-    
-    // Actualizar preview y contador
-    updateTicketPhotosPreview();
-    
-    console.log('✅ Estado del sistema de fotos limpiado');
 }

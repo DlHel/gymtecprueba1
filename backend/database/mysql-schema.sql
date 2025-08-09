@@ -315,7 +315,7 @@ CREATE TABLE IF NOT EXISTS `TicketNotes` (
     `id` INT(11) NOT NULL AUTO_INCREMENT,
     `ticket_id` INT(11) NOT NULL,
     `note` TEXT NOT NULL,
-    `note_type` ENUM('Comentario', 'Diagnóstico', 'Solución', 'Seguimiento') DEFAULT 'Comentario',
+    `note_type` ENUM('General', 'Comentario', 'Diagnóstico', 'Solución', 'Seguimiento', 'Comunicación Cliente') DEFAULT 'General',
     `author` VARCHAR(150) DEFAULT 'Sistema',
     `is_internal` BOOLEAN DEFAULT FALSE,
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

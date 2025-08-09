@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+    <style>
+        .login-gradient {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-card {
+            backdrop-filter: blur(16px);
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .input-group {
+            position: relative;
+        }
+        .input-group input:focus + label,
+        .input-group input:not(:placeholder-shown) + label {
+            transform: translateY(-2rem) scale(0.8);
+            color: #667eea;
+        }
+        .input-group label {
+            transition: all 0.2s ease-in-out;
+            pointer-events: none;
+            position: absolute;
+            top: 0.75rem;
+            left: 0.75rem;
+            color: #6b7280;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+        .alert {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="login-gradient min-h-screen flex items-center justify-center p-4">
+    
+    <!-- Container Principal -->
+    <div class="w-full max-w-md">
+        
+        <!-- Logo y Título -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-white rounded-full shadow-lg mb-4">
+                <i data-lucide="activity" class="w-8 h-8 text-indigo-600"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-white mb-2">Gymtec ERP</h1>
+            <p class="text-indigo-100">Sistema de Gestión de Equipos</p>
+        </div>
+
+        <!-- Tarjeta de Login -->
+        <div class="login-card rounded-2xl shadow-2xl p-8">
+            
+            <!-- Alertas -->
+            <div id="alert-container" class="mb-6 hidden">
+                <div id="alert" class="alert p-4 rounded-lg flex items-center space-x-3">
+                    <i id="alert-icon" class="w-5 h-5"></i>
+                    <span id="alert-message"></span>
+                </div>
+            </div>
+
+            <!-- Formulario de Login -->
+            <form id="login-form" class="space-y-6">
+                
+                <!-- Campo Usuario -->
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="username" 
+                        name="username"
+                        placeholder=" "
+                        required
+                        class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white/90"
+                    >
+                    <label for="username" class="text-gray-600">Usuario o Email</label>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        <i data-lucide="user" class="w-5 h-5 text-gray-400"></i>
+                    </div>
+                </div>
+
+                <!-- Campo Contraseña -->
+                <div class="input-group">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password"
+                        placeholder=" "
+                        required
+                        class="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white/90"
+                    >
+                    <label for="password" class="text-gray-600">Contraseña</label>
+                    <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        <button type="button" id="toggle-password" class="text-gray-400 hover:text-gray-600">
+                            <i data-lucide="eye" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recordar sesión -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="remember-me" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="ml-2 text-sm text-gray-700">Recordar sesión</span>
+                    </label>
+                    <a href="#" class="text-sm text-indigo-600 hover:text-indigo-500">¿Olvidaste tu contraseña?</a>
+                </div>
+
+                <!-- Botón de Login -->
+                <button 
+                    type="submit" 
+                    id="login-btn"
+                    class="btn-primary w-full py-3 px-4 text-white font-semibold rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    <span id="login-text">Iniciar Sesión</span>
+                    <span id="login-loading" class="hidden">
+                        <i data-lucide="loader" class="w-5 h-5 animate-spin inline mr-2"></i>
+                        Iniciando...
+                    </span>
+                </button>
+
+            </form>
+
+            <!-- Información adicional -->
+            <div class="mt-8 text-center text-sm text-gray-600">
+                <p>¿Necesitas ayuda? Contacta al administrador</p>
+                <p class="mt-2 text-xs">Versión 1.0 - Gymtec ERP</p>
+            </div>
+
+        </div>
+
+        <!-- Información de Usuario por Defecto (solo en desarrollo) -->
+        <div class="mt-6 text-center text-white/80 text-sm">
+            <p>👨‍💼 Usuario: <strong>admin</strong></p>
+            <p>🔑 Contraseña: <strong>admin123</strong></p>
+            <p class="mt-2 text-xs opacity-75">O usa cualquier técnico con contraseña: tech123</p>
+        </div>
+
+    </div>
+
+    <!-- JavaScript -->
+    <script src="js/config.js"></script>
+    <script>
+        class LoginManager {
+            constructor() {
+                this.form = document.getElementById('login-form');
+                this.alertContainer = document.getElementById('alert-container');
+                this.alert = document.getElementById('alert');
+                this.alertIcon = document.getElementById('alert-icon');
+                this.alertMessage = document.getElementById('alert-message');
+                this.loginBtn = document.getElementById('login-btn');
+                this.loginText = document.getElementById('login-text');
+                this.loginLoading = document.getElementById('login-loading');
+                
+                this.apiUrl = window.API_URL || 'http://localhost:3000/api';
+                
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.checkExistingSession();
+                
+                // Inicializar iconos de Lucide
+                lucide.createIcons();
+            }
+
+            setupEventListeners() {
+                // Submit del formulario
+                this.form.addEventListener('submit', (e) => this.handleLogin(e));
+
+                // Toggle password visibility
+                document.getElementById('toggle-password').addEventListener('click', () => this.togglePassword());
+
+                // Enter en los campos
+                document.getElementById('username').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('password').focus();
+                    }
+                });
+
+                document.getElementById('password').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        this.form.dispatchEvent(new Event('submit'));
+                    }
+                });
+            }
+
+            togglePassword() {
+                const passwordInput = document.getElementById('password');
+                const eyeIcon = document.querySelector('#toggle-password i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    eyeIcon.setAttribute('data-lucide', 'eye-off');
+                } else {
+                    passwordInput.type = 'password';
+                    eyeIcon.setAttribute('data-lucide', 'eye');
+                }
+                
+                lucide.createIcons();
+            }
+
+            async handleLogin(e) {
+                e.preventDefault();
+                
+                const formData = new FormData(this.form);
+                const username = formData.get('username').trim();
+                const password = formData.get('password');
+
+                if (!username || !password) {
+                    this.showAlert('error', 'Por favor completa todos los campos');
+                    return;
+                }
+
+                this.setLoading(true);
+                this.hideAlert();
+
+                try {
+                    const response = await fetch(`${this.apiUrl}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ username, password })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        // Guardar token y datos del usuario
+                        localStorage.setItem('gymtec_token', data.token);
+                        localStorage.setItem('gymtec_user', JSON.stringify(data.user));
+                        
+                        // Recordar sesión si está marcado
+                        if (document.getElementById('remember-me').checked) {
+                            localStorage.setItem('gymtec_remember', 'true');
+                        }
+
+                        this.showAlert('success', 'Login exitoso. Redirigiendo...');
+                        
+                        // Redireccionar al dashboard
+                        setTimeout(() => {
+                            window.location.href = 'index.html';
+                        }, 1000);
+
+                    } else {
+                        this.showAlert('error', data.error || 'Error en el login');
+                    }
+
+                } catch (error) {
+                    console.error('Error en login:', error);
+                    this.showAlert('error', 'Error de conexión. Verifica que el servidor esté funcionando.');
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            checkExistingSession() {
+                const token = localStorage.getItem('gymtec_token');
+                if (token) {
+                    // Verificar si el token es válido
+                    fetch(`${this.apiUrl}/auth/verify`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            // Token válido, redireccionar al dashboard
+                            window.location.href = 'index.html';
+                        } else {
+                            // Token inválido, limpiar localStorage
+                            localStorage.removeItem('gymtec_token');
+                            localStorage.removeItem('gymtec_user');
+                        }
+                    })
+                    .catch(error => {
+                        console.warn('Error verificando token:', error);
+                    });
+                }
+            }
+
+            showAlert(type, message) {
+                this.alertContainer.classList.remove('hidden');
+                
+                if (type === 'error') {
+                    this.alert.className = 'alert p-4 rounded-lg flex items-center space-x-3 bg-red-50 border border-red-200 text-red-800';
+                    this.alertIcon.setAttribute('data-lucide', 'alert-circle');
+                } else if (type === 'success') {
+                    this.alert.className = 'alert p-4 rounded-lg flex items-center space-x-3 bg-green-50 border border-green-200 text-green-800';
+                    this.alertIcon.setAttribute('data-lucide', 'check-circle');
+                } else {
+                    this.alert.className = 'alert p-4 rounded-lg flex items-center space-x-3 bg-blue-50 border border-blue-200 text-blue-800';
+                    this.alertIcon.setAttribute('data-lucide', 'info');
+                }
+                
+                this.alertMessage.textContent = message;
+                lucide.createIcons();
+            }
+
+            hideAlert() {
+                this.alertContainer.classList.add('hidden');
+            }
+
+            setLoading(loading) {
+                this.loginBtn.disabled = loading;
+                
+                if (loading) {
+                    this.loginText.classList.add('hidden');
+                    this.loginLoading.classList.remove('hidden');
+                } else {
+                    this.loginText.classList.remove('hidden');
+                    this.loginLoading.classList.add('hidden');
+                }
+                
+                lucide.createIcons();
+            }
+        }
+
+        // Inicializar cuando el DOM esté listo
+        document.addEventListener('DOMContentLoaded', () => {
+            new LoginManager();
+        });
+    </script>
+
+</body>
+</html>

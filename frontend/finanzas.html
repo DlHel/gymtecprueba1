@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finanzas - Gymtec ERP</title>
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/finanzas.css">
     <script src="https://unpkg.com/lucide@latest"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
@@ -14,24 +15,212 @@
         <div id="menu-placeholder"></div>
 
         <div class="flex-1 flex flex-col overflow-y-auto">
-            <header class="app-header flex-shrink-0">
-                <div class="flex items-center justify-between p-4">
-                    <h1>Finanzas</h1>
-                    <div class="user-info">Felipe Maturana (Admin)</div>
+            <!-- Header mejorado con estilo consistente -->
+            <header class="finanzas-header-improved">
+                <div class="finanzas-header-content">
+                    <div class="finanzas-title-section">
+                        <h1 class="finanzas-main-title">
+                            <i data-lucide="dollar-sign" class="w-8 h-8"></i>
+                            Sistema Financiero
+                        </h1>
+                        <p class="finanzas-subtitle">Gestión integral de cotizaciones, facturas y gastos</p>
+                    </div>
+                    <div class="text-right">
+                        <div id="user-info" class="user-info"></div>
+                    </div>
                 </div>
             </header>
             
-            <main class="flex-1 overflow-y-auto section-spacing">
-                <div class="content-max-width">
-                    <div class="app-card section-spacing">
-                        <h2 class="text-2xl font-semibold">Módulo en Construcción</h2>
-                        <p class="mt-2" style="color: var(--text-secondary);">La funcionalidad para gestionar finanzas se implementará aquí.</p>
+            <main class="finanzas-main-content">
+                <!-- Métricas principales -->
+                <div class="metrics-grid">
+                    <!-- Las métricas se cargarán dinámicamente -->
+                </div>
+
+                <!-- Sistema de pestañas -->
+                <div class="tabs-container">
+                    <div class="tabs-header">
+                        <button class="tab-button active" data-tab="overview">
+                            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                            Resumen
+                        </button>
+                        <button class="tab-button" data-tab="quotes">
+                            <i data-lucide="file-text" class="w-4 h-4"></i>
+                            Cotizaciones
+                        </button>
+                        <button class="tab-button" data-tab="invoices">
+                            <i data-lucide="receipt" class="w-4 h-4"></i>
+                            Facturas
+                        </button>
+                        <button class="tab-button" data-tab="expenses">
+                            <i data-lucide="credit-card" class="w-4 h-4"></i>
+                            Gastos
+                        </button>
+                        </div>
+
+                        <!-- Contenido: Resumen -->
+                        <div id="overview-tab" class="tab-content active">
+                            <div class="app-card">
+                                <h3 class="text-lg font-semibold mb-4">Actividad Reciente</h3>
+                                <div id="recent-activity">
+                                    <div class="loading-spinner"></div>
+                                    <p class="text-center text-secondary">Cargando actividad reciente...</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contenido: Cotizaciones -->
+                        <div id="quotes-tab" class="tab-content">
+                            <div class="financial-table">
+                                <div class="financial-table-header">
+                                    <h3 class="financial-table-title">Cotizaciones</h3>
+                                    <div class="financial-table-actions">
+                                        <button class="btn btn-secondary" onclick="window.print()">
+                                            <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                                            Imprimir
+                                        </button>
+                                        <button class="btn btn-primary" onclick="createQuote()">
+                                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                            Nueva Cotización
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Cliente</th>
+                                                <th>Fecha</th>
+                                                <th>Total</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="quotes-table-body">
+                                            <tr>
+                                                <td colspan="6" class="loading-card">
+                                                    <div class="loading-spinner"></div>
+                                                    <p>Cargando cotizaciones...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contenido: Facturas -->
+                        <div id="invoices-tab" class="tab-content">
+                            <div class="financial-table">
+                                <div class="financial-table-header">
+                                    <h3 class="financial-table-title">Facturas</h3>
+                                    <div class="financial-table-actions">
+                                        <button class="btn btn-secondary" onclick="window.print()">
+                                            <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                                            Imprimir
+                                        </button>
+                                        <button class="btn btn-primary" onclick="createInvoice()">
+                                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                            Nueva Factura
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Número</th>
+                                                <th>Cliente</th>
+                                                <th>Fecha</th>
+                                                <th>Vencimiento</th>
+                                                <th>Total</th>
+                                                <th>Estado</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="invoices-table-body">
+                                            <tr>
+                                                <td colspan="7" class="loading-card">
+                                                    <div class="loading-spinner"></div>
+                                                    <p>Cargando facturas...</p>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contenido: Gastos -->
+                        <div id="expenses-tab" class="tab-content">
+                            <div id="expenses-content">
+                                <!-- Contenido de gastos se cargará dinámicamente -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
         </div>
     </div>
+
+    <!-- Modales para crear/editar documentos -->
+    <!-- Modal Cotización -->
+    <div id="quote-modal" class="base-modal">
+        <div class="base-modal-content base-modal-large">
+            <div class="modal-header">
+                <h3 id="quote-modal-title">Nueva Cotización</h3>
+                <button class="modal-close" onclick="closeQuoteModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="quote-form" class="financial-form">
+                    <!-- Formulario de cotización se cargará dinámicamente -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeQuoteModal()">
+                    Cancelar
+                </button>
+                <button type="submit" form="quote-form" class="btn btn-primary">
+                    Guardar Cotización
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Factura -->
+    <div id="invoice-modal" class="base-modal">
+        <div class="base-modal-content base-modal-large">
+            <div class="modal-header">
+                <h3 id="invoice-modal-title">Nueva Factura</h3>
+                <button class="modal-close" onclick="closeInvoiceModal()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="invoice-form" class="financial-form">
+                    <!-- Formulario de factura se cargará dinámicamente -->
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeInvoiceModal()">
+                    Cancelar
+                </button>
+                <button type="submit" form="invoice-form" class="btn btn-primary">
+                    Guardar Factura
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/nav-loader.js"></script>
+    <script src="js/auth.js"></script>
+    <script type="module" src="js/finanzas-modals.js"></script>
+    <script type="module" src="js/finanzas.js"></script>
 </body>
 </html> 

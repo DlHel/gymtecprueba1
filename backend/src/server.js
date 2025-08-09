@@ -7,8 +7,12 @@ const fs = require('fs');
 const multer = require('multer');
 const { validateClient, validateLocation, validateEquipment, validateClientUpdate, validateLocationUpdate, validateEquipmentUpdate } = require('./validators');
 
+// Importar sistema de autenticación
+const { authenticateToken, requireRole, optionalAuth } = require('./middleware/auth');
+const AuthService = require('./services/authService');
+
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Aumentar límite para payloads grandes
@@ -83,6 +87,90 @@ app.use('/uploads', express.static(uploadsDir));
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../../frontend/index.html'));
+});
+
+// --- RUTAS DE AUTENTICACIÓN ---
+
+// POST login
+app.post('/api/auth/login', async (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({
+            error: 'Username y contraseña son requeridos',
+            code: 'MISSING_CREDENTIALS'
+        });
+    }
+
+    try {
+        const result = await AuthService.login(username, password);
+        
+        console.log(`✅ Login exitoso para usuario: ${username}`);
+        
+        res.json({
+            message: 'Login exitoso',
+            ...result
+        });
+
+    } catch (error) {
+        console.log(`❌ Login fallido para usuario: ${username} - ${error.message}`);
+        
+        res.status(401).json({
+            error: error.message,
+            code: error.code || 'LOGIN_FAILED'
+        });
+    }
+});
+
+// POST logout (opcional - para invalidar token en frontend)
+app.post('/api/auth/logout', authenticateToken, (req, res) => {
+    // En una implementación más avanzada, aquí se podría agregar el token a una blacklist
+    console.log(`📤 Logout del usuario: ${req.user.username}`);
+    
+    res.json({
+        message: 'Logout exitoso'
+    });
+});
+
+// GET verificar token
+app.get('/api/auth/verify', authenticateToken, (req, res) => {
+    res.json({
+        message: 'Token válido',
+        user: req.user
+    });
+});
+
+// POST cambiar contraseña
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+            error: 'Contraseña actual y nueva contraseña son requeridas'
+        });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({
+            error: 'La nueva contraseña debe tener al menos 6 caracteres'
+        });
+    }
+
+    try {
+        await AuthService.changePassword(req.user.id, currentPassword, newPassword);
+        
+        console.log(`🔐 Contraseña cambiada para usuario: ${req.user.username}`);
+        
+        res.json({
+            message: 'Contraseña actualizada exitosamente'
+        });
+
+    } catch (error) {
+        res.status(400).json({
+            error: error.message,
+            code: error.code || 'PASSWORD_CHANGE_FAILED'
+        });
+    }
 });
 
 // --- API Routes for Clients ---
@@ -181,14 +269,128 @@ app.put("/api/clients/:id", (req, res) => {
 
 // DELETE a client
 app.delete("/api/clients/:id", (req, res) => {
-    const sql = 'DELETE FROM Clients WHERE id = ?';
-    const params = [req.params.id];
-    db.run(sql, params, function (err, result) {
-        if (err){
-            res.status(400).json({"error": err.message})
-            return;
-        }
-        res.json({"message":"deleted", changes: this.changes})
+    const clientId = req.params.id;
+    console.log(`🗑️ Iniciando eliminación en cascada para cliente ID: ${clientId}`);
+    
+    // Transacción para eliminar todo en orden correcto
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION", (err) => {
+            if (err) {
+                console.error("❌ Error al iniciar transacción:", err);
+                return res.status(500).json({"error": "Error al iniciar transacción: " + err.message});
+            }
+            
+            console.log("📋 Paso 1: Eliminando fotos de equipos...");
+            // 1. Eliminar fotos de equipos del cliente
+            const deleteEquipmentPhotosSQL = `
+                DELETE FROM EquipmentPhotos 
+                WHERE equipment_id IN (
+                    SELECT e.id FROM Equipment e 
+                    JOIN Locations l ON e.location_id = l.id 
+                    WHERE l.client_id = ?
+                )
+            `;
+            
+            db.run(deleteEquipmentPhotosSQL, [clientId], function(err) {
+                if (err) {
+                    console.error("❌ Error eliminando fotos de equipos:", err);
+                    return db.run("ROLLBACK", () => {
+                        res.status(500).json({"error": "Error eliminando fotos de equipos: " + err.message});
+                    });
+                }
+                console.log(`✅ Eliminadas ${this.changes} fotos de equipos`);
+                
+                console.log("🎫 Paso 2: Eliminando tickets...");
+                // 2. Eliminar tickets de equipos del cliente
+                const deleteTicketsSQL = `
+                    DELETE FROM Tickets 
+                    WHERE equipment_id IN (
+                        SELECT e.id FROM Equipment e 
+                        JOIN Locations l ON e.location_id = l.id 
+                        WHERE l.client_id = ?
+                    )
+                `;
+                
+                db.run(deleteTicketsSQL, [clientId], function(err) {
+                    if (err) {
+                        console.error("❌ Error eliminando tickets:", err);
+                        return db.run("ROLLBACK", () => {
+                            res.status(500).json({"error": "Error eliminando tickets: " + err.message});
+                        });
+                    }
+                    console.log(`✅ Eliminados ${this.changes} tickets`);
+                    
+                    console.log("🔧 Paso 3: Eliminando equipos...");
+                    // 3. Eliminar equipos del cliente
+                    const deleteEquipmentSQL = `
+                        DELETE FROM Equipment 
+                        WHERE location_id IN (
+                            SELECT id FROM Locations WHERE client_id = ?
+                        )
+                    `;
+                    
+                    db.run(deleteEquipmentSQL, [clientId], function(err) {
+                        if (err) {
+                            console.error("❌ Error eliminando equipos:", err);
+                            return db.run("ROLLBACK", () => {
+                                res.status(500).json({"error": "Error eliminando equipos: " + err.message});
+                            });
+                        }
+                        console.log(`✅ Eliminados ${this.changes} equipos`);
+                        
+                        console.log("🏢 Paso 4: Eliminando sedes...");
+                        // 4. Eliminar sedes del cliente
+                        const deleteLocationsSQL = 'DELETE FROM Locations WHERE client_id = ?';
+                        
+                        db.run(deleteLocationsSQL, [clientId], function(err) {
+                            if (err) {
+                                console.error("❌ Error eliminando sedes:", err);
+                                return db.run("ROLLBACK", () => {
+                                    res.status(500).json({"error": "Error eliminando sedes: " + err.message});
+                                });
+                            }
+                            console.log(`✅ Eliminadas ${this.changes} sedes`);
+                            
+                            console.log("👤 Paso 5: Eliminando cliente...");
+                            // 5. Finalmente eliminar el cliente
+                            const deleteClientSQL = 'DELETE FROM Clients WHERE id = ?';
+                            
+                            db.run(deleteClientSQL, [clientId], function(err) {
+                                if (err) {
+                                    console.error("❌ Error eliminando cliente:", err);
+                                    return db.run("ROLLBACK", () => {
+                                        res.status(500).json({"error": "Error eliminando cliente: " + err.message});
+                                    });
+                                }
+                                
+                                if (this.changes === 0) {
+                                    console.log("⚠️ Cliente no encontrado");
+                                    return db.run("ROLLBACK", () => {
+                                        res.status(404).json({"error": "Cliente no encontrado"});
+                                    });
+                                }
+                                
+                                console.log("✅ Cliente eliminado exitosamente");
+                                // Confirmar transacción
+                                db.run("COMMIT", (err) => {
+                                    if (err) {
+                                        console.error("❌ Error al confirmar transacción:", err);
+                                        return res.status(500).json({"error": "Error al confirmar eliminación: " + err.message});
+                                    }
+                                    
+                                    console.log("🎉 Eliminación en cascada completada exitosamente");
+                                    res.json({
+                                        "message": "Cliente y todos sus datos relacionados eliminados exitosamente",
+                                        "clientId": clientId,
+                                        "changes": this.changes
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
     });
 });
 
@@ -474,11 +676,13 @@ app.get("/api/equipment/:id", (req, res) => {
 
 // POST new equipment for a location
 app.post('/api/equipment', (req, res) => {
+    console.log('📥 Datos recibidos para nuevo equipo:', req.body);
     const { name, type, brand, model, serial_number, location_id, acquisition_date, notes } = req.body;
     
     // Validar datos del equipo
     const validation = validateEquipment(req.body);
     if (!validation.isValid) {
+        console.log('❌ Validación fallida:', validation.errors);
         return res.status(400).json({
             "error": "Datos de equipo inválidos",
             "details": validation.errors
@@ -488,10 +692,12 @@ app.post('/api/equipment', (req, res) => {
     // 1. Obtener el client_id a partir del location_id
     db.get("SELECT client_id FROM Locations WHERE id = ?", [location_id], (err, location) => {
         if (err) {
+            console.log('❌ Error en consulta de ubicación:', err.message);
             return res.status(500).json({ "error": "Error en consulta de ubicación: " + err.message });
         }
         if (!location) {
-            return res.status(500).json({ "error": "No se encontró la ubicación con ID: " + location_id });
+            console.log('❌ Ubicación no encontrada:', location_id);
+            return res.status(400).json({ "error": "No se encontró la ubicación con ID: " + location_id });
         }
         
         const clientId = location.client_id;
@@ -501,6 +707,7 @@ app.post('/api/equipment', (req, res) => {
         const countSql = `SELECT COUNT(*) as count FROM Equipment WHERE location_id IN (SELECT id FROM Locations WHERE client_id = ?)`;
         db.get(countSql, [clientId], (err, result) => {
             if (err) {
+                console.log('❌ Error al contar equipos:', err.message);
                 return res.status(500).json({ "error": "Error al contar equipos: " + err.message });
             }
             
@@ -510,12 +717,42 @@ app.post('/api/equipment', (req, res) => {
             // 3. Insertar el nuevo equipo con el custom_id generado
             const insertSql = `INSERT INTO Equipment (location_id, custom_id, type, name, brand, model, serial_number, acquisition_date, notes) 
                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
-            const params = [location_id, customId, type, name, brand, model, serial_number, acquisition_date, notes];
+            
+            // Asegurar que todos los valores sean válidos o null
+            const params = [
+                location_id, 
+                customId, 
+                type || null, 
+                name || null, 
+                brand || null, 
+                model || null, 
+                serial_number || null, 
+                acquisition_date || null, 
+                notes || null
+            ];
+            
+            console.log('📤 Parámetros a insertar:', params);
 
             db.run(insertSql, params, function(err) {
                 if (err) {
+                    console.log('❌ Error al insertar equipo:', err.message);
+                    
+                    // Manejar errores específicos
+                    if (err.message.includes('Duplicate entry') && err.message.includes('serial_number')) {
+                        return res.status(409).json({ 
+                            "error": "El número de serie ya existe en el sistema",
+                            "details": "Ya existe un equipo registrado con este número de serie. Los números de serie deben ser únicos."
+                        });
+                    } else if (err.message.includes('Duplicate entry')) {
+                        return res.status(409).json({ 
+                            "error": "Datos duplicados", 
+                            "details": err.message 
+                        });
+                    }
+                    
                     return res.status(400).json({ "error": err.message });
                 }
+                console.log('✅ Equipo creado exitosamente con ID:', this.lastID);
                 res.status(201).json({ id: this.lastID, custom_id: customId, ...req.body });
             });
         });
@@ -700,6 +937,102 @@ app.delete("/api/inventory/:id", (req, res) => {
             return res.status(400).json({"error": err.message});
         }
         res.json({"message":"deleted", changes: this.changes});
+    });
+});
+
+// GET spare parts for ticket modals (alias for compatibility)
+app.get('/api/inventory/spare-parts', (req, res) => {
+    const sql = "SELECT * FROM SpareParts ORDER BY name";
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error al obtener repuestos:', err.message);
+            res.status(400).json({"error":err.message});
+            return;
+        }
+        console.log(`📦 Repuestos obtenidos: ${rows.length} items`);
+        res.json({
+            "message":"success",
+            "data":rows
+        });
+    });
+});
+
+// GET spare parts with low stock alerts
+app.get('/api/inventory/spare-parts/alerts', (req, res) => {
+    const sql = `SELECT * FROM SpareParts 
+                 WHERE current_stock <= minimum_stock 
+                 ORDER BY (current_stock - minimum_stock) ASC`;
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error al obtener alertas de stock:', err.message);
+            res.status(400).json({"error":err.message});
+            return;
+        }
+        console.log(`⚠️ Alertas de stock bajo: ${rows.length} items`);
+        res.json({
+            "message":"success",
+            "data":rows
+        });
+    });
+});
+
+// POST spare part request
+app.post('/api/inventory/spare-part-requests', (req, res) => {
+    const { 
+        ticket_id, 
+        spare_part_name, 
+        quantity_needed, 
+        priority, 
+        description, 
+        justification, 
+        requested_by 
+    } = req.body;
+    
+    // Por ahora solo registramos la solicitud (se puede crear tabla específica después)
+    console.log('📝 Nueva solicitud de repuesto:', {
+        ticket_id,
+        spare_part_name,
+        quantity_needed,
+        priority,
+        requested_by
+    });
+    
+    // Simular éxito - en el futuro se guardará en una tabla SparePartRequests
+    res.json({
+        "message":"success",
+        "data": {
+            id: Date.now(),
+            ticket_id,
+            spare_part_name,
+            quantity_needed,
+            priority,
+            status: 'pendiente',
+            created_at: new Date().toISOString()
+        }
+    });
+});
+
+// POST request order for specific spare part
+app.post('/api/inventory/spare-parts/:id/request-order', (req, res) => {
+    const sparePartId = req.params.id;
+    const { ticket_id, requested_by } = req.body;
+    
+    console.log('🛒 Solicitud de orden de compra:', {
+        spare_part_id: sparePartId,
+        ticket_id,
+        requested_by
+    });
+    
+    // Simular éxito - en el futuro se integrará con el sistema de órdenes de compra
+    res.json({
+        "message":"success",
+        "data": {
+            id: Date.now(),
+            spare_part_id: sparePartId,
+            ticket_id,
+            status: 'solicitada',
+            created_at: new Date().toISOString()
+        }
     });
 });
 
@@ -1522,28 +1855,47 @@ app.get('/api/equipment/:equipmentId/photos', (req, res) => {
 // POST new photo for equipment
 app.post('/api/equipment/:equipmentId/photos', (req, res) => {
     const { equipmentId } = req.params;
+    console.log('📸 Subiendo foto para equipo:', equipmentId);
+    console.log('📋 Body recibido:', {
+        ...req.body,
+        photo_data: req.body.photo_data ? `[base64 data ${req.body.photo_data.length} chars]` : 'undefined'
+    });
+    
     const { photo_data, mime_type, filename } = req.body;
     
     if (!photo_data || !mime_type) {
+        console.log('❌ Faltan datos requeridos:', { photo_data: !!photo_data, mime_type: !!mime_type });
         return res.status(400).json({ error: "photo_data y mime_type son requeridos" });
     }
     
-    const sql = 'INSERT INTO EquipmentPhotos (equipment_id, photo_data, mime_type, filename) VALUES (?, ?, ?, ?)';
+    const sql = 'INSERT INTO EquipmentPhotos (equipment_id, photo_data, mime_type, file_name) VALUES (?, ?, ?, ?)';
     const params = [equipmentId, photo_data, mime_type, filename || 'foto.jpg'];
+    
+    console.log('📤 Insertando en BD con parámetros:', {
+        equipmentId,
+        photo_data_length: photo_data.length,
+        mime_type,
+        filename: filename || 'foto.jpg'
+    });
     
     db.run(sql, params, function(err) {
         if (err) {
+            console.log('❌ Error al insertar foto:', err.message);
             res.status(400).json({ error: err.message });
             return;
         }
+        
+        console.log('✅ Foto insertada con ID:', this.lastID);
         
         // Devolver la foto creada
         const selectSql = 'SELECT * FROM EquipmentPhotos WHERE id = ?';
         db.get(selectSql, [this.lastID], (err, row) => {
             if (err) {
+                console.log('❌ Error al recuperar foto creada:', err.message);
                 res.status(500).json({ error: err.message });
                 return;
             }
+            console.log('✅ Foto creada exitosamente');
             res.status(201).json(row);
         });
     });
@@ -1763,6 +2115,60 @@ app.delete('/api/tickets/notes/:noteId', (req, res) => {
             return res.status(404).json({ error: "Nota no encontrada" });
         }
         res.json({ message: "Nota eliminada", changes: this.changes });
+    });
+});
+
+// PUT update a ticket note
+app.put('/api/tickets/notes/:noteId', (req, res) => {
+    const { noteId } = req.params;
+    const { note, note_type, is_internal } = req.body;
+    
+    if (!note || note.trim() === '') {
+        return res.status(400).json({ error: "La nota no puede estar vacía" });
+    }
+    
+    // Mapear tipos del frontend a los del ENUM en la BD
+    const typeMapping = {
+        'general': 'Comentario',
+        'diagnostico': 'Diagnóstico', 
+        'solucion': 'Solución',
+        'seguimiento': 'Seguimiento',
+        'cliente': 'Comentario' // cliente se mapea a Comentario
+    };
+    
+    const mappedType = typeMapping[note_type] || 'Comentario';
+    
+    const sql = `UPDATE TicketNotes 
+                 SET note = ?, note_type = ?, is_internal = ?
+                 WHERE id = ?`;
+    const params = [note.trim(), mappedType, is_internal || false, noteId];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error al actualizar nota:', err);
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Nota no encontrada" });
+        }
+        
+        // Devolver la nota actualizada
+        const selectSql = 'SELECT * FROM TicketNotes WHERE id = ?';
+        db.get(selectSql, [noteId], (err, row) => {
+            if (err) {
+                console.error('❌ Error al obtener nota actualizada:', err);
+                res.status(500).json({ error: err.message });
+                return;
+            }
+            
+            console.log('✅ Nota actualizada exitosamente:', noteId);
+            res.json({
+                message: "success",
+                data: row
+            });
+        });
     });
 });
 
@@ -2020,15 +2426,15 @@ app.get('/api/tickets/:ticketId/photos', (req, res) => {
 // POST new photo for ticket
 app.post('/api/tickets/:ticketId/photos', (req, res) => {
     const { ticketId } = req.params;
-    const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
+    const { photo_data, file_name, mime_type, file_size, description, photo_type, note_id, author } = req.body;
     
     if (!photo_data || !mime_type) {
         return res.status(400).json({ error: "photo_data y mime_type son requeridos" });
     }
     
     const sql = `INSERT INTO TicketPhotos 
-                 (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+                 (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, note_id, author) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     const params = [
         ticketId, 
         photo_data, 
@@ -2036,7 +2442,9 @@ app.post('/api/tickets/:ticketId/photos', (req, res) => {
         mime_type, 
         file_size || 0, 
         description || null, 
-        photo_type || 'Otros'
+        photo_type || 'Otros',
+        note_id || null,
+        author || null
     ];
     
     db.run(sql, params, function(err) {
@@ -2372,33 +2780,48 @@ app.get('/api/users/:id', (req, res) => {
 });
 
 // POST new user
-app.post('/api/users', (req, res) => {
+app.post('/api/users', authenticateToken, requireRole(['Admin']), async (req, res) => {
     const { username, email, password, role, status } = req.body;
     
     if (!username || !email || !password || !role) {
         return res.status(400).json({ error: "username, email, password y role son requeridos" });
     }
-    
-    const sql = `INSERT INTO Users (username, email, password, role, status) VALUES (?, ?, ?, ?, ?)`;
-    const params = [username, email, password, role, status || 'Activo'];
-    
-    db.run(sql, params, function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint failed')) {
-                return res.status(409).json({ error: "El usuario o email ya existe" });
-            }
-            res.status(400).json({ error: err.message });
-            return;
-        }
+
+    if (password.length < 6) {
+        return res.status(400).json({ error: "La contraseña debe tener al menos 6 caracteres" });
+    }
+
+    try {
+        // Usar el servicio de autenticación para crear el usuario con hash
+        const newUser = await AuthService.register({
+            username,
+            email,
+            password,
+            role,
+            status: status || 'Activo'
+        });
+
+        console.log(`👤 Usuario creado por admin: ${newUser.username}`);
+
         res.status(201).json({
             message: "success",
-            data: { id: this.lastID, username, email, role, status: status || 'Activo' }
+            data: newUser
         });
-    });
+
+    } catch (error) {
+        if (error.code === 'USER_EXISTS') {
+            return res.status(409).json({ error: error.message });
+        }
+        
+        console.error('Error creando usuario:', error);
+        res.status(400).json({ 
+            error: error.message || 'Error al crear usuario'
+        });
+    }
 });
 
 // PUT update user
-app.put('/api/users/:id', (req, res) => {
+app.put('/api/users/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
     const { username, email, role, status } = req.body;
     const sql = `UPDATE Users SET 
                  username = COALESCE(?, username),
@@ -2416,6 +2839,9 @@ app.put('/api/users/:id', (req, res) => {
         if (this.changes === 0) {
             return res.status(404).json({ error: "Usuario no encontrado" });
         }
+        
+        console.log(`👤 Usuario actualizado por admin: ${req.params.id}`);
+        
         res.json({
             message: "success",
             changes: this.changes
@@ -2424,7 +2850,7 @@ app.put('/api/users/:id', (req, res) => {
 });
 
 // DELETE user
-app.delete('/api/users/:id', (req, res) => {
+app.delete('/api/users/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
     const sql = 'DELETE FROM Users WHERE id = ?';
     db.run(sql, [req.params.id], function(err) {
         if (err) {
@@ -2434,6 +2860,9 @@ app.delete('/api/users/:id', (req, res) => {
         if (this.changes === 0) {
             return res.status(404).json({ error: "Usuario no encontrado" });
         }
+        
+        console.log(`🗑️ Usuario eliminado por admin: ${req.params.id}`);
+        
         res.json({ message: "Usuario eliminado", changes: this.changes });
     });
 });
@@ -2511,7 +2940,7 @@ app.delete('/api/config/:category/:key', (req, res) => {
 // --- API Routes for Financial Management ---
 
 // GET all quotes
-app.get('/api/quotes', (req, res) => {
+app.get('/api/quotes', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
             q.*,
@@ -2535,7 +2964,7 @@ app.get('/api/quotes', (req, res) => {
 });
 
 // POST new quote
-app.post('/api/quotes', (req, res) => {
+app.post('/api/quotes', authenticateToken, (req, res) => {
     const { client_id, location_id, title, description, total_amount, status, items } = req.body;
     
     if (!client_id || !title || !total_amount) {
@@ -2559,7 +2988,7 @@ app.post('/api/quotes', (req, res) => {
 });
 
 // GET all invoices
-app.get('/api/invoices', (req, res) => {
+app.get('/api/invoices', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
             i.*,
@@ -2583,7 +3012,7 @@ app.get('/api/invoices', (req, res) => {
 });
 
 // POST new invoice
-app.post('/api/invoices', (req, res) => {
+app.post('/api/invoices', authenticateToken, (req, res) => {
     const { client_id, location_id, invoice_number, title, description, total_amount, status, items } = req.body;
     
     if (!client_id || !invoice_number || !title || !total_amount) {
@@ -2719,7 +3148,9 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
             )
             WHERE e.id = ?
             AND ct.is_active = TRUE
-            ORDER BY ct.model_id DESC, ct.created_at DESC
+            ORDER BY 
+                CASE WHEN ct.model_id = e.model_id THEN 0 ELSE 1 END,
+                ct.created_at DESC
             LIMIT 1
         `;
         

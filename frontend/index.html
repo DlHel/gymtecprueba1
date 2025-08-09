@@ -30,7 +30,9 @@
                         <p class="text-sm text-gray-600 ml-4">Centro de control y monitoreo en tiempo real</p>
                     </div>
                     <div class="user-info">
-                        Felipe Maturana (Admin)
+                        <div id="user-info">
+                            <!-- La información del usuario se cargará aquí -->
+                        </div>
                     </div>
                 </div>
             </header>
@@ -184,11 +186,21 @@
         }
 
         // Inicializar timestamp
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Proteger página - requiere autenticación
+            const isAuthorized = await protectPage();
+            if (!isAuthorized) return;
+
+            // Renderizar información del usuario
+            authManager.renderUserInfo('user-info');
+
             updateLastUpdateTime();
             // Actualizar cada minuto
             setInterval(updateLastUpdateTime, 60000);
         });
     </script>
+
+    <!-- Autenticación -->
+    <script src="js/auth.js"></script>
 </body>
 </html> 

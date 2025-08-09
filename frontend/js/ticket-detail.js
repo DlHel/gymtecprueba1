@@ -13,7 +13,8 @@ window.state = {
     startTime: null,
     currentElapsedSeconds: 0,
     timerInterval: null,
-    activeTab: 'overview'
+    activeTab: 'overview',
+    // pendingStatusChange: null  // DEPRECADO - Ya no se usa el sistema de estado pendiente
 };
 
 // Referencia local para compatibilidad
@@ -208,7 +209,9 @@ function renderTicketDetail() {
     renderTicketHeader(state.currentTicket);
     renderTicketDescription(state.currentTicket);
     renderTicketStats();
+    renderStatusControls(state.currentTicket);  // ✅ Agregar controles de estado
     renderStatusActions(state.currentTicket);
+    renderSpareParts(); // ✅ Renderizar repuestos
     renderChecklist();  // ✅ Agregar llamada a renderChecklist
     updateChecklistCounter();  // ✅ Agregar llamada a updateChecklistCounter
     renderNotes();      // ✅ Renderizar notas/comentarios unificados
@@ -422,12 +425,6 @@ function renderStatusActions(ticket) {
 function setupUnifiedEventListeners() {
     console.log('⚡ Configurando event listeners unificados...');
     
-    // Botón para agregar nota
-    const addNoteBtn = document.getElementById('add-note-btn');
-    if (addNoteBtn) {
-        addNoteBtn.addEventListener('click', handleAddNote);
-    }
-    
     // Botón para agregar checklist
     const addChecklistBtn = document.getElementById('add-checklist-btn');
     if (addChecklistBtn) {
@@ -436,6 +433,9 @@ function setupUnifiedEventListeners() {
     
     // === CONFIGURACIÓN DE SUBIDA DE FOTOS MÚLTIPLES ===
     setupPhotoUpload();
+    
+    // === CONFIGURACIÓN DE BOTONES DE BARRA DE HERRAMIENTAS ===
+    setupToolbarButtons();
     
     // === CONFIGURACIÓN DE INTERFAZ UNIFICADA ===
     initUnifiedInterface();
@@ -452,6 +452,237 @@ function setupUnifiedEventListeners() {
         });
     } else {
         console.warn('⚠️ No se encontró el botón de cambio de estado');
+    }
+}
+
+// === CONFIGURACIÓN DE BOTONES DE BARRA DE HERRAMIENTAS ===
+function setupToolbarButtons() {
+    console.log('🔧 Configurando botones de barra de herramientas...');
+    
+    // Botón "Adjuntar" - Toggle de zona de drop
+    const attachFilesBtn = document.getElementById('attach-files-btn');
+    if (attachFilesBtn) {
+        attachFilesBtn.addEventListener('click', toggleDropZone);
+        console.log('📎 Botón "Adjuntar" configurado');
+    } else {
+        console.warn('⚠️ No se encontró el botón "Adjuntar"');
+    }
+    
+    // Botón "Fotos" - Abrir selector de archivos directamente
+    const attachPhotosBtn = document.getElementById('attach-photos-btn');
+    if (attachPhotosBtn) {
+        attachPhotosBtn.addEventListener('click', () => {
+            const fileInput = document.getElementById('unified-file-input');
+            if (fileInput) {
+                fileInput.click();
+            }
+        });
+        console.log('📷 Botón "Fotos" configurado');
+    } else {
+        console.warn('⚠️ No se encontró el botón "Fotos"');
+    }
+    
+    // === BOTONES DE FORMATO ===
+    setupFormatButtons();
+    
+    // === ATAJOS DE TECLADO ===
+    setupKeyboardShortcuts();
+}
+
+// === CONFIGURACIÓN DE BOTONES DE FORMATO ===
+function setupFormatButtons() {
+    console.log('✨ Configurando botones de formato...');
+    
+    const formatButtons = [
+        { id: 'format-bold-btn', action: 'bold', wrapper: '**', display: 'negrita' },
+        { id: 'format-italic-btn', action: 'italic', wrapper: '*', display: 'cursiva' },
+        { id: 'format-underline-btn', action: 'underline', wrapper: '_', display: 'subrayado' },
+        { id: 'format-strikethrough-btn', action: 'strikethrough', wrapper: '~~', display: 'tachado' },
+        { id: 'format-code-btn', action: 'code', wrapper: '`', display: 'código' },
+        { id: 'format-quote-btn', action: 'quote', prefix: '> ', display: 'cita' },
+        { id: 'format-list-btn', action: 'list', prefix: '• ', display: 'lista' },
+        { id: 'format-numbered-list-btn', action: 'numbered-list', prefix: '1. ', display: 'lista numerada' }
+    ];
+    
+    formatButtons.forEach(button => {
+        const btn = document.getElementById(button.id);
+        if (btn) {
+            btn.addEventListener('click', () => applyTextFormat(button));
+            console.log(`📝 Botón ${button.display} configurado`);
+        }
+    });
+}
+
+// === APLICAR FORMATO DE TEXTO ===
+function applyTextFormat(formatConfig) {
+    const textarea = document.getElementById('unified-comment-textarea');
+    if (!textarea) return;
+    
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = textarea.value.substring(start, end);
+    const textBefore = textarea.value.substring(0, start);
+    const textAfter = textarea.value.substring(end);
+    
+    let newText = '';
+    let newCursorPos = start;
+    
+    if (formatConfig.wrapper) {
+        // Formato de envoltura (negrita, cursiva, etc.)
+        if (selectedText) {
+            // Si hay texto seleccionado, envolver
+            newText = `${formatConfig.wrapper}${selectedText}${formatConfig.wrapper}`;
+            newCursorPos = start + formatConfig.wrapper.length + selectedText.length + formatConfig.wrapper.length;
+        } else {
+            // Si no hay selección, insertar marcadores
+            newText = `${formatConfig.wrapper}${formatConfig.wrapper}`;
+            newCursorPos = start + formatConfig.wrapper.length;
+        }
+    } else if (formatConfig.prefix) {
+        // Formato de prefijo (listas, citas)
+        if (formatConfig.action === 'quote' || formatConfig.action === 'list' || formatConfig.action === 'numbered-list') {
+            // Para listas y citas, aplicar al inicio de línea
+            const lines = selectedText ? selectedText.split('\n') : [''];
+            const formattedLines = lines.map((line, index) => {
+                if (formatConfig.action === 'numbered-list') {
+                    return `${index + 1}. ${line}`;
+                }
+                return `${formatConfig.prefix}${line}`;
+            });
+            newText = formattedLines.join('\n');
+            newCursorPos = start + newText.length;
+        }
+    }
+    
+    // Aplicar el cambio
+    textarea.value = textBefore + newText + textAfter;
+    
+    // Restaurar focus y posición del cursor
+    textarea.focus();
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    
+    // Actualizar interfaz
+    handleUnifiedTextChange();
+    
+    // Mostrar feedback visual
+    const btn = document.getElementById(formatConfig.id);
+    if (btn) {
+        btn.classList.add('applied');
+        setTimeout(() => btn.classList.remove('applied'), 200);
+    }
+    
+    console.log(`✨ Formato ${formatConfig.display} aplicado`);
+}
+
+// === ATAJOS DE TECLADO ===
+function setupKeyboardShortcuts() {
+    const textarea = document.getElementById('unified-comment-textarea');
+    if (!textarea) return;
+    
+    textarea.addEventListener('keydown', (e) => {
+        // Ctrl/Cmd + B = Negrita
+        if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+            e.preventDefault();
+            applyTextFormat({ id: 'format-bold-btn', action: 'bold', wrapper: '**', display: 'negrita' });
+        }
+        
+        // Ctrl/Cmd + I = Cursiva
+        if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+            e.preventDefault();
+            applyTextFormat({ id: 'format-italic-btn', action: 'italic', wrapper: '*', display: 'cursiva' });
+        }
+        
+        // Ctrl/Cmd + U = Subrayado
+        if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
+            e.preventDefault();
+            applyTextFormat({ id: 'format-underline-btn', action: 'underline', wrapper: '_', display: 'subrayado' });
+        }
+        
+        // Ctrl/Cmd + Enter = Enviar
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            const submitBtn = document.getElementById('send-comment-btn');
+            if (submitBtn && !submitBtn.disabled) {
+                handleUnifiedSubmit();
+            }
+        }
+    });
+    
+    console.log('⌨️ Atajos de teclado configurados');
+}
+
+// === RENDERIZADO DE MARKDOWN SIMPLE ===
+function renderMarkdown(text) {
+    if (!text) return '';
+    
+    // Escapar HTML primero
+    let html = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    
+    // Aplicar formatos de Markdown
+    html = html
+        // Negrita **texto**
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        // Cursiva *texto*
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Subrayado _texto_
+        .replace(/_(.*?)_/g, '<u>$1</u>')
+        // Tachado ~~texto~~
+        .replace(/~~(.*?)~~/g, '<del>$1</del>')
+        // Código `texto`
+        .replace(/`(.*?)`/g, '<code class="inline-code">$1</code>')
+        // Saltos de línea
+        .replace(/\n/g, '<br>');
+    
+    // Procesar líneas especiales (citas, listas)
+    const lines = html.split('<br>');
+    const processedLines = lines.map(line => {
+        // Citas > texto
+        if (line.trim().startsWith('&gt; ')) {
+            return `<blockquote class="markdown-quote">${line.trim().substring(5)}</blockquote>`;
+        }
+        // Lista con viñetas • texto
+        if (line.trim().startsWith('• ')) {
+            return `<li class="markdown-bullet">${line.trim().substring(2)}</li>`;
+        }
+        // Lista numerada 1. texto
+        if (/^\d+\.\s/.test(line.trim())) {
+            return `<li class="markdown-numbered">${line.trim().replace(/^\d+\.\s/, '')}</li>`;
+        }
+        return line;
+    });
+    
+    return processedLines.join('<br>');
+}
+
+// === FUNCIÓN PARA TOGGLE DE ZONA DE DROP ===
+function toggleDropZone() {
+    const dropZone = document.getElementById('unified-drop-zone');
+    const attachBtn = document.getElementById('attach-files-btn');
+    if (!dropZone) return;
+    
+    const isExpanded = dropZone.classList.contains('expanded');
+    
+    if (isExpanded) {
+        // Contraer
+        dropZone.classList.remove('expanded');
+        if (attachBtn) attachBtn.classList.remove('active');
+        console.log('📁 Zona de drop contraída');
+    } else {
+        // Expandir
+        dropZone.classList.add('expanded');
+        if (attachBtn) attachBtn.classList.add('active');
+        console.log('📁 Zona de drop expandida');
+        
+        // Auto-focus al expandir para mejor UX
+        setTimeout(() => {
+            dropZone.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'nearest' 
+            });
+        }, 300);
     }
 }
 
@@ -637,35 +868,174 @@ function updateChecklistCounter() {
 function groupUnifiedActivity() {
     const activities = [];
     
-    // === SEPARAR COMPLETAMENTE NOTAS Y FOTOS ===
-    // Ya no intentamos asociar automáticamente - cada elemento es independiente
+    // Crear un mapa de todas las actividades (notas y fotos) por timestamp
+    const allItems = [];
     
-    // Agregar todas las notas como actividades separadas
+    // Agregar todas las notas
     state.notes.forEach(note => {
-        activities.push({
-            type: 'note',  // Cambiado de 'unified' a 'note'
-            id: `note-${note.id}`,
-            note: note,
-            photos: [],  // Sin fotos asociadas automáticamente
+        console.log('📝 Nota encontrada:', {
+            id: note.id,
+            author: note.author,
             created_at: note.created_at,
-            author: note.author
+            note: note.note?.substring(0, 20)
+        });
+        
+        allItems.push({
+            type: 'note',
+            id: note.id,
+            data: note,
+            timestamp: new Date(note.created_at).getTime(),
+            created_at: note.created_at,
+            author: note.author || 'Usuario'
         });
     });
     
-    // Agregar todas las fotos como actividades separadas
+    // Agregar todas las fotos
     state.photos.forEach(photo => {
-        activities.push({
-            type: 'photo',  // Cambiado de 'photo-only' a 'photo'
-            id: `photo-${photo.id}`,
-            photos: [photo],
-            note: null,  // Sin nota asociada automáticamente
+        console.log('📸 Foto encontrada:', {
+            id: photo.id,
+            author: photo.author,
             created_at: photo.created_at,
-            author: photo.author || 'Usuario'
+            file_name: photo.file_name,
+            note_id: photo.note_id
+        });
+        
+        allItems.push({
+            type: 'photo',
+            id: photo.id,
+            data: photo,
+            timestamp: new Date(photo.created_at).getTime(),
+            created_at: photo.created_at,
+            author: photo.author || 'Usuario',
+            note_id: photo.note_id
         });
     });
     
-    // Ordenar por fecha (más reciente primero)
-    return activities.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    console.log('🔄 Items antes de agrupar:', allItems.length);
+    
+    // Ordenar por timestamp
+    allItems.sort((a, b) => b.timestamp - a.timestamp);
+    
+    // Agrupar items que están dentro de 1 minuto de diferencia y del mismo autor
+    const groupedActivities = [];
+    let currentGroup = null;
+    
+    allItems.forEach(item => {
+        // Criterios de agrupación más flexibles
+        const shouldGroup = currentGroup && (
+            // Mismo autor dentro de 1 minuto
+            (Math.abs(item.timestamp - currentGroup.timestamp) <= 60000 && item.author === currentGroup.author) ||
+            // O si hay note_id que vincula foto con nota (backup)
+            (item.type === 'photo' && item.note_id && currentGroup.notes.some(n => n.id === item.note_id)) ||
+            // O si es dentro de 30 segundos (más estricto para diferentes autores)
+            (Math.abs(item.timestamp - currentGroup.timestamp) <= 30000)
+        );
+        
+        console.log('🤔 Evaluando agrupación:', {
+            item_id: item.id,
+            item_type: item.type,
+            item_author: item.author,
+            current_group_author: currentGroup?.author,
+            time_diff: currentGroup ? Math.abs(item.timestamp - currentGroup.timestamp) : 'No hay grupo',
+            has_note_id: item.note_id,
+            should_group: shouldGroup
+        });
+        
+        if (shouldGroup) {
+            // Agregar al grupo actual
+            if (item.type === 'note') {
+                currentGroup.notes.push(item.data);
+            } else {
+                currentGroup.photos.push(item.data);
+            }
+            console.log('✅ Item agregado al grupo existente');
+        } else {
+            // Crear nuevo grupo
+            currentGroup = {
+                timestamp: item.timestamp,
+                created_at: item.created_at,
+                author: item.author,
+                notes: item.type === 'note' ? [item.data] : [],
+                photos: item.type === 'photo' ? [item.data] : []
+            };
+            groupedActivities.push(currentGroup);
+            console.log('🆕 Nuevo grupo creado:', {
+                author: currentGroup.author,
+                notes_count: currentGroup.notes.length,
+                photos_count: currentGroup.photos.length
+            });
+        }
+    });
+    
+    console.log('📊 Grupos finales:', groupedActivities.length);
+    
+    // Convertir grupos a formato de actividades
+    return groupedActivities.map((group, index) => {
+        let type = 'unknown';
+        let mainNote = null;
+        
+        if (group.notes.length > 0 && group.photos.length > 0) {
+            type = 'unified';
+            mainNote = group.notes[0]; // Usar la primera nota como principal
+        } else if (group.notes.length > 0) {
+            type = 'note';
+            mainNote = group.notes[0];
+        } else if (group.photos.length > 0) {
+            type = 'photo';
+        }
+        
+        console.log(`🎯 Actividad ${index + 1}:`, {
+            type: type,
+            author: group.author,
+            notes_count: group.notes.length,
+            photos_count: group.photos.length
+        });
+        
+        return {
+            type: type,
+            id: `activity-${index}`,
+            note: mainNote,
+            notes: group.notes,
+            photos: group.photos,
+            created_at: group.created_at,
+            author: group.author
+        };
+    });
+}
+
+// === UTILIDADES PARA TIPOS DE COMENTARIO ===
+
+// Obtener información del tipo de comentario
+function getCommentTypeInfo(noteType) {
+    const types = {
+        'General': {
+            icon: 'message-circle',
+            emoji: '💬',
+            color: '#6b7280'
+        },
+        'Diagnóstico': {
+            icon: 'search',
+            emoji: '🔍',
+            color: '#f59e0b'
+        },
+        'Solución': {
+            icon: 'check-circle',
+            emoji: '✅',
+            color: '#10b981'
+        },
+        'Seguimiento': {
+            icon: 'clock',
+            emoji: '⏰',
+            color: '#3b82f6'
+        },
+        'Comunicación Cliente': {
+            icon: 'phone',
+            emoji: '📞',
+            color: '#ec4899'
+        }
+    };
+    
+    return types[noteType] || types['General'];
 }
 
 function renderNotes() {
@@ -684,55 +1054,176 @@ function renderNotes() {
         `;
     } else {
         notesList.innerHTML = activities.map(activity => {
-            if (activity.type === 'note') {
-                // Solo comentario (sin fotos asociadas automáticamente)
-                const note = activity.note;
+            if (activity.type === 'unified') {
+                // Actividad unificada: nota(s) + foto(s) del mismo momento
+                const mainNote = activity.note;
+                const allNotes = activity.notes || [mainNote];
+                const photos = activity.photos || [];
+                const isSystemComment = activity.author === 'Sistema';
+                const commentTypeInfo = getCommentTypeInfo(mainNote?.note_type || 'General');
                 
                 return `
-                    <div class="ticket-note-activity">
-                        <div class="ticket-note-header">
-                            <div class="ticket-note-author">
-                                <i data-lucide="message-circle" class="w-4 h-4"></i>
-                                ${note.author || 'Usuario'}
+                    <div class="ticket-unified-activity unified-email-style ${isSystemComment ? 'system-comment' : ''}">
+                        <div class="unified-activity-header">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div class="unified-activity-author">
+                                    <i data-lucide="${isSystemComment ? 'settings' : commentTypeInfo.icon}" class="w-4 h-4" style="color: ${commentTypeInfo.color}"></i>
+                                    ${activity.author}
+                                </div>
+                                <div class="unified-activity-type" style="color: ${commentTypeInfo.color}">
+                                    ${commentTypeInfo.emoji} ${mainNote?.note_type || 'Actividad'}
+                                </div>
                             </div>
-                            <div class="ticket-note-date">${formatDateTime(note.created_at)}</div>
+                            <div class="unified-activity-meta">
+                                <div class="unified-activity-date">${formatDateTime(activity.created_at)}</div>
+                                ${!isSystemComment ? `
+                                    <div class="unified-activity-actions-inline">
+                                        <button class="ticket-action-btn edit" data-note-ids="${allNotes.map(n => n.id).join(',')}" data-photo-ids="${photos.map(p => p.id).join(',')}" title="Editar actividad">
+                                            <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                            Editar
+                                        </button>
+                                        <button class="ticket-action-btn danger" data-note-ids="${allNotes.map(n => n.id).join(',')}" data-photo-ids="${photos.map(p => p.id).join(',')}" title="Eliminar actividad">
+                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
                         </div>
-                        <div class="ticket-note-content">${note.note || note.content || 'Sin contenido'}</div>
-                        <div class="ticket-note-actions">
-                            <button class="ticket-action-btn danger" onclick="deleteNote(${note.id})">
-                                <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                Eliminar comentario
-                            </button>
+                        
+                        <!-- Contenido del mensaje tipo email -->
+                        <div class="unified-email-content">
+                            ${allNotes.map(note => `
+                                <div class="email-text-content">
+                                    ${renderMarkdown(note.note || note.content || '')}
+                                </div>
+                            `).join('')}
+                            
+                            ${photos.length > 0 ? `
+                                <div class="email-attachments">
+                                    <div class="attachments-header" onclick="toggleAttachments('activity-${activity.id || Date.now()}')">
+                                        <div class="attachments-header-left">
+                                            <i data-lucide="paperclip" class="w-4 h-4"></i>
+                                            ${photos.length} adjunto(s)
+                                        </div>
+                                        <div class="attachments-toggle" id="toggle-activity-${activity.id || Date.now()}">
+                                            <span>Ver adjuntos</span>
+                                            <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                                        </div>
+                                    </div>
+                                    <div class="unified-activity-photos collapsed" id="photos-activity-${activity.id || Date.now()}">
+                                        ${photos.map(photo => `
+                                            <div class="unified-photo-item" onclick="viewPhoto(${photo.id})">
+                                                <img src="${photo.file_path || photo.photo_data}" 
+                                                     alt="${photo.description || photo.file_name || 'Foto del ticket'}" 
+                                                     loading="lazy">
+                                                <div class="unified-photo-overlay">
+                                                    <div class="photo-filename">${photo.file_name || 'foto.jpg'}</div>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            } else if (activity.type === 'note') {
+                // Solo comentario (sin adjuntos)
+                const mainNote = activity.note;
+                const allNotes = activity.notes || [mainNote];
+                const isSystemComment = activity.author === 'Sistema';
+                const commentTypeInfo = getCommentTypeInfo(mainNote?.note_type || 'General');
+                
+                return `
+                    <div class="ticket-unified-activity note-only-email-style ${isSystemComment ? 'system-comment' : ''}">
+                        <div class="unified-activity-header">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div class="unified-activity-author">
+                                    <i data-lucide="${isSystemComment ? 'settings' : commentTypeInfo.icon}" class="w-4 h-4" style="color: ${commentTypeInfo.color}"></i>
+                                    ${activity.author}
+                                </div>
+                                <div class="unified-activity-type" style="color: ${commentTypeInfo.color}">
+                                    ${commentTypeInfo.emoji} ${mainNote?.note_type || 'Comentario'}
+                                </div>
+                            </div>
+                            <div class="unified-activity-meta">
+                                <div class="unified-activity-date">${formatDateTime(activity.created_at)}</div>
+                                ${!isSystemComment ? `
+                                    <div class="unified-activity-actions-inline">
+                                        <button class="ticket-action-btn edit" data-note-ids="${allNotes.map(n => n.id).join(',')}" data-photo-ids="" title="Editar comentario">
+                                            <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                            Editar
+                                        </button>
+                                        <button class="ticket-action-btn danger" data-note-ids="${allNotes.map(n => n.id).join(',')}" data-photo-ids="" title="Eliminar comentario">
+                                            <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                            Eliminar
+                                        </button>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                        <div class="unified-email-content">
+                            ${allNotes.map(note => `
+                                <div class="email-text-content">
+                                    ${renderMarkdown(note.note || note.content || 'Sin contenido')}
+                                </div>
+                            `).join('')}
                         </div>
                     </div>
                 `;
             } else if (activity.type === 'photo') {
-                // Solo foto (independiente de comentarios)
-                const photos = activity.photos;
-                const photo = photos[0]; // Solo debería haber una foto por actividad
+                // Solo adjuntos (sin texto)
+                const photos = activity.photos || [];
                 
                 return `
-                    <div class="ticket-photo-activity">
-                        <div class="ticket-note-header">
-                            <div class="ticket-note-author">
-                                <i data-lucide="camera" class="w-4 h-4"></i>
-                                ${activity.author || 'Usuario'} agregó una foto
-                            </div>
-                            <div class="ticket-note-date">${formatDateTime(activity.created_at)}</div>
-                        </div>
-                        <div class="ticket-photo-single">
-                            <div class="ticket-unified-photo" data-photo-id="${photo.id}">
-                                <img src="${photo.file_path || photo.photo_data}" 
-                                     alt="${photo.description || photo.file_name || 'Foto del ticket'}" 
-                                     loading="lazy"
-                                     onclick="viewPhoto(${photo.id})">
-                                <div class="ticket-photo-overlay">
-                                    <div class="ticket-photo-type">${photo.photo_type || 'General'}</div>
-                                    ${photo.description ? `<div class="ticket-photo-description">${photo.description}</div>` : ''}
+                    <div class="ticket-unified-activity photo-only-email-style">
+                        <div class="unified-activity-header">
+                            <div style="display: flex; align-items: center; gap: 1rem;">
+                                <div class="unified-activity-author">
+                                    <i data-lucide="camera" class="w-4 h-4"></i>
+                                    ${activity.author} compartió ${photos.length} archivo(s)
                                 </div>
-                                <button type="button" class="ticket-photo-delete-btn" onclick="deletePhoto(${photo.id})" title="Eliminar foto">
-                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
-                                </button>
+                                <div class="unified-activity-type">Adjuntos</div>
+                            </div>
+                            <div class="unified-activity-meta">
+                                <div class="unified-activity-date">${formatDateTime(activity.created_at)}</div>
+                                <div class="unified-activity-actions-inline">
+                                    <button class="ticket-action-btn edit" data-note-ids="" data-photo-ids="${photos.map(p => p.id).join(',')}" title="Editar fotos">
+                                        <i data-lucide="edit-3" class="w-3 h-3"></i>
+                                        Editar
+                                    </button>
+                                    <button class="ticket-action-btn danger" data-note-ids="" data-photo-ids="${photos.map(p => p.id).join(',')}" title="Eliminar fotos">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="unified-email-content">
+                            <div class="email-attachments">
+                                <div class="attachments-header" onclick="toggleAttachments('photo-activity-${activity.id || Date.now()}')">
+                                    <div class="attachments-header-left">
+                                        <i data-lucide="paperclip" class="w-4 h-4"></i>
+                                        ${photos.length} archivo(s) adjunto(s)
+                                    </div>
+                                    <div class="attachments-toggle" id="toggle-photo-activity-${activity.id || Date.now()}">
+                                        <span>Ver archivos</span>
+                                        <i data-lucide="chevron-down" class="w-3 h-3"></i>
+                                    </div>
+                                </div>
+                                <div class="unified-activity-photos collapsed" id="photos-photo-activity-${activity.id || Date.now()}">
+                                    ${photos.map(photo => `
+                                        <div class="unified-photo-item" onclick="viewPhoto(${photo.id})">
+                                            <img src="${photo.file_path || photo.photo_data}" 
+                                                 alt="${photo.description || photo.file_name || 'Foto del ticket'}" 
+                                                 loading="lazy">
+                                            <div class="unified-photo-overlay">
+                                                <div class="photo-filename">${photo.file_name || 'foto.jpg'}</div>
+                                            </div>
+                                        </div>
+                                    `).join('')}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -741,49 +1232,141 @@ function renderNotes() {
         }).join('');
     }
     
-    // Actualizar contador de notas
+    // Actualizar contador de notas (total de actividades)
     if (elements.notesCounter) {
-        elements.notesCounter.textContent = state.notes.length;
+        elements.notesCounter.textContent = activities.length;
     }
+    
+    // Inicializar event listeners para botones de acción
+    initializeActionButtons();
     
     setTimeout(() => lucide.createIcons(), 10);
 }
 
 function renderSpareParts() {
+    console.log('🔧 Renderizando repuestos...');
     const sparePartsList = document.getElementById('spare-parts-list');
-    if (!sparePartsList) return;
+    const sparePartsAlerts = document.getElementById('spare-parts-alerts');
     
+    if (!sparePartsList) {
+        console.warn('❌ Elemento spare-parts-list no encontrado');
+        return;
+    }
+    
+    // Renderizar lista de repuestos
     if (state.spareParts.length === 0) {
         sparePartsList.innerHTML = `
-            <div class="ticket-empty-state">
-                <i data-lucide="package" class="w-12 h-12 mx-auto mb-4 text-gray-300"></i>
-                <h3>No hay repuestos utilizados</h3>
-                <p>Registra los repuestos utilizados en este ticket</p>
+            <div class="spare-parts-empty">
+                <i data-lucide="wrench" class="mx-auto"></i>
+                <h4>No hay repuestos utilizados</h4>
+                <p>Registra los repuestos utilizados en este ticket para mantener un control del inventario</p>
+                <button id="add-first-spare-part" class="ticket-action-btn primary">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Agregar primer repuesto
+                </button>
             </div>
         `;
     } else {
-        sparePartsList.innerHTML = state.spareParts.map(part => `
-            <div class="ticket-spare-part-item">
-                <div class="ticket-spare-part-info">
-                    <div class="ticket-spare-part-name">${part.spare_part_name || part.name || 'Repuesto'}</div>
-                    <div class="ticket-spare-part-details">
-                        <span class="ticket-spare-part-sku">${part.spare_part_sku || part.sku || 'N/A'}</span>
-                        <span class="ticket-spare-part-quantity">Cantidad: ${part.quantity_used}</span>
-                        ${part.unit_cost ? `<span class="ticket-spare-part-cost">Costo: $${part.unit_cost}</span>` : ''}
+        const sparePartsHtml = state.spareParts.map(part => {
+            const totalCost = part.quantity_used * (part.unit_cost || 0);
+            const usedDate = new Date(part.used_at).toLocaleDateString('es-CL');
+            
+            return `
+                <div class="spare-part-item" data-part-id="${part.id}">
+                    <div class="spare-part-info">
+                        <div class="spare-part-name">
+                            <i data-lucide="wrench"></i>
+                            ${part.spare_part_name || part.name || 'Repuesto sin nombre'}
+                        </div>
+                        <div class="spare-part-quantity">
+                            <i data-lucide="package"></i>
+                            ${part.quantity_used} unidades
+                        </div>
+                        <div class="spare-part-cost">
+                            ${part.unit_cost ? `$${totalCost.toLocaleString('es-CL')}` : 'Sin costo'}
+                        </div>
+                        <div class="spare-part-date">
+                            Usado el ${usedDate}
+                        </div>
                     </div>
-                    ${part.notes ? `<div class="ticket-spare-part-notes">${part.notes}</div>` : ''}
+                    <div class="spare-part-actions">
+                        <button class="spare-part-edit-btn" onclick="editSparePartUsage(${part.id})" title="Editar repuesto">
+                            <i data-lucide="edit-2"></i>
+                        </button>
+                        <button class="spare-part-delete-btn" onclick="deleteSparePartUsage(${part.id})" title="Eliminar repuesto">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="ticket-spare-part-actions">
-                    <button class="ticket-action-btn danger" onclick="deleteSparePartUsage(${part.id})">
-                        <i data-lucide="trash-2" class="w-4 h-4"></i>
-                        Eliminar
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
+        
+        sparePartsList.innerHTML = sparePartsHtml;
     }
     
+    // Verificar alertas de stock bajo
+    renderStockAlerts();
+    
     setTimeout(() => lucide.createIcons(), 10);
+    console.log('✅ Repuestos renderizados');
+}
+
+// Nueva función para mostrar alertas de stock
+async function renderStockAlerts() {
+    const sparePartsAlerts = document.getElementById('spare-parts-alerts');
+    if (!sparePartsAlerts) return;
+    
+    try {
+        // Obtener alertas de stock bajo del backend
+        const response = await fetch(`${API_URL}/inventory/spare-parts/alerts`);
+        if (!response.ok) {
+            throw new Error('Error al cargar alertas de stock');
+        }
+        
+        const result = await response.json();
+        const lowStockItems = result.data || [];
+        
+        if (lowStockItems.length > 0) {
+            const alertsHtml = lowStockItems.map(item => `
+                <div class="stock-alert">
+                    <i data-lucide="alert-triangle" class="stock-alert-icon"></i>
+                    <div class="stock-alert-info">
+                        <div class="stock-alert-title">Stock bajo: ${item.name}</div>
+                        <div class="stock-alert-description">
+                            Quedan ${item.current_stock} unidades (mínimo: ${item.minimum_stock})
+                            ${item.sku ? ` • SKU: ${item.sku}` : ''}
+                        </div>
+                    </div>
+                    <div class="stock-alert-actions">
+                        <button class="stock-alert-btn" onclick="requestSparePartOrder('${item.id}')">
+                            Solicitar Orden
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+            sparePartsAlerts.innerHTML = alertsHtml;
+            sparePartsAlerts.classList.remove('hidden');
+            
+            console.log(`⚠️ Mostrando ${lowStockItems.length} alertas de stock bajo`);
+        } else {
+            sparePartsAlerts.classList.add('hidden');
+            console.log('✅ No hay alertas de stock bajo');
+        }
+        
+        setTimeout(() => lucide.createIcons(), 10);
+        
+    } catch (error) {
+        console.error('❌ Error al cargar alertas de stock:', error);
+        sparePartsAlerts.classList.add('hidden');
+    }
+}
+
+// Configurar event listeners específicos para repuestos (ya no necesario - usando delegación)
+function setupSparePartsEventListeners() {
+    // Esta función ya no es necesaria porque usamos delegación de eventos
+    // Mantenida por compatibilidad
+    console.log('🔧 Event listeners de repuestos configurados via delegación');
 }
 
 function renderPhotos() {
@@ -1023,6 +1606,39 @@ function setupEventListeners() {
     if (elements.timerBtn) {
         elements.timerBtn.addEventListener('click', toggleTimer);
     }
+    
+    // Delegación de eventos para botones de repuestos (se crean dinámicamente)
+    document.addEventListener('click', (e) => {
+        if (e.target.id === 'add-spare-part-btn' || e.target.closest('#add-spare-part-btn')) {
+            e.preventDefault();
+            console.log('🔧 Click en botón agregar repuesto');
+            if (typeof showAddSparePartModal === 'function') {
+                showAddSparePartModal();
+            } else {
+                console.error('❌ showAddSparePartModal no está definida');
+            }
+        }
+        
+        if (e.target.id === 'add-first-spare-part' || e.target.closest('#add-first-spare-part')) {
+            e.preventDefault();
+            console.log('🔧 Click en botón primer repuesto');
+            if (typeof showAddSparePartModal === 'function') {
+                showAddSparePartModal();
+            } else {
+                console.error('❌ showAddSparePartModal no está definida');
+            }
+        }
+        
+        if (e.target.id === 'request-spare-part-btn' || e.target.closest('#request-spare-part-btn')) {
+            e.preventDefault();
+            console.log('🛒 Click en botón solicitar repuesto');
+            if (typeof showRequestSparePartModal === 'function') {
+                showRequestSparePartModal();
+            } else {
+                console.error('❌ showRequestSparePartModal no está definida');
+            }
+        }
+    });
 }
 
 // === FUNCIONES DEL TIMER ===
@@ -1504,6 +2120,7 @@ window.renderTicketHeader = renderTicketHeader;
 window.renderStatusActions = renderStatusActions;
 window.renderNotes = renderNotes;
 window.renderTicketStats = renderTicketStats;
+window.executeDirectStatusChange = executeDirectStatusChange;
 window.state = window.state; // Ya asignado arriba, pero para claridad
 
 // === FUNCIONES DE MANEJO DE EVENTOS ===
@@ -2113,14 +2730,16 @@ function initUnifiedInterface() {
     // Contador de caracteres
     setupCharacterCounter();
     
+    // Configurar botones de formato para la interfaz unificada
+    setupUnifiedFormatButtons();
+    
     console.log('✅ Interfaz unificada moderna inicializada');
 }
 
 // Auto-resize del textarea
 function autoResizeTextarea() {
-    unifiedTextarea.style.height = 'auto';
-    const newHeight = Math.min(Math.max(unifiedTextarea.scrollHeight, 52), 200);
-    unifiedTextarea.style.height = newHeight + 'px';
+    // Para contenteditable, el auto-resize se maneja con CSS max-height y overflow
+    // No necesitamos cambiar height manualmente
 }
 
 // Configurar contador de caracteres
@@ -2129,7 +2748,7 @@ function setupCharacterCounter() {
     if (!charCount) return;
     
     unifiedTextarea.addEventListener('input', () => {
-        const count = unifiedTextarea.value.length;
+        const count = unifiedTextarea.textContent.length;
         charCount.textContent = count;
         
         // Cambiar color según la longitud
@@ -2141,6 +2760,142 @@ function setupCharacterCounter() {
             charCount.style.color = '#6b7280';
         }
     });
+}
+
+// === CONFIGURAR BOTONES DE FORMATO PARA INTERFAZ UNIFICADA ===
+function setupUnifiedFormatButtons() {
+    const formatButtons = [
+        { id: 'format-bold-btn', format: 'bold', key: 'b' },
+        { id: 'format-italic-btn', format: 'italic', key: 'i' },
+        { id: 'format-underline-btn', format: 'underline', key: 'u' },
+        { id: 'format-strikethrough-btn', format: 'strikethrough', key: null },
+        { id: 'format-code-btn', format: 'code', key: null },
+        { id: 'format-quote-btn', format: 'quote', key: null },
+        { id: 'format-list-btn', format: 'list', key: null },
+        { id: 'format-numbered-list-btn', format: 'numbered-list', key: null }
+    ];
+
+    formatButtons.forEach(({ id, format, key }) => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.addEventListener('click', (e) => {
+                e.preventDefault();
+                applyUnifiedTextFormat(format);
+                button.classList.add('active');
+                setTimeout(() => button.classList.remove('active'), 200);
+            });
+        }
+    });
+
+    // Atajos de teclado para formato
+    unifiedTextarea.addEventListener('keydown', (e) => {
+        if (e.ctrlKey || e.metaKey) {
+            switch (e.key.toLowerCase()) {
+                case 'b':
+                    e.preventDefault();
+                    applyUnifiedTextFormat('bold');
+                    break;
+                case 'i':
+                    e.preventDefault();
+                    applyUnifiedTextFormat('italic');
+                    break;
+                case 'u':
+                    e.preventDefault();
+                    applyUnifiedTextFormat('underline');
+                    break;
+            }
+        }
+    });
+
+    console.log('🎨 Botones de formato unificados configurados');
+}
+
+// === APLICAR FORMATO DE TEXTO EN INTERFAZ UNIFICADA ===
+function applyUnifiedTextFormat(format) {
+    const editor = unifiedTextarea;
+    
+    // Asegurar que el editor tenga foco
+    editor.focus();
+    
+    try {
+        switch (format) {
+            case 'bold':
+                document.execCommand('bold', false, null);
+                break;
+                
+            case 'italic':
+                document.execCommand('italic', false, null);
+                break;
+                
+            case 'underline':
+                document.execCommand('underline', false, null);
+                break;
+                
+            case 'strikethrough':
+                document.execCommand('strikeThrough', false, null);
+                break;
+                
+            case 'code':
+                // Para código, envolvemos en <code>
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    const selectedText = range.toString();
+                    
+                    if (selectedText) {
+                        const codeElement = document.createElement('code');
+                        codeElement.textContent = selectedText;
+                        range.deleteContents();
+                        range.insertNode(codeElement);
+                    } else {
+                        const codeElement = document.createElement('code');
+                        codeElement.textContent = 'código';
+                        range.insertNode(codeElement);
+                        
+                        // Seleccionar el texto insertado
+                        const newRange = document.createRange();
+                        newRange.selectNodeContents(codeElement);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                }
+                break;
+                
+            case 'quote':
+                // Para citas, envolvemos en <blockquote>
+                const quoteSelection = window.getSelection();
+                if (quoteSelection.rangeCount > 0) {
+                    const range = quoteSelection.getRangeAt(0);
+                    const selectedText = range.toString();
+                    
+                    const blockquote = document.createElement('blockquote');
+                    if (selectedText) {
+                        blockquote.textContent = selectedText;
+                        range.deleteContents();
+                    } else {
+                        blockquote.textContent = 'Cita...';
+                    }
+                    range.insertNode(blockquote);
+                }
+                break;
+                
+            case 'list':
+                document.execCommand('insertUnorderedList', false, null);
+                break;
+                
+            case 'numbered-list':
+                document.execCommand('insertOrderedList', false, null);
+                break;
+        }
+        
+        // Trigger input event para contador de caracteres
+        editor.dispatchEvent(new Event('input'));
+        
+        console.log(`✨ Formato aplicado: ${format}`);
+        
+    } catch (error) {
+        console.error('Error aplicando formato:', error);
+    }
 }
 
 // Manejar atajos de teclado
@@ -2156,7 +2911,7 @@ function handleUnifiedKeydown(e) {
 
 // Manejar cambios en el textarea
 function handleUnifiedTextChange() {
-    const hasText = unifiedTextarea.value.trim().length > 0;
+    const hasText = unifiedTextarea.textContent.trim().length > 0;
     const hasAttachments = unifiedAttachments.length > 0;
     
     unifiedSubmitBtn.disabled = !hasText && !hasAttachments;
@@ -2327,8 +3082,8 @@ function removeUnifiedAttachment(attachmentId) {
 
 // Manejar envío del comentario unificado
 async function handleUnifiedSubmit() {
-    const comment = unifiedTextarea.value.trim();
-    const hasText = comment.length > 0;
+    const comment = unifiedTextarea.innerHTML.trim();
+    const hasText = unifiedTextarea.textContent.trim().length > 0;
     const hasAttachments = unifiedAttachments.length > 0;
     
     if (!hasText && !hasAttachments) {
@@ -2349,9 +3104,13 @@ async function handleUnifiedSubmit() {
         
         // Deshabilitar botón
         unifiedSubmitBtn.disabled = true;
-        unifiedSubmitBtn.querySelector('.send-text').textContent = 'Enviando...';
+        const sendTextEl = unifiedSubmitBtn.querySelector('.send-text');
+        if (sendTextEl) {
+            sendTextEl.textContent = 'Enviando...';
+        }
         
-        // Si hay texto, agregar como nota
+        // Procesar comentario y adjuntos normalmente
+        // Si hay texto, agregar como nota normal
         if (hasText) {
             await addUnifiedNote(comment);
         }
@@ -2395,14 +3154,21 @@ async function handleUnifiedSubmit() {
 
 // Agregar nota mediante interfaz unificada
 async function addUnifiedNote(comment) {
+    // Convertir HTML a Markdown antes de enviar
+    const markdownComment = convertHtmlToMarkdown(comment);
+    
+    // Obtener el tipo de comentario seleccionado
+    const commentTypeSelect = document.getElementById('comment-type-select');
+    const commentType = commentTypeSelect ? commentTypeSelect.value : 'General';
+    
     const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            note: comment,
-            note_type: 'Comentario',
+            note: markdownComment,
+            note_type: commentType,
             author: 'Felipe Maturana',
             is_internal: false
         })
@@ -2418,8 +3184,8 @@ async function addUnifiedNote(comment) {
     if (result.data) {
         const newNote = {
             id: result.data.id,
-            note: comment,
-            note_type: 'Comentario',
+            note: markdownComment,
+            note_type: commentType,
             author: 'Felipe Maturana',
             is_internal: false,
             created_at: new Date().toISOString()
@@ -2493,11 +3259,18 @@ async function uploadUnifiedAttachments(comment) {
 
 // Limpiar interfaz unificada
 function clearUnifiedInterface() {
-    unifiedTextarea.value = '';
-    unifiedTextarea.style.height = '52px';
+    unifiedTextarea.innerHTML = '';
     unifiedAttachments = [];
     renderUnifiedAttachments();
     handleUnifiedTextChange();
+    
+    // Contraer zona de drop y resetear botón adjuntar
+    const dropZone = document.getElementById('unified-drop-zone');
+    const attachBtn = document.getElementById('attach-files-btn');
+    if (dropZone && dropZone.classList.contains('expanded')) {
+        dropZone.classList.remove('expanded');
+        if (attachBtn) attachBtn.classList.remove('active');
+    }
     
     // Resetear contador de caracteres
     const charCount = document.getElementById('char-count');
@@ -2505,6 +3278,52 @@ function clearUnifiedInterface() {
         charCount.textContent = '0';
         charCount.style.color = '#6b7280';
     }
+    
+    // Resetear selector de tipo de comentario
+    const commentTypeSelect = document.getElementById('comment-type-select');
+    if (commentTypeSelect) {
+        commentTypeSelect.value = 'General';
+    }
+}
+
+// === CONVERTIR HTML A MARKDOWN ===
+function convertHtmlToMarkdown(html) {
+    if (!html) return '';
+    
+    // Crear un elemento temporal para parsear el HTML
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    // Convertir elementos HTML a Markdown
+    let markdown = temp.innerHTML;
+    
+    // Convertir elementos específicos
+    markdown = markdown.replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**');
+    markdown = markdown.replace(/<b[^>]*>(.*?)<\/b>/gi, '**$1**');
+    markdown = markdown.replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*');
+    markdown = markdown.replace(/<i[^>]*>(.*?)<\/i>/gi, '*$1*');
+    markdown = markdown.replace(/<u[^>]*>(.*?)<\/u>/gi, '_$1_');
+    markdown = markdown.replace(/<del[^>]*>(.*?)<\/del>/gi, '~~$1~~');
+    markdown = markdown.replace(/<strike[^>]*>(.*?)<\/strike>/gi, '~~$1~~');
+    markdown = markdown.replace(/<code[^>]*>(.*?)<\/code>/gi, '`$1`');
+    markdown = markdown.replace(/<blockquote[^>]*>(.*?)<\/blockquote>/gi, '> $1');
+    
+    // Listas
+    markdown = markdown.replace(/<ul[^>]*>(.*?)<\/ul>/gis, '$1');
+    markdown = markdown.replace(/<ol[^>]*>(.*?)<\/ol>/gis, '$1');
+    markdown = markdown.replace(/<li[^>]*>(.*?)<\/li>/gi, '• $1\n');
+    
+    // Limpiar tags restantes
+    markdown = markdown.replace(/<[^>]*>/g, '');
+    
+    // Decodificar entidades HTML
+    markdown = markdown.replace(/&nbsp;/g, ' ');
+    markdown = markdown.replace(/&amp;/g, '&');
+    markdown = markdown.replace(/&lt;/g, '<');
+    markdown = markdown.replace(/&gt;/g, '>');
+    markdown = markdown.replace(/&quot;/g, '"');
+    
+    return markdown.trim();
 }
 
 // Sistema de toasts para feedback
@@ -2580,7 +3399,7 @@ async function deleteNote(noteId) {
     try {
         console.log(`🗑️ Eliminando nota ${noteId}...`);
         
-        const response = await fetch(`${API_URL}/notes/${noteId}`, {
+        const response = await fetch(`${API_URL}/tickets/notes/${noteId}`, {
             method: 'DELETE',
             headers: { 'Accept': 'application/json' }
         });
@@ -2609,5 +3428,1417 @@ async function deleteNote(noteId) {
 }
 
 window.deleteNote = deleteNote;
+
+// Función para eliminar un grupo completo de actividad unificada
+async function deleteActivityGroup(noteIds = [], photoIds = []) {
+    console.log('🗑️ deleteActivityGroup llamada con:', { noteIds, photoIds });
+    
+    const totalItems = noteIds.length + photoIds.length;
+    if (totalItems === 0) {
+        console.log('⚠️ No hay elementos para eliminar');
+        return;
+    }
+    
+    console.log('📋 Preparando modal de confirmación...');
+    
+    // Crear modal de confirmación personalizado más elegante
+    const itemsText = [];
+    if (noteIds.length > 0) itemsText.push(`${noteIds.length} comentario(s)`);
+    if (photoIds.length > 0) itemsText.push(`${photoIds.length} foto(s)`);
+    
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content" style="max-width: 400px;">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
+                    Confirmar Eliminación
+                </h3>
+            </div>
+            <div class="base-modal-body">
+                <p style="margin-bottom: 1rem; color: #64748b;">
+                    ¿Estás seguro de que deseas eliminar esta actividad completa?
+                </p>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+                    <p style="color: #dc2626; font-weight: 500; margin: 0;">
+                        Se eliminarán: ${itemsText.join(' y ')}
+                    </p>
+                </div>
+                <p style="color: #ef4444; font-size: 0.875rem; margin: 0;">
+                    <strong>⚠️ Esta acción no se puede deshacer</strong>
+                </p>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" id="cancel-delete-btn">
+                    Cancelar
+                </button>
+                <button type="button" class="btn-danger" id="confirm-delete-btn">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Eliminar Definitivamente
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    lucide.createIcons();
+    
+    // Hacer visible el modal
+    setTimeout(() => modal.classList.add('is-open'), 10);
+    
+    console.log('✅ Modal de confirmación creado y agregado al DOM');
+    
+    // Manejar confirmación
+    const confirmBtn = modal.querySelector('#confirm-delete-btn');
+    const cancelBtn = modal.querySelector('#cancel-delete-btn');
+    
+    // Botón cancelar
+    cancelBtn.addEventListener('click', () => {
+        modal.classList.remove('is-open');
+        setTimeout(() => modal.remove(), 300);
+    });
+    
+    // Botón confirmar
+    confirmBtn.addEventListener('click', async () => {
+        try {
+            confirmBtn.disabled = true;
+            confirmBtn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Eliminando...';
+            
+            console.log(`🗑️ Eliminando actividad grupal: ${noteIds.length} notas, ${photoIds.length} fotos...`);
+            
+            // Eliminar comentarios en paralelo
+            const notePromises = noteIds.map(noteId => 
+                fetch(`${API_URL}/tickets/notes/${noteId}`, {
+                    method: 'DELETE',
+                    headers: { 'Accept': 'application/json' }
+                })
+            );
+            
+            // Eliminar fotos en paralelo
+            const photoPromises = photoIds.map(photoId => 
+                fetch(`${API_URL}/tickets/${state.currentTicket?.id}/photos/${photoId}`, {
+                    method: 'DELETE',
+                    headers: { 'Accept': 'application/json' }
+                })
+            );
+            
+            // Ejecutar todas las eliminaciones
+            const allPromises = [...notePromises, ...photoPromises];
+            const responses = await Promise.all(allPromises);
+            
+            // Verificar que todas las respuestas sean exitosas
+            const failedRequests = responses.filter(response => !response.ok);
+            if (failedRequests.length > 0) {
+                throw new Error(`${failedRequests.length} elementos no pudieron eliminarse`);
+            }
+            
+            console.log('✅ Actividad grupal eliminada exitosamente');
+            
+            // Actualizar estado local
+            if (noteIds.length > 0) {
+                state.notes = state.notes.filter(note => !noteIds.includes(note.id));
+            }
+            
+            if (photoIds.length > 0) {
+                state.photos = state.photos.filter(photo => !photoIds.includes(photo.id));
+            }
+            
+            // Cerrar modal
+            modal.classList.remove('is-open');
+            setTimeout(() => modal.remove(), 300);
+            
+            // Actualizar interfaz
+            renderNotes(); // Usar nuevo sistema de renderizado
+            renderTicketStats();
+            
+            // Mostrar mensaje de éxito
+            showToast('✅ Actividad eliminada correctamente', 'success');
+            
+            console.log('🔄 Actividad eliminada y interfaz actualizada');
+            
+        } catch (error) {
+            console.error('❌ Error al eliminar actividad grupal:', error);
+            modal.classList.remove('is-open');
+            setTimeout(() => modal.remove(), 300);
+            showToast('❌ Error al eliminar la actividad', 'error');
+        }
+    });
+}
+
+// Función para editar un grupo de actividad unificada
+async function editActivityGroup(noteIds = [], photoIds = []) {
+    console.log('✏️ Editando grupo de actividad:', { noteIds, photoIds });
+    
+    if (noteIds.length > 0) {
+        // Si hay notas, abrir modal de edición de nota
+        const firstNote = state.notes.find(note => note.id === noteIds[0]);
+        console.log('🔍 Buscando nota con ID:', noteIds[0], 'Encontrada:', firstNote);
+        console.log('📝 Estado de notas disponibles:', state.notes.map(n => ({ id: n.id, note: n.note?.substring(0, 50) })));
+        
+        if (!firstNote) {
+            showToast('❌ No se encontró la nota para editar', 'error');
+            return;
+        }
+        
+        // Crear modal de edición usando el modal base existente
+        const modal = document.createElement('div');
+        modal.className = 'base-modal';
+        modal.innerHTML = `
+            <div class="base-modal-content edit-note-modal" style="max-width: 650px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+                <div class="base-modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 1.5rem; border-bottom: none;">
+                    <h3 class="base-modal-title" style="margin: 0; font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="edit-3" class="w-5 h-5"></i>
+                        </div>
+                        Editar Comentario
+                    </h3>
+                    <button type="button" class="base-modal-close" onclick="this.closest('.base-modal').remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.5rem; border-radius: 6px; transition: all 0.2s ease;">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="base-modal-body" style="padding: 2rem; background: #fafbfc;">
+                            <div style="background: white; border-radius: 8px; padding: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                        <form id="edit-note-form">
+                            <!-- Pestañas de Editar/Vista Previa -->
+                            <div class="edit-modal-tabs" style="display: flex; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
+                                <button type="button" class="edit-tab-btn active" data-tab="edit" style="padding: 0.5rem 1rem; border: none; background: transparent; color: #6366f1; border-bottom: 2px solid #6366f1; cursor: pointer; font-weight: 600;">
+                                    Editar
+                                </button>
+                                <button type="button" class="edit-tab-btn" data-tab="preview" style="padding: 0.5rem 1rem; border: none; background: transparent; color: #6b7280; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 600;">
+                                    Vista Previa
+                                </button>
+                            </div>
+                            
+                            <!-- Panel de Edición -->
+                            <div id="edit-panel" class="edit-panel">
+                                <div class="form-group" style="margin-bottom: 1.5rem;">
+                                    <label for="edit-note-text" class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #dbeafe; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="message-circle" class="w-4 h-4 text-blue-600"></i>
+                                        </div>
+                                        Comentario
+                                    </label>
+                                    <textarea 
+                                        id="edit-note-text" 
+                                        name="note" 
+                                        class="form-control" 
+                                        rows="4" 
+                                        placeholder="Escribe tu comentario aquí..."
+                                        required
+                                        style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; font-size: 0.9rem; transition: all 0.2s ease; resize: vertical; min-height: 100px;"
+                                    >${firstNote.note || ''}</textarea>
+                                </div>
+                            </div>
+                            
+                            <!-- Panel de Vista Previa -->
+                            <div id="preview-panel" class="edit-panel" style="display: none;">
+                                <div class="form-group" style="margin-bottom: 1.5rem;">
+                                    <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #dcfce7; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="eye" class="w-4 h-4 text-green-600"></i>
+                                        </div>
+                                        Vista Previa
+                                    </label>
+                                    <div id="edit-preview-content" style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; min-height: 100px; background: #f9fafb; color: #374151; line-height: 1.5;">
+                                        ${renderMarkdown(firstNote.note || '')}
+                                    </div>
+                                </div>
+                            </div>                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                <div class="form-group">
+                                    <label for="edit-note-type" class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #dcfce7; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="tag" class="w-4 h-4 text-green-600"></i>
+                                        </div>
+                                        Tipo de Nota
+                                    </label>
+                                    <select id="edit-note-type" name="note_type" class="form-control" required style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; font-size: 0.9rem; transition: all 0.2s ease; background: white;">
+                                        <option value="">Seleccionar tipo</option>
+                                        <option value="general" ${firstNote.note_type === 'general' ? 'selected' : ''}>💬 General</option>
+                                        <option value="diagnostico" ${firstNote.note_type === 'diagnostico' ? 'selected' : ''}>🔍 Diagnóstico</option>
+                                        <option value="solucion" ${firstNote.note_type === 'solucion' ? 'selected' : ''}>✅ Solución</option>
+                                        <option value="seguimiento" ${firstNote.note_type === 'seguimiento' ? 'selected' : ''}>📋 Seguimiento</option>
+                                        <option value="cliente" ${firstNote.note_type === 'cliente' ? 'selected' : ''}>👤 Comunicación Cliente</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #fef3c7; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="shield" class="w-4 h-4 text-yellow-600"></i>
+                                        </div>
+                                        Visibilidad
+                                    </label>
+                                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f8fafc; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                                        <input 
+                                            type="checkbox" 
+                                            id="edit-is-internal" 
+                                            name="is_internal" 
+                                            ${firstNote.is_internal ? 'checked' : ''}
+                                            style="width: 18px; height: 18px; accent-color: #667eea;"
+                                        >
+                                        <span class="checkbox-text" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #64748b;">
+                                            <i data-lucide="eye-off" class="w-4 h-4"></i>
+                                            Nota interna (solo técnicos)
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="base-modal-footer" style="padding: 1.5rem 2rem; background: #f8fafc; border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid #e2e8f0;">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()" style="padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 8px; transition: all 0.2s ease; border: 2px solid #e5e7eb;">
+                        <i data-lucide="x" class="w-4 h-4" style="margin-right: 0.5rem;"></i>
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn-primary" id="update-note-btn" style="padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 8px; transition: all 0.2s ease; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.3);">
+                        <i data-lucide="save" class="w-4 h-4" style="margin-right: 0.5rem;"></i>
+                        Actualizar Comentario
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        // Agregar modal al DOM
+        document.body.appendChild(modal);
+        
+        // Mostrar modal con animación
+        setTimeout(() => {
+            modal.classList.add('is-open');
+        }, 10);
+        
+        // Inicializar iconos de Lucide
+        lucide.createIcons();
+        
+        // === CONFIGURAR PESTAÑAS DE EDICIÓN/VISTA PREVIA ===
+        setupEditModalTabs(modal, firstNote.note || '');
+        
+        console.log('✅ Modal de edición creado y mostrado');
+        
+        // Manejar actualización
+        const updateBtn = modal.querySelector('#update-note-btn');
+        updateBtn.addEventListener('click', () => updateAdvancedNote(updateBtn, noteIds[0], modal));
+        
+    } else if (photoIds.length > 0) {
+        // Si solo hay fotos, permitir cambiar la descripción o eliminar fotos individuales
+        const photos = state.photos.filter(photo => photoIds.includes(photo.id));
+        if (photos.length === 0) {
+            showToast('❌ No se encontraron las fotos para editar', 'error');
+            return;
+        }
+        
+        const modal = document.createElement('div');
+        modal.className = 'base-modal';
+        modal.innerHTML = `
+            <div class="base-modal-content" style="max-width: 700px;">
+                <div class="base-modal-header">
+                    <h3 class="base-modal-title">
+                        <i data-lucide="image" class="w-5 h-5 text-green-500"></i>
+                        Gestionar Fotos (${photos.length})
+                    </h3>
+                    <button type="button" class="base-modal-close" onclick="this.closest('.base-modal').remove()">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="base-modal-body">
+                    <p style="color: #64748b; margin-bottom: 1rem;">
+                        Puedes eliminar fotos individuales o toda la actividad completa.
+                    </p>
+                    <div class="photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;">
+                        ${photos.map(photo => `
+                            <div class="photo-item" style="position: relative; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+                                <img src="data:image/jpeg;base64,${photo.photo}" alt="Foto" style="width: 100%; height: 100px; object-fit: cover;">
+                                <div style="padding: 0.5rem; background: white;">
+                                    <p style="font-size: 0.75rem; color: #64748b; margin: 0;">
+                                        ${new Date(photo.uploaded_at).toLocaleDateString()}
+                                    </p>
+                                    <button type="button" class="btn-danger" style="width: 100%; margin-top: 0.5rem; font-size: 0.75rem; padding: 0.25rem;" onclick="deleteIndividualPhoto(${photo.id}, this)">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="base-modal-footer">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()">
+                        Cerrar
+                    </button>
+                    <button type="button" class="btn-danger" onclick="deleteActivityGroup([], [${photoIds.join(',')}]); this.closest('.base-modal').remove();">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        Eliminar Todas
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        lucide.createIcons();
+        
+    } else {
+        showToast('❌ No hay elementos para editar en esta actividad', 'error');
+    }
+}
+
+// Función para actualizar una nota existente
+async function updateAdvancedNote(button, noteId, modal) {
+    const form = modal.querySelector('#edit-note-form');
+    const formData = new FormData(form);
+    
+    const noteText = formData.get('note').trim();
+    const noteType = formData.get('note_type');
+    const isInternal = formData.get('is_internal') === 'on';
+    
+    if (!noteText) {
+        showToast('❌ El comentario no puede estar vacío', 'error');
+        return;
+    }
+    
+    if (!noteType) {
+        showToast('❌ Selecciona el tipo de nota', 'error');
+        return;
+    }
+    
+    try {
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Actualizando...';
+        
+        const updateData = {
+            note: noteText,
+            note_type: noteType,
+            is_internal: isInternal
+        };
+        
+        const response = await fetch(`${API_URL}/tickets/notes/${noteId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        // Actualizar el estado local
+        const noteIndex = state.notes.findIndex(note => note.id === noteId);
+        if (noteIndex !== -1) {
+            state.notes[noteIndex] = { 
+                ...state.notes[noteIndex], 
+                ...updateData,
+                updated_at: new Date().toISOString()
+            };
+        }
+        
+        // Cerrar modal
+        modal.remove();
+        
+        // Actualizar interfaz
+        renderNotes();
+        renderTicketStats();
+        lucide.createIcons();
+        
+        // Mostrar mensaje de éxito
+        showToast('✅ Comentario actualizado correctamente', 'success');
+        
+        console.log('✅ Nota actualizada exitosamente');
+        
+    } catch (error) {
+        console.error('❌ Error al actualizar nota:', error);
+        showToast(`❌ Error al actualizar: ${error.message}`, 'error');
+        
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Actualizar Comentario';
+    }
+}
+
+// Función para eliminar foto individual desde el modal de edición
+async function deleteIndividualPhoto(photoId, button) {
+    if (!confirm('¿Eliminar esta foto?')) {
+        return;
+    }
+    
+    try {
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
+        
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket?.id}/photos/${photoId}`, {
+            method: 'DELETE',
+            headers: { 'Accept': 'application/json' }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Error HTTP ${response.status}`);
+        }
+        
+        // Actualizar estado local
+        state.photos = state.photos.filter(photo => photo.id !== photoId);
+        
+        // Remover elemento visual
+        button.closest('.photo-item').remove();
+        
+        // Actualizar interfaz principal
+        renderNotes();
+        
+        showToast('✅ Foto eliminada correctamente', 'success');
+        
+    } catch (error) {
+        console.error('❌ Error al eliminar foto:', error);
+        showToast('❌ Error al eliminar la foto', 'error');
+        
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar';
+    }
+}
+
+window.editActivityGroup = editActivityGroup;
+window.updateAdvancedNote = updateAdvancedNote;
+window.deleteIndividualPhoto = deleteIndividualPhoto;
+
+// Función para alternar la visibilidad de los adjuntos
+function toggleAttachments(activityId) {
+    const photosContainer = document.getElementById(`photos-${activityId}`);
+    const toggleButton = document.getElementById(`toggle-${activityId}`);
+    const attachmentsContainer = photosContainer?.closest('.email-attachments');
+    
+    if (!photosContainer || !toggleButton) {
+        console.error('❌ No se encontraron elementos para:', activityId);
+        return;
+    }
+    
+    const isExpanded = photosContainer.classList.contains('expanded');
+    const toggleIcon = toggleButton.querySelector('i[data-lucide]');
+    const toggleText = toggleButton.querySelector('span');
+    
+    if (isExpanded) {
+        // Colapsar
+        photosContainer.classList.remove('expanded');
+        photosContainer.classList.add('collapsed');
+        toggleButton.classList.remove('expanded');
+        attachmentsContainer?.classList.remove('expanded');
+        
+        // Detectar tipo de contenido para el texto
+        const isPhotoOnly = activityId.includes('photo-activity');
+        if (toggleText) {
+            toggleText.textContent = isPhotoOnly ? 'Ver archivos' : 'Ver adjuntos';
+        }
+        
+        if (toggleIcon) {
+            toggleIcon.setAttribute('data-lucide', 'chevron-down');
+        }
+    } else {
+        // Expandir
+        photosContainer.classList.remove('collapsed');
+        photosContainer.classList.add('expanded');
+        toggleButton.classList.add('expanded');
+        attachmentsContainer?.classList.add('expanded');
+        
+        // Detectar tipo de contenido para el texto
+        const isPhotoOnly = activityId.includes('photo-activity');
+        if (toggleText) {
+            toggleText.textContent = isPhotoOnly ? 'Ocultar archivos' : 'Ocultar adjuntos';
+        }
+        
+        if (toggleIcon) {
+            toggleIcon.setAttribute('data-lucide', 'chevron-up');
+        }
+    }
+    
+    // Actualizar íconos de Lucide
+    setTimeout(() => lucide.createIcons(), 10);
+    
+    console.log(`📸 ${isExpanded ? 'Colapsados' : 'Expandidos'} adjuntos para:`, activityId);
+}
+
+// Función para inicializar event listeners de botones de acción
+function initializeActionButtons() {
+    console.log('🔧 Inicializando event listeners de botones de acción...');
+    
+    // Remover event listeners previos para evitar duplicados
+    document.querySelectorAll('.ticket-action-btn').forEach(btn => {
+        btn.replaceWith(btn.cloneNode(true));
+    });
+    
+    // Agregar event listeners para botones de editar
+    document.querySelectorAll('.ticket-action-btn.edit').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const noteIds = btn.dataset.noteIds ? btn.dataset.noteIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
+            const photoIds = btn.dataset.photoIds ? btn.dataset.photoIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
+            
+            console.log('✏️ Botón editar clickeado:', { noteIds, photoIds });
+            editActivityGroup(noteIds, photoIds);
+        });
+    });
+    
+    // Agregar event listeners para botones de eliminar
+    document.querySelectorAll('.ticket-action-btn.danger').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const noteIds = btn.dataset.noteIds ? btn.dataset.noteIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
+            const photoIds = btn.dataset.photoIds ? btn.dataset.photoIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
+            
+            console.log('🗑️ Botón eliminar clickeado:', { noteIds, photoIds });
+            deleteActivityGroup(noteIds, photoIds);
+        });
+    });
+    
+    console.log('✅ Event listeners inicializados correctamente');
+}
+
+// === CONFIGURACIÓN DE PESTAÑAS DEL MODAL DE EDICIÓN ===
+function setupEditModalTabs(modal, initialText) {
+    const tabButtons = modal.querySelectorAll('.edit-tab-btn');
+    const editPanel = modal.querySelector('#edit-panel');
+    const previewPanel = modal.querySelector('#preview-panel');
+    const textarea = modal.querySelector('#edit-note-text');
+    const previewContent = modal.querySelector('#edit-preview-content');
+    
+    // Manejar clic en pestañas
+    tabButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+            
+            // Actualizar pestañas activas
+            tabButtons.forEach(b => {
+                b.classList.remove('active');
+                b.style.color = '#6b7280';
+                b.style.borderBottomColor = 'transparent';
+            });
+            
+            btn.classList.add('active');
+            btn.style.color = '#6366f1';
+            btn.style.borderBottomColor = '#6366f1';
+            
+            // Mostrar/ocultar paneles
+            if (tab === 'edit') {
+                editPanel.style.display = 'block';
+                previewPanel.style.display = 'none';
+            } else if (tab === 'preview') {
+                editPanel.style.display = 'none';
+                previewPanel.style.display = 'block';
+                // Actualizar vista previa
+                updatePreview();
+            }
+        });
+    });
+    
+    // Función para actualizar vista previa
+    function updatePreview() {
+        const text = textarea.value;
+        previewContent.innerHTML = renderMarkdown(text) || '<em style="color: #9ca3af;">Escribe algo para ver la vista previa...</em>';
+    }
+    
+    // Actualizar vista previa en tiempo real mientras escribes
+    textarea.addEventListener('input', () => {
+        // Solo actualizar si la pestaña de vista previa está visible
+        if (previewPanel.style.display !== 'none') {
+            updatePreview();
+        }
+    });
+    
+    // Inicializar vista previa
+    updatePreview();
+    
+    console.log('👁️ Pestañas de edición/vista previa configuradas');
+}
+
+// =============================================================================
+// DECLARACIONES GLOBALES PARA EL NAVEGADOR
+// =============================================================================
+window.toggleAttachments = toggleAttachments;
 window.removeUnifiedAttachment = removeUnifiedAttachment;
 window.initUnifiedInterface = initUnifiedInterface;
+window.editActivityGroup = editActivityGroup;
+window.updateAdvancedNote = updateAdvancedNote;
+window.deleteActivityGroup = deleteActivityGroup;
+window.deleteIndividualPhoto = deleteIndividualPhoto;
+window.initializeActionButtons = initializeActionButtons;
+
+// === SISTEMA DE CONTROL DE ESTADO DEL TICKET ===
+
+function renderStatusControls(ticket) {
+    if (!ticket) return;
+    
+    const container = document.getElementById('ticket-status-controls');
+    if (!container) return;
+    
+    const currentStatus = ticket.status;
+    const statusOptions = [
+        { value: 'En Progreso', label: 'En Progreso', icon: 'play-circle', class: 'status-en-progreso' },
+        { value: 'En Espera', label: 'En Espera', icon: 'pause-circle', class: 'status-en-espera' },
+        { value: 'Resuelto', label: 'Resuelto', icon: 'check-circle', class: 'status-resuelto' },
+        { value: 'Cerrado', label: 'Cerrar', icon: 'x-circle', class: 'status-cerrado' }
+    ];
+    
+    // Filtrar opciones según el estado actual
+    const availableOptions = statusOptions.filter(option => option.value !== currentStatus);
+    
+    if (availableOptions.length === 0) {
+        container.innerHTML = `
+            <div class="current-status-indicator status-${currentStatus.toLowerCase().replace(/ /g, '-')}">
+                <i data-lucide="info" class="w-3 h-3"></i>
+                Estado: ${currentStatus}
+            </div>
+        `;
+        return;
+    }
+    
+    const buttonsHtml = availableOptions.map(option => `
+        <button type="button" 
+                class="status-action-btn ${option.class}" 
+                onclick="changeTicketStatus('${option.value}')"
+                title="Cambiar estado a ${option.label}">
+            <i data-lucide="${option.icon}" class="w-3 h-3"></i>
+            ${option.label}
+        </button>
+    `).join('<div class="status-separator"></div>');
+    
+    container.innerHTML = `
+        <div class="current-status-indicator status-${currentStatus.toLowerCase().replace(/ /g, '-')}">
+            <i data-lucide="info" class="w-3 h-3"></i>
+            ${currentStatus}
+        </div>
+        <div class="status-separator"></div>
+        ${buttonsHtml}
+    `;
+    
+    // Recrear iconos de Lucide
+    lucide.createIcons();
+}
+
+async function changeTicketStatus(newStatus) {
+    if (!state.currentTicket) return;
+    
+    const currentStatus = state.currentTicket.status;
+    
+    // Si es un cierre, mostrar opciones rápidas
+    if (newStatus === 'Cerrado' || newStatus === 'Resuelto') {
+        showQuickCloseOptions(newStatus);
+        return;
+    }
+    
+    // Para otros cambios de estado (En Progreso, En Espera), ejecutar directamente
+    try {
+        // 1. Obtener comentario del usuario (si existe)
+        const textarea = document.getElementById('unified-comment-textarea');
+        const userComment = textarea ? textarea.innerHTML.trim() : '';
+        
+        // 2. Ejecutar cambio de estado
+        await executeDirectStatusChange(newStatus, userComment);
+        
+        // 3. Limpiar el área de comentarios después del envío
+        if (textarea && userComment) {
+            textarea.innerHTML = '';
+            textarea.dispatchEvent(new Event('input')); // Trigger para actualizar contador
+        }
+        
+        console.log(`✅ Estado cambiado directamente: ${currentStatus} → ${newStatus}`);
+        
+    } catch (error) {
+        console.error('❌ Error al cambiar estado:', error);
+        alert('Error al cambiar el estado del ticket');
+    }
+}
+
+// FUNCIÓN DEPRECADA - Ya no se usa el sistema de estado pendiente
+// function prepareStatusChangeComment(newStatus) {
+//     const currentStatus = state.currentTicket.status;
+//     const textarea = document.getElementById('unified-comment-textarea');
+//     
+//     if (!textarea) return;
+//     
+//     // Preparar el comentario con el cambio de estado
+//     const statusChangeMessage = `Cambiando estado del ticket de "${currentStatus}" a "${newStatus}"`;
+//     
+//     // Si ya hay contenido, agregar el mensaje al final
+//     const currentContent = textarea.innerHTML.trim();
+//     if (currentContent && currentContent !== '') {
+//         textarea.innerHTML = currentContent + '<br><br>' + statusChangeMessage;
+//     } else {
+//         textarea.innerHTML = statusChangeMessage;
+//     }
+//     
+//     // Almacenar el cambio de estado pendiente
+//     state.pendingStatusChange = {
+//         from: currentStatus,
+//         to: newStatus
+//     };
+//     
+//     // Actualizar el botón de enviar para indicar que hay un cambio pendiente
+//     updateSendButtonForStatusChange(newStatus);
+//     
+//     // Enfocar el textarea
+//     textarea.focus();
+//     
+//     // Mover cursor al final
+//     const range = document.createRange();
+//     const selection = window.getSelection();
+//     range.selectNodeContents(textarea);
+//     range.collapse(false);
+//     selection.removeAllRanges();
+//     selection.addRange(range);
+//     
+//     console.log(`📝 Preparando cambio de estado: ${currentStatus} → ${newStatus}`);
+// }
+
+async function executeDirectStatusChange(newStatus, userComment) {
+    if (!state.currentTicket) return;
+    
+    const currentStatus = state.currentTicket.status;
+    
+    try {
+        // 1. Actualizar estado del ticket en el servidor
+        await updateTicketStatus(state.currentTicket.id, newStatus);
+        
+        // 2. Actualizar estado local
+        state.currentTicket.status = newStatus;
+        
+        // 3. Si el usuario escribió un comentario, agregarlo primero
+        if (userComment && userComment !== '') {
+            const markdownComment = convertHtmlToMarkdown(userComment);
+            
+            const noteData = {
+                note: markdownComment,
+                note_type: 'Seguimiento',
+                author: 'Felipe Maturana'
+            };
+            
+            const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(noteData)
+            });
+            
+            if (noteResponse.ok) {
+                const noteResult = await noteResponse.json();
+                const userNote = {
+                    id: noteResult.data.id,
+                    note: markdownComment,
+                    note_type: noteData.note_type,
+                    author: noteData.author,
+                    is_internal: false,
+                    created_at: new Date().toISOString()
+                };
+                
+                state.notes.unshift(userNote);
+            }
+        }
+        
+        // 4. Agregar nota automática del sistema para el cambio de estado
+        await addStatusChangeNote(currentStatus, newStatus);
+        
+        // 5. Re-renderizar interfaz
+        renderStatusControls(state.currentTicket);
+        renderStatusActions(state.currentTicket);
+        renderTicketHeader(state.currentTicket);
+        renderTicketStats();
+        renderNotes();
+        
+        console.log(`✅ Cambio directo completado: "${currentStatus}" → "${newStatus}"`);
+        
+    } catch (error) {
+        console.error('❌ Error en cambio directo de estado:', error);
+        throw error;
+    }
+}
+
+// FUNCIÓN DEPRECADA - Ya no se usa el sistema de estado pendiente
+// function updateSendButtonForStatusChange(newStatus) {
+//     const sendBtn = document.getElementById('send-comment-btn');
+//     if (!sendBtn) return;
+//     
+//     // Habilitar el botón
+//     sendBtn.disabled = false;
+//     
+//     // Cambiar el texto y estilo para indicar el cambio pendiente
+//     const sendText = sendBtn.querySelector('.send-text');
+//     if (sendText) {
+//         sendText.textContent = `Cambiar a ${newStatus}`;
+//     }
+//     
+//     // Agregar clase visual para indicar cambio pendiente
+//     sendBtn.classList.add('status-change-pending');
+//     
+//     // Cambiar el color del botón según el estado
+//     sendBtn.classList.remove('status-en-progreso', 'status-en-espera', 'status-resuelto', 'status-cerrado');
+//     sendBtn.classList.add(`status-${newStatus.toLowerCase().replace(/ /g, '-')}`);
+// }
+
+function showQuickCloseOptions(statusType) {
+    const container = document.getElementById('ticket-status-controls');
+    if (!container) return;
+    
+    const existingOptions = container.querySelector('.quick-close-options');
+    if (existingOptions) {
+        existingOptions.remove();
+    }
+    
+    const templates = statusType === 'Cerrado' ? [
+        'Ticket cerrado - Problema resuelto completamente',
+        'Ticket cerrado - Cliente satisfecho con la solución',
+        'Ticket cerrado - Mantenimiento preventivo completado',
+        'Ticket cerrado - Equipo reparado y funcionando correctamente',
+        'Ticket cerrado - Sin respuesta del cliente por 48 horas'
+    ] : [
+        'Problema resuelto - Equipo funcionando correctamente',
+        'Mantenimiento completado - Revisión realizada exitosamente',
+        'Reparación finalizada - Componente reemplazado',
+        'Diagnóstico completado - Solución implementada',
+        'Servicio técnico finalizado - Cliente notificado'
+    ];
+    
+    const optionsHtml = `
+        <div class="quick-close-options show">
+            <div class="quick-close-header">
+                <i data-lucide="${statusType === 'Cerrado' ? 'x-circle' : 'check-circle'}" class="w-3 h-3"></i>
+                ${statusType === 'Cerrado' ? 'Cerrar Ticket' : 'Marcar como Resuelto'}
+                <span class="status-change-indicator">
+                    <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                    ${statusType}
+                </span>
+            </div>
+            <div class="quick-close-templates">
+                ${templates.map(template => `
+                    <button type="button" 
+                            class="quick-template-btn" 
+                            onclick="applyQuickClose('${statusType}', '${template.replace(/'/g, "\\'")}')">
+                        ${template}
+                    </button>
+                `).join('')}
+                <button type="button" 
+                        class="quick-template-btn cancel-btn" 
+                        onclick="hideQuickCloseOptions()">
+                    <i data-lucide="x" class="w-3 h-3" style="display: inline-block; margin-right: 0.25rem;"></i>
+                    Cancelar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', optionsHtml);
+    lucide.createIcons();
+}
+
+function hideQuickCloseOptions() {
+    const options = document.querySelector('.quick-close-options');
+    if (options) {
+        options.remove();
+    }
+}
+
+async function applyQuickClose(statusType, template) {
+    if (!state.currentTicket) return;
+    
+    try {
+        // 1. Actualizar estado del ticket
+        await updateTicketStatus(state.currentTicket.id, statusType);
+        
+        // 2. Agregar nota con el template
+        const noteData = {
+            note: template,
+            note_type: statusType === 'Cerrado' ? 'Solución' : 'Diagnóstico',
+            author: 'Felipe Maturana'
+        };
+        
+        const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(noteData)
+        });
+        
+        if (!noteResponse.ok) {
+            throw new Error(`Error al agregar nota: ${noteResponse.status}`);
+        }
+        
+        // 3. Actualizar estado local
+        const currentStatus = state.currentTicket.status;
+        state.currentTicket.status = statusType;
+        
+        // 4. Agregar la nueva nota al estado local
+        const noteResult = await noteResponse.json();
+        const newNote = {
+            id: noteResult.data.id,
+            note: template,
+            note_type: noteData.note_type,
+            author: noteData.author,
+            is_internal: false,
+            created_at: new Date().toISOString()
+        };
+        
+        state.notes.unshift(newNote);
+        
+        // 5. Re-renderizar interfaz
+        hideQuickCloseOptions();
+        renderStatusControls(state.currentTicket);
+        renderStatusActions(state.currentTicket);  // ✅ Actualizar sidebar de estado
+        renderTicketHeader(state.currentTicket);
+        renderTicketStats();  // ✅ Actualizar estadísticas
+        renderNotes();
+        
+        console.log(`✅ Ticket ${statusType.toLowerCase()} exitosamente con nota: "${template}"`);
+        
+    } catch (error) {
+        console.error('❌ Error al aplicar cierre rápido:', error);
+        alert('Error al procesar el cambio de estado');
+    }
+}
+
+async function updateTicketStatus(ticketId, newStatus) {
+    const response = await fetch(`${API_URL}/tickets/${ticketId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            ...state.currentTicket,
+            status: newStatus
+        })
+    });
+    
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+}
+
+// FUNCIÓN DEPRECADA - Reemplazada por executeDirectStatusChange
+// async function executeStatusChange(newStatus, comment) {
+//     if (!state.currentTicket) return;
+//     
+//     const currentStatus = state.currentTicket.status;
+//     
+//     try {
+//         // 1. Actualizar estado del ticket en el servidor
+//         await updateTicketStatus(state.currentTicket.id, newStatus);
+//         
+//         // 2. Actualizar estado local
+//         state.currentTicket.status = newStatus;
+//         
+//         // 3. Agregar comentario con el cambio de estado
+//         const markdownComment = convertHtmlToMarkdown(comment);
+//         
+//         const noteData = {
+//             note: markdownComment,
+//             note_type: 'Seguimiento',
+//             author: 'Felipe Maturana'
+//         };
+//         
+//         const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify(noteData)
+//         });
+//         
+//         if (!noteResponse.ok) {
+//             throw new Error(`Error al agregar nota: ${noteResponse.status}`);
+//         }
+//         
+//         // 4. Agregar la nueva nota al estado local
+//         const noteResult = await noteResponse.json();
+//         const newNote = {
+//             id: noteResult.data.id,
+//             note: markdownComment,
+//             note_type: noteData.note_type,
+//             author: noteData.author,
+//             is_internal: false,
+//             created_at: new Date().toISOString()
+//         };
+//         
+//         state.notes.unshift(newNote);
+//         
+//         // 5. Agregar nota automática del sistema
+//         await addStatusChangeNote(currentStatus, newStatus);
+//         
+//         // 6. Re-renderizar interfaz
+//         renderStatusControls(state.currentTicket);
+//         renderStatusActions(state.currentTicket);  // ✅ Actualizar sidebar de estado
+//         renderTicketHeader(state.currentTicket);
+//         renderTicketStats();  // ✅ Actualizar estadísticas
+//         renderNotes();
+//         
+//         console.log(`✅ Estado cambiado de "${currentStatus}" a "${newStatus}" con comentario`);
+//         
+//     } catch (error) {
+//         console.error('❌ Error al ejecutar cambio de estado:', error);
+//         throw error;
+//     }
+// }
+
+// FUNCIÓN DEPRECADA - Ya no se usa el sistema de estado pendiente
+// function clearPendingStatusChange() {
+//     // Limpiar estado pendiente
+//     state.pendingStatusChange = null;
+//     
+//     // Restaurar botón de enviar
+//     const sendBtn = document.getElementById('send-comment-btn');
+//     if (sendBtn) {
+//         sendBtn.classList.remove('status-change-pending');
+//         sendBtn.classList.remove('status-en-progreso', 'status-en-espera', 'status-resuelto', 'status-cerrado');
+//         
+//         const sendText = sendBtn.querySelector('.send-text');
+//         if (sendText) {
+//             sendText.textContent = 'Enviar';
+//         }
+//     }
+//     
+//     console.log('🧹 Estado pendiente limpiado');
+// }
+
+async function addStatusChangeNote(oldStatus, newStatus) {
+    const noteText = `Estado del ticket cambiado de "${oldStatus}" a "${newStatus}"`;
+    
+    try {
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                note: noteText,
+                note_type: 'Seguimiento',
+                author: 'Sistema',
+                is_internal: true
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            const newNote = {
+                id: result.data.id,
+                note: noteText,
+                note_type: 'Seguimiento',
+                author: 'Sistema',
+                is_internal: true,
+                created_at: new Date().toISOString()
+            };
+            
+            state.notes.unshift(newNote);
+            renderNotes();
+        }
+    } catch (error) {
+        console.error('❌ Error al agregar nota de cambio de estado:', error);
+    }
+}
+
+// Exponer funciones al scope global
+window.changeTicketStatus = changeTicketStatus;
+window.showQuickCloseOptions = showQuickCloseOptions;
+window.hideQuickCloseOptions = hideQuickCloseOptions;
+window.applyQuickClose = applyQuickClose;
+
+// Debug: Verificar que las funciones están disponibles
+console.log('🔧 Funciones cargadas:', {
+    editActivityGroup: typeof window.editActivityGroup,
+    deleteActivityGroup: typeof window.deleteActivityGroup,
+    toggleAttachments: typeof window.toggleAttachments,
+    changeTicketStatus: typeof window.changeTicketStatus
+});
+
+// =============================================================================
+// GESTIÓN DE REPUESTOS MEJORADA
+// =============================================================================
+
+// Mostrar modal para agregar repuesto
+async function showAddSparePartModal() {
+    console.log('🔧 Abriendo modal de repuestos...');
+    
+    try {
+        // Cargar repuestos disponibles
+        const response = await fetch(`${API_URL}/inventory/spare-parts`);
+        if (!response.ok) {
+            throw new Error('Error al cargar repuestos');
+        }
+        
+        const result = await response.json();
+        const spareParts = result.data || [];
+        
+        // Crear y mostrar modal usando la función existente
+        const modal = createSparePartModal(spareParts);
+        document.body.appendChild(modal);
+        
+        // Mostrar modal
+        setTimeout(() => {
+            modal.style.display = 'flex';
+            modal.classList.add('is-open');
+        }, 10);
+        
+    } catch (error) {
+        console.error('❌ Error al abrir modal de repuestos:', error);
+        showNotification('Error al cargar la lista de repuestos', 'error');
+    }
+}
+
+// Mostrar modal para solicitar repuesto
+async function showRequestSparePartModal() {
+    console.log('🛒 Abriendo modal de solicitud de repuestos...');
+    
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">Solicitar Repuesto</h3>
+                <button type="button" class="base-modal-close" onclick="closeModal(this)">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <div class="mb-4">
+                    <p class="text-gray-600">Solicita repuestos que no están disponibles en el inventario actual.</p>
+                </div>
+                <form id="request-spare-part-form" class="space-y-4">
+                    <div class="base-form-group">
+                        <label class="base-form-label">Nombre del Repuesto <span class="required">*</span></label>
+                        <input type="text" name="spare_part_name" class="base-form-input" required 
+                               placeholder="Ej: Correa de transmisión para trotadora">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Cantidad Necesaria <span class="required">*</span></label>
+                            <input type="number" name="quantity_needed" class="base-form-input" min="1" required>
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Prioridad <span class="required">*</span></label>
+                            <select name="priority" class="base-form-input" required>
+                                <option value="baja">Baja</option>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Descripción/Especificaciones</label>
+                        <textarea name="description" rows="3" class="base-form-input" 
+                                  placeholder="Describe las especificaciones técnicas, modelo, marca, etc."></textarea>
+                    </div>
+                    
+                    <div class="base-form-group">
+                        <label class="base-form-label">Justificación</label>
+                        <textarea name="justification" rows="2" class="base-form-input" 
+                                  placeholder="¿Por qué es necesario este repuesto para resolver el ticket?"></textarea>
+                    </div>
+                    
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div class="flex items-start gap-2">
+                            <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5"></i>
+                            <div class="text-sm text-blue-800">
+                                <p class="font-medium">¿Qué pasa después?</p>
+                                <p>Tu solicitud se enviará al departamento de inventario para su evaluación y compra si es necesario.</p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal(this)">Cancelar</button>
+                <button type="submit" form="request-spare-part-form" class="base-btn-primary">
+                    <i data-lucide="send" class="w-4 h-4 mr-2"></i>
+                    Enviar Solicitud
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Configurar evento de envío
+    const form = modal.querySelector('#request-spare-part-form');
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        await submitSparePartRequest(form, modal);
+    });
+    
+    document.body.appendChild(modal);
+    
+    // Mostrar modal
+    setTimeout(() => {
+        modal.style.display = 'flex';
+        modal.classList.add('is-open');
+        lucide.createIcons();
+    }, 10);
+}
+
+// Enviar solicitud de repuesto
+async function submitSparePartRequest(form, modal) {
+    const formData = new FormData(form);
+    const requestData = {
+        ticket_id: state.currentTicket.id,
+        spare_part_name: formData.get('spare_part_name'),
+        quantity_needed: parseInt(formData.get('quantity_needed')),
+        priority: formData.get('priority'),
+        description: formData.get('description'),
+        justification: formData.get('justification'),
+        requested_by: 'Usuario Actual', // Se puede obtener del contexto de usuario
+        status: 'pendiente'
+    };
+    
+    try {
+        const response = await fetch(`${API_URL}/inventory/spare-part-requests`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestData)
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al enviar solicitud');
+        }
+        
+        const result = await response.json();
+        
+        // Cerrar modal
+        closeModal(modal);
+        
+        // Mostrar confirmación
+        showNotification('Solicitud de repuesto enviada exitosamente', 'success');
+        
+        // Agregar nota al ticket sobre la solicitud
+        await addSparePartRequestNote(requestData);
+        
+    } catch (error) {
+        console.error('❌ Error al enviar solicitud:', error);
+        showNotification('Error al enviar la solicitud de repuesto', 'error');
+    }
+}
+
+// Agregar nota sobre solicitud de repuesto al ticket
+async function addSparePartRequestNote(requestData) {
+    const noteText = `📦 **Solicitud de Repuesto**\n\n` +
+                    `**Repuesto:** ${requestData.spare_part_name}\n` +
+                    `**Cantidad:** ${requestData.quantity_needed} unidades\n` +
+                    `**Prioridad:** ${requestData.priority}\n` +
+                    `**Estado:** Pendiente de aprobación\n\n` +
+                    `${requestData.justification ? `**Justificación:** ${requestData.justification}` : ''}`;
+    
+    try {
+        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                note: noteText,
+                note_type: 'Sistema',
+                author: 'Sistema de Inventario'
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            // Agregar nota al estado local
+            state.notes.unshift({
+                id: result.data.id,
+                note: noteText,
+                note_type: 'Sistema',
+                author: 'Sistema de Inventario',
+                created_at: new Date().toISOString()
+            });
+            
+            // Re-renderizar notas
+            renderNotes();
+            updateTabCounters();
+        }
+    } catch (error) {
+        console.error('❌ Error al agregar nota de solicitud:', error);
+    }
+}
+
+// Solicitar orden de compra para repuesto específico
+async function requestSparePartOrder(sparePartId) {
+    try {
+        const response = await fetch(`${API_URL}/inventory/spare-parts/${sparePartId}/request-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                ticket_id: state.currentTicket.id,
+                requested_by: 'Usuario Actual'
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al solicitar orden');
+        }
+        
+        showNotification('Solicitud de orden de compra enviada', 'success');
+        
+        // Actualizar alertas
+        renderStockAlerts();
+        
+    } catch (error) {
+        console.error('❌ Error al solicitar orden:', error);
+        showNotification('Error al solicitar orden de compra', 'error');
+    }
+}
+
+// Editar uso de repuesto
+async function editSparePartUsage(usageId) {
+    console.log('✏️ Editando uso de repuesto:', usageId);
+    // Por implementar: modal de edición
+    showNotification('Función de edición en desarrollo', 'info');
+}
+
+// Cerrar modal genérico
+function closeModal(button) {
+    const modal = button.closest('.base-modal');
+    if (modal) {
+        modal.classList.remove('is-open');
+        setTimeout(() => {
+            modal.remove();
+        }, 300);
+    }
+}
+
+// Función de notificación
+function showNotification(message, type = 'info') {
+    console.log(`📢 ${type.toUpperCase()}: ${message}`);
+    
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `notification notification-${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i data-lucide="${type === 'success' ? 'check-circle' : type === 'error' ? 'x-circle' : 'info'}" class="w-5 h-5"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Estilos básicos para la notificación
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+        color: white;
+        padding: 12px 16px;
+        border-radius: 8px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 400px;
+        animation: slideInRight 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Crear íconos
+    setTimeout(() => lucide.createIcons(), 10);
+    
+    // Remover después de 4 segundos
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+// Exponer funciones al scope global
+window.showAddSparePartModal = showAddSparePartModal;
+window.showRequestSparePartModal = showRequestSparePartModal;
+window.requestSparePartOrder = requestSparePartOrder;
+window.editSparePartUsage = editSparePartUsage;
+window.closeModal = closeModal;

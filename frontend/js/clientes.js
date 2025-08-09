@@ -375,20 +375,41 @@ document.addEventListener('DOMContentLoaded', () => {
                 const id = data.get('id');
                 const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
                 const method = id ? 'PUT' : 'POST';
+                const requestBody = Object.fromEntries(data);
+                
+                console.log(`📡 ${method} ${url}`);
+                console.log('📤 Request body:', requestBody);
+                
                 const response = await fetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(Object.fromEntries(data)),
+                    body: JSON.stringify(requestBody),
                 });
                 
                 if (!response.ok) {
-                    throw new Error(`Error al guardar ${resource}: ${response.status} ${response.statusText}`);
+                    // Intentar obtener el mensaje de error del backend
+                    let errorMessage = `Error al guardar ${resource}: ${response.status} ${response.statusText}`;
+                    try {
+                        const errorData = await response.json();
+                        if (errorData.error) {
+                            errorMessage = errorData.error;
+                            if (errorData.details) {
+                                errorMessage += `\n\nDetalles: ${errorData.details}`;
+                            }
+                        }
+                    } catch (jsonError) {
+                        // Si no se puede parsear JSON, usar mensaje genérico
+                    }
+                    throw new Error(errorMessage);
                 }
                 
                 // Intentar parsear JSON, pero no fallar si no hay contenido
                 try {
-                    return await response.json();
+                    const result = await response.json();
+                    console.log('📥 Response:', result);
+                    return result;
                 } catch (jsonError) {
+                    console.log('⚠️ No JSON response, returning empty object');
                     return {};
                 }
             } catch (error) {
@@ -501,8 +522,12 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('📝 HTML generado para clientes:', clientsHtml.substring(0, 200) + '...');
             console.log('📍 Contenedor de lista:', dom.clientListContainer);
             
-            // Actualizar contador de clientes
-            updateSearchStats('');
+            // Actualizar contador de clientes de forma segura
+            try {
+                updateSearchStats('');
+            } catch (statsError) {
+                console.error('❌ Error al actualizar estadísticas:', statsError);
+            }
             
             // Ocultar estado vacío del panel de detalles si existe
             const emptyDetailElement = document.getElementById('empty-detail');
@@ -532,6 +557,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="flex items-center gap-2">
                              <button class="edit-client-btn p-2 rounded-md hover:bg-gray-200" data-client-id="${client.id}" title="Editar Cliente">
                                 <i data-lucide="pencil" class="h-5 w-5"></i>
+                            </button>
+                             <button class="delete-client-btn p-2 rounded-md hover:bg-red-100 text-red-600 hover:text-red-700" data-client-id="${client.id}" title="Eliminar Cliente">
+                                <i data-lucide="trash-2" class="h-5 w-5"></i>
                             </button>
                              <button class="close-detail-btn p-2 rounded-md hover:bg-gray-200" title="Volver a la lista">
                                 <i data-lucide="x" class="h-5 w-5"></i>
@@ -732,28 +760,43 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Mapear campos especiales para equipos
-            if (modalElem.id === 'equipment-modal' && data.id) {
-                // Es edición de equipo - mapear campos correctamente
-                const fieldMapping = {
-                    'id': 'id',
-                    'location_id': 'location_id', 
-                    'type': 'type',
-                    'name': 'name',
-                    'brand': 'brand',
-                    'model': 'model',
-                    'serial_number': 'serial_number',
-                    'acquisition_date': 'acquisition_date',
-                    'notes': 'notes'
-                };
-                
-                for (const [formField, dataField] of Object.entries(fieldMapping)) {
-                    const input = form.querySelector(`[name="${formField}"]`);
-                    if (input && data[dataField] !== undefined) {
-                        if (formField === 'acquisition_date' && data[dataField]) {
-                            // Formatear fecha para input type="date"
-                            input.value = data[dataField].split('T')[0];
-                        } else {
-                            input.value = data[dataField] || '';
+            if (modalElem.id === 'equipment-modal') {
+                console.log('📋 Configurando modal de equipo con datos:', data);
+                if (data.id) {
+                    console.log('✏️ Modo edición de equipo');
+                    // Es edición de equipo - mapear campos correctamente
+                    const fieldMapping = {
+                        'id': 'id',
+                        'location_id': 'location_id', 
+                        'type': 'type',
+                        'name': 'name',
+                        'brand': 'brand',
+                        'model': 'model',
+                        'serial_number': 'serial_number',
+                        'acquisition_date': 'acquisition_date',
+                        'notes': 'notes'
+                    };
+                    
+                    for (const [formField, dataField] of Object.entries(fieldMapping)) {
+                        const input = form.querySelector(`[name="${formField}"]`);
+                        if (input && data[dataField] !== undefined) {
+                            if (formField === 'acquisition_date' && data[dataField]) {
+                                // Formatear fecha para input type="date"
+                                input.value = data[dataField].split('T')[0];
+                            } else {
+                                input.value = data[dataField] || '';
+                            }
+                            console.log(`📝 ${formField} = ${input.value}`);
+                        }
+                    }
+                } else {
+                    console.log('🆕 Modo creación de equipo');
+                    // Es creación - población normal
+                    for (const [key, value] of Object.entries(data)) {
+                        const input = form.querySelector(`[name="${key}"]`);
+                        if (input) {
+                            input.value = value || '';
+                            console.log(`📝 ${key} = ${input.value}`);
                         }
                     }
                 }
@@ -856,12 +899,34 @@ document.addEventListener('DOMContentLoaded', () => {
             form.addEventListener('submit', async e => {
                 e.preventDefault();
                 const formData = new FormData(form);
+                console.log('🔔 Modal submit iniciado para:', resource);
+                console.log('📝 Form data:', Object.fromEntries(formData));
+                
                 try {
-                    await api.save(resource, formData);
+                    const savedData = await api.save(resource, formData);
+                    console.log('✅ Datos guardados exitosamente:', savedData);
                     modals.close(modalElem);
-                    if(onSuccess) await onSuccess();
+                    if(onSuccess) {
+                        console.log('🚀 Ejecutando callback onSuccess...');
+                        await onSuccess(formData, savedData);
+                    }
                 } catch (error) {
-                    alert(error.message);
+                    console.error('❌ Error al guardar:', error);
+                    
+                    // Mostrar mensajes de error más específicos
+                    let errorMessage = error.message;
+                    
+                    if (error.message.includes('Duplicate entry') && error.message.includes('serial_number')) {
+                        errorMessage = 'El número de serie ya existe en el sistema. Por favor, ingrese un número de serie único.';
+                    } else if (error.message.includes('Duplicate entry') && error.message.includes('rut')) {
+                        errorMessage = 'El RUT ya está registrado en el sistema.';
+                    } else if (error.message.includes('400 Bad Request')) {
+                        errorMessage = 'Los datos ingresados no son válidos. Verifique los campos obligatorios.';
+                    } else if (error.message.includes('500')) {
+                        errorMessage = 'Error interno del servidor. Intente nuevamente o contacte al administrador.';
+                    }
+                    
+                    alert(errorMessage);
                 }
             });
         }
@@ -988,6 +1053,24 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log('Current client:', state.currentClient);
                         modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
                     }
+                    if (targetButton.matches('.delete-client-btn')) {
+                        const clientId = targetButton.dataset.clientId;
+                        const clientName = state.currentClient.name;
+                        
+                        // Confirmar eliminación con múltiples alertas para seguridad
+                        const confirmMessage = `¿Estás seguro de que quieres ELIMINAR COMPLETAMENTE al cliente "${clientName}"?\n\n⚠️ ESTA ACCIÓN NO SE PUEDE DESHACER ⚠️\n\nSe eliminará:\n- El cliente y toda su información\n- Todas sus sedes\n- Todos los equipos de todas las sedes\n- Todas las fotos de equipos\n- Todos los tickets relacionados\n- Todas las notas y datos asociados`;
+                        
+                        if (confirm(confirmMessage)) {
+                            const secondConfirm = `¿REALMENTE quieres eliminar "${clientName}" y TODOS sus datos?\n\nEscribe "ELIMINAR" en el siguiente cuadro para confirmar.`;
+                            const userInput = prompt(secondConfirm);
+                            
+                            if (userInput === "ELIMINAR") {
+                                await handleDeleteClient(clientId, clientName);
+                            } else if (userInput !== null) {
+                                alert('Eliminación cancelada. Debes escribir exactamente "ELIMINAR" para confirmar.');
+                            }
+                        }
+                    }
                     if (targetButton.matches('.close-detail-btn')) {
                         actions.init(); // Vuelve al estado inicial (lista de clientes)
                     }
@@ -1005,6 +1088,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (targetButton.matches('.add-equipment-btn')) {
                         const locationId = targetButton.dataset.locationId;
+                        console.log('🔧 Abriendo modal de nuevo equipo para location_id:', locationId);
                         modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: locationId });
                     }
                     if (targetButton.matches('.edit-equipment-btn')) {
@@ -1046,14 +1130,48 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Configuración de modales
-            modals.setup(dom.modals.client, 'clients', async () => {
+            modals.setup(dom.modals.client, 'clients', async (formData, savedClient) => {
+                console.log('🔄 Callback de cliente ejecutado');
+                console.log('📋 FormData:', Object.fromEntries(formData));
+                console.log('💾 SavedClient:', savedClient);
+                
                 await actions.init(); // Recarga todo
-                if (state.currentClient) {
-                   await render.clientDetail(state.currentClient.id);
+                
+                // Si se creó un cliente nuevo, seleccionarlo automáticamente
+                if (savedClient && savedClient.id) {
+                    console.log('🎯 Cliente creado exitosamente, seleccionando automáticamente:', savedClient.id);
+                    
+                    // Actualizar el estado con el nuevo cliente
+                    state.currentClient = savedClient;
+                    
+                    // Marcar el cliente como activo en la lista
+                    setTimeout(() => {
+                        const clientCard = document.querySelector(`[data-client-id="${savedClient.id}"]`);
+                        if (clientCard) {
+                            console.log('✅ Cliente encontrado en lista, marcando como activo');
+                            // Remover selección anterior
+                            document.querySelectorAll('.client-card').forEach(card => {
+                                card.classList.remove('active');
+                            });
+                            // Seleccionar el nuevo cliente
+                            clientCard.classList.add('active');
+                        } else {
+                            console.log('❌ Cliente no encontrado en lista DOM');
+                        }
+                    }, 200);
+                    
+                    // Mostrar los detalles del cliente recién creado
+                    await render.clientDetail(savedClient.id);
+                } else if (state.currentClient) {
+                    console.log('📝 Editando cliente existente:', state.currentClient.id);
+                    // Si es una edición, mantener el cliente actual seleccionado
+                    await render.clientDetail(state.currentClient.id);
+                } else {
+                    console.log('⚠️ No hay savedClient ni currentClient');
                 }
             });
-            modals.setup(dom.modals.location, 'locations', () => render.clientDetail(state.currentClient.id));
-            modals.setup(dom.modals.equipment, 'equipment', async (formData) => {
+            modals.setup(dom.modals.location, 'locations', (formData, savedLocation) => render.clientDetail(state.currentClient.id));
+            modals.setup(dom.modals.equipment, 'equipment', async (formData, savedEquipment) => {
                 // Busca el contenedor de equipos relevante y lo recarga
                 const locationId = formData.get('location_id');
                 const detailsElement = document.querySelector(`details[data-location-id="${locationId}"]`);
@@ -1157,6 +1275,105 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     };
+
+    // --- Función para eliminar cliente ---
+    async function handleDeleteClient(clientId, clientName) {
+        // Guardar referencia al botón antes de hacer cambios
+        const deleteButton = document.querySelector('.delete-client-btn');
+        const originalText = deleteButton ? deleteButton.innerHTML : '<i data-lucide="trash-2" class="w-4 h-4"></i>';
+        
+        try {
+            console.log(`🗑️ Iniciando eliminación del cliente ID: ${clientId}, Nombre: ${clientName}`);
+            
+            // Mostrar indicador de carga
+            if (deleteButton) {
+                deleteButton.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Eliminando...';
+                deleteButton.disabled = true;
+            }
+            
+            // Llamar al API para eliminar el cliente (API_URL ya incluye /api)
+            const response = await fetch(`${API_URL}/clients/${clientId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                // Intentar parsear como JSON solo si es posible
+                let errorData;
+                try {
+                    errorData = await response.json();
+                } catch (parseError) {
+                    // Si no es JSON, usar el status como error
+                    errorData = { error: `HTTP ${response.status} - ${response.statusText}` };
+                }
+                throw new Error(errorData.error || `HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            console.log('✅ Cliente eliminado exitosamente:', result);
+            
+            // Actualizar el estado eliminando el cliente del array
+            state.clients = state.clients.filter(client => client.id !== parseInt(clientId));
+            console.log('🔄 Estado actualizado, clientes restantes:', state.clients.length);
+            
+            // Mostrar mensaje de éxito
+            alert(`✅ Cliente "${clientName}" y todos sus datos han sido eliminados exitosamente.`);
+            
+            // Recargar la lista de clientes con el estado actualizado
+            render.clientList();
+            
+            // Limpiar el detalle del cliente (verificar que el elemento exista)
+            if (dom.detailContainer) {
+                dom.detailContainer.innerHTML = `
+                    <div class="clients-empty-state">
+                        <div class="clients-empty-icon">
+                            <i data-lucide="users" class="w-12 h-12"></i>
+                        </div>
+                        <h3 class="clients-empty-title">Cliente eliminado</h3>
+                        <p class="clients-empty-text">El cliente ha sido eliminado exitosamente. Selecciona otro cliente de la lista.</p>
+                        <button id="add-client-btn-empty" class="clients-action-btn primary">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            Crear Nuevo Cliente
+                        </button>
+                    </div>
+                `;
+                
+                // Reinicializar iconos
+                lucide.createIcons();
+            } else {
+                console.warn('⚠️ Contenedor de detalles de cliente no encontrado');
+            }
+            
+            // Limpiar estado
+            state.currentClient = null;
+            
+        } catch (error) {
+            console.error('❌ Error al eliminar cliente:', error);
+            console.error('❌ Error stack:', error.stack);
+            console.error('❌ Error tipo:', typeof error);
+            console.error('❌ Error mensaje:', error.message);
+            
+            // Restaurar botón si existe
+            if (deleteButton) {
+                deleteButton.innerHTML = originalText;
+                deleteButton.disabled = false;
+            }
+            
+            // Mostrar error específico
+            let errorMessage = error.message || 'Error desconocido';
+            if (error.message && error.message.includes('Failed to fetch')) {
+                errorMessage = 'No se puede conectar con el servidor. Verifique la conexión.';
+            } else if (error.message && error.message.includes('500')) {
+                errorMessage = 'Error interno del servidor. Es posible que el cliente tenga datos relacionados que impiden la eliminación.';
+            } else if (error.message && error.message.includes('404')) {
+                errorMessage = 'Cliente no encontrado en el sistema.';
+            }
+            
+            alert(`❌ Error al eliminar cliente: ${errorMessage}`);
+        }
+    }
     
     actions.init();
     events.setup();

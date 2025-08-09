@@ -258,43 +258,105 @@ function createAdvancedNoteModal() {
     const modal = document.createElement('div');
     modal.className = 'base-modal';
     modal.innerHTML = `
-        <div class="base-modal-content">
+        <div class="base-modal-content modal-medium">
             <div class="base-modal-header">
-                <h3 class="base-modal-title">Agregar Nota al Ticket</h3>
+                <h3 class="base-modal-title">
+                    <i data-lucide="message-circle-plus" class="w-5 h-5 text-blue-600 mr-2"></i>
+                    Agregar Nota al Ticket
+                </h3>
                 <button class="base-modal-close" onclick="this.closest('.base-modal').remove()">
                     <i data-lucide="x" class="w-5 h-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
                 <form id="note-form">
+                    <!-- Tipo de Nota -->
                     <div class="form-group">
-                        <label class="form-label">Tipo de Nota</label>
-                        <select name="note_type" class="form-input" required>
+                        <label class="form-label">
+                            <i data-lucide="tag" class="w-4 h-4 text-indigo-500"></i>
+                            Tipo de Nota
+                        </label>
+                        <select name="note_type" class="form-input form-input-modern" required>
                             <option value="">Seleccionar tipo</option>
-                            <option value="Comentario">Comentario</option>
-                            <option value="Diagnóstico">Diagnóstico</option>
-                            <option value="Solución">Solución</option>
-                            <option value="Seguimiento">Seguimiento</option>
+                            <option value="Comentario">💬 Comentario General</option>
+                            <option value="Diagnóstico">🔍 Diagnóstico</option>
+                            <option value="Solución">✅ Solución Aplicada</option>
+                            <option value="Seguimiento">📋 Seguimiento</option>
+                            <option value="Problema">⚠️ Problema Encontrado</option>
                         </select>
                     </div>
+
+                    <!-- Texto de la Nota -->
                     <div class="form-group">
-                        <label class="form-label">Nota</label>
-                        <textarea name="note" class="form-textarea" rows="5" required placeholder="Escribir nota..."></textarea>
+                        <label class="form-label">
+                            <i data-lucide="message-square" class="w-4 h-4 text-green-500"></i>
+                            Descripción
+                        </label>
+                        <textarea name="note" 
+                                  class="form-textarea form-textarea-modern" 
+                                  rows="5" 
+                                  required 
+                                  placeholder="Describe la situación, problema encontrado, solución aplicada, etc..."
+                                  maxlength="1000"></textarea>
+                        <div class="form-help-text">
+                            <span id="note-char-count">0</span>/1000 caracteres
+                        </div>
                     </div>
+
+                    <!-- Adjuntar Fotos -->
                     <div class="form-group">
-                        <label class="flex items-center gap-2">
+                        <label class="form-label">
+                            <i data-lucide="camera" class="w-4 h-4 text-purple-500"></i>
+                            Adjuntar Fotos
+                            <span class="text-sm text-gray-500 font-normal ml-1">(opcional)</span>
+                        </label>
+                        <div class="photo-upload-area">
+                            <input type="file" 
+                                   id="note-photos" 
+                                   name="photos" 
+                                   accept="image/*" 
+                                   multiple 
+                                   class="form-file-input">
+                            <div class="photo-upload-drop-zone" onclick="document.getElementById('note-photos').click()">
+                                <i data-lucide="upload-cloud" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                <p class="text-gray-600 font-medium">Haz clic para seleccionar fotos</p>
+                                <p class="text-sm text-gray-400">o arrastra archivos aquí</p>
+                                <p class="text-xs text-gray-400 mt-2">Máximo 5 fotos, 5MB cada una</p>
+                            </div>
+                            <div id="note-photo-preview" class="photo-preview-grid"></div>
+                        </div>
+                    </div>
+
+                    <!-- Nota Interna -->
+                    <div class="form-group">
+                        <label class="flex items-center gap-3 cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                             <input type="checkbox" name="is_internal" class="form-checkbox">
-                            <span class="form-label mb-0">Nota interna (no visible para cliente)</span>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="eye-off" class="w-4 h-4 text-orange-500"></i>
+                                <span class="form-label mb-0">Nota interna</span>
+                            </div>
+                            <span class="text-sm text-gray-500">(no visible para cliente)</span>
                         </label>
                     </div>
                 </form>
             </div>
             <div class="base-modal-footer">
-                <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()">Cancelar</button>
-                <button type="button" class="btn-primary" onclick="submitAdvancedNote(this)">Agregar Nota</button>
+                <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="btn-primary" onclick="submitAdvancedNote(this)">
+                    <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                    Agregar Nota
+                </button>
             </div>
         </div>
     `;
+    
+    // Agregar eventos después de crear el modal
+    setTimeout(() => {
+        setupNoteModalEvents(modal);
+    }, 100);
     
     return modal;
 }
@@ -426,12 +488,13 @@ async function submitPhotoForm(button) {
         const base64 = await fileToBase64(file);
         
         const data = {
-            photo_data: base64.split(',')[1], // Remover el prefijo data:image/...;base64,
+            photo_data: base64, // Enviar el base64 completo con prefijo
             file_name: file.name,
             mime_type: file.type,
             file_size: file.size,
             description: formData.get('description') || null,
-            photo_type: formData.get('photo_type')
+            photo_type: formData.get('photo_type'),
+            author: 'Felipe Maturana'
         };
         
         const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
@@ -582,46 +645,120 @@ async function submitAdvancedNote(button) {
     const modal = button.closest('.base-modal');
     const form = modal.querySelector('#note-form');
     const formData = new FormData(form);
+    const photoInput = modal.querySelector('#note-photos');
     
-    const data = {
-        note: formData.get('note'),
-        note_type: formData.get('note_type'),
-        author: 'Felipe Maturana',
-        is_internal: formData.get('is_internal') === 'on'
-    };
+    const noteText = formData.get('note').trim();
+    const noteType = formData.get('note_type');
+    const isInternal = formData.get('is_internal') === 'on';
+    const photos = photoInput.files;
+    
+    // Validar que hay al menos nota o fotos
+    if (!noteText && photos.length === 0) {
+        alert('Debes escribir una nota o adjuntar al menos una foto');
+        return;
+    }
+    
+    if (!noteType) {
+        alert('Selecciona el tipo de nota');
+        return;
+    }
     
     try {
         button.disabled = true;
-        button.textContent = 'Agregando...';
+        button.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Procesando...';
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
+        let noteId = null;
+        let uploadedPhotos = [];
         
-        if (response.ok) {
-            const result = await response.json();
-            modal.remove();
+        // 1. Primero crear la nota si hay texto
+        if (noteText) {
+            const noteData = {
+                note: noteText,
+                note_type: noteType,
+                author: 'Felipe Maturana',
+                is_internal: isInternal
+            };
             
-            // Agregar la nota al estado local
-            if (result.data) {
-                state.notes.unshift(result.data);
+            const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(noteData)
+            });
+            
+            if (noteResponse.ok) {
+                const noteResult = await noteResponse.json();
+                noteId = noteResult.data.id;
+                
+                // Agregar al estado local
+                state.notes.unshift(noteResult.data);
+            } else {
+                throw new Error('Error al crear la nota');
             }
-            
-            // Re-renderizar solo las notas
-            renderNotes();
-            lucide.createIcons();
-            
-            showNotification('Nota agregada exitosamente', 'success');
-        } else {
-            throw new Error('Error al agregar nota');
         }
+        
+        // 2. Luego subir las fotos si las hay
+        if (photos.length > 0) {
+            for (let i = 0; i < photos.length; i++) {
+                const photo = photos[i];
+                
+                // Convertir foto a base64
+                const photoBase64 = await fileToBase64(photo);
+                
+                const photoData = {
+                    photo_data: photoBase64,
+                    file_name: photo.name,
+                    mime_type: photo.type,
+                    file_size: photo.size,
+                    description: `Adjunto a nota: ${noteType}`,
+                    photo_type: noteType,
+                    author: 'Felipe Maturana'
+                };
+                
+                // Si hay una nota asociada, vincularlo
+                if (noteId) {
+                    photoData.note_id = noteId;
+                }
+                
+                const photoResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(photoData)
+                });
+                
+                if (photoResponse.ok) {
+                    const photoResult = await photoResponse.json();
+                    uploadedPhotos.push(photoResult.data);
+                    
+                    // Agregar al estado local
+                    state.photos.unshift(photoResult.data);
+                } else {
+                    console.error(`Error subiendo foto ${i + 1}:`, await photoResponse.text());
+                }
+            }
+        }
+        
+        modal.remove();
+        
+        // Re-renderizar actividades unificadas
+        renderNotes();
+        renderPhotos();
+        lucide.createIcons();
+        
+        // Mensaje de éxito personalizado
+        const itemsCount = (noteText ? 1 : 0) + uploadedPhotos.length;
+        const message = noteText && uploadedPhotos.length > 0 
+            ? `Nota con ${uploadedPhotos.length} foto(s) agregada exitosamente`
+            : noteText 
+                ? 'Nota agregada exitosamente'
+                : `${uploadedPhotos.length} foto(s) agregada(s) exitosamente`;
+        
+        showNotification(message, 'success');
+        
     } catch (error) {
-        console.error('Error adding note:', error);
-        showNotification('Error al agregar la nota', 'error');
+        console.error('Error adding note/photos:', error);
+        showNotification('Error al procesar la nota/fotos', 'error');
         button.disabled = false;
-        button.textContent = 'Agregar Nota';
+        button.innerHTML = '<i data-lucide="plus-circle" class="w-4 h-4"></i> Agregar Nota';
     }
 }
 
@@ -746,4 +883,107 @@ async function submitEditTicket(button) {
         button.disabled = false;
         button.textContent = 'Guardar Cambios';
     }
+}
+
+// Función para configurar eventos del modal de notas
+function setupNoteModalEvents(modal) {
+    const noteTextarea = modal.querySelector('textarea[name="note"]');
+    const charCount = modal.querySelector('#note-char-count');
+    const photoInput = modal.querySelector('#note-photos');
+    const photoPreview = modal.querySelector('#note-photo-preview');
+    const dropZone = modal.querySelector('.photo-upload-drop-zone');
+    
+    // Contador de caracteres
+    if (noteTextarea && charCount) {
+        noteTextarea.addEventListener('input', () => {
+            charCount.textContent = noteTextarea.value.length;
+        });
+    }
+    
+    // Preview de fotos
+    if (photoInput && photoPreview) {
+        photoInput.addEventListener('change', (e) => {
+            handleNotePhotoPreview(e.target.files, photoPreview);
+        });
+    }
+    
+    // Drag & Drop para fotos
+    if (dropZone && photoInput) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.add('drag-over');
+            }, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => {
+                dropZone.classList.remove('drag-over');
+            }, false);
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            photoInput.files = files;
+            handleNotePhotoPreview(files, photoPreview);
+        }, false);
+    }
+}
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+function handleNotePhotoPreview(files, previewContainer) {
+    previewContainer.innerHTML = '';
+    
+    if (files.length === 0) return;
+    
+    Array.from(files).slice(0, 5).forEach((file, index) => {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const photoDiv = document.createElement('div');
+                photoDiv.className = 'note-photo-preview-item';
+                photoDiv.innerHTML = `
+                    <div class="photo-preview-thumbnail">
+                        <img src="${e.target.result}" alt="Preview ${index + 1}">
+                        <button type="button" class="photo-preview-remove" onclick="removeNotePhotoPreview(this, ${index})">
+                            <i data-lucide="x" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                    <div class="photo-preview-info">
+                        <span class="photo-name">${file.name}</span>
+                        <span class="photo-size">${(file.size / 1024).toFixed(1)} KB</span>
+                    </div>
+                `;
+                previewContainer.appendChild(photoDiv);
+                lucide.createIcons();
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+}
+
+function removeNotePhotoPreview(button, index) {
+    const photoItem = button.closest('.note-photo-preview-item');
+    const previewContainer = button.closest('#note-photo-preview');
+    const fileInput = document.querySelector('#note-photos');
+    
+    // Remover visualmente
+    photoItem.remove();
+    
+    // Actualizar lista de archivos
+    const dt = new DataTransfer();
+    const files = Array.from(fileInput.files);
+    files.forEach((file, i) => {
+        if (i !== index) {
+            dt.items.add(file);
+        }
+    });
+    fileInput.files = dt.files;
 } 

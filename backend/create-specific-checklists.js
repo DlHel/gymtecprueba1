@@ -133,6 +133,22 @@ const specificChecklists = {
         ]
     },
 
+    'MX-U7X-2024': { // Matrix U7x Upright Bike
+        name: 'Checklist Matrix U7x Upright Bike',
+        items: [
+            {"title": "Inspección visual externa", "description": "Verificar estado general del equipo y estructura Matrix"},
+            {"title": "Sistema de resistencia electromagnética", "description": "Probar todos los niveles de resistencia suave y precisa"},
+            {"title": "Ergonomía y ajustes", "description": "Verificar ajustes de sillín, manubrio y posición óptima"},
+            {"title": "Consola Matrix avanzada", "description": "Probar interfaz táctil, programas y conectividad"},
+            {"title": "Pedales y sistema de sujeción", "description": "Inspeccionar pedales con correas y sistema de seguridad"},
+            {"title": "Volante de inercia Matrix", "description": "Verificar suavidad, equilibrio y silencio del volante"},
+            {"title": "Sensores de pulso cardíaco", "description": "Probar sensores de contacto en manubrio y telemetría"},
+            {"title": "Limpieza y desinfección", "description": "Limpiar sillín, manubrio y superficies de contacto"},
+            {"title": "Lubricación mecanismo de ajuste", "description": "Aplicar lubricante en sistemas de ajuste Matrix"},
+            {"title": "Verificar estabilidad y nivelación", "description": "Comprobar estabilidad durante uso y nivelación correcta"}
+        ]
+    },
+
     // === PRECOR ===
     'PC-TRM-445': { // Precor TRM 445 Treadmill
         name: 'Checklist Precor TRM 445 Treadmill',
