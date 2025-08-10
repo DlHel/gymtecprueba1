@@ -976,6 +976,40 @@ app.get('/api/inventory/spare-parts/alerts', (req, res) => {
     });
 });
 
+// GET spare part requests
+app.get('/api/inventory/spare-part-requests', (req, res) => {
+    const { status, ticket_id } = req.query;
+    
+    let sql = `SELECT spr.*, t.title as ticket_title, t.description as ticket_description
+               FROM SparePartRequests spr 
+               LEFT JOIN Tickets t ON spr.ticket_id = t.id 
+               WHERE 1=1`;
+    const params = [];
+    
+    if (status) {
+        sql += ` AND spr.status = ?`;
+        params.push(status);
+    }
+    
+    if (ticket_id) {
+        sql += ` AND spr.ticket_id = ?`;
+        params.push(ticket_id);
+    }
+    
+    sql += ` ORDER BY spr.created_at DESC`;
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error consultando solicitudes de repuestos:', err.message);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        console.log(`✅ Consultadas ${rows.length} solicitudes de repuestos`);
+        res.json({ message: "success", data: rows });
+    });
+});
+
 // POST spare part request
 app.post('/api/inventory/spare-part-requests', (req, res) => {
     const { 
@@ -988,29 +1022,194 @@ app.post('/api/inventory/spare-part-requests', (req, res) => {
         requested_by 
     } = req.body;
     
-    // Por ahora solo registramos la solicitud (se puede crear tabla específica después)
-    console.log('📝 Nueva solicitud de repuesto:', {
+    // Validaciones
+    if (!ticket_id || !spare_part_name || !quantity_needed) {
+        return res.status(400).json({ 
+            error: "ticket_id, spare_part_name y quantity_needed son requeridos" 
+        });
+    }
+    
+    const sql = `INSERT INTO SparePartRequests 
+                 (ticket_id, spare_part_name, quantity_needed, priority, description, justification, requested_by, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`;
+    
+    db.run(sql, [
         ticket_id,
         spare_part_name,
         quantity_needed,
-        priority,
-        requested_by
-    });
-    
-    // Simular éxito - en el futuro se guardará en una tabla SparePartRequests
-    res.json({
-        "message":"success",
-        "data": {
-            id: Date.now(),
+        priority || 'Media',
+        description,
+        justification,
+        requested_by || 'Usuario'
+    ], function(err) {
+        if (err) {
+            console.error('❌ Error insertando solicitud de repuesto:', err.message);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        console.log('✅ Nueva solicitud de repuesto guardada:', {
+            id: this.lastID,
             ticket_id,
             spare_part_name,
             quantity_needed,
-            priority,
-            status: 'pendiente',
-            created_at: new Date().toISOString()
-        }
+            priority: priority || 'Media'
+        });
+        
+        res.json({
+            message: "success",
+            data: {
+                id: this.lastID,
+                ticket_id,
+                spare_part_name,
+                quantity_needed,
+                priority: priority || 'Media',
+                description,
+                justification,
+                requested_by: requested_by || 'Usuario',
+                status: 'pendiente',
+                created_at: new Date().toISOString()
+            }
+        });
     });
 });
+
+// PUT update spare part request status
+app.put('/api/inventory/spare-part-requests/:id', async (req, res) => {
+    const { id } = req.params;
+    const { status, approved_by, notes } = req.body;
+    
+    if (!status) {
+        return res.status(400).json({ error: "Status es requerido" });
+    }
+    
+    console.log('🔄 Actualizando solicitud de repuesto:', { id, status, approved_by, notes });
+    
+    try {
+        // Primero obtenemos la información de la solicitud
+        const getRequestSql = `SELECT * FROM SparePartRequests WHERE id = ?`;
+        
+        const request = await new Promise((resolve, reject) => {
+            db.get(getRequestSql, [id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        if (!request) {
+            return res.status(404).json({ error: "Solicitud no encontrada" });
+        }
+        
+        // Actualizar estado de la solicitud
+        let updateSql = `UPDATE SparePartRequests SET status = ?, notes = ?, updated_at = CURRENT_TIMESTAMP`;
+        let params = [status, notes || null];
+        
+        if (status === 'aprobada' && approved_by) {
+            updateSql += `, approved_by = ?, approved_at = CURRENT_TIMESTAMP`;
+            params.push(approved_by);
+        }
+        
+        updateSql += ` WHERE id = ?`;
+        params.push(id);
+        
+        await new Promise((resolve, reject) => {
+            db.run(updateSql, params, function(err) {
+                if (err) reject(err);
+                else resolve(this.changes);
+            });
+        });
+        
+        // Si se aprobó la solicitud, asignar repuesto al técnico
+        if (status === 'aprobada') {
+            await processApprovedRequest(request);
+        }
+        
+        console.log(`✅ Solicitud de repuesto ${id} actualizada a estado: ${status}`);
+        res.json({ message: "success", changes: 1 });
+        
+    } catch (error) {
+        console.error('❌ Error actualizando solicitud de repuesto:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Función para procesar solicitud aprobada
+async function processApprovedRequest(request) {
+    try {
+        console.log('🎯 Procesando solicitud aprobada:', request.spare_part_name);
+        
+        // Obtener información del ticket para saber a qué técnico asignar
+        const getTicketSql = `SELECT assigned_technician_id FROM Tickets WHERE id = ?`;
+        
+        const ticket = await new Promise((resolve, reject) => {
+            db.get(getTicketSql, [request.ticket_id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        if (!ticket || !ticket.assigned_technician_id) {
+            console.log('⚠️ Ticket sin técnico asignado, no se puede asignar repuesto');
+            return;
+        }
+        
+        // Buscar si existe el repuesto en el inventario central
+        const findSparePartSql = `SELECT id FROM SpareParts WHERE name LIKE ? LIMIT 1`;
+        
+        const sparePart = await new Promise((resolve, reject) => {
+            db.get(findSparePartSql, [`%${request.spare_part_name}%`], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+        
+        if (sparePart) {
+            // Si existe, asignar desde inventario central
+            const assignSql = `INSERT INTO TechnicianInventory 
+                              (technician_id, spare_part_id, spare_part_name, quantity, assigned_at, source_ticket_id) 
+                              VALUES (?, ?, ?, ?, NOW(), ?)`;
+            
+            await new Promise((resolve, reject) => {
+                db.run(assignSql, [
+                    ticket.assigned_technician_id,
+                    sparePart.id,
+                    request.spare_part_name,
+                    request.quantity_needed,
+                    request.ticket_id
+                ], function(err) {
+                    if (err) reject(err);
+                    else resolve(this.lastID);
+                });
+            });
+            
+            console.log(`✅ Repuesto ${request.spare_part_name} asignado al técnico ${ticket.assigned_technician_id}`);
+        } else {
+            // Si no existe, crear orden de compra
+            const createOrderSql = `INSERT INTO PurchaseOrders 
+                                   (spare_part_name, quantity, priority, requested_for_ticket, requested_for_technician, status, created_at) 
+                                   VALUES (?, ?, ?, ?, ?, 'pendiente', NOW())`;
+            
+            await new Promise((resolve, reject) => {
+                db.run(createOrderSql, [
+                    request.spare_part_name,
+                    request.quantity_needed,
+                    request.priority,
+                    request.ticket_id,
+                    ticket.assigned_technician_id
+                ], function(err) {
+                    if (err) reject(err);
+                    else resolve(this.lastID);
+                });
+            });
+            
+            console.log(`✅ Orden de compra creada para ${request.spare_part_name}`);
+        }
+        
+    } catch (error) {
+        console.error('❌ Error procesando solicitud aprobada:', error.message);
+        // No lanzamos el error para no afectar la respuesta principal
+    }
+}
 
 // POST request order for specific spare part
 app.post('/api/inventory/spare-parts/:id/request-order', (req, res) => {
@@ -2761,6 +2960,28 @@ app.get('/api/users', (req, res) => {
     });
 });
 
+// GET technicians and administrators only (for ticket assignment)
+app.get('/api/users/technicians', (req, res) => {
+    const sql = `SELECT id, username, email, role, status, created_at 
+                 FROM Users 
+                 WHERE (role IN ('Admin', 'Técnico', 'Administrador', 'Technician', 'Tecnico') 
+                    OR role LIKE '%admin%' 
+                    OR role LIKE '%tecnic%' 
+                    OR role LIKE '%técnic%')
+                   AND status IN ('active', 'Activo')
+                 ORDER BY username`;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
 // GET single user
 app.get('/api/users/:id', (req, res) => {
     const sql = `SELECT id, username, email, role, status, created_at FROM Users WHERE id = ?`;
@@ -2865,6 +3086,310 @@ app.delete('/api/users/:id', authenticateToken, requireRole(['Admin']), (req, re
         
         res.json({ message: "Usuario eliminado", changes: this.changes });
     });
+});
+
+// --- RUTAS DE GESTIÓN DE PERMISOS ---
+
+// GET todos los módulos del sistema
+app.get('/api/modules', authenticateToken, (req, res) => {
+    const sql = `SELECT m.*, 
+                 (SELECT COUNT(*) FROM ModulePermissions WHERE module_id = m.id) as permissions_count
+                 FROM SystemModules m 
+                 WHERE m.is_active = true 
+                 ORDER BY m.display_order, m.module_name`;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET permisos de un módulo específico
+app.get('/api/modules/:moduleId/permissions', authenticateToken, (req, res) => {
+    const sql = `SELECT p.*, m.module_name, m.module_key
+                 FROM ModulePermissions p
+                 JOIN SystemModules m ON p.module_id = m.id
+                 WHERE p.module_id = ?
+                 ORDER BY p.permission_key`;
+    
+    db.all(sql, [req.params.moduleId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET permisos de un usuario específico
+app.get('/api/users/:userId/permissions', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const sql = `SELECT ump.*, m.module_name, m.module_key, m.icon, p.permission_key, p.permission_name
+                 FROM UserModulePermissions ump
+                 JOIN SystemModules m ON ump.module_id = m.id
+                 JOIN ModulePermissions p ON ump.permission_id = p.id
+                 WHERE ump.user_id = ? AND ump.granted = true
+                 ORDER BY m.display_order, p.permission_key`;
+    
+    db.all(sql, [req.params.userId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET vista completa de permisos para administración
+app.get('/api/users/:userId/permissions/matrix', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const sql = `SELECT 
+                    m.id as module_id,
+                    m.module_name,
+                    m.module_key,
+                    m.icon,
+                    p.id as permission_id,
+                    p.permission_key,
+                    p.permission_name,
+                    CASE WHEN ump.id IS NOT NULL THEN 1 ELSE 0 END as granted
+                 FROM SystemModules m
+                 CROSS JOIN ModulePermissions p ON p.module_id = m.id
+                 LEFT JOIN UserModulePermissions ump ON ump.user_id = ? 
+                          AND ump.module_id = m.id 
+                          AND ump.permission_id = p.id 
+                          AND ump.granted = true
+                 WHERE m.is_active = true
+                 ORDER BY m.display_order, p.permission_key`;
+    
+    db.all(sql, [req.params.userId], (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+
+        // Agrupar por módulo
+        const matrix = {};
+        rows.forEach(row => {
+            if (!matrix[row.module_key]) {
+                matrix[row.module_key] = {
+                    module_id: row.module_id,
+                    module_name: row.module_name,
+                    module_key: row.module_key,
+                    icon: row.icon,
+                    permissions: []
+                };
+            }
+            
+            matrix[row.module_key].permissions.push({
+                permission_id: row.permission_id,
+                permission_key: row.permission_key,
+                permission_name: row.permission_name,
+                granted: Boolean(row.granted)
+            });
+        });
+
+        res.json({
+            message: "success",
+            data: Object.values(matrix)
+        });
+    });
+});
+
+// POST actualizar permisos de usuario
+app.post('/api/users/:userId/permissions', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const { permissions } = req.body; // Array de { module_id, permission_id, granted }
+    const userId = req.params.userId;
+    const grantedBy = req.user.id;
+
+    if (!permissions || !Array.isArray(permissions)) {
+        return res.status(400).json({ error: "Se requiere un array de permisos" });
+    }
+
+    // Iniciar transacción
+    db.run('BEGIN TRANSACTION', (err) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+
+        let completed = 0;
+        let hasError = false;
+
+        const processPermission = (permission, callback) => {
+            const { module_id, permission_id, granted } = permission;
+            
+            if (granted) {
+                // Otorgar permiso (INSERT OR REPLACE)
+                const sql = `INSERT OR REPLACE INTO UserModulePermissions 
+                           (user_id, module_id, permission_id, granted, granted_by, granted_at)
+                           VALUES (?, ?, ?, true, ?, datetime('now'))`;
+                           
+                db.run(sql, [userId, module_id, permission_id, grantedBy], callback);
+            } else {
+                // Revocar permiso
+                const sql = `DELETE FROM UserModulePermissions 
+                           WHERE user_id = ? AND module_id = ? AND permission_id = ?`;
+                           
+                db.run(sql, [userId, module_id, permission_id], callback);
+            }
+        };
+
+        permissions.forEach((permission, index) => {
+            processPermission(permission, (err) => {
+                if (err && !hasError) {
+                    hasError = true;
+                    db.run('ROLLBACK', () => {
+                        res.status(500).json({ error: err.message });
+                    });
+                    return;
+                }
+                
+                completed++;
+                if (completed === permissions.length && !hasError) {
+                    db.run('COMMIT', (err) => {
+                        if (err) {
+                            res.status(500).json({ error: err.message });
+                            return;
+                        }
+                        
+                        console.log(`🔐 Permisos actualizados para usuario ${userId} por admin ${grantedBy}`);
+                        
+                        res.json({
+                            message: "success",
+                            updated: permissions.length
+                        });
+                    });
+                }
+            });
+        });
+    });
+});
+
+// POST asignar permisos por rol (plantilla)
+app.post('/api/users/:userId/permissions/template/:role', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const userId = req.params.userId;
+    const role = req.params.role;
+    const grantedBy = req.user.id;
+
+    // Definir plantillas de permisos por rol
+    let permissionTemplate = [];
+    
+    if (role === 'Admin') {
+        // Admin: todos los permisos
+        const sql = `SELECT m.id as module_id, p.id as permission_id
+                     FROM SystemModules m
+                     JOIN ModulePermissions p ON p.module_id = m.id
+                     WHERE m.is_active = true`;
+                     
+        db.all(sql, [], (err, rows) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            permissionTemplate = rows.map(row => ({
+                module_id: row.module_id,
+                permission_id: row.permission_id,
+                granted: true
+            }));
+            
+            applyTemplate();
+        });
+    } else if (role === 'Técnico') {
+        // Técnico: permisos limitados
+        const sql = `SELECT m.id as module_id, p.id as permission_id
+                     FROM SystemModules m
+                     JOIN ModulePermissions p ON p.module_id = m.id
+                     WHERE m.is_active = true
+                     AND (
+                         p.permission_key = 'view'
+                         OR (m.module_key = 'tickets' AND p.permission_key IN ('create', 'edit'))
+                         OR (m.module_key = 'inventario' AND p.permission_key = 'view')
+                     )`;
+                     
+        db.all(sql, [], (err, rows) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            permissionTemplate = rows.map(row => ({
+                module_id: row.module_id,
+                permission_id: row.permission_id,
+                granted: true
+            }));
+            
+            applyTemplate();
+        });
+    } else {
+        return res.status(400).json({ error: "Rol no reconocido" });
+    }
+
+    function applyTemplate() {
+        // Limpiar permisos existentes
+        db.run('DELETE FROM UserModulePermissions WHERE user_id = ?', [userId], (err) => {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            
+            // Aplicar nueva plantilla
+            const req_body = { permissions: permissionTemplate };
+            req.body = req_body;
+            
+            // Reutilizar la lógica de actualización de permisos
+            const permissions = permissionTemplate;
+            
+            db.run('BEGIN TRANSACTION', (err) => {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+
+                let completed = 0;
+                let hasError = false;
+
+                permissions.forEach((permission) => {
+                    const sql = `INSERT INTO UserModulePermissions 
+                               (user_id, module_id, permission_id, granted, granted_by, granted_at)
+                               VALUES (?, ?, ?, true, ?, datetime('now'))`;
+                               
+                    db.run(sql, [userId, permission.module_id, permission.permission_id, grantedBy], (err) => {
+                        if (err && !hasError) {
+                            hasError = true;
+                            db.run('ROLLBACK', () => {
+                                res.status(500).json({ error: err.message });
+                            });
+                            return;
+                        }
+                        
+                        completed++;
+                        if (completed === permissions.length && !hasError) {
+                            db.run('COMMIT', (err) => {
+                                if (err) {
+                                    res.status(500).json({ error: err.message });
+                                    return;
+                                }
+                                
+                                console.log(`🎭 Plantilla ${role} aplicada a usuario ${userId} por admin ${grantedBy}`);
+                                
+                                res.json({
+                                    message: "success",
+                                    template: role,
+                                    applied: permissions.length
+                                });
+                            });
+                        }
+                    });
+                });
+            });
+        });
+    }
 });
 
 // --- API Routes for System Configuration ---
@@ -2987,6 +3512,149 @@ app.post('/api/quotes', authenticateToken, (req, res) => {
     });
 });
 
+// GET quote by ID
+app.get('/api/quotes/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de cotización requerido" });
+    }
+    
+    const sql = `
+        SELECT 
+            q.*,
+            c.name as client_name,
+            c.rut as client_rut,
+            l.name as location_name
+        FROM Quotes q
+        LEFT JOIN Clients c ON q.client_id = c.id
+        LEFT JOIN Locations l ON q.location_id = l.id
+        WHERE q.id = ?
+        LIMIT 1
+    `;
+    
+    db.get(sql, [id], (err, row) => {
+        if (err) {
+            console.error('❌ Error obteniendo cotización:', err);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (!row) {
+            return res.status(404).json({ error: "Cotización no encontrada" });
+        }
+        
+        // Parsear items si existen (JSON en MySQL)
+        if (row.items) {
+            try {
+                if (typeof row.items === 'string') {
+                    row.items = JSON.parse(row.items);
+                }
+            } catch (e) {
+                console.warn('⚠️ Error parsing items JSON:', e);
+                row.items = [];
+            }
+        } else {
+            row.items = [];
+        }
+        
+        console.log('✅ Cotización encontrada:', row.id, row.title);
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: row
+        });
+    });
+});
+
+// PUT update quote
+app.put('/api/quotes/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    const { client_id, location_id, title, description, total_amount, status, items } = req.body;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de cotización requerido" });
+    }
+    
+    if (!client_id || !title || !total_amount) {
+        return res.status(400).json({ error: "client_id, title y total_amount son requeridos" });
+    }
+    
+    console.log('🔄 Actualizando cotización:', id, { title, total_amount, status });
+    
+    const sql = `
+        UPDATE Quotes 
+        SET client_id = ?, location_id = ?, title = ?, description = ?, 
+            total_amount = ?, status = ?, items = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        client_id, 
+        location_id, 
+        title, 
+        description, 
+        total_amount, 
+        status || 'Borrador', 
+        JSON.stringify(items || []), 
+        id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error actualizando cotización:', err);
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Cotización no encontrada" });
+        }
+        
+        console.log(`✅ Cotización ${id} actualizada exitosamente`);
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: { id: parseInt(id), changes: this.changes }
+        });
+    });
+});
+
+// DELETE quote
+app.delete('/api/quotes/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de cotización requerido" });
+    }
+    
+    console.log('🗑️ Eliminando cotización:', id);
+    
+    const sql = `DELETE FROM Quotes WHERE id = ?`;
+    
+    db.run(sql, [id], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando cotización:', err);
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Cotización no encontrada" });
+        }
+        
+        console.log(`✅ Cotización ${id} eliminada exitosamente`);
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: { id: parseInt(id), changes: this.changes }
+        });
+    });
+});
+
 // GET all invoices
 app.get('/api/invoices', authenticateToken, (req, res) => {
     const sql = `
@@ -3011,6 +3679,54 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     });
 });
 
+// GET invoice by ID
+app.get('/api/invoices/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de factura requerido" });
+    }
+    
+    const sql = `
+        SELECT 
+            i.*,
+            c.name as client_name,
+            c.rut as client_rut,
+            l.name as location_name
+        FROM Invoices i
+        LEFT JOIN Clients c ON i.client_id = c.id
+        LEFT JOIN Locations l ON i.location_id = l.id
+        WHERE i.id = ?
+    `;
+    
+    db.get(sql, [id], (err, row) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (!row) {
+            return res.status(404).json({ error: "Factura no encontrada" });
+        }
+        
+        // Parsear items si existen
+        if (row.items && typeof row.items === 'string') {
+            try {
+                row.items = JSON.parse(row.items);
+            } catch (e) {
+                console.warn('⚠️ Error parsing items JSON:', e);
+                row.items = [];
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: row
+        });
+    });
+});
+
 // POST new invoice
 app.post('/api/invoices', authenticateToken, (req, res) => {
     const { client_id, location_id, invoice_number, title, description, total_amount, status, items } = req.body;
@@ -3022,6 +3738,177 @@ app.post('/api/invoices', authenticateToken, (req, res) => {
     const sql = `INSERT INTO Invoices (client_id, location_id, invoice_number, title, description, total_amount, status, items) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
     const params = [client_id, location_id, invoice_number, title, description, total_amount, status || 'Pendiente', JSON.stringify(items || [])];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ...req.body }
+        });
+    });
+});
+
+// PUT update invoice
+app.put('/api/invoices/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    const { client_id, location_id, invoice_number, title, description, total_amount, status, items } = req.body;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de factura requerido" });
+    }
+    
+    if (!client_id || !invoice_number || !title || !total_amount) {
+        return res.status(400).json({ error: "client_id, invoice_number, title y total_amount son requeridos" });
+    }
+    
+    console.log('🔄 Actualizando factura:', id, { title, total_amount, status });
+    
+    const sql = `
+        UPDATE Invoices 
+        SET client_id = ?, location_id = ?, invoice_number = ?, title = ?, description = ?, 
+            total_amount = ?, status = ?, items = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        client_id, 
+        location_id, 
+        invoice_number,
+        title, 
+        description, 
+        total_amount, 
+        status || 'Pendiente', 
+        JSON.stringify(items || []), 
+        id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error actualizando factura:', err);
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Factura no encontrada" });
+        }
+        
+        console.log(`✅ Factura ${id} actualizada exitosamente`);
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: { id: parseInt(id), changes: this.changes }
+        });
+    });
+});
+
+// DELETE invoice
+app.delete('/api/invoices/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de factura requerido" });
+    }
+    
+    console.log('🗑️ Eliminando factura:', id);
+    
+    const sql = `DELETE FROM Invoices WHERE id = ?`;
+    
+    db.run(sql, [id], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando factura:', err);
+            res.status(400).json({ error: err.message });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Factura no encontrada" });
+        }
+        
+        console.log(`✅ Factura ${id} eliminada exitosamente`);
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: { id: parseInt(id), changes: this.changes }
+        });
+    });
+});
+
+// --- API Routes for Expenses ---
+
+// GET all expenses
+app.get('/api/expenses', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT 
+            e.*
+        FROM Expenses e
+        ORDER BY e.created_at DESC
+    `;
+    db.all(sql, (err, rows) => {
+        if (err) {
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET expense by ID
+app.get('/api/expenses/:id', authenticateToken, (req, res) => {
+    const id = req.params.id;
+    
+    if (!id) {
+        return res.status(400).json({ error: "ID de gasto requerido" });
+    }
+    
+    const sql = `
+        SELECT 
+            e.*
+        FROM Expenses e
+        WHERE e.id = ?
+        LIMIT 1
+    `;
+    
+    db.get(sql, [id], (err, row) => {
+        if (err) {
+            console.error('❌ Error obteniendo gasto:', err);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        
+        if (!row) {
+            return res.status(404).json({ error: "Gasto no encontrado" });
+        }
+        
+        console.log('✅ Gasto encontrado:', row.id, row.description);
+        
+        res.json({
+            success: true,
+            message: "success",
+            data: row
+        });
+    });
+});
+
+// POST new expense
+app.post('/api/expenses', authenticateToken, (req, res) => {
+    const { category, description, amount, date, supplier, receipt_number, status } = req.body;
+    
+    if (!category || !description || !amount || !date) {
+        return res.status(400).json({ error: "category, description, amount y date son requeridos" });
+    }
+    
+    const sql = `INSERT INTO Expenses (category, description, amount, date, supplier, receipt_number, status) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
+    const params = [category, description, amount, date, supplier, receipt_number, status || 'Pendiente'];
     
     db.run(sql, params, function(err) {
         if (err) {
@@ -3220,3 +4107,513 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
         });
     });
 } 
+
+// === INTEGRACIÓN FINANZAS - INVENTARIO ===
+
+// GET métricas integradas finanzas-inventario
+app.get('/api/finance-inventory/metrics', (req, res) => {
+    console.log('📊 Obteniendo métricas integradas finanzas-inventario...');
+    
+    const metrics = {};
+    let completed = 0;
+    const totalQueries = 5;
+    
+    // 1. Valor total del inventario
+    db.get(`
+        SELECT 
+            SUM(sp.current_stock * COALESCE(poi.unit_cost, 0)) as total_inventory_value,
+            COUNT(sp.id) as total_items,
+            SUM(CASE WHEN sp.current_stock <= sp.minimum_stock THEN 1 ELSE 0 END) as low_stock_items
+        FROM SpareParts sp
+        LEFT JOIN (
+            SELECT spare_part_id, AVG(unit_cost) as unit_cost
+            FROM PurchaseOrderItems
+            GROUP BY spare_part_id
+        ) poi ON sp.id = poi.spare_part_id
+    `, [], (err, inventoryData) => {
+        if (err) {
+            console.error('❌ Error en consulta de inventario:', err);
+            metrics.inventory = { error: err.message };
+        } else {
+            metrics.inventory = {
+                total_value: inventoryData.total_inventory_value || 0,
+                total_items: inventoryData.total_items || 0,
+                low_stock_items: inventoryData.low_stock_items || 0
+            };
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    // 2. Gastos en repuestos por mes
+    db.all(`
+        SELECT 
+            DATE_FORMAT(po.order_date, '%Y-%m') as month,
+            SUM(po.total_amount) as monthly_spending,
+            COUNT(po.id) as orders_count
+        FROM PurchaseOrders po
+        WHERE po.order_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY DATE_FORMAT(po.order_date, '%Y-%m')
+        ORDER BY month DESC
+        LIMIT 12
+    `, [], (err, spendingData) => {
+        if (err) {
+            console.error('❌ Error en consulta de gastos:', err);
+            metrics.spending = { error: err.message };
+        } else {
+            metrics.spending = spendingData;
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    // 3. Top proveedores por gasto
+    db.all(`
+        SELECT 
+            po.supplier,
+            SUM(po.total_amount) as total_spent,
+            COUNT(po.id) as orders_count,
+            AVG(po.total_amount) as avg_order_value
+        FROM PurchaseOrders po
+        WHERE po.order_date >= DATE_SUB(NOW(), INTERVAL 12 MONTH)
+        GROUP BY po.supplier
+        ORDER BY total_spent DESC
+        LIMIT 10
+    `, [], (err, suppliersData) => {
+        if (err) {
+            console.error('❌ Error en consulta de proveedores:', err);
+            metrics.suppliers = { error: err.message };
+        } else {
+            metrics.suppliers = suppliersData;
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    // 4. Rentabilidad por tipo de servicio (cotizaciones vs gastos en repuestos)
+    db.all(`
+        SELECT 
+            'Servicios' as category,
+            SUM(CASE WHEN q.status = 'Aprobada' THEN q.total_amount ELSE 0 END) as revenue,
+            COUNT(CASE WHEN q.status = 'Aprobada' THEN 1 END) as approved_quotes
+        FROM Quotes q
+        WHERE q.created_at >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+        UNION ALL
+        SELECT 
+            'Inventario' as category,
+            SUM(po.total_amount) as costs,
+            COUNT(po.id) as purchase_orders
+        FROM PurchaseOrders po
+        WHERE po.order_date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+    `, [], (err, profitabilityData) => {
+        if (err) {
+            console.error('❌ Error en consulta de rentabilidad:', err);
+            metrics.profitability = { error: err.message };
+        } else {
+            metrics.profitability = profitabilityData;
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    // 5. Órdenes de compra pendientes por valor
+    db.all(`
+        SELECT 
+            po.id,
+            po.order_number,
+            po.supplier,
+            po.total_amount,
+            po.order_date,
+            po.expected_delivery,
+            DATEDIFF(NOW(), po.order_date) as days_since_order
+        FROM PurchaseOrders po
+        WHERE po.status IN ('Pendiente', 'Enviada')
+        ORDER BY po.total_amount DESC
+        LIMIT 10
+    `, [], (err, pendingOrdersData) => {
+        if (err) {
+            console.error('❌ Error en consulta de órdenes pendientes:', err);
+            metrics.pending_orders = { error: err.message };
+        } else {
+            metrics.pending_orders = pendingOrdersData;
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    function sendResponse() {
+        res.json({
+            message: "success",
+            data: metrics
+        });
+    }
+});
+
+// POST generar orden de compra desde cotización aprobada
+app.post('/api/finance-inventory/generate-purchase-order', (req, res) => {
+    const { quote_id, supplier, expected_delivery_days, notes } = req.body;
+    
+    if (!quote_id || !supplier) {
+        return res.status(400).json({ error: "quote_id y supplier son requeridos" });
+    }
+    
+    console.log('🛒 Generando orden de compra desde cotización:', quote_id);
+    
+    // 1. Obtener datos de la cotización
+    db.get(`
+        SELECT q.*, c.name as client_name
+        FROM Quotes q
+        LEFT JOIN Clients c ON q.client_id = c.id
+        WHERE q.id = ? AND q.status = 'Aprobada'
+    `, [quote_id], (err, quote) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        if (!quote) {
+            return res.status(404).json({ error: "Cotización no encontrada o no aprobada" });
+        }
+        
+        // 2. Parsear items de la cotización
+        let quoteItems;
+        try {
+            quoteItems = JSON.parse(quote.items);
+        } catch (e) {
+            return res.status(400).json({ error: "Error parseando items de la cotización" });
+        }
+        
+        // 3. Filtrar items que sean repuestos (contienen "repuesto", "pieza", etc.)
+        const sparePartItems = quoteItems.filter(item => {
+            const description = item.description.toLowerCase();
+            return description.includes('repuesto') || 
+                   description.includes('pieza') || 
+                   description.includes('componente') ||
+                   description.includes('parte') ||
+                   description.includes('filtro') ||
+                   description.includes('cable') ||
+                   description.includes('tornillo');
+        });
+        
+        if (sparePartItems.length === 0) {
+            return res.status(400).json({ error: "No se encontraron repuestos en la cotización" });
+        }
+        
+        // 4. Generar número de orden único
+        const orderDate = new Date().toISOString().split('T')[0];
+        const orderNumber = `PO-${Date.now()}`;
+        const expectedDelivery = expected_delivery_days ? 
+            new Date(Date.now() + expected_delivery_days * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : 
+            null;
+        
+        // 5. Calcular total de repuestos
+        const totalAmount = sparePartItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+        
+        // 6. Crear orden de compra
+        const orderSql = `
+            INSERT INTO PurchaseOrders 
+            (order_number, supplier, order_date, expected_delivery, total_amount, notes, created_by, status) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'Pendiente')
+        `;
+        
+        const orderNotes = `Generada automáticamente desde cotización #${quote.id} (${quote.title}) - Cliente: ${quote.client_name}\n${notes || ''}`;
+        
+        db.run(orderSql, [orderNumber, supplier, orderDate, expectedDelivery, totalAmount, orderNotes, 1], function(err) {
+            if (err) {
+                return res.status(400).json({ error: err.message });
+            }
+            
+            const orderId = this.lastID;
+            
+            // 7. Crear items de la orden (simplificado - en implementación real se buscarían los spare_part_id)
+            // Por ahora crear como nota en la orden
+            console.log(`✅ Orden de compra generada: ${orderNumber} (ID: ${orderId})`);
+            console.log(`📦 Repuestos incluidos:`, sparePartItems.map(item => `${item.description} (${item.quantity})`));
+            
+            res.json({
+                message: "success",
+                data: {
+                    order_id: orderId,
+                    order_number: orderNumber,
+                    quote_id: quote_id,
+                    supplier: supplier,
+                    total_amount: totalAmount,
+                    items_count: sparePartItems.length,
+                    spare_parts: sparePartItems
+                }
+            });
+        });
+    });
+});
+
+// GET análisis de costos por servicio/ticket
+app.get('/api/finance-inventory/service-costs/:ticket_id', (req, res) => {
+    const ticketId = req.params.ticket_id;
+    
+    console.log('💰 Analizando costos del ticket:', ticketId);
+    
+    const serviceAnalysis = {};
+    let completed = 0;
+    const totalQueries = 3;
+    
+    // 1. Datos básicos del ticket
+    db.get(`
+        SELECT 
+            t.*,
+            c.name as client_name,
+            l.name as location_name,
+            e.name as equipment_name,
+            u.username as technician_name
+        FROM Tickets t
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN Locations l ON t.location_id = l.id
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Users u ON t.assigned_technician_id = u.id
+        WHERE t.id = ?
+    `, [ticketId], (err, ticketData) => {
+        if (err) {
+            serviceAnalysis.ticket = { error: err.message };
+        } else {
+            serviceAnalysis.ticket = ticketData;
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    // 2. Repuestos utilizados
+    db.all(`
+        SELECT 
+            tsp.*,
+            sp.name as spare_part_name,
+            sp.sku,
+            (tsp.quantity_used * tsp.unit_cost) as total_cost
+        FROM TicketSpareParts tsp
+        LEFT JOIN SpareParts sp ON tsp.spare_part_id = sp.id
+        WHERE tsp.ticket_id = ?
+    `, [ticketId], (err, sparePartsData) => {
+        if (err) {
+            serviceAnalysis.spare_parts = { error: err.message };
+        } else {
+            const totalSparePartsCost = sparePartsData.reduce((sum, item) => sum + (item.total_cost || 0), 0);
+            serviceAnalysis.spare_parts = {
+                items: sparePartsData,
+                total_cost: totalSparePartsCost,
+                items_count: sparePartsData.length
+            };
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    // 3. Tiempo trabajado y costos de mano de obra
+    db.all(`
+        SELECT 
+            tte.*,
+            u.username as technician_name,
+            (tte.duration_seconds / 3600) as hours_worked
+        FROM TicketTimeEntries tte
+        LEFT JOIN Users u ON tte.technician_id = u.id
+        WHERE tte.ticket_id = ?
+    `, [ticketId], (err, timeData) => {
+        if (err) {
+            serviceAnalysis.time_entries = { error: err.message };
+        } else {
+            const totalHours = timeData.reduce((sum, entry) => sum + (entry.hours_worked || 0), 0);
+            const hourlyRate = 25000; // CLP por hora (configurable)
+            const totalLaborCost = totalHours * hourlyRate;
+            
+            serviceAnalysis.time_entries = {
+                entries: timeData,
+                total_hours: totalHours,
+                hourly_rate: hourlyRate,
+                total_labor_cost: totalLaborCost
+            };
+        }
+        completed++;
+        if (completed === totalQueries) sendResponse();
+    });
+    
+    function sendResponse() {
+        // Calcular costo total del servicio
+        const sparePartsCost = serviceAnalysis.spare_parts?.total_cost || 0;
+        const laborCost = serviceAnalysis.time_entries?.total_labor_cost || 0;
+        const totalServiceCost = sparePartsCost + laborCost;
+        
+        serviceAnalysis.summary = {
+            spare_parts_cost: sparePartsCost,
+            labor_cost: laborCost,
+            total_cost: totalServiceCost,
+            cost_breakdown: {
+                materials_percentage: totalServiceCost > 0 ? Math.round((sparePartsCost / totalServiceCost) * 100) : 0,
+                labor_percentage: totalServiceCost > 0 ? Math.round((laborCost / totalServiceCost) * 100) : 0
+            }
+        };
+        
+        res.json({
+            message: "success",
+            data: serviceAnalysis
+        });
+    }
+});
+
+// GET proveedores compartidos entre finanzas e inventario
+app.get('/api/finance-inventory/suppliers', (req, res) => {
+    console.log('🏪 Obteniendo proveedores compartidos...');
+    
+    db.all(`
+        SELECT 
+            supplier as name,
+            COUNT(*) as orders_count,
+            SUM(total_amount) as total_spent,
+            AVG(total_amount) as avg_order_value,
+            MIN(order_date) as first_order,
+            MAX(order_date) as last_order,
+            COUNT(CASE WHEN status = 'Pendiente' THEN 1 END) as pending_orders
+        FROM PurchaseOrders
+        GROUP BY supplier
+        ORDER BY total_spent DESC
+    `, [], (err, suppliers) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
+        }
+        
+        res.json({
+            message: "success",
+            data: suppliers
+        });
+    });
+});
+
+// POST actualizar stock automáticamente al recibir orden
+app.post('/api/finance-inventory/receive-order/:orderId', (req, res) => {
+    const orderId = req.params.orderId;
+    const { received_date, notes } = req.body;
+    
+    console.log('📦 Recibiendo orden de compra:', orderId);
+    
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION", (err) => {
+            if (err) {
+                return res.status(500).json({ error: "Error iniciando transacción: " + err.message });
+            }
+            
+            // 1. Actualizar estado de la orden
+            db.run(`
+                UPDATE PurchaseOrders 
+                SET status = 'Recibida', received_date = ?, notes = CONCAT(COALESCE(notes, ''), '\n', ?)
+                WHERE id = ?
+            `, [received_date || new Date().toISOString().split('T')[0], notes || 'Orden recibida automáticamente', orderId], function(err) {
+                if (err) {
+                    return db.run("ROLLBACK", () => {
+                        res.status(500).json({ error: "Error actualizando orden: " + err.message });
+                    });
+                }
+                
+                // 2. Obtener items de la orden
+                db.all(`
+                    SELECT poi.*, sp.current_stock
+                    FROM PurchaseOrderItems poi
+                    LEFT JOIN SpareParts sp ON poi.spare_part_id = sp.id
+                    WHERE poi.purchase_order_id = ?
+                `, [orderId], (err, items) => {
+                    if (err) {
+                        return db.run("ROLLBACK", () => {
+                            res.status(500).json({ error: "Error obteniendo items: " + err.message });
+                        });
+                    }
+                    
+                    // 3. Actualizar stock de cada repuesto
+                    let itemsProcessed = 0;
+                    const errors = [];
+                    
+                    if (items.length === 0) {
+                        // Si no hay items, solo confirmar la transacción
+                        return db.run("COMMIT", (err) => {
+                            if (err) {
+                                return res.status(500).json({ error: "Error confirmando transacción: " + err.message });
+                            }
+                            res.json({
+                                message: "success",
+                                data: { order_id: orderId, items_updated: 0 }
+                            });
+                        });
+                    }
+                    
+                    items.forEach(item => {
+                        if (!item.spare_part_id) {
+                            itemsProcessed++;
+                            errors.push(`Item sin spare_part_id: ${item.id}`);
+                            if (itemsProcessed === items.length) finishTransaction();
+                            return;
+                        }
+                        
+                        const newStock = (item.current_stock || 0) + item.quantity_ordered;
+                        
+                        // Actualizar stock
+                        db.run(`
+                            UPDATE SpareParts 
+                            SET current_stock = ?
+                            WHERE id = ?
+                        `, [newStock, item.spare_part_id], function(err) {
+                            if (err) {
+                                errors.push(`Error actualizando repuesto ${item.spare_part_id}: ${err.message}`);
+                            } else {
+                                // Crear transacción de inventario
+                                db.run(`
+                                    INSERT INTO InventoryTransactions 
+                                    (spare_part_id, transaction_type, quantity, quantity_before, quantity_after, reference_type, reference_id, notes, performed_by)
+                                    VALUES (?, 'Entrada', ?, ?, ?, 'Purchase Order', ?, ?, ?)
+                                `, [
+                                    item.spare_part_id, 
+                                    item.quantity_ordered, 
+                                    item.current_stock || 0, 
+                                    newStock, 
+                                    orderId, 
+                                    `Entrada por recepción de orden ${orderId}`,
+                                    1 // TODO: usar usuario actual
+                                ], (err) => {
+                                    if (err) {
+                                        errors.push(`Error creando transacción para repuesto ${item.spare_part_id}: ${err.message}`);
+                                    }
+                                });
+                            }
+                            
+                            itemsProcessed++;
+                            if (itemsProcessed === items.length) finishTransaction();
+                        });
+                    });
+                    
+                    function finishTransaction() {
+                        if (errors.length > 0) {
+                            console.error('❌ Errores procesando items:', errors);
+                            return db.run("ROLLBACK", () => {
+                                res.status(500).json({ 
+                                    error: "Errores actualizando inventario", 
+                                    details: errors 
+                                });
+                            });
+                        }
+                        
+                        db.run("COMMIT", (err) => {
+                            if (err) {
+                                return res.status(500).json({ error: "Error confirmando transacción: " + err.message });
+                            }
+                            
+                            console.log(`✅ Orden ${orderId} recibida, stock actualizado para ${items.length} repuestos`);
+                            res.json({
+                                message: "success",
+                                data: { 
+                                    order_id: orderId, 
+                                    items_updated: items.length,
+                                    stock_updates: items.map(item => ({
+                                        spare_part_id: item.spare_part_id,
+                                        quantity_added: item.quantity_ordered,
+                                        new_stock: (item.current_stock || 0) + item.quantity_ordered
+                                    }))
+                                }
+                            });
+                        });
+                    }
+                });
+            });
+        });
+    });
+});

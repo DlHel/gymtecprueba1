@@ -593,4 +593,27 @@ INSERT IGNORE INTO `ChecklistTemplates` (`name`, `equipment_type`, `items`) VALU
     {"title": "Prueba de funcionamiento completo", "description": "Ejecutar movimientos completos del equipo"}
 ]');
 
+-- Tabla para solicitudes de repuestos desde tickets
+CREATE TABLE IF NOT EXISTS `SparePartRequests` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `ticket_id` INT(11) NOT NULL,
+    `spare_part_name` VARCHAR(200) NOT NULL,
+    `quantity_needed` INT(11) NOT NULL DEFAULT 1,
+    `priority` ENUM('Baja', 'Media', 'Alta', 'Crítica') DEFAULT 'Media',
+    `description` TEXT,
+    `justification` TEXT,
+    `requested_by` VARCHAR(100),
+    `status` ENUM('pendiente', 'aprobada', 'rechazada', 'completada') DEFAULT 'pendiente',
+    `approved_by` VARCHAR(100) NULL,
+    `approved_at` TIMESTAMP NULL,
+    `notes` TEXT,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`ticket_id`) REFERENCES `Tickets` (`id`) ON DELETE CASCADE ON UPDATE CASCADE,
+    INDEX `idx_spare_part_requests_ticket` (`ticket_id`),
+    INDEX `idx_spare_part_requests_status` (`status`),
+    INDEX `idx_spare_part_requests_priority` (`priority`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 COMMIT; 
