@@ -1,0 +1,136 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "🚀 Debug Backend Server (Enhanced)",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/src/server.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "gymtec:*",
+        "LOG_LEVEL": "debug",
+        "ENABLE_DEBUG_ROUTES": "true",
+        "PERFORMANCE_MONITORING": "true"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "runtimeArgs": ["--inspect=9229"],
+      "envFile": "${workspaceFolder}/backend/config.env",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ],
+      "outputCapture": "std",
+      "autoAttachChildProcesses": true
+    },
+    {
+      "name": "🔧 Debug API Only",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/src/server.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "gymtec:api",
+        "LOG_LEVEL": "info"
+      },
+      "console": "integratedTerminal",
+      "restart": true,
+      "runtimeArgs": ["--inspect=9230"],
+      "envFile": "${workspaceFolder}/backend/config.env",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ]
+    },
+    {
+      "name": "🌐 Debug Frontend (Chrome)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}/frontend",
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile",
+      "sourceMapPathOverrides": {
+        "webpack:///./~/*": "${workspaceFolder}/frontend/node_modules/*",
+        "webpack:///./*": "${workspaceFolder}/frontend/*",
+        "webpack:///src/*": "${workspaceFolder}/frontend/*"
+      }
+    },
+    {
+      "name": "🧪 Debug Test Script",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/test-mysql-connection.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "gymtec:test"
+      },
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/backend/config.env",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ]
+    },
+    {
+      "name": "🗄️ Debug Database Setup",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/database/setup-mysql.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "gymtec:db"
+      },
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/backend/config.env",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ]
+    },
+    {
+      "name": "📊 Debug Data Seeding",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/seed-initial-data.js",
+      "cwd": "${workspaceFolder}/backend",
+      "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "gymtec:seed"
+      },
+      "console": "integratedTerminal",
+      "envFile": "${workspaceFolder}/backend/config.env",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ]
+    },
+    {
+      "name": "🔗 Attach to Running Process",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "localRoot": "${workspaceFolder}/backend",
+      "remoteRoot": "${workspaceFolder}/backend",
+      "skipFiles": [
+        "<node_internals>/**",
+        "node_modules/**"
+      ]
+    }
+  ],
+  "compounds": [
+    {
+      "name": "🎯 Debug Full Stack",
+      "configurations": [
+        "🚀 Debug Backend Server (Enhanced)",
+        "🌐 Debug Frontend (Chrome)"
+      ],
+      "stopAll": true
+    }
+  ]
+}

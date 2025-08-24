@@ -1,0 +1,504 @@
+/**
+ * GYMTEC ERP - APIs para Sistema de Checklist
+ * Implementación de Ideas del Documento LAMP - Fase 1
+ * 
+ * Funcionalidades:
+ * - Gestión de templates de checklist
+ * - Asignación automática de checklist a tickets
+ * - Seguimiento de completado de checklist
+ * - Validación para cierre de tickets
+ */
+
+const express = require('express');
+const router = express.Router();
+const db = require('../db-adapter');
+
+// =====================================================
+// 1. GESTIÓN DE TEMPLATES DE CHECKLIST
+// =====================================================
+
+/**
+ * GET /api/checklist/templates - Listar templates de checklist
+ */
+router.get('/checklist/templates', async (req, res) => {
+    try {
+        const { ticket_type, equipment_category, active_only } = req.query;
+        
+        let sql = `
+            SELECT ct.*, em.name as equipment_model_name, em.brand as equipment_brand
+            FROM ChecklistTemplates ct
+            LEFT JOIN EquipmentModels em ON ct.equipment_model_id = em.id
+            WHERE 1=1
+        `;
+        const params = [];
+        
+        if (ticket_type) {
+            sql += ' AND ct.ticket_type = ?';
+            params.push(ticket_type);
+        }
+        
+        if (equipment_category) {
+            sql += ' AND ct.equipment_category = ?';
+            params.push(equipment_category);
+        }
+        
+        if (active_only === 'true') {
+            sql += ' AND ct.is_active = TRUE';
+        }
+        
+        sql += ' ORDER BY ct.name';
+        
+        const templates = await db.all(sql, params);
+        
+        // Obtener count de items para cada template
+        for (let template of templates) {
+            const itemCount = await db.get(
+                'SELECT COUNT(*) as count FROM ChecklistTemplateItems WHERE template_id = ?',
+                [template.id]
+            );
+            template.items_count = itemCount.count;
+        }
+        
+        res.json({
+            message: 'success',
+            data: templates,
+            metadata: { 
+                total: templates.length,
+                timestamp: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error fetching checklist templates:', error);
+        res.status(500).json({ 
+            error: 'Error al obtener templates de checklist',
+            code: 'CHECKLIST_TEMPLATES_FETCH_ERROR' 
+        });
+    }
+});
+
+/**
+ * GET /api/checklist/templates/:id - Obtener template específico con items
+ */
+router.get('/checklist/templates/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Obtener template
+        const template = await db.get(`
+            SELECT ct.*, em.name as equipment_model_name, em.brand as equipment_brand,
+                   u.username as created_by_name
+            FROM ChecklistTemplates ct
+            LEFT JOIN EquipmentModels em ON ct.equipment_model_id = em.id
+            LEFT JOIN Users u ON ct.created_by = u.id
+            WHERE ct.id = ?
+        `, [id]);
+        
+        if (!template) {
+            return res.status(404).json({
+                error: 'Template de checklist no encontrado',
+                code: 'CHECKLIST_TEMPLATE_NOT_FOUND'
+            });
+        }
+        
+        // Obtener items del template
+        const items = await db.all(`
+            SELECT * FROM ChecklistTemplateItems 
+            WHERE template_id = ? 
+            ORDER BY item_order, id
+        `, [id]);
+        
+        template.items = items;
+        
+        res.json({
+            message: 'success',
+            data: template
+        });
+        
+    } catch (error) {
+        console.error('Error fetching checklist template:', error);
+        res.status(500).json({ 
+            error: 'Error al obtener template de checklist',
+            code: 'CHECKLIST_TEMPLATE_FETCH_ERROR' 
+        });
+    }
+});
+
+/**
+ * POST /api/checklist/templates - Crear nuevo template de checklist
+ */
+router.post('/checklist/templates', async (req, res) => {
+    try {
+        const {
+            name,
+            description,
+            ticket_type,
+            equipment_category,
+            equipment_model_id,
+            is_mandatory = true,
+            items = []
+        } = req.body;
+        
+        // Validaciones básicas
+        if (!name || !ticket_type) {
+            return res.status(400).json({
+                error: 'Faltan campos obligatorios',
+                code: 'MISSING_REQUIRED_FIELDS',
+                required: ['name', 'ticket_type']
+            });
+        }
+        
+        if (items.length === 0) {
+            return res.status(400).json({
+                error: 'Debe incluir al menos un item en el checklist',
+                code: 'NO_CHECKLIST_ITEMS'
+            });
+        }
+        
+        // Crear template
+        const templateSql = `
+            INSERT INTO ChecklistTemplates (
+                name, description, ticket_type, equipment_category, 
+                equipment_model_id, is_mandatory, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const templateResult = await db.run(templateSql, [
+            name, description, ticket_type, equipment_category,
+            equipment_model_id || null, is_mandatory, req.user?.id || null
+        ]);
+        
+        const templateId = templateResult.lastID;
+        
+        // Crear items del checklist
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            const itemSql = `
+                INSERT INTO ChecklistTemplateItems (
+                    template_id, item_text, item_order, is_required, expected_result, notes
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            `;
+            
+            await db.run(itemSql, [
+                templateId,
+                item.text || item.item_text,
+                item.order || i + 1,
+                item.is_required !== false, // Por defecto true
+                item.expected_result || null,
+                item.notes || null
+            ]);
+        }
+        
+        // Obtener el template creado completo
+        const newTemplate = await db.get(`
+            SELECT ct.*, em.name as equipment_model_name
+            FROM ChecklistTemplates ct
+            LEFT JOIN EquipmentModels em ON ct.equipment_model_id = em.id
+            WHERE ct.id = ?
+        `, [templateId]);
+        
+        const newItems = await db.all(`
+            SELECT * FROM ChecklistTemplateItems 
+            WHERE template_id = ? 
+            ORDER BY item_order
+        `, [templateId]);
+        
+        newTemplate.items = newItems;
+        
+        res.status(201).json({
+            message: 'Template de checklist creado exitosamente',
+            data: newTemplate
+        });
+        
+    } catch (error) {
+        console.error('Error creating checklist template:', error);
+        res.status(500).json({ 
+            error: 'Error al crear template de checklist',
+            code: 'CHECKLIST_TEMPLATE_CREATE_ERROR' 
+        });
+    }
+});
+
+// =====================================================
+// 2. ASIGNACIÓN Y GESTIÓN DE CHECKLIST EN TICKETS
+// =====================================================
+
+/**
+ * POST /api/tickets/:ticketId/checklist/assign - Asignar checklist automático a ticket
+ */
+router.post('/tickets/:ticketId/checklist/assign', async (req, res) => {
+    try {
+        const { ticketId } = req.params;
+        const { template_id } = req.body; // Opcional: especificar template específico
+        
+        // Obtener información del ticket
+        const ticket = await db.get(`
+            SELECT t.*, e.model_id as equipment_model_id
+            FROM Tickets t
+            LEFT JOIN Equipment e ON t.equipment_id = e.model_id
+            WHERE t.id = ?
+        `, [ticketId]);
+        
+        if (!ticket) {
+            return res.status(404).json({
+                error: 'Ticket no encontrado',
+                code: 'TICKET_NOT_FOUND'
+            });
+        }
+        
+        let selectedTemplate;
+        
+        if (template_id) {
+            // Usar template específico
+            selectedTemplate = await db.get('SELECT * FROM ChecklistTemplates WHERE id = ? AND is_active = TRUE', [template_id]);
+        } else {
+            // Buscar template automático basado en tipo de ticket y equipo
+            let templateSql = `
+                SELECT * FROM ChecklistTemplates 
+                WHERE ticket_type = ? 
+                AND is_active = TRUE 
+                AND is_mandatory = TRUE
+            `;
+            const templateParams = [ticket.ticket_type];
+            
+            // Priorizar template específico para el modelo del equipo
+            if (ticket.equipment_model_id) {
+                templateSql += ' AND (equipment_model_id = ? OR equipment_model_id IS NULL)';
+                templateParams.push(ticket.equipment_model_id);
+                templateSql += ' ORDER BY equipment_model_id DESC'; // Específico primero
+            }
+            
+            templateSql += ' LIMIT 1';
+            
+            selectedTemplate = await db.get(templateSql, templateParams);
+        }
+        
+        if (!selectedTemplate) {
+            return res.status(404).json({
+                error: 'No se encontró template de checklist para este ticket',
+                code: 'NO_CHECKLIST_TEMPLATE_FOUND'
+            });
+        }
+        
+        // Verificar si ya existe checklist para este ticket
+        const existingChecklist = await db.get(
+            'SELECT id FROM TicketChecklist WHERE ticket_id = ? AND template_id = ?',
+            [ticketId, selectedTemplate.id]
+        );
+        
+        if (existingChecklist) {
+            return res.status(400).json({
+                error: 'Ya existe un checklist asignado para este ticket',
+                code: 'CHECKLIST_ALREADY_EXISTS'
+            });
+        }
+        
+        // Crear TicketChecklist
+        const checklistResult = await db.run(`
+            INSERT INTO TicketChecklist (
+                ticket_id, template_id, assigned_technician_id, status
+            ) VALUES (?, ?, ?, 'pendiente')
+        `, [ticketId, selectedTemplate.id, ticket.assigned_technician_id]);
+        
+        const checklistId = checklistResult.lastID;
+        
+        // Obtener items del template y crear TicketChecklistItems
+        const templateItems = await db.all(
+            'SELECT * FROM ChecklistTemplateItems WHERE template_id = ? ORDER BY item_order',
+            [selectedTemplate.id]
+        );
+        
+        for (const item of templateItems) {
+            await db.run(`
+                INSERT INTO TicketChecklistItems (
+                    ticket_checklist_id, template_item_id, is_completed, requires_attention
+                ) VALUES (?, ?, FALSE, ?)
+            `, [checklistId, item.id, item.is_required]);
+        }
+        
+        // Actualizar ticket para indicar que tiene checklist pendiente
+        await db.run(`
+            UPDATE Tickets SET 
+                checklist_completed = FALSE,
+                can_close = FALSE
+            WHERE id = ?
+        `, [ticketId]);
+        
+        res.status(201).json({
+            message: 'Checklist asignado exitosamente al ticket',
+            data: {
+                ticket_id: ticketId,
+                checklist_id: checklistId,
+                template_name: selectedTemplate.name,
+                items_count: templateItems.length
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error assigning checklist to ticket:', error);
+        res.status(500).json({ 
+            error: 'Error al asignar checklist al ticket',
+            code: 'CHECKLIST_ASSIGN_ERROR' 
+        });
+    }
+});
+
+/**
+ * GET /api/tickets/:ticketId/checklist - Obtener checklist del ticket
+ */
+router.get('/tickets/:ticketId/checklist', async (req, res) => {
+    try {
+        const { ticketId } = req.params;
+        
+        // Obtener checklist del ticket
+        const checklist = await db.get(`
+            SELECT tc.*, ct.name as template_name, ct.description as template_description,
+                   u.username as assigned_technician_name
+            FROM TicketChecklist tc
+            LEFT JOIN ChecklistTemplates ct ON tc.template_id = ct.id
+            LEFT JOIN Users u ON tc.assigned_technician_id = u.id
+            WHERE tc.ticket_id = ?
+        `, [ticketId]);
+        
+        if (!checklist) {
+            return res.status(404).json({
+                error: 'No hay checklist asignado a este ticket',
+                code: 'NO_CHECKLIST_FOUND'
+            });
+        }
+        
+        // Obtener items del checklist con información del template
+        const items = await db.all(`
+            SELECT tci.*, cti.item_text, cti.item_order, cti.is_required,
+                   cti.expected_result, cti.notes as template_notes,
+                   u.username as completed_by_name
+            FROM TicketChecklistItems tci
+            LEFT JOIN ChecklistTemplateItems cti ON tci.template_item_id = cti.id
+            LEFT JOIN Users u ON tci.completed_by = u.id
+            WHERE tci.ticket_checklist_id = ?
+            ORDER BY cti.item_order, tci.id
+        `, [checklist.id]);
+        
+        checklist.items = items;
+        
+        // Calcular progreso
+        const totalItems = items.length;
+        const completedItems = items.filter(item => item.is_completed).length;
+        checklist.progress = {
+            total: totalItems,
+            completed: completedItems,
+            percentage: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
+            pending: totalItems - completedItems
+        };
+        
+        res.json({
+            message: 'success',
+            data: checklist
+        });
+        
+    } catch (error) {
+        console.error('Error fetching ticket checklist:', error);
+        res.status(500).json({ 
+            error: 'Error al obtener checklist del ticket',
+            code: 'TICKET_CHECKLIST_FETCH_ERROR' 
+        });
+    }
+});
+
+/**
+ * PUT /api/tickets/:ticketId/checklist/items/:itemId - Marcar item como completado/pendiente
+ */
+router.put('/tickets/:ticketId/checklist/items/:itemId', async (req, res) => {
+    try {
+        const { ticketId, itemId } = req.params;
+        const { is_completed, completion_notes } = req.body;
+        
+        // Verificar que el item existe y pertenece al ticket
+        const item = await db.get(`
+            SELECT tci.*, tc.ticket_id 
+            FROM TicketChecklistItems tci
+            LEFT JOIN TicketChecklist tc ON tci.ticket_checklist_id = tc.id
+            WHERE tci.id = ? AND tc.ticket_id = ?
+        `, [itemId, ticketId]);
+        
+        if (!item) {
+            return res.status(404).json({
+                error: 'Item de checklist no encontrado',
+                code: 'CHECKLIST_ITEM_NOT_FOUND'
+            });
+        }
+        
+        // Actualizar item
+        const completedAt = is_completed ? new Date().toISOString() : null;
+        const completedBy = is_completed ? req.user?.id : null;
+        
+        await db.run(`
+            UPDATE TicketChecklistItems SET
+                is_completed = ?,
+                completion_notes = ?,
+                completed_at = ?,
+                completed_by = ?
+            WHERE id = ?
+        `, [is_completed, completion_notes || null, completedAt, completedBy, itemId]);
+        
+        // Recalcular progreso del checklist
+        const progress = await db.get(`
+            SELECT 
+                COUNT(*) as total,
+                SUM(CASE WHEN is_completed = TRUE THEN 1 ELSE 0 END) as completed
+            FROM TicketChecklistItems tci
+            LEFT JOIN TicketChecklist tc ON tci.ticket_checklist_id = tc.id
+            WHERE tc.ticket_id = ?
+        `, [ticketId]);
+        
+        const percentage = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
+        const isFullyCompleted = percentage === 100;
+        
+        // Actualizar checklist principal
+        await db.run(`
+            UPDATE TicketChecklist SET
+                completion_percentage = ?,
+                status = ?,
+                completed_at = ?
+            WHERE ticket_id = ?
+        `, [
+            percentage, 
+            isFullyCompleted ? 'completado' : 'en_progreso',
+            isFullyCompleted ? new Date().toISOString() : null,
+            ticketId
+        ]);
+        
+        // Actualizar ticket si checklist está completo
+        if (isFullyCompleted) {
+            await db.run(`
+                UPDATE Tickets SET
+                    checklist_completed = TRUE,
+                    can_close = TRUE
+                WHERE id = ?
+            `, [ticketId]);
+        }
+        
+        res.json({
+            message: 'Item de checklist actualizado exitosamente',
+            data: {
+                item_id: itemId,
+                is_completed,
+                progress: {
+                    percentage: Math.round(percentage),
+                    completed: progress.completed,
+                    total: progress.total,
+                    fully_completed: isFullyCompleted
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error updating checklist item:', error);
+        res.status(500).json({ 
+            error: 'Error al actualizar item de checklist',
+            code: 'CHECKLIST_ITEM_UPDATE_ERROR' 
+        });
+    }
+});
+
+module.exports = router;

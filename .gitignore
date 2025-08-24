@@ -14,10 +14,11 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+backend/logs/
+*.log
 
 # IDE and editor files
 .idea/
-.vscode/
 *.swp
 *.swo
 
@@ -40,4 +41,44 @@ Thumbs.db
 
 # Database
 /backend/database/*.db
-/backend/database/*.db-journal 
+/backend/database/*.db-journal
+
+# === PROTECCIÓN DE DOCUMENTACIÓN CRÍTICA ===
+# Estos archivos están protegidos y solo pueden ser modificados
+# por el propietario del proyecto o colaboradores autorizados
+
+# Documentación de arquitectura crítica
+docs/BITACORA_PROYECTO.md
+docs/reference/QUICK_REFERENCE.md
+docs/architecture/ANALISIS_PROYECTO_GYMTEC.md
+docs/debug/DEBUG_SYSTEM.md
+
+# Configuración de GitHub Copilot (protegida)
+.github/copilot-instructions.md
+
+# Configuración VS Code crítica (permitir para desarrollo)
+# .vscode/ - Comentado para permitir sharing de configuración
+
+# === ARCHIVOS TEMPORALES ===
+temp/
+tmp/
+*.tmp
+*.temp
+
+# === ARCHIVOS DE BACKUP ===
+*.bak
+*.backup
+*~
+
+# === ARCHIVOS DE TESTING ===
+coverage/
+.nyc_output/
+test-results/
+
+# === ARCHIVOS DE SEGURIDAD ===
+# Nunca commitear archivos con secrets
+*.key
+*.pem
+*.cert
+*.p12
+config.env 

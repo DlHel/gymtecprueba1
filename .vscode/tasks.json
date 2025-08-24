@@ -1,0 +1,146 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 Start Development Servers",
+      "type": "shell",
+      "command": "start-servers.bat",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared",
+        "showReuseMessage": true,
+        "clear": false
+      },
+      "problemMatcher": [],
+      "detail": "Starts both backend (port 3000) and frontend (port 8080) servers"
+    },
+    {
+      "label": "🔧 Backend Only",
+      "type": "shell",
+      "command": "cd backend && npm start",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        }
+      },
+      "detail": "Start backend Express server on port 3000"
+    },
+    {
+      "label": "🌐 Frontend Only",
+      "type": "shell",
+      "command": "cd frontend && python -m http.server 8080",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Start frontend static server on port 8080"
+    },
+    {
+      "label": "🗄️ Setup MySQL Database",
+      "type": "shell",
+      "command": "cd backend && npm run setup-mysql",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Initialize MySQL database with schema and seed data"
+    },
+    {
+      "label": "🔄 Reset Database",
+      "type": "shell",
+      "command": "cd backend && node database/setup-mysql.js",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Reset and recreate database tables"
+    },
+    {
+      "label": "🎨 Build CSS (Watch)",
+      "type": "shell",
+      "command": "npm run build:css",
+      "group": "build",
+      "isBackground": true,
+      "presentation": {
+        "echo": true,
+        "reveal": "silent",
+        "focus": false,
+        "panel": "shared"
+      },
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": "^Rebuilding\\.\\.\\.$",
+          "endsPattern": "^Done in \\d+ms\\.$"
+        }
+      },
+      "detail": "Watch and build Tailwind CSS changes"
+    },
+    {
+      "label": "🧪 Test API Endpoints",
+      "type": "shell",
+      "command": "cd backend && node test-mysql-connection.js",
+      "group": "test",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Test database connection and API endpoints"
+    },
+    {
+      "label": "📊 Generate Test Data",
+      "type": "shell",
+      "command": "cd backend && node seed-initial-data.js",
+      "group": "build",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared"
+      },
+      "problemMatcher": [],
+      "detail": "Generate test clients, equipment, and tickets"
+    }
+  ]
+}

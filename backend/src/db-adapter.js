@@ -25,8 +25,12 @@ class DatabaseAdapter {
         }
         
         this.db.query(sql, params)
-            .then(results => callback(null, results))
-            .catch(error => callback(error));
+            .then(results => {
+                if (callback) callback(null, results);
+            })
+            .catch(error => {
+                if (callback) callback(error);
+            });
     }
 
     // Función para MySQL db.get() - obtener solo el primer resultado

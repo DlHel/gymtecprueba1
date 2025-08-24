@@ -1,0 +1,24 @@
+{
+  "name": "gymtec-mcp-servers",
+  "version": "1.0.0",
+  "description": "Model Context Protocol servers for Gymtec ERP project integration",
+  "main": "gymtec-mcp-server.js",
+  "scripts": {
+    "start:gymtec": "node gymtec-mcp-server.js",
+    "start:bitacora": "node bitacora-mcp-server.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.1.0"
+  },
+  "devDependencies": {},
+  "author": "Gymtec ERP Team",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol", 
+    "claude-cli",
+    "gymtec",
+    "erp"
+  ]
+}

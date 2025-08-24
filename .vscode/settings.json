@@ -1,0 +1,181 @@
+{
+  // Workspace Settings for Gymtec ERP
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.detectIndentation": false,
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+  
+  // GitHub Copilot Configuration
+  "github.copilot.enable": {
+    "*": true,
+    "yaml": false,
+    "plaintext": false
+  },
+  "github.copilot.chat.localeOverride": "es",
+  "github.copilot.advanced": {
+    "secret_key": "sk-github-copilot",
+    "length": 500,
+    "temperature": 0.1,
+    "top_p": 1,
+    "stop": ["\n\n\n"]
+  },
+  
+  // File Associations for Better Copilot Context
+  "files.associations": {
+    "*.js": "javascript",
+    "*.json": "jsonc",
+    "*.md": "markdown",
+    "*.html": "html",
+    "*.css": "css",
+    "*.sql": "sql",
+    "*.env": "properties",
+    "*.env.*": "properties",
+    "config.env": "properties"
+  },
+  
+  // Auto-save for better development flow
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  
+  // Search Configuration for Large Codebase
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/uploads": true,
+    "**/.git": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.log": true
+  },
+  
+  // Integrated Terminal Configuration
+  "terminal.integrated.shell.windows": "pwsh.exe",
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  
+  // Language-specific Settings
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2
+  },
+  "[css]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2
+  },
+  "[sql]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true
+  },
+  "[markdown]": {
+    "editor.wordWrap": "on",
+    "editor.formatOnSave": false
+  },
+  
+  // Tailwind CSS Configuration
+  "tailwindCSS.includeLanguages": {
+    "html": "html",
+    "javascript": "javascript",
+    "css": "css"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    "class[Name]*\\s*[:=]\\s*['\"]([^'\"]*)['\"]",
+    "className\\s*[:=]\\s*['\"]([^'\"]*)['\"]"
+  ],
+  
+  // CSS Configuration for Tailwind
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+  
+  // Live Server Configuration for Frontend
+  "liveServer.settings.port": 8080,
+  "liveServer.settings.root": "/frontend",
+  "liveServer.settings.CustomBrowser": "chrome",
+  "liveServer.settings.donotShowInfoMsg": true,
+  
+  // Path Intellisense Configuration
+  "path-intellisense.mappings": {
+    "/": "${workspaceFolder}",
+    "./": "${workspaceFolder}",
+    "../": "${workspaceFolder}",
+    "~/": "${workspaceFolder}/frontend",
+    "@/": "${workspaceFolder}/frontend"
+  },
+  
+  // Problem Matchers for Better Error Detection
+  "problems.decorations.enabled": true,
+  "problems.showCurrentInStatus": true,
+  
+  // Git Configuration
+  "git.enableSmartCommit": true,
+  "git.confirmSync": false,
+  "git.autofetch": true,
+  "git.openRepositoryInParentFolders": "always",
+  
+  // Database Tools Configuration
+  "mssql.connections": [
+    {
+      "server": "localhost",
+      "database": "gymtec_erp",
+      "authenticationType": "Integrated",
+      "profileName": "GymTec Local MySQL",
+      "password": ""
+    }
+  ],
+  
+  // Excluded Files from Copilot Context
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/uploads": true,
+    "**/.git": true,
+    "**/dist": true,
+    "**/build": true,
+    "**/*.log": true,
+    "**/package-lock.json": true
+  },
+  
+  // Code Formatting Rules
+  "prettier.configPath": ".prettierrc",
+  "prettier.ignorePath": ".prettierignore",
+  "prettier.requireConfig": false,
+  "prettier.useEditorConfig": false,
+  
+  // IntelliSense Configuration
+  "typescript.suggest.autoImports": true,
+  "javascript.suggest.autoImports": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "javascript.updateImportsOnFileMove.enabled": "always",
+  
+  // Copilot Chat Configuration
+  "github.copilot.chat.welcomeMessage": "always",
+  "github.copilot.chat.enableCodeactions": true,
+  
+  // Workspace Trust
+  "security.workspace.trust.untrustedFiles": "open",
+  
+  // Minimap Configuration for Large Files
+  "editor.minimap.enabled": true,
+  "editor.minimap.maxColumn": 80,
+  "editor.minimap.showSlider": "mouseover",
+  
+  // Breadcrumbs for Navigation
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.symbolPath": "on"
+}

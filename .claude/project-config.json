@@ -1,0 +1,110 @@
+{
+  "projectName": "Gymtec ERP",
+  "projectType": "enterprise-erp",
+  "version": "2.0.0",
+  "description": "Sistema ERP profesional para gestión de equipos de gimnasio con arquitectura Node.js + Express + MySQL",
+  
+  "mcpServers": {
+    "gymtec-project-context": {
+      "command": "node",
+      "args": [".mcp/gymtec-mcp-server.js"],
+      "env": {
+        "PROJECT_ROOT": ".",
+        "CONTEXT_LEVEL": "full"
+      }
+    },
+    "gymtec-bitacora": {
+      "command": "node", 
+      "args": [".mcp/bitacora-mcp-server.js"],
+      "env": {
+        "BITACORA_PATH": "./docs/BITACORA_PROYECTO.md",
+        "AUTO_REFERENCE": "true"
+      }
+    }
+  },
+  
+  "systemPrompt": {
+    "role": "Expert Full-Stack Developer for Gymtec ERP",
+    "context": "You are working on Gymtec ERP, a professional enterprise-level system for gym equipment maintenance management.",
+    "rules": [
+      "ALWAYS reference @bitacora for project context before implementing",
+      "Use Node.js + Express + MySQL patterns established in the project",
+      "Follow enterprise security patterns (JWT, input validation, rate limiting)",
+      "Maintain Vanilla JavaScript frontend (NO frameworks)",
+      "Use established database schema and relationships",
+      "Apply comprehensive error handling and logging",
+      "Follow Model Context Protocol standards"
+    ]
+  },
+
+  "projectContext": {
+    "architecture": {
+      "backend": "Node.js + Express.js REST API",
+      "frontend": "Vanilla JavaScript + HTML + CSS (Tailwind)",
+      "database": "MySQL 8.0+ with 37+ tables",
+      "authentication": "JWT with refresh tokens",
+      "fileStorage": "Multer + Base64 encoding",
+      "ports": {
+        "backend": 3000,
+        "frontend": 8080
+      }
+    },
+    
+    "coreFeatures": [
+      "Equipment management system",
+      "Maintenance ticket system",
+      "Client and location management", 
+      "User authentication and authorization",
+      "Advanced reporting system",
+      "File upload and management",
+      "Real-time notifications"
+    ],
+    
+    "technicalStandards": {
+      "errorHandling": "Comprehensive try-catch with logging",
+      "validation": "Joi schema validation + sanitization",
+      "security": "Rate limiting + SQL injection prevention",
+      "logging": "Winston structured logging",
+      "apiPattern": "REST with consistent JSON responses",
+      "debugging": "Advanced debug system integrated"
+    }
+  },
+
+  "bitacoraSystem": {
+    "enabled": true,
+    "autoReference": true,
+    "commands": {
+      "@bitacora": "Complete project context",
+      "@bitacora api": "API endpoints and patterns",
+      "@bitacora database": "Schema and relationships", 
+      "@bitacora authentication": "JWT auth system",
+      "@bitacora frontend": "Vanilla JS architecture",
+      "@bitacora backend": "Express + MySQL patterns",
+      "@bitacora debug": "Debug system and logging",
+      "@bitacora security": "Security measures",
+      "@bitacora deployment": "Deployment configuration"
+    }
+  },
+
+  "protectedFiles": [
+    "docs/**",
+    ".github/copilot-instructions.md",
+    ".mcp/**",
+    ".vscode/launch.json",
+    "backend/src/server.js",
+    "frontend/js/config.js"
+  ],
+
+  "developmentContext": {
+    "startCommand": "start-servers.bat",
+    "debugCommand": "F5 in VS Code",
+    "testCommand": "npm test",
+    "projectStructure": {
+      "backend/": "Express API server with JWT auth",
+      "frontend/": "Vanilla JS client with Tailwind CSS",
+      "docs/": "Protected documentation with @bitacora system",
+      ".vscode/": "Professional VS Code configuration",
+      "uploads/": "File storage directory"
+    }
+  }
+}

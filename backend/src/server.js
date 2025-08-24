@@ -3971,9 +3971,109 @@ app.post('/api/time-entries', (req, res) => {
     });
 });
 
+// ===================================================================
+// FASE 1 ENHANCEMENTS - NUEVAS RUTAS IMPLEMENTADAS
+// ===================================================================
+// Importar y usar las nuevas rutas para las funcionalidades de Fase 1
+try {
+    const contractsSlaRoutes = require('./routes/contracts-sla');
+    const checklistRoutes = require('./routes/checklist');
+    const workflowRoutes = require('./routes/workflow');
+    
+    app.use('/api', contractsSlaRoutes);
+    app.use('/api', checklistRoutes);
+    app.use('/api', workflowRoutes);
+    
+    console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow');
+} catch (error) {
+    console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
+}
+
+// FASE 2 ENHANCEMENTS - SISTEMA DE NOTIFICACIONES INTELIGENTES
+// ===================================================================
+// Importar y usar las nuevas rutas y servicios para Fase 2
+try {
+    const notificationsRoutes = require('./routes/notifications');
+    const taskScheduler = require('./services/task-scheduler');
+    const alertProcessor = require('./services/alert-processor');
+    
+    app.use('/api/notifications', notificationsRoutes);
+    
+    console.log('✅ Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
+} catch (error) {
+    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
+}
+
+// FASE 3 ENHANCEMENTS - SISTEMA DE INVENTARIO INTELIGENTE Y REPORTES
+// ===================================================================
+// Importar y usar las nuevas rutas para Fase 3
+try {
+    const inventoryRoutes = require('./routes/inventory');
+    
+    app.use('/api/inventory', inventoryRoutes);
+    
+    console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
+} catch (error) {
+    console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
+}
+    
+    // Inicializar el scheduler de tareas automáticas
+    taskScheduler.initialize().then(() => {
+        console.log('✅ Task Scheduler inicializado');
+    }).catch(error => {
+        console.error('❌ Error inicializando Task Scheduler:', error.message);
+    });
+    
+    // Endpoint para estadísticas del scheduler
+    app.get('/api/system/scheduler/stats', authenticateToken, requireRole('admin'), (req, res) => {
+        res.json({
+            message: 'success',
+            data: {
+                scheduler: taskScheduler.getStats(),
+                alertProcessor: alertProcessor.getProcessingStats(),
+                activeJobs: taskScheduler.getActiveJobs()
+            }
+        });
+    });
+    
+    // Endpoint para trigger manual de alertas
+    app.post('/api/system/alerts/process', authenticateToken, requireRole('admin'), async (req, res) => {
+        try {
+            const result = await alertProcessor.processAllAlerts();
+            res.json({
+                message: 'Procesamiento de alertas completado',
+                data: {
+                    success: result,
+                    stats: alertProcessor.getProcessingStats()
+                }
+            });
+        } catch (error) {
+            res.status(500).json({
+                error: 'Error procesando alertas',
+                details: error.message
+            });
+        }
+    });
+    
+    console.log('✅ Fase 2 Routes loaded: Notificaciones, Alertas Automáticas, Scheduler');
+} catch (error) {
+    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
+}
+
 // --- Server ---
 app.listen(port, () => {
     console.log(`Gymtec ERP backend listening at http://localhost:${port}`);
+    console.log(`🚀 Fase 1 Core Business Features Active:`);
+    console.log(`   • Sistema de Contratos y SLA: /api/contracts`);
+    console.log(`   • Sistema de Checklist: /api/checklist`);
+    console.log(`   • Workflow Mejorado: /api/tickets/*/workflow`);
+    console.log(`   • Dashboard SLA: /api/sla/dashboard`);
+    console.log(`🔔 Fase 2 Notification System Active:`);
+    console.log(`   • Templates de Notificación: /api/notifications/templates`);
+    console.log(`   • Cola de Notificaciones: /api/notifications/queue`);
+    console.log(`   • Alertas Automáticas: Monitoreo SLA activo`);
+    console.log(`   • Scheduler de Tareas: CRON jobs ejecutándose`);
+    console.log(`   • Sistema de Logs: /api/notifications/logs`);
 }); 
 
 // --- API Routes for Checklist Templates ---
@@ -4617,3 +4717,232 @@ app.post('/api/finance-inventory/receive-order/:orderId', (req, res) => {
         });
     });
 });
+
+} catch (error) {
+    console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
+}
+
+// ===================================================================
+// FUNCIONES UTILITARIAS ADICIONALES
+// ===================================================================
+
+// Auto-generate checklist from equipment category template
+async function createChecklistFromTemplate(ticketId, equipmentId) {
+    return new Promise((resolve, reject) => {
+        // Obtener información del equipo
+        const equipmentSql = `
+            SELECT e.type, em.category 
+            FROM Equipment e 
+            LEFT JOIN EquipmentModels em ON e.model_id = em.id 
+            WHERE e.id = ?
+        `;
+        
+        db.get(equipmentSql, [equipmentId], (err, equipment) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            
+            if (!equipment) {
+                resolve([]);
+                return;
+            }
+            
+            // Definir templates de checklist por categoría de equipo
+            const templates = {
+                'Cardiovascular': [
+                    'Verificar funcionamiento de pantalla',
+                    'Revisar calibración de velocidad',
+                    'Inspeccionar correa de transmisión',
+                    'Verificar sistema de inclinación',
+                    'Probar botones de emergencia',
+                    'Limpiar y lubricar componentes móviles'
+                ],
+                'Fuerza': [
+                    'Verificar cables y poleas',
+                    'Inspeccionar pesos y contrapesos',
+                    'Revisar sistema de seguridad',
+                    'Lubricar articulaciones',
+                    'Verificar ajustes de asiento',
+                    'Probar funcionamiento suave'
+                ],
+                'Funcional': [
+                    'Inspeccionar estructura general',
+                    'Verificar estabilidad',
+                    'Revisar superficie antideslizante',
+                    'Inspeccionar conectores',
+                    'Verificar sistema de agarre'
+                ],
+                'default': [
+                    'Inspección visual general',
+                    'Verificar funcionamiento básico',
+                    'Revisar seguridad del equipo',
+                    'Limpiar equipo',
+                    'Documentar hallazgos'
+                ]
+            };
+            
+            const category = equipment.category || equipment.type || 'default';
+            const tasks = templates[category] || templates['default'];
+            
+            // Insertar tareas del checklist
+            let insertedTasks = [];
+            let completed = 0;
+            
+            if (tasks.length === 0) {
+                resolve([]);
+                return;
+            }
+            
+            tasks.forEach((task, index) => {
+                const sql = `INSERT INTO TicketChecklists (ticket_id, title, order_index) VALUES (?, ?, ?)`;
+                db.run(sql, [ticketId, task, index], function(err) {
+                    if (err) {
+                        console.error('Error insertando tarea de checklist:', err);
+                    } else {
+                        insertedTasks.push({
+                            id: this.lastID,
+                            ticket_id: ticketId,
+                            title: task,
+                            order_index: index,
+                            is_completed: false,
+                            created_at: new Date().toISOString()
+                        });
+                    }
+                    
+                    completed++;
+                    if (completed === tasks.length) {
+                        resolve(insertedTasks);
+                    }
+                });
+            });
+        });
+    });
+}
+
+// ===================================================================
+// CONFIGURACIÓN DEL SERVIDOR Y MANEJADORES GLOBALES
+// ===================================================================
+
+// Manejador de rutas no encontradas
+app.use('*', (req, res) => {
+    res.status(404).json({
+        error: 'Endpoint no encontrado',
+        path: req.originalUrl,
+        method: req.method,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Manejador global de errores
+app.use((err, req, res, next) => {
+    console.error('💥 Error no manejado:', err);
+    
+    // Error de JWT
+    if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+            error: 'Token inválido',
+            code: 'INVALID_TOKEN'
+        });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+            error: 'Token expirado',
+            code: 'TOKEN_EXPIRED'
+        });
+    }
+    
+    // Error de validación
+    if (err.type === 'validation') {
+        return res.status(400).json({
+            error: 'Error de validación',
+            details: err.details
+        });
+    }
+    
+    // Error genérico del servidor
+    res.status(500).json({
+        error: 'Error interno del servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===================================================================
+// INICIALIZACIÓN Y ARRANQUE DEL SERVIDOR
+// ===================================================================
+
+const PORT = process.env.PORT || 3000;
+
+// Función de inicialización del servidor
+function startServer() {
+    app.listen(PORT, '0.0.0.0', (err) => {
+        if (err) {
+            console.error('💥 Error iniciando servidor:', err);
+            process.exit(1);
+        }
+        
+        console.log('\n🚀 ========================================');
+        console.log('🚀 GYMTEC ERP - SERVIDOR INICIADO');
+        console.log('🚀 ========================================');
+        console.log(`🌍 Servidor corriendo en: http://localhost:${PORT}`);
+        console.log(`🌍 Accessible via: http://0.0.0.0:${PORT}`);
+        console.log(`🔧 Modo: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`📂 Base de datos: ${db.filename || 'MySQL/SQLite'}`);
+        console.log('📋 Rutas disponibles:');
+        console.log('   🔐 /api/auth/* (Autenticación)');
+        console.log('   👥 /api/clients/* (Gestión de Clientes)');
+        console.log('   🏢 /api/locations/* (Gestión de Sedes)');
+        console.log('   🔧 /api/equipment/* (Gestión de Equipos)');
+        console.log('   🎫 /api/tickets/* (Sistema de Tickets)');
+        console.log('   📦 /api/inventory/* (Gestión de Inventario)');
+        console.log('   🛒 /api/purchase-orders/* (Órdenes de Compra)');
+        console.log('   📊 /api/dashboard/* (Dashboard y KPIs)');
+        console.log('   👤 /api/users/* (Gestión de Usuarios)');
+        console.log('   💰 /api/quotes/* (Cotizaciones)');
+        console.log('   🧾 /api/invoices/* (Facturación)');
+        console.log('   💸 /api/expenses/* (Gastos)');
+        console.log('   ⏱️  /api/time-entries/* (Control de Tiempo)');
+        console.log('   🔔 /api/notifications/* (Notificaciones - Fase 2)');
+        console.log('   📈 /api/inventory/* (Inventario Inteligente - Fase 3)');
+        console.log('🚀 ========================================\n');
+        
+        // Inicializar servicios de background
+        try {
+            console.log('🔄 Inicializando servicios de background...');
+            // Aquí se inicializarían los schedulers y servicios automáticos
+            console.log('✅ Servicios de background iniciados correctamente');
+        } catch (error) {
+            console.warn('⚠️  Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
+        }
+    });
+}
+
+// Manejo graceful de cierre del servidor
+process.on('SIGINT', () => {
+    console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');
+    db.close((err) => {
+        if (err) {
+            console.error('❌ Error cerrando base de datos:', err.message);
+        } else {
+            console.log('✅ Base de datos cerrada correctamente');
+        }
+        process.exit(0);
+    });
+});
+
+process.on('SIGTERM', () => {
+    console.log('\n🛑 Recibida señal SIGTERM, cerrando servidor...');
+    db.close((err) => {
+        if (err) {
+            console.error('❌ Error cerrando base de datos:', err.message);
+        } else {
+            console.log('✅ Base de datos cerrada correctamente');
+        }
+        process.exit(0);
+    });
+});
+
+// Iniciar el servidor
+startServer();

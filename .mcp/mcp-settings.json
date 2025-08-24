@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "gymtec-project-context": {
+      "command": "node",
+      "args": [".mcp/gymtec-mcp-server.js"],
+      "env": {
+        "PROJECT_ROOT": ".",
+        "CONTEXT_LEVEL": "full"
+      }
+    },
+    "gymtec-bitacora": {
+      "command": "node", 
+      "args": [".mcp/bitacora-mcp-server.js"],
+      "env": {
+        "BITACORA_PATH": "./docs/BITACORA_PROYECTO.md",
+        "AUTO_REFERENCE": "true"
+      }
+    }
+  }
+}

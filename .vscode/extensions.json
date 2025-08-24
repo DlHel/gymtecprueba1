@@ -1,0 +1,45 @@
+{
+  "recommendations": [
+    // GitHub Copilot Essential Extensions
+    "github.copilot",
+    "github.copilot-chat", 
+    "github.copilot-labs",
+    
+    // Code Quality & Development
+    "ms-vscode.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-json",
+    "redhat.vscode-yaml",
+    
+    // Database & Backend Development  
+    "ms-mssql.mssql",
+    "bradlc.vscode-tailwindcss",
+    "ms-vscode.powershell",
+    
+    // Frontend Development
+    "ritwickdey.liveserver",
+    "formulahendry.auto-rename-tag",
+    "christian-kohler.path-intellisense",
+    "ms-vscode.vscode-json",
+    
+    // Git & Version Control
+    "eamodio.gitlens",
+    "github.vscode-pull-request-github",
+    "ms-vscode.vscode-git-base",
+    
+    // Productivity Tools
+    "ms-vscode.remote-repositories",
+    "ms-vsliveshare.vsliveshare",
+    "ms-vscode.theme-tomorrowkit",
+    "pkief.material-icon-theme",
+    
+    // Code Documentation
+    "yzhang.markdown-all-in-one",
+    "bierner.markdown-mermaid",
+    "davidanson.vscode-markdownlint",
+    
+    // API Development & Testing
+    "humao.rest-client",
+    "ms-vscode.vscode-thunder-client"
+  ]
+}

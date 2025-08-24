@@ -1,0 +1,118 @@
+{
+  "env": {
+    "browser": true,
+    "es2021": true,
+    "node": true,
+    "jquery": false
+  },
+  "extends": [
+    "eslint:recommended"
+  ],
+  "parserOptions": {
+    "ecmaVersion": 2021,
+    "sourceType": "script"
+  },
+  "rules": {
+    // Code Quality Rules
+    "no-console": "warn",
+    "no-debugger": "warn", 
+    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-undef": "error",
+    "prefer-const": "warn",
+    "no-var": "warn",
+    
+    // Security Rules (Critical for this project)
+    "no-eval": "error",
+    "no-implied-eval": "error",
+    "no-new-func": "error",
+    "no-script-url": "error",
+    
+    // Vanilla JS Best Practices (No jQuery/frameworks allowed)
+    "no-global-assign": "error",
+    "no-implicit-globals": "error",
+    
+    // Code Style
+    "semi": ["error", "always"],
+    "quotes": ["warn", "single", { "avoidEscape": true }],
+    "indent": ["warn", 2],
+    "comma-dangle": ["warn", "es5"],
+    
+    // Error Prevention
+    "no-unreachable": "error",
+    "no-duplicate-case": "error",
+    "no-empty": "warn",
+    
+    // DOM Manipulation Safety (Critical for this project) 
+    "no-unsafe-finally": "error",
+    "no-unsafe-negation": "error"
+  },
+  "globals": {
+    // Project-specific globals
+    "API_URL": "readonly",
+    "authenticatedFetch": "readonly",
+    "showNotification": "readonly",
+    "showError": "readonly",
+    "showSuccess": "readonly",
+    "showLoading": "readonly",
+    "hideLoading": "readonly",
+    "formatDate": "readonly",
+    "formatCurrency": "readonly",
+    "validateRUT": "readonly",
+    "debounce": "readonly",
+    
+    // External Libraries (only what we actually use)
+    "lucide": "readonly",
+    "QRCode": "readonly",
+    "Chart": "readonly"
+  },
+  "overrides": [
+    {
+      "files": ["frontend/js/**/*.js"],
+      "env": {
+        "browser": true,
+        "node": false
+      },
+      "globals": {
+        "localStorage": "readonly",
+        "sessionStorage": "readonly",
+        "fetch": "readonly",
+        "FormData": "readonly",
+        "URLSearchParams": "readonly"
+      }
+    },
+    {
+      "files": ["backend/**/*.js"],
+      "env": {
+        "node": true,
+        "browser": false
+      },
+      "globals": {
+        "process": "readonly",
+        "Buffer": "readonly",
+        "__dirname": "readonly",
+        "__filename": "readonly",
+        "require": "readonly",
+        "module": "readonly",
+        "exports": "readonly"
+      }
+    },
+    {
+      "files": ["*.test.js", "test-*.js", "**/test/**/*.js"],
+      "env": {
+        "jest": true,
+        "mocha": true
+      },
+      "rules": {
+        "no-console": "off"
+      }
+    }
+  ],
+  "ignorePatterns": [
+    "node_modules/",
+    "dist/",
+    "build/", 
+    "uploads/",
+    "*.min.js",
+    "package-lock.json"
+  ]
+}

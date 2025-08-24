@@ -1,0 +1,48 @@
+# Prettier Configuration for Gymtec ERP
+# Professional JavaScript/CSS formatting rules
+
+# Basic Formatting
+semi: true
+singleQuote: true
+tabWidth: 2
+useTabs: false
+printWidth: 100
+
+# JavaScript/JSON Formatting
+trailingComma: "es5"
+bracketSpacing: true
+bracketSameLine: false
+arrowParens: "avoid"
+
+# HTML Formatting
+htmlWhitespaceSensitivity: "css"
+
+# CSS Formatting  
+singleQuote: false
+
+# File-specific Overrides
+overrides:
+  - files: "*.html"
+    options:
+      printWidth: 120
+      tabWidth: 2
+      
+  - files: "*.css"
+    options:
+      printWidth: 120
+      singleQuote: false
+      
+  - files: "*.js"
+    options:
+      printWidth: 100
+      singleQuote: true
+      
+  - files: "*.json"
+    options:
+      printWidth: 80
+      tabWidth: 2
+      
+  - files: "*.md"
+    options:
+      printWidth: 80
+      proseWrap: "always"

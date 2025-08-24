@@ -1,0 +1,74 @@
+# Gymtec ERP - EditorConfig
+# Consistent coding styles across different editors and IDEs
+
+root = true
+
+# All files
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# JavaScript files
+[*.js]
+indent_style = space
+indent_size = 2
+max_line_length = 100
+
+# HTML files  
+[*.html]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# CSS files
+[*.css]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# JSON files
+[*.json]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+
+# SQL files
+[*.sql]
+indent_style = space
+indent_size = 2
+max_line_length = 120
+
+# Markdown files
+[*.md]
+indent_style = space
+indent_size = 2
+max_line_length = 80
+trim_trailing_whitespace = false
+
+# YAML files
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+# Config files
+[*.{env,ini,conf}]
+indent_style = space
+indent_size = 2
+
+# Batch files (Windows)
+[*.bat]
+end_of_line = crlf
+indent_style = space
+indent_size = 2
+
+# PowerShell files
+[*.ps1]
+indent_style = space  
+indent_size = 2
+
+# Package files
+[{package.json,package-lock.json}]
+indent_style = space
+indent_size = 2
