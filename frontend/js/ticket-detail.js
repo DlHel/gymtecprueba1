@@ -106,13 +106,24 @@ async function loadTicketDetail(ticketId) {
         // 🔍 DEBUGGING: Verificar estado de autenticación antes de hacer la llamada
         console.log('🔐 Verificando autenticación...');
         console.log('📋 authManager disponible:', typeof authManager !== 'undefined');
-        console.log('✅ Está autenticado:', authManager ? authManager.isAuthenticated() : false);
         
-        if (!authManager || !authManager.isAuthenticated()) {
-            console.error('❌ Usuario no autenticado - Redirigiendo a login...');
+        if (!authManager) {
+            console.error('❌ AuthManager no disponible - Redirigiendo a login...');
             window.location.href = '/login.html';
             return;
         }
+        
+        // Verificar que el token sea válido (no solo que exista)
+        console.log('🔐 Verificando validez del token...');
+        const isTokenValid = await authManager.verifyToken();
+        
+        if (!isTokenValid) {
+            console.error('❌ Token inválido o expirado - Redirigiendo a login...');
+            window.location.href = '/login.html';
+            return;
+        }
+        
+        console.log('✅ Token válido, continuando...');
         
         // Resetear sistema de fotos para evitar event listeners duplicados
         resetPhotoSystem();
@@ -1334,7 +1345,7 @@ async function renderStockAlerts() {
     
     try {
         // Obtener alertas de stock bajo del backend
-        const response = await authenticatedFetch(`${API_URL}/inventory/spare-parts/alerts`);
+        const response = await authenticatedFetch(`${API_URL}/inventory/low-stock`);
         if (!response.ok) {
             throw new Error('Error al cargar alertas de stock');
         }
@@ -2046,7 +2057,7 @@ async function toggleChecklistItem(itemId, isCompleted) {
         // Asegurar que is_completed sea boolean
         const completed = Boolean(isCompleted);
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/checklist/${itemId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/checklist/items/${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2102,7 +2113,7 @@ async function deleteChecklistItem(itemId) {
     try {
         console.log('🗑️ Eliminando tarea del checklist:', itemId);
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/checklist/${itemId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/checklist/items/${itemId}`, {
             method: 'DELETE'
         });
         

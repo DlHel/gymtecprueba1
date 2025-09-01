@@ -12,6 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
+const { authenticateToken } = require('../middleware/auth');
 
 // =====================================================
 // 1. GESTIÓN DE TEMPLATES DE CHECKLIST
@@ -408,88 +409,82 @@ router.get('/tickets/:ticketId/checklist', async (req, res) => {
 /**
  * PUT /api/tickets/:ticketId/checklist/items/:itemId - Marcar item como completado/pendiente
  */
-router.put('/tickets/:ticketId/checklist/items/:itemId', async (req, res) => {
+router.put('/tickets/:ticketId/checklist/items/:itemId', (req, res) => {
     try {
         const { ticketId, itemId } = req.params;
         const { is_completed, completion_notes } = req.body;
         
         // Verificar que el item existe y pertenece al ticket
-        const item = await db.get(`
-            SELECT tci.*, tc.ticket_id 
-            FROM TicketChecklistItems tci
-            LEFT JOIN TicketChecklist tc ON tci.ticket_checklist_id = tc.id
-            WHERE tci.id = ? AND tc.ticket_id = ?
-        `, [itemId, ticketId]);
-        
-        if (!item) {
-            return res.status(404).json({
-                error: 'Item de checklist no encontrado',
-                code: 'CHECKLIST_ITEM_NOT_FOUND'
-            });
-        }
-        
-        // Actualizar item
-        const completedAt = is_completed ? new Date().toISOString() : null;
-        const completedBy = is_completed ? req.user?.id : null;
-        
-        await db.run(`
-            UPDATE TicketChecklistItems SET
-                is_completed = ?,
-                completion_notes = ?,
-                completed_at = ?,
-                completed_by = ?
-            WHERE id = ?
-        `, [is_completed, completion_notes || null, completedAt, completedBy, itemId]);
-        
-        // Recalcular progreso del checklist
-        const progress = await db.get(`
-            SELECT 
-                COUNT(*) as total,
-                SUM(CASE WHEN is_completed = TRUE THEN 1 ELSE 0 END) as completed
-            FROM TicketChecklistItems tci
-            LEFT JOIN TicketChecklist tc ON tci.ticket_checklist_id = tc.id
-            WHERE tc.ticket_id = ?
-        `, [ticketId]);
-        
-        const percentage = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
-        const isFullyCompleted = percentage === 100;
-        
-        // Actualizar checklist principal
-        await db.run(`
-            UPDATE TicketChecklist SET
-                completion_percentage = ?,
-                status = ?,
-                completed_at = ?
-            WHERE ticket_id = ?
-        `, [
-            percentage, 
-            isFullyCompleted ? 'completado' : 'en_progreso',
-            isFullyCompleted ? new Date().toISOString() : null,
-            ticketId
-        ]);
-        
-        // Actualizar ticket si checklist está completo
-        if (isFullyCompleted) {
-            await db.run(`
-                UPDATE Tickets SET
-                    checklist_completed = TRUE,
-                    can_close = TRUE
-                WHERE id = ?
-            `, [ticketId]);
-        }
-        
-        res.json({
-            message: 'Item de checklist actualizado exitosamente',
-            data: {
-                item_id: itemId,
-                is_completed,
-                progress: {
-                    percentage: Math.round(percentage),
-                    completed: progress.completed,
-                    total: progress.total,
-                    fully_completed: isFullyCompleted
-                }
+        db.get(`
+            SELECT * FROM ticketchecklists 
+            WHERE id = ? AND ticket_id = ?
+        `, [itemId, ticketId], (err, item) => {
+            if (err) {
+                console.error('Error verificando item de checklist:', err);
+                return res.status(500).json({
+                    error: 'Error interno del servidor',
+                    code: 'DB_ERROR'
+                });
             }
+            
+            if (!item) {
+                return res.status(404).json({
+                    error: 'Item de checklist no encontrado',
+                    code: 'CHECKLIST_ITEM_NOT_FOUND'
+                });
+            }
+            
+            // Actualizar item
+            const completedAt = is_completed ? new Date().toISOString() : null;
+            const completedBy = is_completed ? (req.user?.username || req.user?.id || 'Sistema') : null;
+            
+            db.run(`
+                UPDATE ticketchecklists SET
+                    is_completed = ?,
+                    completed_at = ?,
+                    completed_by = ?
+                WHERE id = ?
+            `, [is_completed ? 1 : 0, completedAt, completedBy, itemId], function(err) {
+                if (err) {
+                    console.error('Error actualizando item de checklist:', err);
+                    return res.status(500).json({
+                        error: 'Error al actualizar item de checklist',
+                        code: 'CHECKLIST_UPDATE_ERROR'
+                    });
+                }
+                
+                // Calcular progreso del checklist
+                db.all(`
+                    SELECT 
+                        COUNT(*) as total,
+                        SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) as completed
+                    FROM ticketchecklists 
+                    WHERE ticket_id = ?
+                `, [ticketId], (err, progressResult) => {
+                    if (err) {
+                        console.error('Error calculando progreso:', err);
+                        // Continuar sin el progreso si hay error
+                    }
+                    
+                    const progress = progressResult && progressResult.length > 0 ? progressResult[0] : { total: 0, completed: 0 };
+                    const percentage = progress.total > 0 ? (progress.completed / progress.total) * 100 : 0;
+                    const isFullyCompleted = percentage === 100;
+                    
+                    res.json({
+                        message: 'Item de checklist actualizado exitosamente',
+                        data: {
+                            item_id: itemId,
+                            is_completed,
+                            progress: {
+                                percentage: Math.round(percentage),
+                                completed: progress.completed,
+                                total: progress.total,
+                                fully_completed: isFullyCompleted
+                            }
+                        }
+                    });
+                });
+            });
         });
         
     } catch (error) {
@@ -497,6 +492,172 @@ router.put('/tickets/:ticketId/checklist/items/:itemId', async (req, res) => {
         res.status(500).json({ 
             error: 'Error al actualizar item de checklist',
             code: 'CHECKLIST_ITEM_UPDATE_ERROR' 
+        });
+    }
+});
+
+/**
+ * POST /api/tickets/:ticketId/checklist - Agregar nuevo item al checklist del ticket
+ */
+router.post('/tickets/:ticketId/checklist', authenticateToken, (req, res) => {
+    try {
+        const { ticketId } = req.params;
+        const { title, description } = req.body;
+        
+        // Validación de entrada
+        if (!title || title.trim().length === 0) {
+            return res.status(400).json({
+                error: 'El título es requerido',
+                code: 'TITLE_REQUIRED'
+            });
+        }
+        
+        if (title.length > 200) {
+            return res.status(400).json({
+                error: 'El título no puede exceder 200 caracteres',
+                code: 'TITLE_TOO_LONG'
+            });
+        }
+        
+        // Verificar que el ticket existe
+        db.get('SELECT id FROM tickets WHERE id = ?', [ticketId], (err, ticket) => {
+            if (err) {
+                console.error('Error verificando ticket:', err);
+                return res.status(500).json({
+                    error: 'Error interno del servidor',
+                    code: 'DB_ERROR'
+                });
+            }
+            
+            if (!ticket) {
+                return res.status(404).json({
+                    error: 'Ticket no encontrado',
+                    code: 'TICKET_NOT_FOUND'
+                });
+            }
+            
+            // Obtener el siguiente order_index
+            db.get('SELECT MAX(order_index) as max_order FROM ticketchecklists WHERE ticket_id = ?', [ticketId], (err, result) => {
+                if (err) {
+                    console.error('Error obteniendo order_index:', err);
+                    return res.status(500).json({
+                        error: 'Error interno del servidor',
+                        code: 'DB_ERROR'
+                    });
+                }
+                
+                const nextOrderIndex = (result.max_order || -1) + 1;
+                
+                // Insertar nuevo item del checklist
+                const sql = `
+                    INSERT INTO ticketchecklists (ticket_id, title, description, is_completed, order_index, created_at)
+                    VALUES (?, ?, ?, 0, ?, NOW())
+                `;
+                
+                db.run(sql, [ticketId, title.trim(), description || null, nextOrderIndex], function(err) {
+                    if (err) {
+                        console.error('Error insertando item de checklist:', err);
+                        return res.status(500).json({
+                            error: 'Error al agregar item al checklist',
+                            code: 'CHECKLIST_INSERT_ERROR'
+                        });
+                    }
+                    
+                    // Obtener el item recién creado
+                    db.get('SELECT * FROM ticketchecklists WHERE id = ?', [this.lastID], (err, newItem) => {
+                        if (err) {
+                            console.error('Error obteniendo item creado:', err);
+                            return res.status(500).json({
+                                error: 'Error interno del servidor',
+                                code: 'DB_ERROR'
+                            });
+                        }
+                        
+                        res.status(201).json({
+                            message: 'Item agregado al checklist exitosamente',
+                            data: {
+                                id: newItem.id,
+                                ticket_id: newItem.ticket_id,
+                                title: newItem.title,
+                                description: newItem.description,
+                                is_completed: newItem.is_completed === 1,
+                                order_index: newItem.order_index,
+                                created_at: newItem.created_at
+                            }
+                        });
+                    });
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('Error adding checklist item:', error);
+        res.status(500).json({ 
+            error: 'Error al agregar item al checklist',
+            code: 'CHECKLIST_ADD_ERROR' 
+        });
+    }
+});
+
+// DELETE - Eliminar item de checklist
+router.delete('/tickets/:ticketId/checklist/items/:itemId', authenticateToken, (req, res) => {
+    const { itemId, ticketId } = req.params;
+    
+    try {
+        // Verificar que el item existe y pertenece al ticket
+        db.get('SELECT * FROM ticketchecklists WHERE id = ? AND ticket_id = ?', [itemId, ticketId], (err, item) => {
+            if (err) {
+                console.error('Error retrieving checklist item:', err);
+                return res.status(500).json({ 
+                    error: 'Error al consultar item de checklist',
+                    code: 'DB_ERROR' 
+                });
+            }
+
+            if (!item) {
+                return res.status(404).json({ 
+                    error: 'Item de checklist no encontrado',
+                    code: 'CHECKLIST_ITEM_NOT_FOUND' 
+                });
+            }
+
+            // Eliminar el item
+            db.run('DELETE FROM ticketchecklists WHERE id = ? AND ticket_id = ?', [itemId, ticketId], function(err) {
+                if (err) {
+                    console.error('Error deleting checklist item:', err);
+                    return res.status(500).json({ 
+                        error: 'Error al eliminar item de checklist',
+                        code: 'DB_DELETE_ERROR' 
+                    });
+                }
+
+                if (this.changes === 0) {
+                    return res.status(404).json({ 
+                        error: 'Item de checklist no encontrado o ya eliminado',
+                        code: 'NO_CHANGES_MADE' 
+                    });
+                }
+
+                console.log(`✅ Checklist item ${itemId} eliminado del ticket ${ticketId}`);
+                
+                res.json({ 
+                    message: 'Item de checklist eliminado exitosamente',
+                    data: { 
+                        itemId: parseInt(itemId),
+                        ticketId: parseInt(ticketId),
+                        deleted: true 
+                    },
+                    metadata: { 
+                        timestamp: new Date().toISOString() 
+                    }
+                });
+            });
+        });
+    } catch (error) {
+        console.error('Error deleting checklist item:', error);
+        res.status(500).json({ 
+            error: 'Error al eliminar item de checklist',
+            code: 'CHECKLIST_ITEM_DELETE_ERROR' 
         });
     }
 });
