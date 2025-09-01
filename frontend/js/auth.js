@@ -78,8 +78,9 @@ class AuthManager {
 
         // Si recibimos 401, el token expiró o es inválido
         if (response.status === 401) {
+            console.warn('🔒 Token expirado o inválido (401), haciendo logout automático...');
             this.logout();
-            window.location.href = 'login.html';
+            window.location.href = '/login.html';
             throw new Error('Sesión expirada');
         }
 

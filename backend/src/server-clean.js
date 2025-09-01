@@ -723,7 +723,7 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
             }
             
             tasks.forEach((task, index) => {
-                const sql = `INSERT INTO TicketChecklists (ticket_id, title, order_index) VALUES (?, ?, ?)`;
+                const sql = `INSERT INTO ticketchecklists (ticket_id, title, order_index) VALUES (?, ?, ?)`;
                 db.run(sql, [ticketId, task, index], function(err) {
                     if (err) {
                         console.error('Error insertando tarea de checklist:', err);
@@ -862,61 +862,96 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
     db.get(ticketSql, [ticketId], (err, ticket) => {
         if (err) {
             console.error('❌ Error obteniendo ticket:', err.message);
-            res.status(500).json({ "error": err.message });
-            return;
+            return res.status(500).json({ 
+                error: 'Error interno del servidor al obtener ticket',
+                code: 'TICKET_FETCH_ERROR'
+            });
         }
         
         if (!ticket) {
             console.log(`❌ Ticket ${ticketId} no encontrado`);
-            return res.status(404).json({ error: "Ticket no encontrado" });
+            return res.status(404).json({ 
+                error: "Ticket no encontrado",
+                code: 'TICKET_NOT_FOUND'
+            });
         }
         
         console.log(`✅ Ticket ${ticketId} encontrado: ${ticket.title}`);
         
-        // Obtener fotos del ticket
+        // Obtener fotos del ticket (con manejo robusto de errores)
         const photosSql = `SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC`;
         
-        db.all(photosSql, [ticketId], (err, photos) => {
-            if (err) {
-                console.error('❌ Error obteniendo fotos:', err.message);
-                // Continuar sin fotos en caso de error
+        db.all(photosSql, [ticketId], (photoErr, photos) => {
+            if (photoErr) {
+                console.log('⚠️ Error obteniendo fotos (continuando sin fotos):', photoErr.message);
                 photos = [];
             }
             
             console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
             
-            // Obtener actividades/comentarios (si la tabla existe)
-            const activitiesSql = `SELECT * FROM TicketActivities WHERE ticket_id = ? ORDER BY created_at DESC`;
+            // Verificar si tabla TicketActivities existe antes de consultarla
+            const checkTableSql = `SHOW TABLES LIKE 'TicketActivities'`;
             
-            db.all(activitiesSql, [ticketId], (err, activities) => {
-                if (err) {
-                    console.log('⚠️ Tabla TicketActivities no existe o error:', err.message);
-                    // Continuar sin actividades
-                    activities = [];
+            db.all(checkTableSql, [], (checkErr, tableExists) => {
+                let activities = [];
+                
+                if (checkErr || !tableExists || tableExists.length === 0) {
+                    console.log('⚠️ Tabla TicketActivities no existe, continuando sin actividades...');
+                    
+                    // Continuar directamente con la respuesta
+                    const detailedTicket = {
+                        ...ticket,
+                        photos: photos || [],
+                        activities: [],
+                        metadata: {
+                            photos_count: photos ? photos.length : 0,
+                            activities_count: 0,
+                            last_updated: ticket.updated_at,
+                            created_date: ticket.created_at
+                        }
+                    };
+                    
+                    console.log(`✅ Detalle completo del ticket ${ticketId} preparado`);
+                    
+                    return res.json({
+                        success: true,
+                        message: "success", 
+                        data: detailedTicket
+                    });
+                } else {
+                    // La tabla existe, consultar actividades
+                    const activitiesSql = `SELECT * FROM TicketActivities WHERE ticket_id = ? ORDER BY created_at DESC`;
+                    
+                    db.all(activitiesSql, [ticketId], (actErr, activities) => {
+                        if (actErr) {
+                            console.log('⚠️ Error obteniendo actividades (continuando sin actividades):', actErr.message);
+                            activities = [];
+                        }
+                        
+                        console.log(`📋 Encontradas ${activities ? activities.length : 0} actividades para ticket ${ticketId}`);
+                        
+                        // Estructurar respuesta completa
+                        const detailedTicket = {
+                            ...ticket,
+                            photos: photos || [],
+                            activities: activities || [],
+                            metadata: {
+                                photos_count: photos ? photos.length : 0,
+                                activities_count: activities ? activities.length : 0,
+                                last_updated: ticket.updated_at,
+                                created_date: ticket.created_at
+                            }
+                        };
+                        
+                        console.log(`✅ Detalle completo del ticket ${ticketId} preparado`);
+                        
+                        return res.json({
+                            success: true,
+                            message: "success", 
+                            data: detailedTicket
+                        });
+                    });
                 }
-                
-                console.log(`📋 Encontradas ${activities ? activities.length : 0} actividades para ticket ${ticketId}`);
-                
-                // Estructurar respuesta completa
-                const detailedTicket = {
-                    ...ticket,
-                    photos: photos || [],
-                    activities: activities || [],
-                    metadata: {
-                        photos_count: photos ? photos.length : 0,
-                        activities_count: activities ? activities.length : 0,
-                        last_updated: ticket.updated_at,
-                        created_date: ticket.created_at
-                    }
-                };
-                
-                console.log(`✅ Detalle completo del ticket ${ticketId} preparado`);
-                
-                res.json({
-                    success: true,
-                    message: "success", 
-                    data: detailedTicket
-                });
             });
         });
     });
@@ -1002,6 +1037,236 @@ app.delete('/api/tickets/:id', authenticateToken, (req, res) => {
         }
         console.log(`✅ Ticket ${req.params.id} eliminado`);
         res.json({ "message": "deleted", changes: this.changes });
+    });
+});
+
+// ===================================================================
+// RUTAS DE NOTAS DE TICKETS
+// ===================================================================
+
+// GET all notes for a specific ticket
+app.get('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT * FROM TicketNotes 
+        WHERE ticket_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo notas de ticket:', err.message);
+            res.status(500).json({ error: 'Error al obtener notas del ticket' });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows || []
+        });
+    });
+});
+
+// POST new note for ticket
+app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
+    const { ticketId } = req.params;
+    const { note, note_type, author, is_internal } = req.body;
+    
+    if (!note || note.trim() === '') {
+        return res.status(400).json({ 
+            error: "La nota no puede estar vacía",
+            code: 'NOTE_REQUIRED'
+        });
+    }
+    
+    const sql = `INSERT INTO TicketNotes 
+                 (ticket_id, note, note_type, author, is_internal, created_at) 
+                 VALUES (?, ?, ?, ?, ?, NOW())`;
+    const params = [
+        parseInt(ticketId), 
+        note.trim(), 
+        note_type || 'General', 
+        author || (req.user ? req.user.username : 'Sistema'), 
+        is_internal || false
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error agregando nota de ticket:', err.message);
+            res.status(500).json({ 
+                error: 'Error al agregar nota al ticket',
+                code: 'NOTE_INSERT_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ Nota agregada al ticket ${ticketId}, ID: ${this.lastID}`);
+        
+        // Obtener la nota recién creada
+        db.get('SELECT * FROM TicketNotes WHERE id = ?', [this.lastID], (err, newNote) => {
+            if (err) {
+                console.error('❌ Error obteniendo nota creada:', err.message);
+                return res.status(500).json({ 
+                    error: 'Error al obtener nota creada',
+                    code: 'NOTE_RETRIEVE_ERROR'
+                });
+            }
+            
+            res.status(201).json({
+                message: "Nota agregada exitosamente",
+                data: newNote
+            });
+        });
+    });
+});
+
+// DELETE note from ticket
+app.delete('/api/tickets/notes/:noteId', authenticateToken, (req, res) => {
+    const { noteId } = req.params;
+    
+    const sql = 'DELETE FROM TicketNotes WHERE id = ?';
+    db.run(sql, [noteId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando nota de ticket:', err.message);
+            res.status(500).json({ 
+                error: 'Error al eliminar nota del ticket',
+                code: 'NOTE_DELETE_ERROR'
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ 
+                error: "Nota no encontrada",
+                code: 'NOTE_NOT_FOUND'
+            });
+        }
+        
+        console.log(`✅ Nota ${noteId} eliminada`);
+        res.json({ 
+            message: "Nota eliminada exitosamente", 
+            changes: this.changes 
+        });
+    });
+});
+
+// ===================================================================
+// RUTAS DE FOTOS DE TICKETS
+// ===================================================================
+
+// GET all photos for a specific ticket
+app.get('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
+    const { ticketId } = req.params;
+    const sql = `
+        SELECT * FROM TicketPhotos 
+        WHERE ticket_id = ? 
+        ORDER BY created_at DESC
+    `;
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo fotos de ticket:', err.message);
+            res.status(500).json({ 
+                error: 'Error al obtener fotos del ticket',
+                code: 'PHOTOS_FETCH_ERROR'
+            });
+            return;
+        }
+        res.json({
+            message: "success",
+            data: rows || []
+        });
+    });
+});
+
+// POST new photo for ticket
+app.post('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
+    const { ticketId } = req.params;
+    const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
+    
+    if (!photo_data || !mime_type) {
+        return res.status(400).json({ 
+            error: "photo_data y mime_type son requeridos",
+            code: 'PHOTO_DATA_REQUIRED'
+        });
+    }
+    
+    // Validar tamaño del archivo (límite 10MB en base64)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (photo_data.length > maxSize) {
+        return res.status(400).json({
+            error: "La imagen es demasiado grande (máximo 10MB)",
+            code: 'FILE_TOO_LARGE'
+        });
+    }
+    
+    const sql = `INSERT INTO TicketPhotos 
+                 (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
+    const params = [
+        parseInt(ticketId), 
+        photo_data, 
+        file_name || 'foto.jpg', 
+        mime_type, 
+        file_size || 0, 
+        description || null, 
+        photo_type || 'Otros'
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error agregando foto de ticket:', err.message);
+            res.status(500).json({ 
+                error: 'Error al agregar foto al ticket',
+                code: 'PHOTO_INSERT_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ Foto agregada al ticket ${ticketId}, ID: ${this.lastID}`);
+        
+        // Obtener la foto recién creada (sin el photo_data para evitar respuesta grande)
+        db.get('SELECT id, ticket_id, file_name, mime_type, file_size, description, photo_type, created_at FROM TicketPhotos WHERE id = ?', [this.lastID], (err, newPhoto) => {
+            if (err) {
+                console.error('❌ Error obteniendo foto creada:', err.message);
+                return res.status(500).json({ 
+                    error: 'Error al obtener foto creada',
+                    code: 'PHOTO_RETRIEVE_ERROR'
+                });
+            }
+            
+            res.status(201).json({
+                message: "Foto agregada exitosamente",
+                data: newPhoto
+            });
+        });
+    });
+});
+
+// DELETE a ticket photo
+app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
+    const { photoId } = req.params;
+    
+    const sql = 'DELETE FROM TicketPhotos WHERE id = ?';
+    db.run(sql, [photoId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando foto de ticket:', err.message);
+            res.status(500).json({ 
+                error: 'Error al eliminar foto del ticket',
+                code: 'PHOTO_DELETE_ERROR'
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ 
+                error: "Foto no encontrada",
+                code: 'PHOTO_NOT_FOUND'
+            });
+        }
+        
+        console.log(`✅ Foto ${photoId} eliminada`);
+        res.json({ 
+            message: "Foto eliminada exitosamente", 
+            changes: this.changes 
+        });
     });
 });
 

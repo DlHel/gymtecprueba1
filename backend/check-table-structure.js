@@ -1,23 +1,28 @@
 const db = require('./src/db-adapter');
 
-console.log('🔍 Verificando estructura de tablas importantes...\n');
+console.log('🔍 Verificando estructura de tabla TicketPhotos...\n');
 
-const tables = ['Locations', 'Clients', 'Equipment', 'EquipmentModels'];
-
-tables.forEach(tableName => {
-    db.all(`DESCRIBE ${tableName}`, [], (err, columns) => {
+db.all('DESCRIBE TicketPhotos', [], (err, columns) => {
+    if (err) {
+        console.log('❌ Error con tabla TicketPhotos:', err.message);
+    } else {
+        console.log('\n📋 ESTRUCTURA DE TicketPhotos:');
+        console.table(columns.map(col => ({
+            Field: col.Field,
+            Type: col.Type,
+            Null: col.Null,
+            Key: col.Key,
+            Default: col.Default
+        })));
+    }
+    
+    // También verificar si hay registros
+    db.all('SELECT COUNT(*) as count FROM TicketPhotos', [], (err, countResult) => {
         if (err) {
-            console.log(`❌ Error con tabla ${tableName}:`, err.message);
+            console.error('❌ Error contando registros:', err.message);
         } else {
-            console.log(`\n📋 ESTRUCTURA DE ${tableName}:`);
-            console.table(columns.map(col => ({
-                Field: col.Field,
-                Type: col.Type,
-                Null: col.Null,
-                Key: col.Key
-            })));
+            console.log(`\n📊 Total de fotos en TicketPhotos: ${countResult[0].count}`);
         }
+        process.exit(0);
     });
 });
-
-setTimeout(() => process.exit(0), 2000);

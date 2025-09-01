@@ -411,7 +411,7 @@ router.post('/:id/adjust', async (req, res) => {
  * @route GET /api/inventory/low-stock
  * @desc Obtener items con stock bajo
  */
-router.get('/low-stock', async (req, res) => {
+router.get('/low-stock', (req, res) => {
     try {
         const sql = `
         SELECT 
@@ -438,27 +438,35 @@ router.get('/low-stock', async (req, res) => {
             END ASC,
             i.current_stock ASC`;
         
-        const lowStockItems = await db.all(sql);
-        
-        // Estadísticas
-        const stats = {
-            total_low_stock: lowStockItems ? lowStockItems.length : 0,
-            out_of_stock: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'out_of_stock').length : 0,
-            critical: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'critical').length : 0,
-            low: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'low').length : 0
-        };
-        
-        res.json({
-            message: 'success',
-            data: lowStockItems || [],
-            stats: stats
+        db.all(sql, [], (err, lowStockItems) => {
+            if (err) {
+                console.error('Error obteniendo items con stock bajo:', err);
+                return res.status(500).json({ 
+                    error: 'Error interno del servidor',
+                    code: 'DB_ERROR'
+                });
+            }
+            
+            // Estadísticas
+            const stats = {
+                total_low_stock: lowStockItems ? lowStockItems.length : 0,
+                out_of_stock: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'out_of_stock').length : 0,
+                critical: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'critical').length : 0,
+                low: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'low').length : 0
+            };
+            
+            res.json({
+                message: 'success',
+                data: lowStockItems || [],
+                stats: stats
+            });
         });
         
     } catch (error) {
         console.error('Error obteniendo items con stock bajo:', error);
         res.status(500).json({ 
             error: 'Error interno del servidor',
-            details: error.message 
+            code: 'UNEXPECTED_ERROR'
         });
     }
 });
