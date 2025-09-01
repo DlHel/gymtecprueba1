@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug de Autenticación - Gymtec ERP</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            line-height: 1.6;
+        }
+        .debug-section { 
+            margin: 20px 0; 
+            padding: 15px; 
+            border: 1px solid #ddd; 
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        .debug-info { 
+            background: #f0f0f0; 
+            padding: 10px; 
+            border-radius: 3px; 
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            background-color: #007cba;
+            color: white;
+        }
+        button:hover {
+            background-color: #005a9b;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 Debug de Autenticación - Gymtec ERP</h1>
+    
+    <div class="debug-section">
+        <h2>1. Verificación de Scripts</h2>
+        <div id="scripts-check"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>2. Configuración de API</h2>
+        <div id="api-config"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>3. Estado de Autenticación</h2>
+        <div id="auth-status"></div>
+        <button onclick="checkAuthStatus()">Verificar Estado</button>
+        <button onclick="checkTokenWithServer()">Verificar Token con Servidor</button>
+    </div>
+    
+    <div class="debug-section">
+        <h2>4. LocalStorage</h2>
+        <div id="localStorage-info"></div>
+        <button onclick="showLocalStorage()">Mostrar LocalStorage</button>
+        <button onclick="clearLocalStorage()">Limpiar LocalStorage</button>
+    </div>
+    
+    <div class="debug-section">
+        <h2>5. Login de Prueba</h2>
+        <div>
+            <input type="text" id="test-username" placeholder="Usuario (ej: admin)" value="admin">
+            <input type="password" id="test-password" placeholder="Contraseña" value="admin123">
+            <button onclick="testLogin()">Probar Login</button>
+        </div>
+        <div id="login-result"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>6. Navegación</h2>
+        <button onclick="goToLogin()">Ir a Login</button>
+        <button onclick="goToIndex()">Ir a Dashboard</button>
+        <button onclick="goToTickets()">Ir a Tickets</button>
+    </div>
+
+    <!-- Scripts en orden correcto -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        // Verificar que los scripts se cargaron correctamente
+        function checkScripts() {
+            const scriptsCheck = document.getElementById('scripts-check');
+            let html = '';
+            
+            if (typeof API_URL !== 'undefined') {
+                html += '<div class="success">✅ config.js cargado correctamente</div>';
+            } else {
+                html += '<div class="error">❌ config.js NO cargado</div>';
+            }
+            
+            if (typeof AuthManager !== 'undefined') {
+                html += '<div class="success">✅ auth.js cargado correctamente</div>';
+            } else {
+                html += '<div class="error">❌ auth.js NO cargado</div>';
+            }
+            
+            if (typeof authManager !== 'undefined') {
+                html += '<div class="success">✅ authManager instancia global disponible</div>';
+            } else {
+                html += '<div class="error">❌ authManager instancia global NO disponible</div>';
+            }
+            
+            scriptsCheck.innerHTML = html;
+        }
+        
+        function showApiConfig() {
+            const apiConfig = document.getElementById('api-config');
+            apiConfig.innerHTML = `
+                <div class="debug-info">
+                    <strong>API_URL:</strong> ${typeof API_URL !== 'undefined' ? API_URL : 'No definido'}<br>
+                    <strong>Hostname:</strong> ${window.location.hostname}<br>
+                    <strong>Port:</strong> ${window.location.port}<br>
+                    <strong>Protocol:</strong> ${window.location.protocol}
+                </div>
+            `;
+        }
+        
+        function checkAuthStatus() {
+            const authStatus = document.getElementById('auth-status');
+            
+            if (typeof authManager === 'undefined') {
+                authStatus.innerHTML = '<div class="error">❌ AuthManager no disponible</div>';
+                return;
+            }
+            
+            const isAuth = authManager.isAuthenticated();
+            const token = authManager.getToken();
+            const user = authManager.getUser();
+            
+            authStatus.innerHTML = `
+                <div class="debug-info">
+                    <strong>¿Está autenticado?:</strong> ${isAuth ? '<span class="success">Sí</span>' : '<span class="error">No</span>'}<br>
+                    <strong>Token presente:</strong> ${token ? '<span class="success">Sí</span>' : '<span class="error">No</span>'}<br>
+                    <strong>Usuario:</strong> ${user ? user.username : 'No disponible'}<br>
+                    <strong>Rol:</strong> ${user ? user.role : 'No disponible'}
+                </div>
+            `;
+        }
+        
+        async function checkTokenWithServer() {
+            const authStatus = document.getElementById('auth-status');
+            
+            if (typeof authManager === 'undefined') {
+                authStatus.innerHTML += '<div class="error">❌ AuthManager no disponible</div>';
+                return;
+            }
+            
+            try {
+                const isValid = await authManager.verifyToken();
+                authStatus.innerHTML += `<div class="${isValid ? 'success' : 'error'}">
+                    ${isValid ? '✅' : '❌'} Verificación con servidor: ${isValid ? 'Válido' : 'Inválido'}
+                </div>`;
+            } catch (error) {
+                authStatus.innerHTML += `<div class="error">❌ Error verificando token: ${error.message}</div>`;
+            }
+        }
+        
+        function showLocalStorage() {
+            const localStorageInfo = document.getElementById('localStorage-info');
+            const items = [
+                'gymtec_token',
+                'gymtec_user', 
+                'gymtec_remember',
+                'authToken', // Posible nombre alternativo
+                'user' // Posible nombre alternativo
+            ];
+            
+            let html = '<div class="debug-info">';
+            items.forEach(key => {
+                const value = localStorage.getItem(key);
+                html += `<strong>${key}:</strong> ${value ? 'Presente' : 'No presente'}<br>`;
+                if (value && value.length > 100) {
+                    html += `<small>Valor (primeros 100 chars): ${value.substring(0, 100)}...</small><br>`;
+                } else if (value) {
+                    html += `<small>Valor: ${value}</small><br>`;
+                }
+            });
+            html += '</div>';
+            localStorageInfo.innerHTML = html;
+        }
+        
+        function clearLocalStorage() {
+            localStorage.clear();
+            showLocalStorage();
+            checkAuthStatus();
+            alert('LocalStorage limpiado');
+        }
+        
+        async function testLogin() {
+            const username = document.getElementById('test-username').value;
+            const password = document.getElementById('test-password').value;
+            const loginResult = document.getElementById('login-result');
+            
+            if (!username || !password) {
+                loginResult.innerHTML = '<div class="error">❌ Usuario y contraseña requeridos</div>';
+                return;
+            }
+            
+            try {
+                loginResult.innerHTML = '<div class="warning">🔄 Intentando login...</div>';
+                
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // Guardar token usando AuthManager
+                    if (typeof authManager !== 'undefined') {
+                        localStorage.setItem('gymtec_token', data.token);
+                        localStorage.setItem('gymtec_user', JSON.stringify(data.user));
+                    }
+                    
+                    loginResult.innerHTML = `<div class="success">✅ Login exitoso!<br>
+                        Usuario: ${data.user.username}<br>
+                        Rol: ${data.user.role}</div>`;
+                    
+                    // Actualizar estado
+                    setTimeout(() => {
+                        checkAuthStatus();
+                        showLocalStorage();
+                    }, 500);
+                } else {
+                    loginResult.innerHTML = `<div class="error">❌ Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                loginResult.innerHTML = `<div class="error">❌ Error de conexión: ${error.message}</div>`;
+            }
+        }
+        
+        function goToLogin() {
+            window.location.href = 'login.html';
+        }
+        
+        function goToIndex() {
+            window.location.href = 'index.html';
+        }
+        
+        function goToTickets() {
+            window.location.href = 'tickets.html';
+        }
+        
+        // Inicializar al cargar la página
+        document.addEventListener('DOMContentLoaded', () => {
+            checkScripts();
+            showApiConfig();
+            checkAuthStatus();
+            showLocalStorage();
+        });
+    </script>
+</body>
+</html>

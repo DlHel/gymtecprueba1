@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Tickets - Gymtec ERP</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .test-result { margin: 10px 0; padding: 10px; border-left: 4px solid #ddd; }
+        .success { border-color: #22c55e; background-color: #f0fdf4; }
+        .error { border-color: #ef4444; background-color: #fef2f2; }
+        .warning { border-color: #f59e0b; background-color: #fffbeb; }
+        button { padding: 8px 16px; margin: 5px; background: #3b82f6; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #2563eb; }
+        .code { background: #f8f9fa; padding: 5px; border-radius: 3px; font-family: monospace; font-size: 14px; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 5px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Test de API de Tickets</h1>
+    <p>Esta página prueba específicamente la API de tickets que acabamos de implementar.</p>
+    
+    <div id="test-results">
+        <div class="test-result" id="test-config">
+            <strong>📋 Configuración:</strong>
+            <div>Verificando configuración inicial...</div>
+        </div>
+        
+        <div class="test-result" id="test-auth">
+            <strong>🔐 Autenticación:</strong>
+            <div>Verificando estado de autenticación...</div>
+        </div>
+        
+        <div class="test-result" id="test-api">
+            <strong>🎫 API Tickets:</strong>
+            <div>
+                <button onclick="testTicketsAPI()">Probar GET /api/tickets</button>
+                <button onclick="testCreateTicket()">Probar POST /api/tickets</button>
+            </div>
+            <div id="api-results"></div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 30px;">
+        <h3>📊 Logs de Red:</h3>
+        <div id="network-logs"></div>
+    </div>
+
+    <!-- Scripts necesarios -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        let networkLogs = [];
+        
+        // Interceptar fetch para logging
+        const originalFetch = window.fetch;
+        window.fetch = function(...args) {
+            const url = args[0];
+            const options = args[1] || {};
+            const timestamp = new Date().toLocaleTimeString();
+            
+            networkLogs.push({
+                timestamp,
+                method: options.method || 'GET',
+                url,
+                status: 'Enviando...'
+            });
+            updateNetworkLogs();
+            
+            return originalFetch.apply(this, args).then(response => {
+                // Actualizar log con resultado
+                const lastLog = networkLogs[networkLogs.length - 1];
+                lastLog.status = `${response.status} ${response.statusText}`;
+                lastLog.ok = response.ok;
+                updateNetworkLogs();
+                return response;
+            }).catch(error => {
+                const lastLog = networkLogs[networkLogs.length - 1];
+                lastLog.status = `Error: ${error.message}`;
+                lastLog.ok = false;
+                updateNetworkLogs();
+                throw error;
+            });
+        };
+        
+        function updateNetworkLogs() {
+            const logsDiv = document.getElementById('network-logs');
+            logsDiv.innerHTML = networkLogs.map(log => `
+                <div class="code" style="margin: 5px 0; color: ${log.ok ? 'green' : log.ok === false ? 'red' : 'orange'}">
+                    [${log.timestamp}] ${log.method} ${log.url} → ${log.status}
+                </div>
+            `).reverse().slice(0, 10).join('');
+        }
+        
+        function updateTest(testId, status, message) {
+            const test = document.getElementById(testId);
+            test.className = `test-result ${status}`;
+            const content = test.querySelector('div');
+            if (content.querySelector('button')) {
+                // Si tiene botones, agregar mensaje después
+                const existing = test.querySelector('#' + testId + '-result');
+                if (existing) existing.remove();
+                const msgDiv = document.createElement('div');
+                msgDiv.id = testId + '-result';
+                msgDiv.innerHTML = message;
+                test.appendChild(msgDiv);
+            } else {
+                content.innerHTML = message;
+            }
+        }
+        
+        function checkConfig() {
+            if (typeof API_URL !== 'undefined' && typeof authManager !== 'undefined') {
+                updateTest('test-config', 'success', `✅ API URL: <span class="code">${API_URL}</span><br>✅ AuthManager disponible`);
+                return true;
+            } else {
+                updateTest('test-config', 'error', '❌ Scripts no cargados correctamente');
+                return false;
+            }
+        }
+        
+        function checkAuth() {
+            if (!authManager) {
+                updateTest('test-auth', 'error', '❌ AuthManager no disponible');
+                return false;
+            }
+            
+            const isAuth = authManager.isAuthenticated();
+            const user = authManager.getUser();
+            
+            if (isAuth && user) {
+                updateTest('test-auth', 'success', `✅ Autenticado como: ${user.username} (${user.role})`);
+                return true;
+            } else {
+                updateTest('test-auth', 'warning', '⚠️ No hay sesión activa - las pruebas pueden fallar');
+                return false;
+            }
+        }
+        
+        async function testTicketsAPI() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="warning">🔄 Probando GET /api/tickets...</div>';
+            
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="success">
+                            ✅ GET /api/tickets exitoso<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Tickets encontrados:</strong> ${data.data ? data.data.length : 0}<br>
+                            <details>
+                                <summary>Ver respuesta completa</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="error">
+                            ❌ Error en GET /api/tickets<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Error:</strong> ${data.error || 'Error desconocido'}<br>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Error de conexión en GET /api/tickets<br>
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        async function testCreateTicket() {
+            const resultsDiv = document.getElementById('api-results');
+            resultsDiv.innerHTML = '<div class="warning">🔄 Probando POST /api/tickets...</div>';
+            
+            const testTicket = {
+                title: "Ticket de Prueba API",
+                description: "Este es un ticket creado para probar la API",
+                priority: "medium",
+                client_id: 1 // Assuming client ID 1 exists
+            };
+            
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testTicket)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultsDiv.innerHTML = `
+                        <div class="success">
+                            ✅ POST /api/tickets exitoso<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Ticket ID creado:</strong> ${data.data ? data.data.id : 'N/A'}<br>
+                            <details>
+                                <summary>Ver respuesta completa</summary>
+                                <pre>${JSON.stringify(data, null, 2)}</pre>
+                            </details>
+                        </div>
+                    `;
+                } else {
+                    resultsDiv.innerHTML = `
+                        <div class="error">
+                            ❌ Error en POST /api/tickets<br>
+                            <strong>Status:</strong> ${response.status}<br>
+                            <strong>Error:</strong> ${data.error || 'Error desconocido'}<br>
+                            <pre>${JSON.stringify(data, null, 2)}</pre>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        ❌ Error de conexión en POST /api/tickets<br>
+                        <strong>Error:</strong> ${error.message}
+                    </div>
+                `;
+            }
+        }
+        
+        // Ejecutar tests al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                checkConfig();
+                checkAuth();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

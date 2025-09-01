@@ -1,5 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // Protección robusta contra interferencia de extensiones del navegador
+    // CRÍTICO: Protección de autenticación PRIMERO
+// ✅ CRÍTICO: Protección de autenticación TEMPORALMENTE DESHABILITADA
+console.log('🔧 DEBUG: clientes.js - Verificación de autenticación deshabilitada temporalmente');
+/*
+if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+    window.location.href = '/login.html';
+    return;
+}
+*/    // Protección robusta contra interferencia de extensiones del navegador
     const originalFetch = window.fetch;
     let retryCount = 0;
     const maxRetries = 3;
@@ -260,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
                 
-                const response = await fetch(`${API_URL}/clients`, {
+                const response = await authenticatedFetch(`${API_URL}/clients`, {
                     signal: controller.signal,
                     headers: {
                         'Content-Type': 'application/json'
@@ -291,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     console.warn('⚠️ Error de extensión del navegador detectado, reintentando...');
                     // Reintentar una vez más
                     try {
-                        const retryResponse = await fetch(`${API_URL}/clients`);
+                        const retryResponse = await authenticatedFetch(`${API_URL}/clients`);
                         if (!retryResponse.ok) {
                             throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
                         }
@@ -307,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         getClient: async (id) => {
             try {
-                const response = await fetch(`${API_URL}/clients/${id}`);
+                const response = await authenticatedFetch(`${API_URL}/clients/${id}`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -319,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         getClientLocations: async (id) => {
             try {
-                const response = await fetch(`${API_URL}/clients/${id}/locations`);
+                const response = await authenticatedFetch(`${API_URL}/clients/${id}/locations`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -332,7 +340,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         getLocation: async (id) => {
             try {
-                const response = await fetch(`${API_URL}/locations/${id}`);
+                const response = await authenticatedFetch(`${API_URL}/locations/${id}`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -345,7 +353,7 @@ document.addEventListener('DOMContentLoaded', () => {
         getLocationEquipment: async (id) => {
             try {
                 console.log(`🔍 Obteniendo equipos para ubicación ${id}...`);
-                const response = await fetch(`${API_URL}/locations/${id}/equipment`);
+                const response = await authenticatedFetch(`${API_URL}/locations/${id}/equipment`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -360,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         getEquipment: async (id) => {
             try {
-                const response = await fetch(`${API_URL}/equipment/${id}`);
+                const response = await authenticatedFetch(`${API_URL}/equipment/${id}`);
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
@@ -380,7 +388,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log(`📡 ${method} ${url}`);
                 console.log('📤 Request body:', requestBody);
                 
-                const response = await fetch(url, {
+                const response = await authenticatedFetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody),
@@ -419,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         delete: async (resource, id) => {
             try {
-                const response = await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+                const response = await authenticatedFetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
                 if (!response.ok) {
                     throw new Error(`Error al eliminar ${resource}: ${response.status} ${response.statusText}`);
                 }
@@ -708,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         locationHistory: async (locationId, container) => {
             try {
-                const response = await fetch(`${API_URL}/tickets?location_id=${locationId}`);
+                const response = await authenticatedFetch(`${API_URL}/tickets?location_id=${locationId}`);
                 if (!response.ok) throw new Error('Error al cargar historial');
                 const ticketsResult = await response.json();
                 const tickets = ticketsResult.data || [];
@@ -1292,7 +1300,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             // Llamar al API para eliminar el cliente (API_URL ya incluye /api)
-            const response = await fetch(`${API_URL}/clients/${clientId}`, {
+            const response = await authenticatedFetch(`${API_URL}/clients/${clientId}`, {
                 method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json'

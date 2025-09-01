@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Login - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-lg shadow-lg w-96">
+        <h1 class="text-2xl font-bold mb-6">🔍 Debug Login</h1>
+        
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label for="username" class="block text-sm font-medium mb-2">Usuario:</label>
+                <input type="text" id="username" value="admin" class="w-full p-2 border rounded" title="Nombre de usuario para pruebas">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium mb-2">Contraseña:</label>
+                <input type="password" id="password" value="admin123" class="w-full p-2 border rounded" title="Contraseña para pruebas">
+            </div>
+            <button type="submit" class="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600">
+                🚀 Probar Login
+            </button>
+        </form>
+
+        <div id="debug" class="mt-6 p-4 bg-gray-50 rounded text-xs overflow-auto max-h-96"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        const debug = document.getElementById('debug');
+        
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const color = {
+                info: 'text-blue-600',
+                success: 'text-green-600', 
+                error: 'text-red-600',
+                warning: 'text-yellow-600'
+            }[type];
+            
+            debug.innerHTML += `<div class="${color}">[${timestamp}] ${message}</div>`;
+            debug.scrollTop = debug.scrollHeight;
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            debug.innerHTML = '';
+            log('🚀 Iniciando proceso de login...', 'info');
+            log(`📋 Usuario: ${username}`, 'info');
+            
+            try {
+                // Paso 1: Intentar login
+                log('1️⃣ Enviando credenciales al backend...', 'info');
+                
+                const loginResponse = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                log(`📤 Status: ${loginResponse.status}`, loginResponse.ok ? 'success' : 'error');
+                
+                const loginData = await loginResponse.json();
+                log(`📥 Respuesta: ${JSON.stringify(loginData, null, 2)}`, loginResponse.ok ? 'success' : 'error');
+                
+                if (!loginResponse.ok) {
+                    log('❌ Login falló', 'error');
+                    return;
+                }
+                
+                // Paso 2: Guardar token
+                log('2️⃣ Guardando token en localStorage...', 'info');
+                localStorage.setItem('gymtec_token', loginData.token);
+                localStorage.setItem('gymtec_user', JSON.stringify(loginData.user));
+                log('✅ Token guardado', 'success');
+                
+                // Paso 3: Verificar token
+                log('3️⃣ Verificando token con el backend...', 'info');
+                
+                const verifyResponse = await fetch(`${API_URL}/auth/verify`, {
+                    headers: { 'Authorization': `Bearer ${loginData.token}` }
+                });
+                
+                log(`📤 Verify Status: ${verifyResponse.status}`, verifyResponse.ok ? 'success' : 'error');
+                
+                const verifyData = await verifyResponse.json();
+                log(`📥 Verify Respuesta: ${JSON.stringify(verifyData, null, 2)}`, verifyResponse.ok ? 'success' : 'error');
+                
+                if (verifyResponse.ok) {
+                    log('✅ Token válido - Login exitoso', 'success');
+                    log('🎯 Deberías poder acceder al dashboard ahora', 'success');
+                    
+                    // Botón para ir al dashboard
+                    debug.innerHTML += `
+                        <div class="mt-4 p-2 bg-green-100 rounded">
+                            <a href="index.html" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                                🏠 Ir al Dashboard
+                            </a>
+                        </div>`;
+                } else {
+                    log('❌ Token inválido después del login', 'error');
+                }
+                
+            } catch (error) {
+                log(`💥 Error: ${error.message}`, 'error');
+                log(`🔍 Stack: ${error.stack}`, 'error');
+            }
+        });
+        
+        // Verificar estado actual
+        window.addEventListener('load', () => {
+            const currentToken = localStorage.getItem('gymtec_token');
+            const currentUser = localStorage.getItem('gymtec_user');
+            
+            if (currentToken) {
+                log('ℹ️ Token existente encontrado', 'warning');
+                log(`🔑 Token: ${currentToken.substring(0, 20)}...`, 'warning');
+            }
+            
+            if (currentUser) {
+                log('👤 Usuario existente encontrado', 'warning');
+                log(`👤 Usuario: ${currentUser}`, 'warning');
+            }
+        });
+    </script>
+</body>
+</html>

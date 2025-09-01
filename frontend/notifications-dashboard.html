@@ -111,40 +111,40 @@
         <!-- Tabs de Navegación -->
         <div class="bg-white rounded-lg shadow mb-8">
             <div class="border-b border-gray-200">
-                <nav class="flex space-x-8" aria-label="Tabs">
-                    <button id="tab-queue" class="tab-button border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600" aria-selected="true">
+                <div class="flex space-x-8" role="tablist" aria-label="Tabs">
+                    <button id="tab-queue" class="tab-button border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600" role="tab" aria-selected="true" aria-controls="content-queue">
                         Cola de Notificaciones
                     </button>
-                    <button id="tab-templates" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <button id="tab-templates" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300" role="tab" aria-selected="false" aria-controls="content-templates">
                         Templates
                     </button>
-                    <button id="tab-logs" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <button id="tab-logs" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300" role="tab" aria-selected="false" aria-controls="content-logs">
                         Logs de Envío
                     </button>
-                    <button id="tab-alerts" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <button id="tab-alerts" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300" role="tab" aria-selected="false" aria-controls="content-alerts">
                         Alertas Automáticas
                     </button>
-                    <button id="tab-scheduler" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    <button id="tab-scheduler" class="tab-button border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300" role="tab" aria-selected="false" aria-controls="content-scheduler">
                         Scheduler
                     </button>
-                </nav>
+                </div>
             </div>
 
             <!-- Tab Content -->
             <div class="p-6">
                 <!-- Cola de Notificaciones -->
-                <div id="content-queue" class="tab-content">
+                <div id="content-queue" class="tab-content" role="tabpanel" aria-labelledby="tab-queue">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Cola de Notificaciones</h3>
                         <div class="flex space-x-2">
-                            <select id="filter-status" class="rounded-md border-gray-300 text-sm">
+                            <select id="filter-status" class="rounded-md border-gray-300 text-sm" aria-label="Filtrar por estado de notificación" title="Filtrar por estado">
                                 <option value="">Todos los estados</option>
                                 <option value="pending">Pendiente</option>
                                 <option value="processing">Procesando</option>
                                 <option value="sent">Enviado</option>
                                 <option value="failed">Fallido</option>
                             </select>
-                            <select id="filter-priority" class="rounded-md border-gray-300 text-sm">
+                            <select id="filter-priority" class="rounded-md border-gray-300 text-sm" aria-label="Filtrar por prioridad de notificación" title="Filtrar por prioridad">
                                 <option value="">Todas las prioridades</option>
                                 <option value="critical">Crítica</option>
                                 <option value="high">Alta</option>
@@ -193,7 +193,7 @@
                 </div>
 
                 <!-- Templates Tab -->
-                <div id="content-templates" class="tab-content hidden">
+                <div id="content-templates" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-templates">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Templates de Notificación</h3>
                         <button id="new-template-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
@@ -212,12 +212,12 @@
                 </div>
 
                 <!-- Logs Tab -->
-                <div id="content-logs" class="tab-content hidden">
+                <div id="content-logs" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-logs">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Logs de Envío</h3>
                         <div class="flex space-x-2">
-                            <input type="date" id="logs-date-from" class="rounded-md border-gray-300 text-sm">
-                            <input type="date" id="logs-date-to" class="rounded-md border-gray-300 text-sm">
+                            <input type="date" id="logs-date-from" class="rounded-md border-gray-300 text-sm" aria-label="Fecha de inicio" title="Seleccionar fecha de inicio">
+                            <input type="date" id="logs-date-to" class="rounded-md border-gray-300 text-sm" aria-label="Fecha de fin" title="Seleccionar fecha de fin">
                             <button id="filter-logs-btn" class="px-3 py-2 bg-gray-600 text-white rounded-lg text-sm">
                                 Filtrar
                             </button>
@@ -249,7 +249,7 @@
                 </div>
 
                 <!-- Alertas Tab -->
-                <div id="content-alerts" class="tab-content hidden">
+                <div id="content-alerts" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-alerts">
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-lg font-medium text-gray-900">Alertas Automáticas</h3>
                         <button id="manual-process-btn" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
@@ -268,7 +268,7 @@
                 </div>
 
                 <!-- Scheduler Tab -->
-                <div id="content-scheduler" class="tab-content hidden">
+                <div id="content-scheduler" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-scheduler">
                     <h3 class="text-lg font-medium text-gray-900 mb-4">Estado del Scheduler</h3>
                     
                     <div id="scheduler-loading" class="text-center py-8">
@@ -287,6 +287,7 @@
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/base-modal.js"></script>
     <script src="js/notifications-dashboard.js"></script>
 </body>
 </html>

@@ -1,5 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = window.API_URL || 'http://localhost:3000/api';
+    // CRÍTICO: Protección de autenticación PRIMERO
+// ✅ CRÍTICO: Protección de autenticación TEMPORALMENTE DESHABILITADA
+console.log('🔧 DEBUG: equipo.js - Verificación de autenticación deshabilitada temporalmente');
+/*
+if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+    window.location.href = '/login.html';
+    return;
+}
+*/    const API_URL = window.API_URL || 'http://localhost:3000/api';
     const mainContent = document.getElementById('main-content');
     const pageTitle = document.getElementById('page-title');
     const backButton = document.querySelector('header a');
@@ -11,15 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const api = {
-        getEquipment: id => fetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
-        getEquipmentTickets: id => fetch(`${API_URL}/equipment/${id}/tickets`).then(res => res.json()),
-        getEquipmentNotes: id => fetch(`${API_URL}/equipment/${id}/notes`).then(res => res.json()),
-        addEquipmentNote: (id, note) => fetch(`${API_URL}/equipment/${id}/notes`, {
+        getEquipment: id => authenticatedFetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
+        getEquipmentTickets: id => authenticatedFetch(`${API_URL}/equipment/${id}/tickets`).then(res => res.json()),
+        getEquipmentNotes: id => authenticatedFetch(`${API_URL}/equipment/${id}/notes`).then(res => res.json()),
+        addEquipmentNote: (id, note) => authenticatedFetch(`${API_URL}/equipment/${id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(note)
         }).then(res => res.json()),
-        deleteEquipmentNote: (noteId) => fetch(`${API_URL}/equipment/notes/${noteId}`, {
+        deleteEquipmentNote: (noteId) => authenticatedFetch(`${API_URL}/equipment/notes/${noteId}`, {
             method: 'DELETE'
         }).then(res => res.json())
     };

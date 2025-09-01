@@ -10,7 +10,7 @@ const dbAdapter = require('./db-adapter');
 const db = dbAdapter;
 
 // Servicios de Autenticación
-const AuthService = require('./services/auth-service');
+const AuthService = require('./services/authService');
 
 // Validadores
 const { 
@@ -574,6 +574,30 @@ app.delete("/api/locations/:id", (req, res) => {
     });
 });
 
+// GET equipment for a specific location
+app.get('/api/locations/:locationId/equipment', (req, res) => {
+    const { locationId } = req.params;
+    const sql = `
+        SELECT 
+            e.*,
+            em.name as model_name,
+            em.brand as model_brand
+        FROM Equipment e
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        WHERE e.location_id = ?
+        ORDER BY e.type, e.name
+    `;
+    db.all(sql, [locationId], (err, rows) => {
+        if (err) {
+            console.error('Error fetching equipment for location:', err);
+            res.status(500).json({ error: err.message });
+            return;
+        }
+        console.log(`✅ Equipment found for location ${locationId}:`, rows.length, 'items');
+        res.json(rows);
+    });
+});
+
 // ===================================================================
 // IMPORTAR MÓDULOS DE FASES AVANZADAS
 // ===================================================================
@@ -725,8 +749,1221 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
 }
 
 // ===================================================================
+// RUTAS DE TICKETS - SISTEMA DE TICKETS DE MANTENIMIENTO
+// ===================================================================
+
+// GET all tickets
+app.get('/api/tickets', authenticateToken, (req, res) => {
+    const { location_id } = req.query;
+    
+    let sql = `
+        SELECT 
+            t.*,
+            c.name as client_name,
+            l.name as location_name,
+            e.name as equipment_name,
+            e.custom_id as equipment_custom_id
+        FROM Tickets t
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN Locations l ON t.location_id = l.id
+    `;
+    
+    let params = [];
+    
+    // Filtrar por location_id si se proporciona
+    if (location_id) {
+        sql += ` WHERE t.location_id = ?`;
+        params.push(location_id);
+    }
+    
+    sql += ` ORDER BY t.created_at DESC`;
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error en consulta de tickets:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        console.log(`✅ Tickets encontrados: ${rows.length}`);
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
+// GET a single ticket by id
+app.get('/api/tickets/:id', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT 
+            t.*,
+            c.name as client_name,
+            l.name as location_name,
+            e.name as equipment_name,
+            e.custom_id as equipment_custom_id
+        FROM Tickets t
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN Locations l ON t.location_id = l.id
+        WHERE t.id = ?
+    `;
+    
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            console.error('❌ Error obteniendo ticket:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        if (!row) {
+            return res.status(404).json({ error: "Ticket no encontrado" });
+        }
+        res.json({
+            message: "success",
+            data: row
+        });
+    });
+});
+
+// GET detailed ticket information (for ticket-detail page)
+app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
+    const ticketId = req.params.id;
+    console.log(`🔍 Obteniendo detalle completo del ticket ID: ${ticketId}`);
+    
+    // Query principal del ticket con información completa
+    const ticketSql = `
+        SELECT 
+            t.*,
+            c.name as client_name,
+            c.legal_name as client_legal_name,
+            c.rut as client_rut,
+            c.address as client_address,
+            c.phone as client_phone,
+            c.email as client_email,
+            l.name as location_name,
+            l.address as location_address,
+            e.name as equipment_name,
+            e.custom_id as equipment_custom_id,
+            e.serial_number as equipment_serial,
+            e.acquisition_date as equipment_installation,
+            em.name as equipment_model_name,
+            em.category as equipment_category,
+            em.brand as equipment_brand,
+            u.username as assigned_to_name
+        FROM Tickets t
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Locations l ON t.location_id = l.id
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        LEFT JOIN Users u ON t.assigned_technician_id = u.id
+        WHERE t.id = ?
+    `;
+    
+    db.get(ticketSql, [ticketId], (err, ticket) => {
+        if (err) {
+            console.error('❌ Error obteniendo ticket:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        
+        if (!ticket) {
+            console.log(`❌ Ticket ${ticketId} no encontrado`);
+            return res.status(404).json({ error: "Ticket no encontrado" });
+        }
+        
+        console.log(`✅ Ticket ${ticketId} encontrado: ${ticket.title}`);
+        
+        // Obtener fotos del ticket
+        const photosSql = `SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC`;
+        
+        db.all(photosSql, [ticketId], (err, photos) => {
+            if (err) {
+                console.error('❌ Error obteniendo fotos:', err.message);
+                // Continuar sin fotos en caso de error
+                photos = [];
+            }
+            
+            console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
+            
+            // Obtener actividades/comentarios (si la tabla existe)
+            const activitiesSql = `SELECT * FROM TicketActivities WHERE ticket_id = ? ORDER BY created_at DESC`;
+            
+            db.all(activitiesSql, [ticketId], (err, activities) => {
+                if (err) {
+                    console.log('⚠️ Tabla TicketActivities no existe o error:', err.message);
+                    // Continuar sin actividades
+                    activities = [];
+                }
+                
+                console.log(`📋 Encontradas ${activities ? activities.length : 0} actividades para ticket ${ticketId}`);
+                
+                // Estructurar respuesta completa
+                const detailedTicket = {
+                    ...ticket,
+                    photos: photos || [],
+                    activities: activities || [],
+                    metadata: {
+                        photos_count: photos ? photos.length : 0,
+                        activities_count: activities ? activities.length : 0,
+                        last_updated: ticket.updated_at,
+                        created_date: ticket.created_at
+                    }
+                };
+                
+                console.log(`✅ Detalle completo del ticket ${ticketId} preparado`);
+                
+                res.json({
+                    success: true,
+                    message: "success", 
+                    data: detailedTicket
+                });
+            });
+        });
+    });
+});
+
+// POST new ticket
+app.post('/api/tickets', authenticateToken, (req, res) => {
+    const { client_id, location_id, equipment_id, title, description, priority, due_date } = req.body;
+
+    // Basic validation
+    if (!title || !client_id || !priority) {
+        return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
+    }
+
+    const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto'];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error creando ticket:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        console.log(`✅ Ticket creado con ID: ${this.lastID}`);
+        res.status(201).json({
+            message: "success",
+            data: { id: this.lastID, ...req.body, status: 'Abierto' }
+        });
+    });
+});
+
+// PUT (update) a ticket
+app.put('/api/tickets/:id', authenticateToken, (req, res) => {
+    const { client_id, location_id, equipment_id, title, description, status, priority, due_date } = req.body;
+    
+    if (!title || !client_id || !priority || !status) {
+        return res.status(400).json({ error: "Título, Cliente, Prioridad y Estado son campos obligatorios." });
+    }
+
+    const sql = `UPDATE Tickets SET
+                    client_id = ?,
+                    location_id = ?,
+                    equipment_id = ?,
+                    title = ?,
+                    description = ?,
+                    status = ?,
+                    priority = ?,
+                    due_date = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`;
+                 
+    const params = [client_id, location_id, equipment_id, title, description, status, priority, due_date, req.params.id];
+
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error actualizando ticket:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Ticket no encontrado." });
+        }
+        console.log(`✅ Ticket ${req.params.id} actualizado`);
+        res.json({
+            message: "success",
+            changes: this.changes
+        });
+    });
+});
+
+// DELETE a ticket
+app.delete('/api/tickets/:id', authenticateToken, (req, res) => {
+    const sql = 'DELETE FROM Tickets WHERE id = ?';
+    db.run(sql, [req.params.id], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando ticket:', err.message);
+            res.status(500).json({ "error": err.message });
+            return;
+        }
+        if (this.changes === 0) {
+            return res.status(404).json({ error: "Ticket no encontrado." });
+        }
+        console.log(`✅ Ticket ${req.params.id} eliminado`);
+        res.json({ "message": "deleted", changes: this.changes });
+    });
+});
+
+// ===================================================================
+// RUTAS DEL DASHBOARD - KPIs Y ACTIVIDAD
+// ===================================================================
+
+// Endpoint para obtener KPIs del dashboard
+app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
+    console.log('📊 Solicitando KPIs del dashboard...');
+    
+    // Realizar múltiples consultas para obtener KPIs
+    const queries = [
+        // Total de clientes
+        new Promise((resolve, reject) => {
+            db.all('SELECT COUNT(*) as total FROM Clients', [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'total_clients', value: rows[0].total });
+            });
+        }),
+        
+        // Total de equipos
+        new Promise((resolve, reject) => {
+            db.all('SELECT COUNT(*) as total FROM Equipment', [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'total_equipment', value: rows[0].total });
+            });
+        }),
+        
+        // Tickets abiertos
+        new Promise((resolve, reject) => {
+            db.all(`SELECT COUNT(*) as total FROM Tickets WHERE status IN ('Abierto', 'En Progreso')`, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'open_tickets', value: rows[0].total });
+            });
+        }),
+        
+        // Tickets completados este mes
+        new Promise((resolve, reject) => {
+            db.all(`
+                SELECT COUNT(*) as total 
+                FROM Tickets 
+                WHERE status = 'Completado' 
+                AND DATE(updated_at) >= DATE_SUB(CURDATE(), INTERVAL DAY(CURDATE())-1 DAY)
+            `, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'completed_tickets_month', value: rows[0].total });
+            });
+        }),
+        
+        // Tiempo promedio de resolución (en días)
+        new Promise((resolve, reject) => {
+            db.all(`
+                SELECT AVG(DATEDIFF(updated_at, created_at)) as avg_resolution_time
+                FROM Tickets 
+                WHERE status = 'Completado'
+                AND updated_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+            `, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ 
+                    metric: 'avg_resolution_time', 
+                    value: rows[0].avg_resolution_time ? Math.round(rows[0].avg_resolution_time * 10) / 10 : 0 
+                });
+            });
+        }),
+        
+        // Ubicaciones activas
+        new Promise((resolve, reject) => {
+            db.all('SELECT COUNT(*) as total FROM Locations', [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'total_locations', value: rows[0].total });
+            });
+        })
+    ];
+    
+    Promise.all(queries)
+        .then(results => {
+            const kpis = {};
+            results.forEach(result => {
+                kpis[result.metric] = result.value;
+            });
+            
+            console.log('✅ KPIs calculados:', kpis);
+            res.json({
+                message: 'success',
+                data: kpis,
+                timestamp: new Date().toISOString()
+            });
+        })
+        .catch(error => {
+            console.error('❌ Error calculando KPIs:', error);
+            res.status(500).json({ 
+                error: 'Error obteniendo KPIs',
+                details: error.message 
+            });
+        });
+});
+
+// Endpoint para obtener actividad reciente
+app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
+    const limit = parseInt(req.query.limit) || 10;
+    console.log(`📋 Solicitando actividad reciente (límite: ${limit})...`);
+    
+    const sql = `
+        SELECT 
+            'ticket' as type,
+            t.id as reference_id,
+            CONCAT('Ticket #', t.id, ': ', t.title) as description,
+            t.status,
+            t.priority,
+            t.updated_at as timestamp,
+            c.name as client_name,
+            l.name as location_name
+        FROM Tickets t
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN Clients c ON l.client_id = c.id
+        WHERE t.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        UNION ALL
+        
+        SELECT 
+            'equipment' as type,
+            e.id as reference_id,
+            CONCAT('Equipo registrado: ', e.name) as description,
+            'activo' as status,
+            'Normal' as priority,
+            e.created_at as timestamp,
+            c.name as client_name,
+            l.name as location_name
+        FROM Equipment e
+        LEFT JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN Clients c ON l.client_id = c.id
+        WHERE e.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        ORDER BY timestamp DESC
+        LIMIT ?
+    `;
+    
+    db.all(sql, [limit], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo actividad:', err);
+            res.status(500).json({ 
+                error: 'Error obteniendo actividad',
+                details: err.message 
+            });
+            return;
+        }
+        
+        console.log(`✅ Actividad obtenida: ${rows.length} registros`);
+        res.json({
+            message: 'success',
+            data: rows,
+            count: rows.length,
+            timestamp: new Date().toISOString()
+        });
+    });
+});
+
+// ===================================================================
 // MANEJADORES GLOBALES DE ERRORES Y FINALIZACIÓN
 // ===================================================================
+
+// ===================================================================
+// ENDPOINTS DE MODELOS
+// ===================================================================
+
+// GET /api/models - Obtener todos los modelos
+app.get('/api/models', async (req, res) => {
+    try {
+        console.log('📋 Obteniendo lista de modelos...');
+        
+        const query = `
+            SELECT DISTINCT modelo 
+            FROM equipment 
+            WHERE modelo IS NOT NULL 
+            AND modelo != '' 
+            ORDER BY modelo ASC
+        `;
+        
+        db.all(query, [], (err, rows) => {
+            if (err) {
+                console.error('❌ Error obteniendo modelos:', err);
+                return res.status(500).json({
+                    error: 'Error al obtener modelos',
+                    details: err.message
+                });
+            }
+            
+            const models = rows.map(row => row.modelo);
+            console.log(`✅ ${models.length} modelos encontrados`);
+            
+            res.json({
+                success: true,
+                models: models,
+                count: models.length
+            });
+        });
+        
+    } catch (error) {
+        console.error('💥 Error en endpoint de modelos:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
+// POST /api/models - Crear un nuevo modelo
+app.post('/api/models', authenticateToken, async (req, res) => {
+    try {
+        const { modelo, marca, categoria } = req.body;
+        
+        if (!modelo) {
+            return res.status(400).json({
+                error: 'El nombre del modelo es requerido'
+            });
+        }
+        
+        console.log('📝 Creando nuevo modelo:', modelo);
+        
+        // Verificar si el modelo ya existe
+        const checkQuery = `
+            SELECT COUNT(*) as count 
+            FROM equipment 
+            WHERE modelo = ?
+        `;
+        
+        db.get(checkQuery, [modelo], (err, row) => {
+            if (err) {
+                console.error('❌ Error verificando modelo:', err);
+                return res.status(500).json({
+                    error: 'Error al verificar modelo',
+                    details: err.message
+                });
+            }
+            
+            if (row.count > 0) {
+                return res.status(409).json({
+                    error: 'El modelo ya existe'
+                });
+            }
+            
+            // Crear entrada básica para el modelo
+            const insertQuery = `
+                INSERT INTO equipment (modelo, marca, categoria, estado, ubicacion)
+                VALUES (?, ?, ?, 'Disponible', 'Almacén')
+            `;
+            
+            db.run(insertQuery, [modelo, marca || 'Sin especificar', categoria || 'General'], function(err) {
+                if (err) {
+                    console.error('❌ Error creando modelo:', err);
+                    return res.status(500).json({
+                        error: 'Error al crear modelo',
+                        details: err.message
+                    });
+                }
+                
+                console.log(`✅ Modelo creado con ID: ${this.lastID}`);
+                
+                res.status(201).json({
+                    success: true,
+                    message: 'Modelo creado exitosamente',
+                    modelId: this.lastID,
+                    modelo: modelo
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('💥 Error en creación de modelo:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
+// ===================================================================
+// RUTAS DE GASTOS - SISTEMA FINANCIERO
+// ===================================================================
+
+// GET /api/expenses - Obtener todos los gastos
+app.get('/api/expenses', authenticateToken, (req, res) => {
+    console.log('💸 Obteniendo lista de gastos...');
+    
+    const { status, category, date_from, date_to, limit = 50, offset = 0 } = req.query;
+    
+    let sql = `
+        SELECT 
+            e.*,
+            ec.name as category_name,
+            u_created.username as created_by_name,
+            u_approved.username as approved_by_name
+        FROM Expenses e
+        LEFT JOIN ExpenseCategories ec ON e.category_id = ec.id
+        LEFT JOIN Users u_created ON e.created_by = u_created.id
+        LEFT JOIN Users u_approved ON e.approved_by = u_approved.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (status) {
+        sql += ` AND e.status = ?`;
+        params.push(status);
+    }
+    
+    if (category) {
+        sql += ` AND (e.category = ? OR ec.name = ?)`;
+        params.push(category, category);
+    }
+    
+    if (date_from) {
+        sql += ` AND e.date >= ?`;
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ` AND e.date <= ?`;
+        params.push(date_to);
+    }
+    
+    sql += ` ORDER BY e.date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo gastos:', err);
+            res.status(500).json({ 
+                error: 'Error obteniendo gastos',
+                details: err.message 
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} gastos obtenidos`);
+        res.json({
+            message: 'success',
+            data: rows,
+            total: rows.length,
+            offset: parseInt(offset),
+            limit: parseInt(limit)
+        });
+    });
+});
+
+// POST /api/expenses - Crear nuevo gasto
+app.post('/api/expenses', authenticateToken, (req, res) => {
+    const {
+        category,
+        category_id,
+        description,
+        amount,
+        date,
+        supplier,
+        receipt_number,
+        payment_method,
+        reference_type,
+        reference_id,
+        notes,
+        receipt_file
+    } = req.body;
+    
+    // Validaciones básicas
+    if (!description || !amount || !date) {
+        return res.status(400).json({
+            error: 'Descripción, monto y fecha son requeridos'
+        });
+    }
+    
+    if (amount <= 0) {
+        return res.status(400).json({
+            error: 'El monto debe ser mayor a 0'
+        });
+    }
+    
+    console.log(`💸 Creando nuevo gasto: ${description} - $${amount}`);
+    
+    const sql = `
+        INSERT INTO Expenses (
+            category_id, category, description, amount, date, supplier,
+            receipt_number, payment_method, reference_type, reference_id,
+            notes, receipt_file, created_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente')
+    `;
+    
+    const params = [
+        category_id || null,
+        category || 'Otros',
+        description,
+        amount,
+        date,
+        supplier || null,
+        receipt_number || null,
+        payment_method || null,
+        reference_type || 'General',
+        reference_id || null,
+        notes || null,
+        receipt_file || null,
+        req.user.id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error creando gasto:', err);
+            res.status(500).json({
+                error: 'Error al crear gasto',
+                details: err.message
+            });
+            return;
+        }
+        
+        console.log(`✅ Gasto creado con ID: ${this.lastID}`);
+        
+        // Obtener el gasto completo creado
+        const getSql = `
+            SELECT 
+                e.*,
+                ec.name as category_name,
+                u.username as created_by_name
+            FROM Expenses e
+            LEFT JOIN ExpenseCategories ec ON e.category_id = ec.id
+            LEFT JOIN Users u ON e.created_by = u.id
+            WHERE e.id = ?
+        `;
+        
+        db.get(getSql, [this.lastID], (err, row) => {
+            if (err) {
+                console.error('❌ Error obteniendo gasto creado:', err);
+                res.status(201).json({
+                    message: 'Gasto creado exitosamente',
+                    id: this.lastID
+                });
+                return;
+            }
+            
+            res.status(201).json({
+                message: 'Gasto creado exitosamente',
+                data: row
+            });
+        });
+    });
+});
+
+// PUT /api/expenses/:id - Actualizar gasto
+app.put('/api/expenses/:id', authenticateToken, (req, res) => {
+    const expenseId = req.params.id;
+    const {
+        category,
+        category_id,
+        description,
+        amount,
+        date,
+        supplier,
+        receipt_number,
+        payment_method,
+        reference_type,
+        reference_id,
+        notes,
+        receipt_file
+    } = req.body;
+    
+    console.log(`💸 Actualizando gasto ID: ${expenseId}`);
+    
+    // Primero verificar que el gasto existe y obtener su estado actual
+    const checkSql = `SELECT status, created_by FROM Expenses WHERE id = ?`;
+    
+    db.get(checkSql, [expenseId], (err, expense) => {
+        if (err) {
+            console.error('❌ Error verificando gasto:', err);
+            return res.status(500).json({
+                error: 'Error verificando gasto',
+                details: err.message
+            });
+        }
+        
+        if (!expense) {
+            return res.status(404).json({
+                error: 'Gasto no encontrado'
+            });
+        }
+        
+        // Solo el creador o admin puede editar gastos pendientes
+        if (expense.status !== 'Pendiente' && req.user.role !== 'Admin') {
+            return res.status(403).json({
+                error: 'Solo se pueden editar gastos pendientes'
+            });
+        }
+        
+        if (expense.created_by !== req.user.id && req.user.role !== 'Admin') {
+            return res.status(403).json({
+                error: 'No tienes permisos para editar este gasto'
+            });
+        }
+        
+        const sql = `
+            UPDATE Expenses SET
+                category_id = COALESCE(?, category_id),
+                category = COALESCE(?, category),
+                description = COALESCE(?, description),
+                amount = COALESCE(?, amount),
+                date = COALESCE(?, date),
+                supplier = COALESCE(?, supplier),
+                receipt_number = COALESCE(?, receipt_number),
+                payment_method = COALESCE(?, payment_method),
+                reference_type = COALESCE(?, reference_type),
+                reference_id = COALESCE(?, reference_id),
+                notes = COALESCE(?, notes),
+                receipt_file = COALESCE(?, receipt_file),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `;
+        
+        const params = [
+            category_id,
+            category,
+            description,
+            amount,
+            date,
+            supplier,
+            receipt_number,
+            payment_method,
+            reference_type,
+            reference_id,
+            notes,
+            receipt_file,
+            expenseId
+        ];
+        
+        db.run(sql, params, function(err) {
+            if (err) {
+                console.error('❌ Error actualizando gasto:', err);
+                return res.status(500).json({
+                    error: 'Error al actualizar gasto',
+                    details: err.message
+                });
+            }
+            
+            console.log(`✅ Gasto ${expenseId} actualizado`);
+            
+            // Obtener el gasto actualizado
+            const getSql = `
+                SELECT 
+                    e.*,
+                    ec.name as category_name,
+                    u_created.username as created_by_name,
+                    u_approved.username as approved_by_name
+                FROM Expenses e
+                LEFT JOIN ExpenseCategories ec ON e.category_id = ec.id
+                LEFT JOIN Users u_created ON e.created_by = u_created.id
+                LEFT JOIN Users u_approved ON e.approved_by = u_approved.id
+                WHERE e.id = ?
+            `;
+            
+            db.get(getSql, [expenseId], (err, row) => {
+                if (err) {
+                    console.error('❌ Error obteniendo gasto actualizado:', err);
+                    return res.json({
+                        message: 'Gasto actualizado exitosamente',
+                        changes: this.changes
+                    });
+                }
+                
+                res.json({
+                    message: 'Gasto actualizado exitosamente',
+                    data: row,
+                    changes: this.changes
+                });
+            });
+        });
+    });
+});
+
+// PUT /api/expenses/:id/approve - Aprobar gasto
+app.put('/api/expenses/:id/approve', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const expenseId = req.params.id;
+    const { notes } = req.body;
+    
+    console.log(`✅ Aprobando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
+    
+    const sql = `
+        UPDATE Expenses SET
+            status = 'Aprobado',
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            notes = COALESCE(?, notes),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'Pendiente'
+    `;
+    
+    db.run(sql, [req.user.id, notes, expenseId], function(err) {
+        if (err) {
+            console.error('❌ Error aprobando gasto:', err);
+            return res.status(500).json({
+                error: 'Error al aprobar gasto',
+                details: err.message
+            });
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Gasto no encontrado o ya fue procesado'
+            });
+        }
+        
+        console.log(`✅ Gasto ${expenseId} aprobado exitosamente`);
+        
+        res.json({
+            message: 'Gasto aprobado exitosamente',
+            expense_id: expenseId,
+            approved_by: req.user.username,
+            approved_at: new Date().toISOString()
+        });
+    });
+});
+
+// PUT /api/expenses/:id/reject - Rechazar gasto
+app.put('/api/expenses/:id/reject', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const expenseId = req.params.id;
+    const { notes } = req.body;
+    
+    if (!notes) {
+        return res.status(400).json({
+            error: 'Se requiere una nota explicando el motivo del rechazo'
+        });
+    }
+    
+    console.log(`❌ Rechazando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
+    
+    const sql = `
+        UPDATE Expenses SET
+            status = 'Rechazado',
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'Pendiente'
+    `;
+    
+    db.run(sql, [req.user.id, notes, expenseId], function(err) {
+        if (err) {
+            console.error('❌ Error rechazando gasto:', err);
+            return res.status(500).json({
+                error: 'Error al rechazar gasto',
+                details: err.message
+            });
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Gasto no encontrado o ya fue procesado'
+            });
+        }
+        
+        console.log(`❌ Gasto ${expenseId} rechazado exitosamente`);
+        
+        res.json({
+            message: 'Gasto rechazado exitosamente',
+            expense_id: expenseId,
+            rejected_by: req.user.username,
+            rejected_at: new Date().toISOString(),
+            reason: notes
+        });
+    });
+});
+
+// PUT /api/expenses/:id/pay - Marcar gasto como pagado
+app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const expenseId = req.params.id;
+    const { payment_method, payment_notes } = req.body;
+    
+    console.log(`💳 Marcando gasto ID: ${expenseId} como pagado`);
+    
+    const sql = `
+        UPDATE Expenses SET
+            status = 'Pagado',
+            payment_method = COALESCE(?, payment_method),
+            paid_at = CURRENT_TIMESTAMP,
+            notes = CASE 
+                WHEN ? IS NOT NULL THEN CONCAT(COALESCE(notes, ''), '\n--- PAGO ---\n', ?)
+                ELSE notes
+            END,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? AND status = 'Aprobado'
+    `;
+    
+    db.run(sql, [payment_method, payment_notes, payment_notes, expenseId], function(err) {
+        if (err) {
+            console.error('❌ Error marcando gasto como pagado:', err);
+            return res.status(500).json({
+                error: 'Error al marcar gasto como pagado',
+                details: err.message
+            });
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Gasto no encontrado o no está aprobado'
+            });
+        }
+        
+        console.log(`💳 Gasto ${expenseId} marcado como pagado`);
+        
+        res.json({
+            message: 'Gasto marcado como pagado exitosamente',
+            expense_id: expenseId,
+            paid_at: new Date().toISOString(),
+            payment_method: payment_method
+        });
+    });
+});
+
+// DELETE /api/expenses/:id - Eliminar gasto
+app.delete('/api/expenses/:id', authenticateToken, (req, res) => {
+    const expenseId = req.params.id;
+    
+    console.log(`🗑️ Eliminando gasto ID: ${expenseId}`);
+    
+    // Verificar permisos: solo el creador o admin pueden eliminar gastos pendientes
+    const checkSql = `SELECT status, created_by FROM Expenses WHERE id = ?`;
+    
+    db.get(checkSql, [expenseId], (err, expense) => {
+        if (err) {
+            console.error('❌ Error verificando gasto:', err);
+            return res.status(500).json({
+                error: 'Error verificando gasto',
+                details: err.message
+            });
+        }
+        
+        if (!expense) {
+            return res.status(404).json({
+                error: 'Gasto no encontrado'
+            });
+        }
+        
+        // Solo se pueden eliminar gastos pendientes o rechazados
+        if (!['Pendiente', 'Rechazado'].includes(expense.status)) {
+            return res.status(403).json({
+                error: 'Solo se pueden eliminar gastos pendientes o rechazados'
+            });
+        }
+        
+        // Solo el creador o admin pueden eliminar
+        if (expense.created_by !== req.user.id && req.user.role !== 'Admin') {
+            return res.status(403).json({
+                error: 'No tienes permisos para eliminar este gasto'
+            });
+        }
+        
+        const deleteSql = `DELETE FROM Expenses WHERE id = ?`;
+        
+        db.run(deleteSql, [expenseId], function(err) {
+            if (err) {
+                console.error('❌ Error eliminando gasto:', err);
+                return res.status(500).json({
+                    error: 'Error al eliminar gasto',
+                    details: err.message
+                });
+            }
+            
+            console.log(`✅ Gasto ${expenseId} eliminado exitosamente`);
+            
+            res.json({
+                message: 'Gasto eliminado exitosamente',
+                expense_id: expenseId,
+                deleted_by: req.user.username
+            });
+        });
+    });
+});
+
+// GET /api/expense-categories - Obtener categorías de gastos
+app.get('/api/expense-categories', authenticateToken, (req, res) => {
+    console.log('📁 Obteniendo categorías de gastos...');
+    
+    const sql = `
+        SELECT * FROM ExpenseCategories 
+        WHERE is_active = 1 
+        ORDER BY name ASC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo categorías:', err);
+            res.status(500).json({
+                error: 'Error obteniendo categorías',
+                details: err.message
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} categorías obtenidas`);
+        res.json({
+            message: 'success',
+            data: rows,
+            total: rows.length
+        });
+    });
+});
+
+// POST /api/expense-categories - Crear nueva categoría
+app.post('/api/expense-categories', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const { name, description } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({
+            error: 'El nombre de la categoría es requerido'
+        });
+    }
+    
+    console.log(`📁 Creando nueva categoría: ${name}`);
+    
+    const sql = `
+        INSERT INTO ExpenseCategories (name, description)
+        VALUES (?, ?)
+    `;
+    
+    db.run(sql, [name, description || null], function(err) {
+        if (err) {
+            if (err.message.includes('UNIQUE constraint')) {
+                return res.status(409).json({
+                    error: 'Ya existe una categoría con ese nombre'
+                });
+            }
+            
+            console.error('❌ Error creando categoría:', err);
+            return res.status(500).json({
+                error: 'Error al crear categoría',
+                details: err.message
+            });
+        }
+        
+        console.log(`✅ Categoría creada con ID: ${this.lastID}`);
+        
+        res.status(201).json({
+            message: 'Categoría creada exitosamente',
+            data: {
+                id: this.lastID,
+                name,
+                description,
+                is_active: true,
+                created_at: new Date().toISOString()
+            }
+        });
+    });
+});
+
+// GET /api/expenses/stats - Obtener estadísticas de gastos
+app.get('/api/expenses/stats', authenticateToken, (req, res) => {
+    console.log('📊 Calculando estadísticas de gastos...');
+    
+    const { period = 'month' } = req.query;
+    
+    let dateFilter = '';
+    switch (period) {
+        case 'week':
+            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)`;
+            break;
+        case 'month':
+            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`;
+            break;
+        case 'quarter':
+            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)`;
+            break;
+        case 'year':
+            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)`;
+            break;
+        default:
+            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`;
+    }
+    
+    const queries = [
+        // Total gastos por estado
+        new Promise((resolve, reject) => {
+            const sql = `
+                SELECT 
+                    status,
+                    COUNT(*) as count,
+                    SUM(amount) as total_amount
+                FROM Expenses e
+                WHERE 1=1 ${dateFilter}
+                GROUP BY status
+            `;
+            
+            db.all(sql, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ type: 'by_status', data: rows });
+            });
+        }),
+        
+        // Total gastos por categoría
+        new Promise((resolve, reject) => {
+            const sql = `
+                SELECT 
+                    COALESCE(e.category, 'Sin categoría') as category,
+                    COUNT(*) as count,
+                    SUM(amount) as total_amount
+                FROM Expenses e
+                WHERE 1=1 ${dateFilter}
+                GROUP BY e.category
+                ORDER BY total_amount DESC
+                LIMIT 10
+            `;
+            
+            db.all(sql, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ type: 'by_category', data: rows });
+            });
+        }),
+        
+        // Totales generales
+        new Promise((resolve, reject) => {
+            const sql = `
+                SELECT 
+                    COUNT(*) as total_count,
+                    SUM(amount) as total_amount,
+                    AVG(amount) as avg_amount,
+                    SUM(CASE WHEN status = 'Pendiente' THEN amount ELSE 0 END) as pending_amount,
+                    SUM(CASE WHEN status = 'Aprobado' THEN amount ELSE 0 END) as approved_amount,
+                    SUM(CASE WHEN status = 'Pagado' THEN amount ELSE 0 END) as paid_amount
+                FROM Expenses e
+                WHERE 1=1 ${dateFilter}
+            `;
+            
+            db.get(sql, [], (err, row) => {
+                if (err) reject(err);
+                else resolve({ type: 'totals', data: row });
+            });
+        })
+    ];
+    
+    Promise.all(queries)
+        .then(results => {
+            const stats = {
+                period,
+                date_range: {
+                    from: new Date(Date.now() - (period === 'week' ? 7 : period === 'month' ? 30 : period === 'quarter' ? 90 : 365) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                    to: new Date().toISOString().split('T')[0]
+                }
+            };
+            
+            results.forEach(result => {
+                stats[result.type] = result.data;
+            });
+            
+            console.log('✅ Estadísticas de gastos calculadas');
+            res.json({
+                message: 'success',
+                data: stats,
+                timestamp: new Date().toISOString()
+            });
+        })
+        .catch(error => {
+            console.error('❌ Error calculando estadísticas:', error);
+            res.status(500).json({
+                error: 'Error calculando estadísticas',
+                details: error.message
+            });
+        });
+});
 
 app.use('*', (req, res) => {
     res.status(404).json({
@@ -785,7 +2022,7 @@ function startServer() {
         console.log(`🌍 Servidor corriendo en: http://localhost:${PORT}`);
         console.log(`🌍 Accessible via: http://0.0.0.0:${PORT}`);
         console.log(`🔧 Modo: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`📂 Base de datos: ${db.filename || 'MySQL/SQLite'}`);
+        console.log(`📂 Base de datos: MySQL`);
         console.log('📋 Rutas disponibles:');
         console.log('   🔐 /api/auth/* (Autenticación)');
         console.log('   👥 /api/clients/* (Gestión de Clientes)');

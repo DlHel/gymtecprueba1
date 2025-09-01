@@ -1,6 +1,12 @@
 // personal.js - Gestión completa de personal/usuarios
+// ✅ CRÍTICO: Verificación de autenticación REACTIVADA
+if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+    window.location.href = '/login.html';
+    throw new Error('Acceso no autorizado');
+}
+
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:3000/api'
+    API_BASE_URL: window.API_URL || 'http://localhost:3000/api'
 };
 
 class PersonalManager {
@@ -82,7 +88,7 @@ class PersonalManager {
         `;
 
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/users`);
+            const response = await authenticatedFetch(`${API_URL}/users`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -264,7 +270,7 @@ class PersonalManager {
                 delete userData.password;
             }
 
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -335,7 +341,7 @@ class PersonalManager {
 
     async executeDeleteUser(userId) {
         try {
-            const response = await fetch(`${CONFIG.API_BASE_URL}/users/${userId}`, {
+            const response = await authenticatedFetch(`${API_URL}/users/${userId}`, {
                 method: 'DELETE'
             });
 

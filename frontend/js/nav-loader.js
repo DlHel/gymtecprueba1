@@ -69,10 +69,22 @@ document.addEventListener("DOMContentLoaded", () => {
         // Cerrar menú móvil al hacer clic en un enlace
         const navLinks = sidebar.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
-            link.addEventListener('click', () => {
+            link.addEventListener('click', (e) => {
+                // DEBUG: Monitorear clics en navegación
+                const href = link.getAttribute('href');
+                console.log('🔗 Clic en navegación:', {
+                    href: href,
+                    currentPage: window.location.pathname,
+                    target: e.target,
+                    isDefaultPrevented: e.defaultPrevented
+                });
+                
+                // IMPORTANTE: No interceptar la navegación normal
+                // Solo cerrar el menú móvil si es necesario
                 if (window.innerWidth < 1024) {
                     sidebar.classList.remove('is-open');
                 }
+                // NO hacer preventDefault() ni modificar el comportamiento del enlace
             });
         });
 

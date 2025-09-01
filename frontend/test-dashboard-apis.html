@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Dashboard APIs</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+        .test-container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .test-result { margin: 10px 0; padding: 10px; border-radius: 4px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { background: #007bff; color: white; border: none; padding: 10px 20px; margin: 5px; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test Dashboard APIs</h1>
+        <p>Herramienta para verificar el estado de las APIs del dashboard después de las correcciones.</p>
+        
+        <div id="config-status" class="test-result info">
+            📋 Verificando configuración...
+        </div>
+        
+        <div>
+            <button onclick="testKPIsEndpoint()">Test KPIs Endpoint</button>
+            <button onclick="testActivityEndpoint()">Test Activity Endpoint</button>
+            <button onclick="testWithoutAuth()">Test Sin Auth (debería dar 403)</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <!-- Scripts del sistema -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        // Verificar configuración
+        document.addEventListener('DOMContentLoaded', () => {
+            const configStatus = document.getElementById('config-status');
+            
+            if (typeof API_URL !== 'undefined') {
+                configStatus.innerHTML = `✅ Configuración OK - API URL: ${API_URL}`;
+                configStatus.className = 'test-result success';
+            } else {
+                configStatus.innerHTML = '❌ Error: API_URL no está definida';
+                configStatus.className = 'test-result error';
+            }
+        });
+        
+        function addResult(title, status, message, data = null) {
+            const results = document.getElementById('results');
+            const result = document.createElement('div');
+            result.className = `test-result ${status}`;
+            
+            let content = `<strong>${title}</strong><br>${message}`;
+            if (data) {
+                content += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            result.innerHTML = content;
+            results.appendChild(result);
+        }
+        
+        async function testKPIsEndpoint() {
+            try {
+                addResult('📊 Testing KPIs Endpoint', 'info', 'Enviando request...');
+                
+                const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/kpis`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('📊 KPIs Endpoint', 'success', `Status: ${response.status} - ¡Funcionando correctamente!`, data);
+                } else {
+                    addResult('📊 KPIs Endpoint', 'error', `Status: ${response.status} - ${data.error || 'Error desconocido'}`, data);
+                }
+            } catch (error) {
+                addResult('📊 KPIs Endpoint', 'error', `Error de conexión: ${error.message}`);
+            }
+        }
+        
+        async function testActivityEndpoint() {
+            try {
+                addResult('📋 Testing Activity Endpoint', 'info', 'Enviando request...');
+                
+                const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/activity?limit=5`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('📋 Activity Endpoint', 'success', `Status: ${response.status} - ¡Funcionando correctamente!`, data);
+                } else {
+                    addResult('📋 Activity Endpoint', 'error', `Status: ${response.status} - ${data.error || 'Error desconocido'}`, data);
+                }
+            } catch (error) {
+                addResult('📋 Activity Endpoint', 'error', `Error de conexión: ${error.message}`);
+            }
+        }
+        
+        async function testWithoutAuth() {
+            try {
+                addResult('🔓 Testing Sin Auth', 'info', 'Enviando request sin token...');
+                
+                const response = await fetch(`${API_URL}/dashboard/kpis`);
+                const data = await response.json();
+                
+                if (response.status === 403 || response.status === 401) {
+                    addResult('🔓 Test Sin Auth', 'success', `Status: ${response.status} - ¡Autenticación funcionando correctamente!`, data);
+                } else {
+                    addResult('🔓 Test Sin Auth', 'error', `Status: ${response.status} - Problema de seguridad: debería rechazar sin auth`, data);
+                }
+            } catch (error) {
+                addResult('🔓 Test Sin Auth', 'error', `Error de conexión: ${error.message}`);
+            }
+        }
+    </script>
+</body>
+</html>

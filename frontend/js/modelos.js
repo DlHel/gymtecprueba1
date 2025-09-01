@@ -1,4 +1,10 @@
 // Mantenedor de Modelos de Equipos - Gymtec ERP
+// ✅ CRÍTICO: Verificación de autenticación REACTIVADA
+if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+    window.location.href = '/login.html';
+    return;
+}
+
 class ModelosManager {
     constructor() {
         this.models = [];
@@ -9,8 +15,8 @@ class ModelosManager {
         this.spareParts = [];
         this.checklistItems = [];
         
-        // Configurar la URL base de la API según el puerto actual
-        this.apiBaseUrl = this.getApiBaseUrl();
+        // Configurar la URL base de la API usando configuración dinámica
+        this.apiBaseUrl = window.API_URL || this.getApiBaseUrl();
         
         this.init();
     }
@@ -508,7 +514,7 @@ class ModelosManager {
 
     async loadModelPhotos(modelId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/photos`);
+            const response = await authenticatedFetch(`${API_URL}/models/${modelId}/photos`);
             if (response.ok) {
                 this.photos = await response.json();
                 this.renderPhotoPreview();
@@ -520,7 +526,7 @@ class ModelosManager {
 
     async loadModelManuals(modelId) {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}/manuals`);
+            const response = await authenticatedFetch(`${API_URL}/models/${modelId}/manuals`);
             if (response.ok) {
                 this.manuals = await response.json();
                 this.renderManualList();
@@ -677,7 +683,7 @@ class ModelosManager {
             
             const method = isEditing ? 'PUT' : 'POST';
             
-            const response = await fetch(url, {
+            const response = await authenticatedFetch(url, {
                 method: method,
                 body: formData
             });

@@ -31,9 +31,8 @@ backend/logs/
 ehthumbs.db
 Thumbs.db
 
-# Database files
-*.sqlite
-*.db
+# Database files - MySQL configs
+*.cnf
 
 # Build files
 /dist

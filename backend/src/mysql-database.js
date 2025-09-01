@@ -10,9 +10,6 @@ const dbConfig = {
     password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME || 'gymtec_erp',
     charset: 'utf8mb4',
-    acquireTimeout: 60000,
-    timeout: 60000,
-    reconnect: true,
     multipleStatements: true
 };
 

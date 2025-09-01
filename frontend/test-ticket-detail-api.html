@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Ticket Detail API</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .result { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .error { background: #ffebee; border-left: 4px solid #f44336; }
+        .success { background: #e8f5e9; border-left: 4px solid #4caf50; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        pre { white-space: pre-wrap; word-wrap: break-word; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Test Ticket Detail API</h1>
+    
+    <div>
+        <label for="ticketId">Ticket ID:</label>
+        <input type="number" id="ticketId" value="7" min="1">
+        <button onclick="testTicketDetail()">Test Detail API</button>
+        <button onclick="testBasicTicket()">Test Basic API</button>
+    </div>
+    
+    <div id="results"></div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        function addResult(title, content, isError = false) {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isError ? 'error' : 'success'}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            results.appendChild(div);
+        }
+
+        async function testTicketDetail() {
+            const ticketId = document.getElementById('ticketId').value;
+            
+            try {
+                addResult('📡 Testing Detail API', `GET ${API_URL}/tickets/${ticketId}/detail`);
+                
+                const response = await fetch(`${API_URL}/tickets/${ticketId}/detail`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AuthManager.getToken()}`
+                    }
+                });
+                
+                addResult('📨 Response Status', `${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    addResult('❌ Error Response', errorText, true);
+                    return;
+                }
+                
+                const result = await response.json();
+                addResult('✅ Detail API Success', JSON.stringify(result, null, 2));
+                
+            } catch (error) {
+                addResult('💥 Network Error', error.message, true);
+            }
+        }
+
+        async function testBasicTicket() {
+            const ticketId = document.getElementById('ticketId').value;
+            
+            try {
+                addResult('📡 Testing Basic API', `GET ${API_URL}/tickets/${ticketId}`);
+                
+                const response = await fetch(`${API_URL}/tickets/${ticketId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${AuthManager.getToken()}`
+                    }
+                });
+                
+                addResult('📨 Response Status', `${response.status} ${response.statusText}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    addResult('❌ Error Response', errorText, true);
+                    return;
+                }
+                
+                const result = await response.json();
+                addResult('✅ Basic API Success', JSON.stringify(result, null, 2));
+                
+            } catch (error) {
+                addResult('💥 Network Error', error.message, true);
+            }
+        }
+
+        // Auto-login for testing
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!AuthManager.isAuthenticated()) {
+                addResult('⚠️ Authentication Required', 'You need to login first. Redirecting...', true);
+                setTimeout(() => {
+                    window.location.href = '/login.html';
+                }, 2000);
+            } else {
+                addResult('✅ Authentication Status', `Logged in as: ${JSON.stringify(AuthManager.getCurrentUser(), null, 2)}`);
+            }
+        });
+    </script>
+</body>
+</html>

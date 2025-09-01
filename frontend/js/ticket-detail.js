@@ -42,8 +42,16 @@ const elements = {
 
 // === INICIALIZACIÓN ===
 document.addEventListener('DOMContentLoaded', async () => {
+    // 🔐 CRÍTICO: Protección de autenticación PRIMERO
+    if (!authManager.isAuthenticated()) {
+        console.warn('❌ Usuario no autenticado, redirigiendo a login...');
+        window.location.href = '/login.html';
+        return;
+    }
+    
     console.log('🎫 Iniciando detalle de ticket mejorado...');
     console.log('🔗 API URL:', API_URL);
+    console.log('👤 Usuario autenticado:', authManager.getUser()?.username || 'N/A');
     
     // Obtener referencias DOM
     elements.loadingState = document.getElementById('loading-state');
@@ -95,16 +103,24 @@ async function loadTicketDetail(ticketId) {
         showLoading();
         console.log(`📡 Cargando detalle del ticket ${ticketId}...`);
         
+        // 🔍 DEBUGGING: Verificar estado de autenticación antes de hacer la llamada
+        console.log('🔐 Verificando autenticación...');
+        console.log('📋 authManager disponible:', typeof authManager !== 'undefined');
+        console.log('✅ Está autenticado:', authManager ? authManager.isAuthenticated() : false);
+        
+        if (!authManager || !authManager.isAuthenticated()) {
+            console.error('❌ Usuario no autenticado - Redirigiendo a login...');
+            window.location.href = '/login.html';
+            return;
+        }
+        
         // Resetear sistema de fotos para evitar event listeners duplicados
         resetPhotoSystem();
         
-        const response = await fetch(`${API_URL}/tickets/${ticketId}/detail`, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            }
-        });
+        console.log('📤 Enviando petición autenticada...');
+        
+        // ✅ USAR authenticatedFetch según @bitacora
+        const response = await authenticatedFetch(`${API_URL}/tickets/${ticketId}/detail`);
         
         console.log('📨 Respuesta recibida:', response.status, response.statusText);
         
@@ -692,7 +708,7 @@ async function uploadPhoto(file) {
         const formData = new FormData();
         formData.append('photo', file);
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             body: formData
         });
@@ -1318,7 +1334,7 @@ async function renderStockAlerts() {
     
     try {
         // Obtener alertas de stock bajo del backend
-        const response = await fetch(`${API_URL}/inventory/spare-parts/alerts`);
+        const response = await authenticatedFetch(`${API_URL}/inventory/spare-parts/alerts`);
         if (!response.ok) {
             throw new Error('Error al cargar alertas de stock');
         }
@@ -1717,7 +1733,7 @@ async function saveTimeEntry(durationSeconds) {
     if (!state.currentTicket) return;
     
     try {
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/time-entries`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/time-entries`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -1979,7 +1995,7 @@ async function addChecklistItem(title, description = '') {
     try {
         console.log('🎯 Agregando nueva tarea al checklist:', { title, description });
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/checklist`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/checklist`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2030,7 +2046,7 @@ async function toggleChecklistItem(itemId, isCompleted) {
         // Asegurar que is_completed sea boolean
         const completed = Boolean(isCompleted);
         
-        const response = await fetch(`${API_URL}/tickets/checklist/${itemId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/checklist/${itemId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2086,7 +2102,7 @@ async function deleteChecklistItem(itemId) {
     try {
         console.log('🗑️ Eliminando tarea del checklist:', itemId);
         
-        const response = await fetch(`${API_URL}/tickets/checklist/${itemId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/checklist/${itemId}`, {
             method: 'DELETE'
         });
         
@@ -2136,7 +2152,7 @@ async function handleAddNote() {
     }
     
     try {
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2237,7 +2253,7 @@ async function handlePhotoUpload() {
         
         console.log('📸 Información del archivo:', { fileName, mimeType, fileSize });
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2537,7 +2553,7 @@ async function handleMultiplePhotoUpload() {
                     photo_data: payload.photo_data.substring(0, 100) + '...'
                 });
                 
-                const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+                const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -2643,7 +2659,7 @@ async function deletePhoto(photoId) {
     try {
         console.log(`🗑️ Eliminando foto ${photoId}...`);
         
-        const response = await fetch(`${API_URL}/tickets/photos/${photoId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/photos/${photoId}`, {
             method: 'DELETE',
             headers: { 'Accept': 'application/json' }
         });
@@ -3161,7 +3177,7 @@ async function addUnifiedNote(comment) {
     const commentTypeSelect = document.getElementById('comment-type-select');
     const commentType = commentTypeSelect ? commentTypeSelect.value : 'General';
     
-    const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+    const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -3209,7 +3225,7 @@ async function uploadUnifiedAttachments(comment) {
             reader.readAsDataURL(attachment.file);
         });
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -3399,7 +3415,7 @@ async function deleteNote(noteId) {
     try {
         console.log(`🗑️ Eliminando nota ${noteId}...`);
         
-        const response = await fetch(`${API_URL}/tickets/notes/${noteId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/notes/${noteId}`, {
             method: 'DELETE',
             headers: { 'Accept': 'application/json' }
         });
@@ -3508,16 +3524,14 @@ async function deleteActivityGroup(noteIds = [], photoIds = []) {
             console.log(`🗑️ Eliminando actividad grupal: ${noteIds.length} notas, ${photoIds.length} fotos...`);
             
             // Eliminar comentarios en paralelo
-            const notePromises = noteIds.map(noteId => 
-                fetch(`${API_URL}/tickets/notes/${noteId}`, {
+            const notePromises = noteIds.map(noteId => authenticatedFetch(`${API_URL}/tickets/notes/${noteId}`, {
                     method: 'DELETE',
                     headers: { 'Accept': 'application/json' }
                 })
             );
             
             // Eliminar fotos en paralelo
-            const photoPromises = photoIds.map(photoId => 
-                fetch(`${API_URL}/tickets/${state.currentTicket?.id}/photos/${photoId}`, {
+            const photoPromises = photoIds.map(photoId => authenticatedFetch(`${API_URL}/tickets/${state.currentTicket?.id}/photos/${photoId}`, {
                     method: 'DELETE',
                     headers: { 'Accept': 'application/json' }
                 })
@@ -3811,7 +3825,7 @@ async function updateAdvancedNote(button, noteId, modal) {
             is_internal: isInternal
         };
         
-        const response = await fetch(`${API_URL}/tickets/notes/${noteId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/notes/${noteId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(updateData)
@@ -3866,7 +3880,7 @@ async function deleteIndividualPhoto(photoId, button) {
         button.disabled = true;
         button.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket?.id}/photos/${photoId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket?.id}/photos/${photoId}`, {
             method: 'DELETE',
             headers: { 'Accept': 'application/json' }
         });
@@ -4212,7 +4226,7 @@ async function executeDirectStatusChange(newStatus, userComment) {
                 author: 'Felipe Maturana'
             };
             
-            const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(noteData)
@@ -4349,7 +4363,7 @@ async function applyQuickClose(statusType, template) {
             author: 'Felipe Maturana'
         };
         
-        const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+        const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(noteData)
@@ -4393,7 +4407,7 @@ async function applyQuickClose(statusType, template) {
 }
 
 async function updateTicketStatus(ticketId, newStatus) {
-    const response = await fetch(`${API_URL}/tickets/${ticketId}`, {
+    const response = await authenticatedFetch(`${API_URL}/tickets/${ticketId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4431,7 +4445,7 @@ async function updateTicketStatus(ticketId, newStatus) {
 //             author: 'Felipe Maturana'
 //         };
 //         
-//         const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+//         const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
 //             method: 'POST',
 //             headers: { 'Content-Type': 'application/json' },
 //             body: JSON.stringify(noteData)
@@ -4496,7 +4510,7 @@ async function addStatusChangeNote(oldStatus, newStatus) {
     const noteText = `Estado del ticket cambiado de "${oldStatus}" a "${newStatus}"`;
     
     try {
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4550,7 +4564,7 @@ async function showAddSparePartModal() {
     
     try {
         // Cargar repuestos disponibles
-        const response = await fetch(`${API_URL}/inventory/spare-parts`);
+        const response = await authenticatedFetch(`${API_URL}/inventory/spare-parts`);
         if (!response.ok) {
             throw new Error('Error al cargar repuestos');
         }
@@ -4680,7 +4694,7 @@ async function submitSparePartRequest(form, modal) {
     };
     
     try {
-        const response = await fetch(`${API_URL}/inventory/spare-part-requests`, {
+        const response = await authenticatedFetch(`${API_URL}/inventory/spare-part-requests`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestData)
@@ -4717,7 +4731,7 @@ async function addSparePartRequestNote(requestData) {
                     `${requestData.justification ? `**Justificación:** ${requestData.justification}` : ''}`;
     
     try {
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -4750,7 +4764,7 @@ async function addSparePartRequestNote(requestData) {
 // Solicitar orden de compra para repuesto específico
 async function requestSparePartOrder(sparePartId) {
     try {
-        const response = await fetch(`${API_URL}/inventory/spare-parts/${sparePartId}/request-order`, {
+        const response = await authenticatedFetch(`${API_URL}/inventory/spare-parts/${sparePartId}/request-order`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

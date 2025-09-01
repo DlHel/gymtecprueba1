@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 
 // Clave secreta para JWT (en producción debe estar en variables de entorno)
 const JWT_SECRET = process.env.JWT_SECRET || 'gymtec_secret_key_2024';
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '24h';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '10h';
 
 /**
  * Middleware para verificar token JWT
@@ -113,6 +113,36 @@ const optionalAuth = (req, res, next) => {
     });
 };
 
+const authMiddleware = (req, res, next) => {
+    try {
+        const token = req.header('Authorization')?.replace('Bearer ', '');
+        
+        if (!token) {
+            throw new Error();
+        }
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        req.userId = decoded.userId;
+        req.userRole = decoded.role;
+        next();
+    } catch (error) {
+        res.status(401).json({ 
+          success: false, 
+          message: 'Por favor autentícate' 
+        });
+    }
+};
+
+const adminMiddleware = (req, res, next) => {
+    if (req.userRole !== 'admin') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Acceso denegado. Se requieren permisos de administrador.' 
+        });
+    }
+    next();
+};
+
 module.exports = {
     authenticateToken,
     requireRole,
@@ -120,5 +150,7 @@ module.exports = {
     hashPassword,
     verifyPassword,
     optionalAuth,
+    authMiddleware,
+    adminMiddleware,
     JWT_SECRET
 };

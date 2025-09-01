@@ -1,55 +1,183 @@
-# Gymtec ERP - GitHub Copilot Professional Configuration v2.0
+# Gymtec ERP - GitHub Copilot Professional Configuration v3.0
 
-This is a professional-grade ERP system for gym equipment maintenance management with comprehensive CRUD operations, advanced authentication, enterprise-level reporting capabilities, and **@bitacora reference system**.
+Este es un sistema ERP profesional de gestión de mantenimiento de equipos de gimnasio con operaciones CRUD avanzadas, autenticación empresarial, reportes ejecutivos, y **sistema de referencia @bitacora**.
 
-## 🎯 SISTEMA @BITACORA - REFERENCIA AUTOMÁTICA
+## 🎯 SISTEMA @BITACORA - REFERENCIA AUTOMÁTICA COMPLETA
 
-**CRITICAL**: When users mention `@bitacora`, automatically reference the complete project context from `docs/BITACORA_PROYECTO.md` and related documentation. This eliminates the need for constant code review.
+**CRÍTICO**: Cuando los usuarios mencionen `@bitacora`, automáticamente referenciar el contexto completo del proyecto desde `docs/BITACORA_PROYECTO.md` y documentación relacionada. Esto elimina la necesidad de revisión constante de código.
 
-### @bitacora Command Reference:
-- `@bitacora` → Complete project context
-- `@bitacora api` → API endpoints and patterns  
-- `@bitacora database` → Schema and relationships
-- `@bitacora authentication` → JWT auth system
-- `@bitacora frontend` → Vanilla JS architecture
-- `@bitacora backend` → Express + MySQL patterns
-- `@bitacora debug` → Debug system and logging
-- `@bitacora security` → Security measures
-- `@bitacora deployment` → Deployment configuration
+### Comandos de Referencia @bitacora:
+- `@bitacora` → Contexto completo del proyecto
+- `@bitacora api` → Endpoints y patrones API  
+- `@bitacora database` → Esquema y relaciones (37+ tablas)
+- `@bitacora authentication` → Sistema JWT auth
+- `@bitacora frontend` → Arquitectura Vanilla JS
+- `@bitacora backend` → Patrones Express + MySQL2
+- `@bitacora debug` → Sistema debug y logging
+- `@bitacora security` → Medidas de seguridad
+- `@bitacora deployment` → Configuración despliegue
+- `@bitacora workflow` → Flujo desarrollo start-servers.bat
 
-## 🏗️ System Architecture & Technology Stack (Updated 2025)
+## 🏗️ Arquitectura del Sistema & Stack Tecnológico (Actualizado 2025)
 
-**Core Stack**: Node.js + Express.js + MySQL2 + Vanilla JavaScript (NO frontend frameworks)
-- **Backend**: Express.js REST API (`backend/src/server.js` - 3400+ lines) with JWT authentication on port 3000
-- **Frontend**: Modular HTML/CSS/JavaScript with Tailwind CSS utility framework on port 8080
-- **Database**: MySQL 8.0+ with 37+ tables, comprehensive foreign key constraints, and ENUM types
-- **File Management**: Multer middleware for uploads, Base64 encoding for database storage
-- **Debug System**: Advanced logging with Winston, performance monitoring, VS Code integration
-- **Documentation**: Protected /docs/ folder with @bitacora reference system
+**Stack Principal**: Node.js + Express.js + MySQL2 + Vanilla JavaScript (SIN frameworks frontend)
 
-### Critical Data Flow Architecture
+- **Backend**: Express.js REST API (`backend/src/server-clean.js` - servidor optimizado) con autenticación JWT en puerto 3000
+- **Frontend**: HTML/CSS/JavaScript modular con framework Tailwind CSS en puerto 8080  
+- **Base de Datos**: MySQL 8.0+ con 37+ tablas, restricciones FK comprehensivas, y tipos ENUM
+- **Gestión Archivos**: Middleware Multer para uploads, codificación Base64 para almacenamiento BD
+- **Sistema Debug**: Logging avanzado con Winston, monitoreo performance, integración VS Code
+- **Documentación**: Carpeta protegida /docs/ con sistema referencia @bitacora
+- **Flujo Desarrollo**: Automatización start-servers.bat con verificación dependencias
+- **Adaptador BD**: `backend/src/db-adapter.js` - abstracción SQLite→MySQL con compatibilidad callbacks
+
+### Arquitectura Crítica de Flujo de Datos
 1. **Environment Detection**: Frontend auto-detects via `frontend/js/config.js` (localhost/Codespaces)
 2. **Database Abstraction**: Backend uses SQLite→MySQL adapter pattern in `backend/src/db-adapter.js`
 3. **Module Pattern**: All frontend modules follow: `state` + `api` + `DOMContentLoaded` + error handling
 4. **@bitacora Integration**: Automatic context reference for consistent development
 
-## 🚀 Professional Development Commands (Enhanced)
+## 📊 Esquema de Base de Datos - INFORMACIÓN CRÍTICA
 
-```bash
-# Primary development workflow
-start-servers.bat  # Verifies MySQL connection, starts backend:3000 + frontend:8080
+### TABLAS PRINCIPALES (37+ tablas activas):
 
-# Debug mode (NEW)
-npm run debug      # Start with debug enabled
-npm run debug:watch # Debug with auto-reload
+**Core Tables:**
+- `Users` - Sistema de usuarios con roles (admin, manager, technician, client)
+- `Clients` - Clientes del gimnasio con información de contacto
+- `Locations` - Ubicaciones/sedes de los gimnasios
+- `EquipmentModels` - Modelos de equipos (Cardio, Fuerza, Funcional, Accesorios)
+- `Equipment` - Equipos específicos instalados (SIN columna 'status' - usar 'activo')
 
-# Individual service management
-cd backend && npm start  # Node.js Express server with hot reload
-cd frontend && python -m http.server 8080  # Static file server with CORS
+**Sistema de Tickets:**
+- `Tickets` - Tickets de mantenimiento con workflow_stage y sla_status
+- `TicketChecklist` - Checklists obligatorios por ticket
+- `ChecklistTemplates` - Templates reutilizables de checklist
+- `TicketPhotos` - Fotos en Base64 asociadas a tickets
 
-# Database management
-cd backend && npm run setup-mysql  # Initial schema setup
-cd backend && npm run dev  # Development with nodemon auto-restart
+**Sistema de Inventario (Fase 3):**
+- `Inventory` - Inventario principal con stock levels
+- `InventoryCategories` - Categorías de inventario
+- `InventoryMovements` - Movimientos de entrada/salida
+- `Suppliers` - Proveedores con información de contacto
+- `PurchaseOrders` - Órdenes de compra con líneas de detalle
+
+**Sistema Financiero:**
+- `Contracts` - Contratos con clientes y condiciones SLA
+- `Expenses` - Gastos categorizados con estados de aprobación
+- `ExpenseCategories` - Categorías de gastos
+- `SystemSettings` - Configuraciones del sistema
+
+### ⚠️ IMPORTANTE - Esquemas de Columnas Críticas:
+
+```sql
+-- Equipment: NO tiene columna 'status' - usar 'activo' hardcoded
+Equipment (id, name, model_id, location_id, serial_number, installation_date, activo, ...)
+
+-- Tickets: workflow completo con etapas
+Tickets (id, title, description, priority, status, workflow_stage, sla_status, sla_deadline, ...)
+
+-- Inventory: Sistema completo de stock
+Inventory (id, item_code, item_name, current_stock, minimum_stock, unit_cost, ...)
+```
+
+## 🔐 Sistema de Autenticación - PATRONES OBLIGATORIOS
+
+### AuthManager Frontend (Critical Component):
+
+```javascript
+// frontend/js/auth.js - AuthManager class disponible globalmente
+window.AuthManager = {
+    // JWT token management
+    saveToken: (token) => localStorage.setItem('authToken', token),
+    getToken: () => localStorage.getItem('authToken'),
+    removeToken: () => localStorage.removeItem('authToken'),
+    
+    // User session management  
+    isAuthenticated: () => !!AuthManager.getToken(),
+    getCurrentUser: () => { /* returns user from token */ },
+    getUserRole: () => { /* extracts role from JWT */ },
+    
+    // Page protection
+    logout: () => { /* clears token and redirects */ }
+};
+
+// REQUIRED: Use in all protected pages
+if (!AuthManager.isAuthenticated()) {
+    window.location.href = '/login.html';
+}
+
+// REQUIRED: Use for all API calls
+function authenticatedFetch(url, options = {}) {
+    return fetch(url, {
+        ...options,
+        headers: {
+            ...options.headers,
+            'Authorization': `Bearer ${AuthManager.getToken()}`
+        }
+    });
+}
+```
+
+### Backend JWT Patterns (Critical):
+
+```javascript
+// REQUIRED: Token verification middleware
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Access token required' });
+    }
+    
+    jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key', (err, user) => {
+        if (err) return res.status(403).json({ error: 'Invalid token' });
+        req.user = user;
+        next();
+    });
+};
+
+// REQUIRED: Role-based authorization
+const requireRole = (roles) => {
+    return (req, res, next) => {
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({ error: 'Insufficient permissions' });
+        }
+        next();
+    };
+};
+
+// USAGE: Apply to all protected routes
+app.get('/api/protected-endpoint', authenticateToken, requireRole(['admin', 'manager']), handler);
+```
+
+## 🚀 Comandos de Desarrollo Profesional (Mejorados)
+
+```batch
+# Flujo de desarrollo principal - RECOMENDADO
+start-servers.bat  # Verifica conexión MySQL, inicia backend:3000 + frontend:8080
+
+# Modo debug (NUEVO)
+npm run debug      # Iniciar con debug habilitado
+npm run debug:watch # Debug con auto-reload
+
+# Gestión individual de servicios
+cd backend && npm start    # Servidor Node.js Express con hot reload
+cd frontend && python -m http.server 8080  # Servidor archivos estáticos con CORS
+
+# Gestión base de datos
+cd backend && npm run setup-mysql  # Configuración inicial de esquema
+cd backend && npm run dev          # Desarrollo con nodemon auto-restart
+
+# Tareas específicas disponibles en VS Code
+# Usar: Ctrl+Shift+P > "Tasks: Run Task"
+🚀 Start Development Servers    # Inicia ambos servidores automáticamente
+🔧 Backend Only               # Solo backend Express en puerto 3000
+🌐 Frontend Only              # Solo frontend estático en puerto 8080
+🗄️ Setup MySQL Database        # Inicializar base de datos con esquema
+🔄 Reset Database             # Resetear y recrear tablas de BD
+🧪 Test API Endpoints         # Probar conexión BD y endpoints API
+📊 Generate Test Data         # Generar clientes, equipos y tickets de prueba
 ```
 
 ## 📋 Enterprise Code Patterns & Standards (2025 Edition)
@@ -657,36 +785,97 @@ docs/debug/DEBUG_SYSTEM.md            # Debug system guide
 .github/copilot-instructions.md       # This file (protected)
 ```
 
-## 🚨 CRITICAL SUCCESS PATTERNS (Updated 2025):
+## 🚨 PATRONES DE ÉXITO CRÍTICOS (Actualizados 2025)
 
-### Performance Optimization
+### Database Adapter Pattern (CRÍTICO):
+
 ```javascript
-// ✅ Database connection pooling with monitoring
-const mysql = require('mysql2/promise');
+// ✅ REQUERIDO: Usar el adaptador de base de datos para compatibilidad
+const DatabaseAdapter = require('./db-adapter');
+const db = new DatabaseAdapter();
 
-const pool = mysql.createPool({
-    host: config.db.host,
-    user: config.db.user,
-    password: config.db.password,
-    database: config.db.name,
-    waitForConnections: true,
-    connectionLimit: 10,
-    queueLimit: 0,
-    acquireTimeout: 60000,
-    timeout: 60000,
-    multipleStatements: false,
-    ssl: config.db.ssl
+// Patrón SQLite→MySQL con callbacks
+db.all('SELECT * FROM Equipment WHERE location_id = ?', [locationId], (err, rows) => {
+    if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ data: rows });
 });
 
-// Monitor pool performance
-pool.on('connection', (connection) => {
-    logger.info('Database connection established', { 
-        connectionId: connection.threadId 
-    });
+// Para queries individuales
+db.get('SELECT * FROM Users WHERE id = ?', [userId], (err, row) => {
+    if (err) {
+        console.error('Database error:', err);
+        return res.status(500).json({ error: 'Database error' });
+    }
+    res.json({ data: row });
 });
+```
 
-pool.on('error', (err) => {
-    logger.error('Database pool error', { error: err.message });
+### Environment Configuration (CRÍTICO):
+
+```javascript
+// ✅ frontend/js/config.js - Auto-detección de entorno
+const API_URL = (() => {
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        return 'http://localhost:3000/api';
+    } else if (window.location.hostname.includes('github.dev') || window.location.hostname.includes('codespaces')) {
+        return `https://${window.location.hostname.replace('-8080', '-3000')}/api`;
+    } else {
+        return '/api'; // Producción
+    }
+})();
+
+// USAR en todos los módulos frontend
+window.API_URL = API_URL;
+```
+
+### Module Pattern (CRÍTICO):
+
+```javascript
+// ✅ Patrón estándar para todos los módulos frontend
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. State management
+    const state = {
+        data: [],
+        currentItem: null,
+        isLoading: false,
+        error: null
+    };
+    
+    // 2. API functions
+    const api = {
+        getData: async () => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/endpoint`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+    };
+    
+    // 3. UI functions
+    const ui = {
+        showLoading: () => state.isLoading = true,
+        hideLoading: () => state.isLoading = false,
+        showError: (message) => console.error('UI Error:', message)
+    };
+    
+    // 4. Event handlers and initialization
+    async function init() {
+        try {
+            await loadData();
+            setupEventListeners();
+        } catch (error) {
+            ui.showError(error.message);
+        }
+    }
+    
+    init();
 });
 ```
 
@@ -766,3 +955,194 @@ window.addEventListener('error', (event) => {
 ```
 
 This enhanced configuration provides enterprise-level development standards with the @bitacora reference system for optimal GitHub Copilot integration. Always reference @bitacora before implementing new features or solving problems.
+
+## 🎫 CRÍTICO - Sistema de Tickets (`tickets.html` y `tickets.js`)
+
+### PROBLEMAS DETECTADOS que REQUIEREN CORRECCIÓN INMEDIATA:
+
+#### ❌ **tickets.js NO usa autenticación** - CRÍTICO
+```javascript
+// ❌ PROBLEMA ACTUAL en tickets.js:
+const response = await fetch(`${API_URL}/tickets`);
+const response = await fetch(`${API_URL}/clients`);
+const response = await fetch(`${API_URL}/locations?client_id=${clientId}`);
+
+// ✅ DEBE CAMBIARSE A:
+const response = await authenticatedFetch(`${API_URL}/tickets`);
+const response = await authenticatedFetch(`${API_URL}/clients`);
+const response = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
+```
+
+#### ❌ **tickets.js NO importa auth.js** - CRÍTICO
+```javascript
+// ❌ PROBLEMA: tickets.html NO incluye auth.js
+// ✅ AGREGAR ANTES del cierre de </body>:
+<script src="js/auth.js"></script>
+<script src="js/config.js"></script>
+<script src="js/tickets.js"></script>
+```
+
+#### ❌ **tickets.js NO protege la página** - CRÍTICO
+```javascript
+// ❌ PROBLEMA: No hay protección de página
+// ✅ AGREGAR al inicio de DOMContentLoaded:
+document.addEventListener('DOMContentLoaded', () => {
+    // REQUERIDO: Proteger página antes que nada
+    if (!AuthManager.isAuthenticated()) {
+        window.location.href = '/login.html';
+        return;
+    }
+    
+    // Verificar que estamos en la página correcta
+    if (!ticketList) return;
+    
+    // ... resto del código
+});
+```
+
+### PATRÓN CORRECTO para tickets.js (IMPLEMENTAR):
+
+```javascript
+// ✅ PATRÓN REQUERIDO - tickets.js mejorado:
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. CRÍTICO: Protección de autenticación PRIMERO
+    if (!AuthManager.isAuthenticated()) {
+        window.location.href = '/login.html';
+        return;
+    }
+
+    // 2. State management (ya existe - mantener)
+    const state = {
+        tickets: [],
+        clients: [],
+        locations: [],
+        equipment: [],
+        filteredTickets: [],
+        currentFilters: { search: '', status: '', priority: '', client: '' }
+    };
+
+    // 3. API functions con autenticación (CORREGIR)
+    const api = {
+        fetchTickets: async () => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                return result.data || [];
+            } catch (error) {
+                console.error('❌ API Error - fetchTickets:', error);
+                throw error;
+            }
+        },
+        
+        fetchClients: async () => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/clients`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                return result.data || [];
+            } catch (error) {
+                console.error('❌ API Error - fetchClients:', error);
+                throw error;
+            }
+        },
+        
+        createTicket: async (ticketData) => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(ticketData)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error creating ticket');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('❌ API Error - createTicket:', error);
+                throw error;
+            }
+        }
+    };
+
+    // 4. UI functions (ya existe - mantener patrón)
+    const ui = {
+        showLoading: () => {
+            // Mostrar loading state
+        },
+        hideLoading: () => {
+            // Ocultar loading state
+        },
+        showError: (message) => {
+            console.error('❌ UI Error:', message);
+            // Mostrar error al usuario
+        }
+    };
+
+    // 5. Inicialización con manejo de errores
+    async function init() {
+        try {
+            ui.showLoading();
+            
+            // Cargar datos iniciales con autenticación
+            await fetchAllInitialData();
+            checkForUrlParams();
+            setupFilters();
+            
+        } catch (error) {
+            console.error('❌ Initialization failed:', error);
+            ui.showError('Error loading tickets data');
+        } finally {
+            ui.hideLoading();
+        }
+    }
+
+    init();
+});
+```
+
+### CAMBIOS REQUERIDOS en tickets.html:
+
+```html
+<!-- ✅ AGREGAR scripts en el orden correcto ANTES del cierre de </body>: -->
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/base-modal.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/tickets.js"></script>
+```
+
+### FUNCIONES DE TICKETS QUE NECESITAN authenticatedFetch:
+
+1. `fetchTickets()` - Obtener lista de tickets
+2. `fetchClients()` - Obtener clientes para selector
+3. `fetchLocations(clientId)` - Obtener sedes por cliente  
+4. `fetchEquipment(locationId)` - Obtener equipos por sede
+5. `handleFormSubmit()` - Crear/actualizar tickets
+6. `handleNewClientSubmit()` - Crear nuevos clientes
+7. `handleNewLocationSubmit()` - Crear nuevas sedes
+8. `handleNewEquipmentSubmit()` - Crear nuevos equipos
+9. `deleteItem()` - Eliminar tickets/items
+
+### PATRONES DE ERROR HANDLING para tickets:
+
+```javascript
+// ✅ Patrón de manejo de errores con contexto:
+try {
+    const tickets = await api.fetchTickets();
+    state.tickets = tickets;
+    renderTickets(tickets);
+    updateStatistics(tickets);
+} catch (error) {
+    const errorId = `TKT_${Date.now()}`;
+    console.error(`❌ Tickets Error [${errorId}]:`, {
+        operation: 'fetchTickets',
+        error: error.message,
+        timestamp: new Date().toISOString(),
+        user: AuthManager.getCurrentUser()?.username
+    });
+    
+    ui.showError(`Error loading tickets. Please try again. (Ref: ${errorId})`);
+}
+```

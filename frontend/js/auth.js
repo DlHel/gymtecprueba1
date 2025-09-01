@@ -91,26 +91,38 @@ class AuthManager {
      */
     async verifyToken() {
         if (!this.isAuthenticated()) {
+            console.log('🔍 verifyToken: No hay token, usuario no autenticado');
             return false;
         }
 
         try {
+            console.log('🔍 verifyToken: Verificando token con servidor...');
             const response = await fetch(`${this.apiUrl}/auth/verify`, {
                 headers: this.getAuthHeaders()
             });
 
+            console.log('🔍 verifyToken: Respuesta del servidor:', response.status);
+
             if (response.ok) {
                 const data = await response.json();
+                console.log('✅ verifyToken: Token válido, usuario:', data.user?.username);
                 // Actualizar datos del usuario si es necesario
                 localStorage.setItem(this.userKey, JSON.stringify(data.user));
                 return true;
-            } else {
+            } else if (response.status === 401 || response.status === 403) {
+                // Solo hacer logout si el token es realmente inválido (401/403)
+                console.warn('❌ verifyToken: Token inválido o expirado, haciendo logout');
                 this.logout();
                 return false;
+            } else {
+                // Para otros errores (500, timeout, etc), no hacer logout automático
+                console.warn('⚠️ verifyToken: Error del servidor, pero manteniendo sesión:', response.status);
+                return false; // Retornar false pero NO hacer logout
             }
         } catch (error) {
-            console.warn('Error verificando token:', error);
-            return false;
+            // Para errores de red, NO hacer logout automático
+            console.warn('⚠️ verifyToken: Error de red, manteniendo sesión:', error.message);
+            return false; // Retornar false pero NO hacer logout
         }
     }
 
@@ -118,25 +130,41 @@ class AuthManager {
      * Proteger página - redireccionar a login si no está autenticado
      */
     async protectPage(requiredRole = null) {
+        console.log('🔍 protectPage: Iniciando protección de página...');
+        
         // Si no hay token, redireccionar a login
         if (!this.isAuthenticated()) {
+            console.log('❌ protectPage: No hay token, redirigiendo a login');
             this.redirectToLogin();
             return false;
         }
 
+        console.log('✅ protectPage: Token presente, verificando con servidor...');
+
         // Verificar token con el servidor
         const isValid = await this.verifyToken();
-        if (!isValid) {
-            this.redirectToLogin();
-            return false;
+        if (isValid === false) {
+            // Solo redireccionar si verifyToken retornó false Y el usuario ya no está autenticado
+            // (esto significa que se hizo logout automático por token inválido)
+            if (!this.isAuthenticated()) {
+                console.log('❌ protectPage: Token inválido, redirigiendo a login');
+                this.redirectToLogin();
+                return false;
+            } else {
+                // Si el token sigue presente pero la verificación falló (error de red),
+                // permitir el acceso pero mostrar warning
+                console.warn('⚠️ protectPage: Error de red verificando token, pero permitiendo acceso');
+            }
         }
 
         // Verificar rol si es requerido
         if (requiredRole && !this.hasRole(requiredRole)) {
+            console.warn('❌ protectPage: Rol insuficiente');
             this.showUnauthorized();
             return false;
         }
 
+        console.log('✅ protectPage: Acceso permitido');
         return true;
     }
 
@@ -145,8 +173,20 @@ class AuthManager {
      */
     redirectToLogin() {
         const currentPage = window.location.pathname;
-        const returnUrl = encodeURIComponent(currentPage + window.location.search);
-        window.location.href = `login.html?return=${returnUrl}`;
+        console.log('🚨 REDIRECT TO LOGIN LLAMADO desde:', currentPage);
+        
+        // PREVENIR BUCLES DE REDIRECCIÓN
+        if (currentPage.includes('login.html')) {
+            console.log('⚠️ Ya estamos en login, evitando bucle');
+            return;
+        }
+        
+        // Delay para evitar redirecciones demasiado rápidas
+        setTimeout(() => {
+            const returnUrl = encodeURIComponent(currentPage + window.location.search);
+            console.log('🔄 Redirigiendo a login con return URL:', returnUrl);
+            window.location.href = `login.html?return=${returnUrl}`;
+        }, 100);
     }
 
     /**
@@ -195,8 +235,17 @@ class AuthManager {
         localStorage.removeItem(this.userKey);
         localStorage.removeItem(this.rememberKey);
 
-        // Redireccionar a login
-        window.location.href = 'login.html';
+        // Redireccionar a login CON PROTECCIÓN ANTI-BUCLE
+        const currentPage = window.location.pathname;
+        if (currentPage.includes('login.html')) {
+            console.log('⚠️ Ya estamos en login después de logout');
+            return;
+        }
+        
+        console.log('🔄 Logout: Redirigiendo a login');
+        setTimeout(() => {
+            window.location.href = 'login.html';
+        }, 100);
     }
 
     /**

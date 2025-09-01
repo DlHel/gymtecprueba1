@@ -221,8 +221,8 @@
                     <input type="hidden" name="location_id">
                     
                     <div class="base-form-group">
-                        <label class="base-form-label">Tipo de Equipo <span class="required">*</span></label>
-                        <select name="type" class="base-form-input" required>
+                        <label for="equipment-type" class="base-form-label">Tipo de Equipo <span class="required" aria-label="requerido">*</span></label>
+                        <select id="equipment-type" name="type" class="base-form-input" required aria-describedby="equipment-type-help">
                             <option value="">Seleccione un tipo</option>
                             <option value="Cardio">Cardio</option>
                             <option value="Fuerza">Fuerza</option>
@@ -232,6 +232,9 @@
                             <option value="Aquático">Aquático</option>
                             <option value="Otro">Otro</option>
                         </select>
+                        <div id="equipment-type-help" class="form-help-text">
+                            Seleccione la categoría que mejor describe el tipo de equipo
+                        </div>
                     </div>
                     
                     <div class="base-form-group">
@@ -284,6 +287,8 @@
 
     <!-- Configuración de API URL (debe ir PRIMERO) -->
     <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/base-modal.js"></script>
     <script src="js/nav-loader.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
     <script src="js/address-autocomplete.js"></script>

@@ -60,32 +60,12 @@ cd backend
 # Configurar MySQL automáticamente
 npm run setup-mysql
 
-# Migrar datos desde SQLite
-npm run migrate
-
 # Poblar modelos de equipos
 npm run seed-models
 
 # Iniciar servidor
 npm start
 ```
-
----
-
-## 📦 MIGRACIÓN DE DATOS
-
-Si tienes datos en SQLite y quieres migrarlos:
-
-```bash
-cd backend
-npm run migrate
-```
-
-Este comando:
-- ✅ Lee todos los datos de SQLite
-- ✅ Los inserta en MySQL
-- ✅ Preserva relaciones e IDs
-- ✅ Maneja duplicados automáticamente
 
 ---
 

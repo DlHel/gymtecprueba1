@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Verificar Tickets en DB</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 4px; border-left: 4px solid; }
+        .success { background: #e8f5e9; border-color: #4caf50; }
+        .error { background: #ffebee; border-color: #f44336; }
+        .info { background: #e3f2fd; border-color: #2196f3; }
+        button { padding: 10px 20px; margin: 5px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Verificación de Tickets en Base de Datos</h1>
+        
+        <div>
+            <button onclick="checkAllTickets()">📋 Listar Todos los Tickets</button>
+            <button onclick="checkTicket7()">🎫 Verificar Ticket ID 7</button>
+            <button onclick="checkTicketDetail7()">🔍 Test Detail API Ticket 7</button>
+        </div>
+        
+        <div id="results"></div>
+    </div>
+
+    <script src="js/config.js?v=20250829002"></script>
+    <script src="js/auth.js?v=20250829002"></script>
+    <script>
+        function addResult(content, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = content;
+            results.appendChild(div);
+        }
+        
+        async function authenticatedFetch(url, options = {}) {
+            if (!AuthManager || !AuthManager.isAuthenticated()) {
+                throw new Error('No autenticado');
+            }
+            
+            return fetch(url, {
+                ...options,
+                headers: {
+                    ...options.headers,
+                    'Authorization': `Bearer ${AuthManager.getToken()}`
+                }
+            });
+        }
+        
+        async function checkAllTickets() {
+            addResult('<h3>📋 Verificando todos los tickets...</h3>');
+            
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                const tickets = result.data || [];
+                
+                if (tickets.length === 0) {
+                    addResult('❌ No hay tickets en la base de datos', 'error');
+                    return;
+                }
+                
+                let html = `<h4>✅ Tickets encontrados (${tickets.length}):</h4>`;
+                html += '<table><tr><th>ID</th><th>Título</th><th>Estado</th><th>Prioridad</th><th>Cliente</th></tr>';
+                
+                tickets.forEach(ticket => {
+                    html += `<tr>
+                        <td><strong>${ticket.id}</strong></td>
+                        <td>${ticket.title || 'N/A'}</td>
+                        <td>${ticket.status || 'N/A'}</td>
+                        <td>${ticket.priority || 'N/A'}</td>
+                        <td>${ticket.client_name || 'N/A'}</td>
+                    </tr>`;
+                });
+                
+                html += '</table>';
+                
+                // Verificar específicamente si existe el ID 7
+                const ticket7 = tickets.find(t => t.id == 7);
+                if (ticket7) {
+                    html += `<div class="status success"><strong>✅ TICKET ID 7 EXISTE:</strong><br>`;
+                    html += `Título: ${ticket7.title}<br>Estado: ${ticket7.status}<br>Prioridad: ${ticket7.priority}</div>`;
+                } else {
+                    html += `<div class="status error"><strong>❌ TICKET ID 7 NO EXISTE</strong><br>`;
+                    html += `Los IDs disponibles son: ${tickets.map(t => t.id).join(', ')}</div>`;
+                }
+                
+                addResult(html, 'success');
+                
+            } catch (error) {
+                addResult(`❌ Error verificando tickets: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkTicket7() {
+            addResult('<h3>🎫 Verificando Ticket ID 7 específicamente...</h3>');
+            
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets/7`);
+                
+                if (response.status === 404) {
+                    addResult('❌ TICKET ID 7 NO EXISTE - Error 404', 'error');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                addResult(`✅ TICKET ID 7 EXISTE:<pre>${JSON.stringify(result, null, 2)}</pre>`, 'success');
+                
+            } catch (error) {
+                addResult(`❌ Error verificando ticket 7: ${error.message}`, 'error');
+            }
+        }
+        
+        async function checkTicketDetail7() {
+            addResult('<h3>🔍 Probando API Detail para Ticket ID 7...</h3>');
+            
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets/7/detail`);
+                
+                if (response.status === 404) {
+                    addResult('❌ TICKET ID 7 NO EXISTE EN DETAIL API - Error 404', 'error');
+                    return;
+                }
+                
+                if (response.status === 401) {
+                    addResult('❌ Error 401 - Problema de autenticación', 'error');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    addResult(`❌ Error ${response.status}: ${errorText}`, 'error');
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                addResult(`✅ DETAIL API FUNCIONA PARA TICKET 7:<pre>${JSON.stringify(result, null, 2)}</pre>`, 'success');
+                
+            } catch (error) {
+                addResult(`❌ Error probando detail API: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-verificar al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            if (!AuthManager || !AuthManager.isAuthenticated()) {
+                addResult('❌ No autenticado. <a href="/login.html">Ir a login</a>', 'error');
+                return;
+            }
+            
+            addResult('✅ Usuario autenticado. Listo para verificar tickets.', 'success');
+        });
+    </script>
+</body>
+</html>

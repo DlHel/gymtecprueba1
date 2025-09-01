@@ -172,7 +172,7 @@
         <div class="base-modal-content base-modal-large">
             <div class="modal-header">
                 <h3 id="quote-modal-title">Nueva Cotización</h3>
-                <button class="modal-close" onclick="closeQuoteModal()">
+                <button class="modal-close" onclick="closeQuoteModal()" aria-label="Cerrar modal de cotización" title="Cerrar modal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
@@ -197,7 +197,7 @@
         <div class="base-modal-content base-modal-large">
             <div class="modal-header">
                 <h3 id="invoice-modal-title">Nueva Factura</h3>
-                <button class="modal-close" onclick="closeInvoiceModal()">
+                <button class="modal-close" onclick="closeInvoiceModal()" aria-label="Cerrar modal de factura" title="Cerrar modal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
@@ -218,8 +218,10 @@
     </div>
 
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="js/nav-loader.js"></script>
+    <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/base-modal.js"></script>
+    <script src="js/nav-loader.js"></script>
     <script type="module" src="js/finanzas-modals.js"></script>
     <script type="module" src="js/finanzas.js"></script>
 </body>

@@ -17,12 +17,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     const state = {
         quotes: [],
         invoices: [],
+        expenses: [],
+        expenseCategories: [],
         currentTab: 'overview',
         loading: false,
+        currentFilters: {
+            search: '',
+            status: '',
+            category: ''
+        },
+        filteredExpenses: [],
         metrics: {
             totalQuotes: 0,
             totalInvoices: 0,
+            totalExpenses: 0,
             pendingPayments: 0,
+            pendingApprovals: 0,
             monthlyRevenue: 0
         }
     };
@@ -85,25 +95,59 @@ document.addEventListener('DOMContentLoaded', async () => {
             setLoading(true);
             console.log('📊 Cargando datos financieros...');
             
-            const [quotesResponse, invoicesResponse] = await Promise.all([
+            const [quotesResponse, invoicesResponse, expensesResponse, categoriesResponse] = await Promise.all([
                 api.get('/api/quotes'),
-                api.get('/api/invoices')
+                api.get('/api/invoices'),
+                api.get('/api/expenses'),
+                api.get('/api/expense-categories')
             ]);
 
             state.quotes = quotesResponse.data || [];
             state.invoices = invoicesResponse.data || [];
+            state.expenses = expensesResponse.data || [];
+            state.expenseCategories = categoriesResponse.data || [];
+            
+            // Inicializar gastos filtrados
+            state.filteredExpenses = [...state.expenses];
             
             calculateMetrics();
             renderCurrentTab();
             
             console.log('✅ Datos financieros cargados:', {
                 quotes: state.quotes.length,
-                invoices: state.invoices.length
+                invoices: state.invoices.length,
+                expenses: state.expenses.length,
+                categories: state.expenseCategories.length
             });
             
         } catch (error) {
             console.error('❌ Error cargando datos financieros:', error);
-            showError('Error al cargar los datos financieros: ' + error.message);
+            
+            // Si el error es de gastos, cargar solo quotes e invoices
+            if (error.message.includes('expenses')) {
+                console.log('⚠️ Cargando sin datos de gastos...');
+                try {
+                    const [quotesResponse, invoicesResponse] = await Promise.all([
+                        api.get('/api/quotes'),
+                        api.get('/api/invoices')
+                    ]);
+                    
+                    state.quotes = quotesResponse.data || [];
+                    state.invoices = invoicesResponse.data || [];
+                    state.expenses = [];
+                    state.expenseCategories = [];
+                    state.filteredExpenses = [];
+                    
+                    calculateMetrics();
+                    renderCurrentTab();
+                    
+                    console.log('✅ Datos parciales cargados (sin gastos)');
+                } catch (fallbackError) {
+                    showError('Error al cargar los datos financieros: ' + fallbackError.message);
+                }
+            } else {
+                showError('Error al cargar los datos financieros: ' + error.message);
+            }
         } finally {
             setLoading(false);
         }
@@ -123,10 +167,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Total facturas
         state.metrics.totalInvoices = state.invoices.length;
         
-        // Pagos pendientes
+        // Total gastos
+        state.metrics.totalExpenses = state.expenses.length;
+        
+        // Pagos pendientes (facturas)
         state.metrics.pendingPayments = state.invoices
             .filter(invoice => invoice.status === 'pending')
             .reduce((sum, invoice) => sum + (invoice.total_amount || 0), 0);
+        
+        // Aprobaciones pendientes (gastos)
+        state.metrics.pendingApprovals = state.expenses
+            .filter(expense => expense.status === 'Pendiente')
+            .reduce((sum, expense) => sum + (expense.amount || 0), 0);
         
         // Ingresos del mes
         state.metrics.monthlyRevenue = state.invoices
@@ -210,11 +262,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             <div class="metric-card">
                 <div class="metric-header">
+                    <span class="metric-title">Gastos</span>
+                    <i data-lucide="credit-card" class="metric-icon"></i>
+                </div>
+                <div class="metric-value">${state.metrics.totalExpenses}</div>
+                <div class="metric-change neutral">Total registrados</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
                     <span class="metric-title">Pagos Pendientes</span>
                     <i data-lucide="clock" class="metric-icon"></i>
                 </div>
                 <div class="metric-value">$${formatCurrency(state.metrics.pendingPayments)}</div>
-                <div class="metric-change negative">-5% este mes</div>
+                <div class="metric-change negative">Facturas pendientes</div>
+            </div>
+            
+            <div class="metric-card">
+                <div class="metric-header">
+                    <span class="metric-title">Aprobaciones Pendientes</span>
+                    <i data-lucide="alert-circle" class="metric-icon"></i>
+                </div>
+                <div class="metric-value">$${formatCurrency(state.metrics.pendingApprovals)}</div>
+                <div class="metric-change warning">Gastos por aprobar</div>
             </div>
             
             <div class="metric-card">
@@ -326,23 +396,210 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // Renderizar gastos (placeholder)
+    // Renderizar gastos
     const renderExpenses = () => {
         const container = document.getElementById('expenses-content');
         if (!container) return;
 
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="empty-state-icon">
-                    <i data-lucide="credit-card"></i>
+        if (state.expenses && state.expenses.length === 0) {
+            container.innerHTML = `
+                <div class="expenses-header">
+                    <h3>Gestión de Gastos</h3>
+                    <button class="btn btn-primary" onclick="createExpense()">
+                        <i data-lucide="plus"></i>
+                        Nuevo Gasto
+                    </button>
                 </div>
-                <h3>Gestión de Gastos</h3>
-                <p>Funcionalidad en desarrollo</p>
-            </div>
-        `;
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i data-lucide="credit-card"></i>
+                    </div>
+                    <h3>No hay gastos registrados</h3>
+                    <p>Crea tu primer gasto para comenzar</p>
+                </div>
+            `;
+        } else {
+            container.innerHTML = `
+                <div class="expenses-header">
+                    <h3>Gestión de Gastos</h3>
+                    <div class="expenses-actions">
+                        <div class="search-box">
+                            <input type="text" id="expenses-search" placeholder="Buscar gastos..." value="${state.currentFilters.search || ''}">
+                            <i data-lucide="search"></i>
+                        </div>
+                        <select id="expenses-status-filter" class="filter-select">
+                            <option value="">Todos los estados</option>
+                            <option value="Pendiente" ${state.currentFilters.status === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                            <option value="Aprobado" ${state.currentFilters.status === 'Aprobado' ? 'selected' : ''}>Aprobado</option>
+                            <option value="Rechazado" ${state.currentFilters.status === 'Rechazado' ? 'selected' : ''}>Rechazado</option>
+                            <option value="Pagado" ${state.currentFilters.status === 'Pagado' ? 'selected' : ''}>Pagado</option>
+                        </select>
+                        <button class="btn btn-primary" onclick="createExpense()">
+                            <i data-lucide="plus"></i>
+                            Nuevo Gasto
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="expenses-stats">
+                    <div class="stat-card">
+                        <span class="stat-label">Total Gastos</span>
+                        <span class="stat-value">${state.expenses ? state.expenses.length : 0}</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Pendientes</span>
+                        <span class="stat-value">${state.expenses ? state.expenses.filter(e => e.status === 'Pendiente').length : 0}</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Aprobados</span>
+                        <span class="stat-value">${state.expenses ? state.expenses.filter(e => e.status === 'Aprobado').length : 0}</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-label">Total Monto</span>
+                        <span class="stat-value">$${formatCurrency(state.expenses ? state.expenses.reduce((sum, e) => sum + (e.amount || 0), 0) : 0)}</span>
+                    </div>
+                </div>
+
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Descripción</th>
+                                <th>Categoría</th>
+                                <th>Monto</th>
+                                <th>Estado</th>
+                                <th>Proveedor</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="expenses-table-body">
+                            ${renderExpensesTable()}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            
+            // Configurar filtros
+            setupExpensesFilters();
+        }
         
         if (window.lucide) {
             window.lucide.createIcons();
+        }
+    };
+
+    const renderExpensesTable = () => {
+        if (!state.expenses || state.expenses.length === 0) {
+            return `
+                <tr>
+                    <td colspan="8" class="empty-state">
+                        <div class="empty-state-icon">
+                            <i data-lucide="credit-card"></i>
+                        </div>
+                        <h3>No hay gastos</h3>
+                        <p>Los gastos aparecerán aquí cuando se creen</p>
+                    </td>
+                </tr>
+            `;
+        }
+
+        return state.filteredExpenses.map(expense => `
+            <tr class="expense-row" data-status="${expense.status}">
+                <td>#${expense.id}</td>
+                <td>${formatDate(expense.date)}</td>
+                <td class="expense-description">
+                    <div class="description-text">${expense.description}</div>
+                    ${expense.notes ? `<div class="description-notes">${expense.notes}</div>` : ''}
+                </td>
+                <td>
+                    <span class="category-badge">${expense.category_name || expense.category || 'Sin categoría'}</span>
+                </td>
+                <td class="amount-cell">$${formatCurrency(expense.amount || 0)}</td>
+                <td>
+                    <span class="status-badge status-${expense.status.toLowerCase()}">${expense.status}</span>
+                </td>
+                <td>${expense.supplier || '-'}</td>
+                <td class="actions-cell">
+                    <button class="btn-icon" onclick="viewExpense(${expense.id})" title="Ver detalles">
+                        <i data-lucide="eye"></i>
+                    </button>
+                    ${expense.status === 'Pendiente' ? `
+                        <button class="btn-icon" onclick="editExpense(${expense.id})" title="Editar">
+                            <i data-lucide="edit"></i>
+                        </button>
+                        <button class="btn-icon btn-approve" onclick="approveExpense(${expense.id})" title="Aprobar">
+                            <i data-lucide="check"></i>
+                        </button>
+                        <button class="btn-icon btn-reject" onclick="rejectExpense(${expense.id})" title="Rechazar">
+                            <i data-lucide="x"></i>
+                        </button>
+                        <button class="btn-icon text-red-500" onclick="deleteExpense(${expense.id})" title="Eliminar">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    ` : ''}
+                    ${expense.status === 'Aprobado' ? `
+                        <button class="btn-icon btn-pay" onclick="payExpense(${expense.id})" title="Marcar como pagado">
+                            <i data-lucide="credit-card"></i>
+                        </button>
+                    ` : ''}
+                </td>
+            </tr>
+        `).join('');
+    };
+
+    const setupExpensesFilters = () => {
+        const searchInput = document.getElementById('expenses-search');
+        const statusFilter = document.getElementById('expenses-status-filter');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                state.currentFilters.search = e.target.value;
+                filterExpenses();
+            });
+        }
+
+        if (statusFilter) {
+            statusFilter.addEventListener('change', (e) => {
+                state.currentFilters.status = e.target.value;
+                filterExpenses();
+            });
+        }
+    };
+
+    const filterExpenses = () => {
+        if (!state.expenses) {
+            state.filteredExpenses = [];
+            return;
+        }
+
+        let filtered = [...state.expenses];
+
+        // Filtro por búsqueda
+        if (state.currentFilters.search) {
+            const search = state.currentFilters.search.toLowerCase();
+            filtered = filtered.filter(expense => 
+                expense.description.toLowerCase().includes(search) ||
+                expense.category.toLowerCase().includes(search) ||
+                (expense.supplier && expense.supplier.toLowerCase().includes(search))
+            );
+        }
+
+        // Filtro por estado
+        if (state.currentFilters.status) {
+            filtered = filtered.filter(expense => expense.status === state.currentFilters.status);
+        }
+
+        state.filteredExpenses = filtered;
+        
+        // Actualizar solo la tabla
+        const tableBody = document.getElementById('expenses-table-body');
+        if (tableBody) {
+            tableBody.innerHTML = renderExpensesTable();
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
         }
     };
 
@@ -454,6 +711,86 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.createInvoice = () => {
         showInvoiceModal();
+    };
+
+    // Funciones globales para gastos
+    window.createExpense = () => {
+        showExpenseModal();
+    };
+
+    window.viewExpense = (expenseId) => {
+        const expense = state.expenses.find(e => e.id === expenseId);
+        if (expense) {
+            showExpenseModal(expense, 'view');
+        }
+    };
+
+    window.editExpense = (expenseId) => {
+        const expense = state.expenses.find(e => e.id === expenseId);
+        if (expense) {
+            showExpenseModal(expense, 'edit');
+        }
+    };
+
+    window.approveExpense = async (expenseId) => {
+        if (!confirm('¿Está seguro de que desea aprobar este gasto?')) return;
+        
+        try {
+            const response = await api.put(`/api/expenses/${expenseId}/approve`, {});
+            showSuccess('Gasto aprobado exitosamente');
+            await loadData();
+        } catch (error) {
+            showError('Error al aprobar gasto: ' + error.message);
+        }
+    };
+
+    window.rejectExpense = async (expenseId) => {
+        const reason = prompt('Ingrese el motivo del rechazo:');
+        if (!reason) return;
+        
+        try {
+            const response = await api.put(`/api/expenses/${expenseId}/reject`, {
+                notes: reason
+            });
+            showSuccess('Gasto rechazado exitosamente');
+            await loadData();
+        } catch (error) {
+            showError('Error al rechazar gasto: ' + error.message);
+        }
+    };
+
+    window.payExpense = async (expenseId) => {
+        const paymentMethod = prompt('Método de pago:', 'Transferencia');
+        if (!paymentMethod) return;
+        
+        try {
+            const response = await api.put(`/api/expenses/${expenseId}/pay`, {
+                payment_method: paymentMethod,
+                payment_notes: `Pagado mediante ${paymentMethod}`
+            });
+            showSuccess('Gasto marcado como pagado exitosamente');
+            await loadData();
+        } catch (error) {
+            showError('Error al marcar gasto como pagado: ' + error.message);
+        }
+    };
+
+    window.deleteExpense = async (expenseId) => {
+        if (!confirm('¿Está seguro de que desea eliminar este gasto?')) return;
+        
+        try {
+            const response = await api.delete(`/api/expenses/${expenseId}`);
+            showSuccess('Gasto eliminado exitosamente');
+            await loadData();
+        } catch (error) {
+            showError('Error al eliminar gasto: ' + error.message);
+        }
+    };
+
+    const showExpenseModal = (expense = null, mode = 'create') => {
+        console.log('💸 Mostrando modal de gasto:', { expense, mode });
+        // TODO: Implementar modal de gastos
+        alert(`Modal de gastos - Modo: ${mode}\n${expense ? `Gasto ID: ${expense.id}` : 'Nuevo gasto'}`);
     };
 
     // Inicialización

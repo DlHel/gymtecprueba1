@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard SLA - Gymtec ERP</title>
-    <link href="css/tailwind.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="css/dashboard.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
@@ -160,10 +160,11 @@
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/base-modal.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             // Verificar autenticación
-            if (!isAuthenticated()) {
+            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
                 window.location.href = 'login.html';
                 return;
             }

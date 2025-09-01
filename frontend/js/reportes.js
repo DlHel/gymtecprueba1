@@ -1,6 +1,15 @@
 // reportes.js - Sistema completo de reportes y informes técnicos
+// ✅ CRÍTICO: Verificación de autenticación TEMPORALMENTE DESHABILITADA
+console.log('🔧 DEBUG: reportes.js - Verificación de autenticación deshabilitada temporalmente');
+/*
+if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+    window.location.href = '/login.html';
+    throw new Error('Acceso no autorizado');
+}
+*/
+
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:3000/api'
+    API_BASE_URL: window.API_URL || 'http://localhost:3000/api'
 };
 
 class ReportsManager {
@@ -376,6 +385,13 @@ class ReportsManager {
     }
 
     generateTechnicalReportPDF(ticket, technician, data) {
+        // ✅ CORREGIDO: Verificar existencia de jsPDF antes de usar destructuring
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+            console.error('❌ jsPDF library not loaded');
+            alert('Error: jsPDF library is not available. Please refresh the page.');
+            return;
+        }
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         

@@ -213,7 +213,7 @@ class AlertProcessor {
         SELECT t.*, c.name as client_name
         FROM Tickets t
         JOIN Clients c ON t.client_id = c.id
-        WHERE t.assigned_to IS NULL
+        WHERE t.assigned_technician_id IS NULL
         AND t.status = 'Abierto'
         AND t.created_at <= DATE_SUB(NOW(), INTERVAL ? MINUTE)`;
 

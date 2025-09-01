@@ -57,12 +57,12 @@ class DatabaseAdapter {
         
         this.db.query(sql, params)
             .then(result => {
-                // Simular el objeto de resultado de SQLite
-                const sqliteResult = {
+                // Simular el objeto de resultado de MySQL callback
+                const callbackResult = {
                     lastID: result.insertId || null,
                     changes: result.affectedRows || 0
                 };
-                callback.call(sqliteResult, null);
+                callback.call(callbackResult, null);
             })
             .catch(error => callback(error));
     }

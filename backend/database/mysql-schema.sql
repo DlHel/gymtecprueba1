@@ -1,5 +1,5 @@
 -- Gymtec ERP - MySQL Schema
--- Migrado desde SQLite a MySQL
+-- Sistema de base de datos principal
 
 -- Configuración inicial de MySQL
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";

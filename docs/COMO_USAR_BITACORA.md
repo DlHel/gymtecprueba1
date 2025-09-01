@@ -1,10 +1,10 @@
 # 🎯 Instrucciones de Uso del Sistema @bitacora
 
-## 🚀 ¡Tu Proyecto Está Listo!
+## 🚀 Tu Proyecto Está Listo
 
 El refactor ha sido **completado exitosamente**. Ahora tienes un sistema de desarrollo profesional con el **sistema @bitacora** que elimina la necesidad de revisar código manualmente.
 
-## 📋 ¿Cómo Usar @bitacora?
+## 📋 Cómo Usar @bitacora
 
 ### Paso 1: Abre GitHub Copilot Chat
 - **Opción A**: `Ctrl + Shift + P` → "GitHub Copilot: Open Chat"
@@ -14,7 +14,7 @@ El refactor ha sido **completado exitosamente**. Ahora tienes un sistema de desa
 ### Paso 2: Usa Comandos @bitacora
 Simplemente escribe tu consulta seguida del comando @bitacora relevante:
 
-```
+```bash
 "Necesito agregar autenticación al endpoint de equipos @bitacora authentication"
 
 "El formulario de tickets no valida correctamente @bitacora frontend @bitacora tickets"
@@ -68,7 +68,8 @@ Simplemente escribe tu consulta seguida del comando @bitacora relevante:
 ## 📁 Documentación Protegida
 
 Tu documentación está ahora protegida en:
-```
+
+```bash
 docs/
 ├── BITACORA_PROYECTO.md          # ← Principal fuente de contexto
 ├── architecture/                 # ← Arquitectura del sistema
@@ -80,8 +81,9 @@ docs/
 
 ## 💡 Ejemplos Prácticos
 
-### Crear Nueva Funcionalidad:
-```
+### Crear Nueva Funcionalidad
+
+```bash
 Usuario: "Crear endpoint para generar reportes de mantenimiento en PDF @bitacora reports @bitacora api"
 
 GitHub Copilot responderá con:
@@ -91,8 +93,9 @@ GitHub Copilot responderá con:
 - Manejo de errores consistente con el proyecto
 ```
 
-### Resolver Errores:
-```
+### Resolver Errores
+
+```bash
 Usuario: "Error 500 en /api/tickets al filtrar por fecha @bitacora database @bitacora troubleshooting"
 
 GitHub Copilot responderá con:
@@ -102,8 +105,9 @@ GitHub Copilot responderá con:
 - Debug steps específicos
 ```
 
-### Mejorar Frontend:
-```
+### Mejorar Frontend
+
+```bash
 Usuario: "Optimizar el formulario de clientes con mejor UX @bitacora frontend @bitacora clients"
 
 GitHub Copilot responderá con:
@@ -113,35 +117,40 @@ GitHub Copilot responderá con:
 - Mejores prácticas de UX implementadas
 ```
 
-## 🎉 ¡Beneficios Inmediatos!
+## 🎉 Beneficios Inmediatos
 
-### ✅ Antes (Manual):
+### Antes (Manual)
+
 - ⏱️ 10-15 minutos revisando código
 - 🔄 Archivos múltiples abiertos
 - ❓ Contexto perdido frecuentemente
 - 🐛 Debug básico
 
-### ✅ Ahora (Con @bitacora):
+### Ahora (Con @bitacora)
+
 - ⚡ Contexto instantáneo
 - 🎯 Respuestas precisas
 - 📈 Productividad máxima
 - 🔧 Debug profesional
 
-## 🚨 Importante: ¡Prueba Ahora!
+## 🚨 Importante: Prueba Ahora
 
-### Test Rápido:
+### Test Rápido
+
 1. Abre GitHub Copilot Chat
 2. Escribe: `"Explícame la arquitectura del proyecto @bitacora"`
 3. Observa cómo obtiene contexto completo automáticamente
 
-### Desarrollo Normal:
-```
+### Desarrollo Normal
+
+```bash
 "Necesito agregar validación de email al registro @bitacora authentication @bitacora frontend"
 ```
 
-## 🎯 ¡Ya Estás Listo!
+## 🎯 Ya Estás Listo
 
 **Tu proyecto Gymtec ERP ahora tiene:**
+
 - ✅ Sistema @bitacora funcionando
 - ✅ Debug avanzado configurado
 - ✅ Documentación protegida

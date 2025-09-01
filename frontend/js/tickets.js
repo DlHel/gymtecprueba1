@@ -34,48 +34,116 @@ const clearFiltersBtn = document.getElementById('tickets-clear-filters');
 const emptyState = document.getElementById('tickets-empty-state');
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', () => {
-    // Verificar que estamos en la página correcta
-    if (!ticketList) return;
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🔍 TICKETS: Iniciando verificación de autenticación...');
     
-    fetchAllInitialData().then(() => {
+    // Verificar que estamos en la página correcta
+    if (!ticketList) {
+        console.warn('⚠️ TICKETS: ticketList no encontrado en DOM');
+        return;
+    }
+    
+    // USAR protectPage en lugar de verificación manual
+    if (typeof window.protectPage === 'function') {
+        console.log('✅ TICKETS: Usando protectPage para verificar autenticación...');
+        const hasAccess = await window.protectPage();
+        if (!hasAccess) {
+            console.warn('❌ TICKETS: Acceso denegado por protectPage');
+            return; // protectPage ya maneja la redirección
+        }
+    } else {
+        // Fallback a verificación manual (menos robusta)
+        console.warn('⚠️ TICKETS: protectPage no disponible, usando verificación manual...');
+        
+        if (!window.authManager) {
+            console.error('❌ TICKETS: authManager no disponible');
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        if (!window.authManager.isAuthenticated()) {
+            console.error('❌ TICKETS: Usuario no autenticado');
+            window.location.href = 'login.html';
+            return;
+        }
+    }
+    
+    console.log('✅ TICKETS: Autenticación verificada, inicializando...');
+    
+    // Inicializar la aplicación
+    try {
+        await fetchAllInitialData();
         checkForUrlParams();
         setupFilters();
-    });
-
+        console.log('✅ TICKETS: Inicialización completada');
+    } catch (error) {
+        console.error('❌ TICKETS: Error en inicialización:', error);
+    }
+    
     // --- Event Listeners ---
-    document.getElementById('add-ticket-btn').addEventListener('click', () => openModal('ticket-modal'));
+    const addTicketBtn = document.getElementById('add-ticket-btn');
+    if (addTicketBtn) {
+        addTicketBtn.addEventListener('click', () => openModal('ticket-modal'));
+    }
     
     // Listeners para cerrar modales usando el nuevo sistema base-modal
-    document.querySelector('#ticket-modal .base-modal-close').addEventListener('click', () => closeModal('ticket-modal'));
-    document.querySelector('#ticket-modal .base-btn-cancel').addEventListener('click', () => closeModal('ticket-modal'));
+    const ticketModalClose = document.querySelector('#ticket-modal .base-modal-close');
+    if (ticketModalClose) {
+        ticketModalClose.addEventListener('click', () => closeModal('ticket-modal'));
+    }
+    const ticketModalCancel = document.querySelector('#ticket-modal .base-btn-cancel');
+    if (ticketModalCancel) {
+        ticketModalCancel.addEventListener('click', () => closeModal('ticket-modal'));
+    }
     
     // Listeners para tabs del modal
-    document.querySelectorAll('#ticket-modal .base-tab-button').forEach(tab => {
+    const tabButtons = document.querySelectorAll('#ticket-modal .base-tab-button');
+    tabButtons.forEach(tab => {
         tab.addEventListener('click', () => {
             const tabId = tab.dataset.tab;
-            
+
             // Remover active de todos los tabs
             document.querySelectorAll('#ticket-modal .base-tab-button').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('#ticket-modal .base-tab-content').forEach(content => content.classList.remove('active'));
-            
+
             // Activar el tab seleccionado
             tab.classList.add('active');
-            document.getElementById(`tab-${tabId}`).classList.add('active');
+            const tabContent = document.getElementById(`tab-${tabId}`);
+            if (tabContent) {
+                tabContent.classList.add('active');
+            }
         });
     });
     
     // Listeners para el nuevo modal de cliente
-    document.getElementById('add-client-modal-cancel-btn').addEventListener('click', () => closeModal('add-client-modal'));
-    document.getElementById('add-client-modal-close-btn').addEventListener('click', () => closeModal('add-client-modal'));
+    const addClientCancelBtn = document.getElementById('add-client-modal-cancel-btn');
+    if (addClientCancelBtn) {
+        addClientCancelBtn.addEventListener('click', () => closeModal('add-client-modal'));
+    }
+    const addClientCloseBtn = document.getElementById('add-client-modal-close-btn');
+    if (addClientCloseBtn) {
+        addClientCloseBtn.addEventListener('click', () => closeModal('add-client-modal'));
+    }
 
     // Listeners para el modal de sede
-    document.getElementById('add-location-modal-cancel-btn').addEventListener('click', () => closeModal('add-location-modal'));
-    document.getElementById('add-location-modal-close-btn').addEventListener('click', () => closeModal('add-location-modal'));
+    const addLocationCancelBtn = document.getElementById('add-location-modal-cancel-btn');
+    if (addLocationCancelBtn) {
+        addLocationCancelBtn.addEventListener('click', () => closeModal('add-location-modal'));
+    }
+    const addLocationCloseBtn = document.getElementById('add-location-modal-close-btn');
+    if (addLocationCloseBtn) {
+        addLocationCloseBtn.addEventListener('click', () => closeModal('add-location-modal'));
+    }
 
     // Listeners para el modal de equipo
-    document.getElementById('add-equipment-modal-cancel-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
-    document.getElementById('add-equipment-modal-close-btn').addEventListener('click', () => closeModal('add-equipment-modal'));
+    const addEquipmentCancelBtn = document.getElementById('add-equipment-modal-cancel-btn');
+    if (addEquipmentCancelBtn) {
+        addEquipmentCancelBtn.addEventListener('click', () => closeModal('add-equipment-modal'));
+    }
+    const addEquipmentCloseBtn = document.getElementById('add-equipment-modal-close-btn');
+    if (addEquipmentCloseBtn) {
+        addEquipmentCloseBtn.addEventListener('click', () => closeModal('add-equipment-modal'));
+    }
 
     document.body.addEventListener('click', (event) => {
         const button = event.target.closest('button');
@@ -296,13 +364,13 @@ function renderTickets(tickets) {
     
     if (!tickets || tickets.length === 0) {
         if (emptyState) {
-            emptyState.style.display = 'block';
+            emptyState.classList.remove('hidden');
         }
         return;
     }
     
     if (emptyState) {
-        emptyState.style.display = 'none';
+        emptyState.classList.add('hidden');
     }
     
     tickets.forEach(ticket => {
@@ -417,7 +485,7 @@ async function fetchAllInitialData() {
 
 async function fetchTickets() {
     try {
-        const response = await fetch(`${API_URL}/tickets`);
+        const response = await authenticatedFetch(`${API_URL}/tickets`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -437,7 +505,7 @@ async function fetchTickets() {
 
 async function fetchClients() {
     try {
-        const response = await fetch(`${API_URL}/clients`);
+        const response = await authenticatedFetch(`${API_URL}/clients`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -457,7 +525,7 @@ async function fetchClients() {
 async function fetchLocations(clientId) {
     try {
         console.log('Fetching locations for client:', clientId);
-        const response = await fetch(`${API_URL}/locations?client_id=${clientId}`);
+        const response = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -481,7 +549,7 @@ async function fetchLocations(clientId) {
 
 async function fetchEquipment(locationId) {
     try {
-        const response = await fetch(`${API_URL}/equipment?location_id=${locationId}`);
+        const response = await authenticatedFetch(`${API_URL}/equipment?location_id=${locationId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -503,7 +571,7 @@ async function fetchEquipment(locationId) {
 
 async function fetchEquipmentModels() {
     try {
-        const response = await fetch(`${API_URL}/equipment-models`);
+        const response = await authenticatedFetch(`${API_URL}/equipment-models`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -569,7 +637,7 @@ async function handleFormSubmit(e) {
     const method = id ? 'PUT' : 'POST';
 
     try {
-        const response = await fetch(url, {
+        const response = await authenticatedFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -593,7 +661,7 @@ async function handleNewClientSubmit(e) {
     const body = Object.fromEntries(new FormData(form));
 
     try {
-        const response = await fetch(`${API_URL}/clients`, {
+        const response = await authenticatedFetch(`${API_URL}/clients`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -632,7 +700,7 @@ async function handleNewLocationSubmit(e) {
     const body = Object.fromEntries(new FormData(form));
 
     try {
-        const response = await fetch(`${API_URL}/locations`, {
+        const response = await authenticatedFetch(`${API_URL}/locations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -667,7 +735,7 @@ async function handleNewEquipmentSubmit(e) {
     if (!body.model_id) body.model_id = null;
 
     try {
-        const response = await fetch(`${API_URL}/equipment`, {
+        const response = await authenticatedFetch(`${API_URL}/equipment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -734,7 +802,7 @@ async function openModal(modalId, data = {}) {
             }
 
             try {
-                const response = await fetch(`${API_URL}/tickets/${effectiveData.id}`);
+                const response = await authenticatedFetch(`${API_URL}/tickets/${effectiveData.id}`);
                 if (!response.ok) throw new Error(`Failed to fetch ticket ${effectiveData.id}`);
                 const result = await response.json();
                 const ticketData = result.data;
@@ -793,13 +861,15 @@ async function openModal(modalId, data = {}) {
     }
 
     if (modalId === 'ticket-modal') {
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
         document.body.classList.add('modal-open');
         setTimeout(() => {
             modal.classList.add('is-open');
         }, 10); // Pequeño delay para que la animación funcione
     } else {
-        modal.style.display = 'flex';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
     }
     lucide.createIcons(); // Refrescar iconos por si hay nuevos en el modal
 }
@@ -862,11 +932,11 @@ function closeModal(modalId) {
     if (modalId === 'ticket-modal') {
         modal.classList.remove('is-open');
         setTimeout(() => {
-            modal.style.display = 'none';
+            modal.classList.add('hidden');
         }, 300); // Esperar a que termine la animación
     } else {
         modal.classList.remove('flex');
-        modal.style.display = 'none';
+        modal.classList.add('hidden');
     }
     document.body.classList.remove('modal-open');
 }
@@ -874,7 +944,7 @@ function closeModal(modalId) {
 async function deleteItem(resource, id, callback) {
     if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
     try {
-        const response = await fetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+        const response = await authenticatedFetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Error al eliminar');

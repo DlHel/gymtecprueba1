@@ -121,19 +121,19 @@
                 <div class="border-b border-gray-200">
                     <nav class="flex space-x-8 px-6" role="tablist">
                         <button class="tab-button active py-4 px-2 border-b-2 border-blue-500 font-medium text-blue-600" 
-                                onclick="showTab('inventory')" id="tab-inventory">
+                                onclick="showTab('inventory')" id="tab-inventory" role="tab" aria-selected="true" aria-controls="content-inventory">
                             📦 Inventario
                         </button>
                         <button class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700" 
-                                onclick="showTab('categories')" id="tab-categories">
+                                onclick="showTab('categories')" id="tab-categories" role="tab" aria-selected="false" aria-controls="content-categories">
                             🏷️ Categorías
                         </button>
                         <button class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700" 
-                                onclick="showTab('suppliers')" id="tab-suppliers">
+                                onclick="showTab('suppliers')" id="tab-suppliers" role="tab" aria-selected="false" aria-controls="content-suppliers">
                             🏢 Proveedores
                         </button>
                         <button class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700" 
-                                onclick="showTab('analytics')" id="tab-analytics">
+                                onclick="showTab('analytics')" id="tab-analytics" role="tab" aria-selected="false" aria-controls="content-analytics">
                             📊 Análisis
                         </button>
                     </nav>
@@ -142,7 +142,7 @@
                 <!-- Tab Content -->
                 <div class="p-6">
                     <!-- Inventario Tab -->
-                    <div id="content-inventory" class="tab-content">
+                    <div id="content-inventory" class="tab-content" role="tabpanel" aria-labelledby="tab-inventory">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Gestión de Inventario</h2>
                             <div class="flex space-x-3">
@@ -182,7 +182,7 @@
                     </div>
 
                     <!-- Categorías Tab -->
-                    <div id="content-categories" class="tab-content hidden">
+                    <div id="content-categories" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-categories">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Categorías de Inventario</h2>
                             <button onclick="addCategory()" 
@@ -200,7 +200,7 @@
                     </div>
 
                     <!-- Proveedores Tab -->
-                    <div id="content-suppliers" class="tab-content hidden">
+                    <div id="content-suppliers" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-suppliers">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Gestión de Proveedores</h2>
                             <button onclick="addSupplier()" 
@@ -218,7 +218,7 @@
                     </div>
 
                     <!-- Análisis Tab -->
-                    <div id="content-analytics" class="tab-content hidden">
+                    <div id="content-analytics" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-analytics">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Análisis de Inventario</h2>
                             <button onclick="exportReport()" 
@@ -258,8 +258,8 @@
     <script>
         let currentTab = 'inventory';
 
-        // API Base URL
-        const API_BASE = 'http://localhost:3000/api';
+        // API Base URL - Configuración dinámica
+        const API_BASE = window.API_URL || 'http://localhost:3000/api';
 
         // Update current time
         function updateTime() {
@@ -307,10 +307,10 @@
             }
         }
 
-        // API calls
+        // API calls con autenticación
         async function apiCall(endpoint, options = {}) {
             try {
-                const response = await fetch(`${API_BASE}${endpoint}`, {
+                const response = await AuthManager.authenticatedFetch(`${API_BASE}${endpoint}`, {
                     headers: {
                         'Content-Type': 'application/json',
                         ...options.headers
@@ -324,7 +324,7 @@
 
                 return await response.json();
             } catch (error) {
-                console.error('API call error:', error);
+                console.error('❌ API call error:', error);
                 showError(`Error en API: ${error.message}`);
                 return null;
             }
@@ -696,6 +696,12 @@
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // ✅ CRÍTICO: Protección de autenticación PRIMERO
+            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+                window.location.href = '/login.html';
+                return;
+            }
+
             updateTime();
             setInterval(updateTime, 1000);
             
@@ -705,5 +711,10 @@
             console.log('🚀 Sistema de Inventario Inteligente - Fase 3 Inicializado');
         });
     </script>
+
+    <!-- ✅ Scripts requeridos para autenticación -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/base-modal.js"></script>
 </body>
 </html>

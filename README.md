@@ -4,11 +4,11 @@ Este es un Sistema de Gestión (ERP) para Gymtec, diseñado para centralizar y a
 
 ## Descripción
 
-La aplicación está dividida en un `frontend` (HTML, CSS con Tailwind, JS) y un `backend` (Node.js, Express, SQLite).
+La aplicación está dividida en un `frontend` (HTML, CSS con Tailwind, JS) y un `backend` (Node.js, Express, MySQL).
 
 ### Backend
 
-El backend se encarga de la lógica de negocio, la API y la gestión de la base de datos SQLite.
+El backend se encarga de la lógica de negocio, la API y la gestión de la base de datos MySQL.
 
 Para iniciarlo:
 1.  Navega a la carpeta `backend`.

@@ -28,7 +28,7 @@ class DashboardManager {
     async loadKPIs() {
         console.log('📊 Cargando KPIs...');
         try {
-            const response = await authenticatedFetch(`${CONFIG.API_BASE_URL}/dashboard/kpis`);
+            const response = await authenticatedFetch(`${API_URL}/dashboard/kpis`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -214,7 +214,7 @@ class DashboardManager {
     async loadRecentActivity() {
         console.log('📋 Cargando actividad reciente...');
         try {
-            const response = await authenticatedFetch(`${CONFIG.API_BASE_URL}/dashboard/activity?limit=10`);
+            const response = await authenticatedFetch(`${API_URL}/dashboard/activity?limit=10`);
             const data = await response.json();
             
             if (data.message === 'success') {

@@ -1,10 +1,14 @@
 const db = require('../db-adapter');
-const { generateToken, hashPassword, verifyPassword } = require('../middleware/auth');
+const { generateToken, hashPassword, verifyPassword, JWT_SECRET } = require('../middleware/auth');
 
 /**
  * Servicio de Autenticación
  */
 class AuthService {
+    // Exportar JWT_SECRET para uso en otras partes
+    static get JWT_SECRET() {
+        return JWT_SECRET;
+    }
     
     /**
      * Realizar login de usuario

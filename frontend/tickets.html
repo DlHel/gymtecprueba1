@@ -172,7 +172,7 @@
                         </table>
                         
                         <!-- Estado vacío -->
-                        <div id="tickets-empty-state" class="tickets-empty-state" style="display: none;">
+                        <div id="tickets-empty-state" class="tickets-empty-state hidden">
                             <i data-lucide="ticket" class="empty-icon"></i>
                             <h3>No hay tickets disponibles</h3>
                             <p>No se encontraron tickets que coincidan con los filtros seleccionados.</p>
@@ -297,11 +297,11 @@
     </div>
 
     <!-- Modal para Crear Cliente (integrado desde clientes.html) -->
-    <div id="add-client-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center" style="display: none; z-index: var(--z-modal-nested);">
+    <div id="add-client-modal" class="modal modal-nested fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden">
         <div class="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
             <div class="flex justify-between items-center pb-3 border-b">
                 <h3 class="text-2xl font-semibold">Crear Nuevo Cliente</h3>
-                <button id="add-client-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200">
+                <button id="add-client-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200" aria-label="Cerrar modal de nuevo cliente" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -351,11 +351,11 @@
     </div>
 
     <!-- Modal para Crear Sede -->
-    <div id="add-location-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center" style="display: none; z-index: var(--z-modal-nested);">
+    <div id="add-location-modal" class="modal modal-nested fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden">
         <div class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
              <div class="flex justify-between items-center pb-3 border-b">
                 <h3 class="text-2xl font-semibold">Crear Nueva Sede</h3>
-                <button id="add-location-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200">
+                <button id="add-location-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200" aria-label="Cerrar modal de nueva sede" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -378,11 +378,11 @@
     </div>
 
     <!-- Modal para Crear Equipo -->
-    <div id="add-equipment-modal" class="modal fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center" style="display: none; z-index: var(--z-modal-nested);">
+    <div id="add-equipment-modal" class="modal modal-nested fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden">
         <div class="relative mx-auto p-5 border w-full max-w-xl shadow-lg rounded-md bg-white">
              <div class="flex justify-between items-center pb-3 border-b">
                 <h3 class="text-2xl font-semibold">Crear Nuevo Equipo</h3>
-                <button id="add-equipment-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200">
+                <button id="add-equipment-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200" aria-label="Cerrar modal de nuevo equipo" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -393,8 +393,8 @@
                     <input type="text" name="name" placeholder="Ej: Trotadora, Prensa de Piernas" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-slate-700">Modelo</label>
-                    <select name="model_id" id="new-equipment-model-select" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500">
+                    <label for="new-equipment-model-select" class="block text-sm font-medium text-slate-700">Modelo</label>
+                    <select name="model_id" id="new-equipment-model-select" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500" title="Seleccionar modelo de equipo">
                         <option value="">Seleccione un modelo...</option>
                     </select>
                 </div>
@@ -412,7 +412,13 @@
 
     <!-- Configuración de API URL (debe ir PRIMERO) -->
     <script src="js/config.js"></script>
+    <!-- Sistema de autenticación -->
+    <script src="js/auth.js"></script>
+    <!-- Sistema de modales -->
+    <script src="js/base-modal.js"></script>
+    <!-- Cargador de navegación -->
     <script src="js/nav-loader.js"></script>
+    <!-- Script principal de tickets -->
     <script src="js/tickets.js"></script>
     <script>
         // Asegúrate de que Lucide se ejecute después de que el modal y la tabla se hayan renderizado
