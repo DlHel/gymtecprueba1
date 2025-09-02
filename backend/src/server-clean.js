@@ -579,13 +579,42 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
     const { locationId } = req.params;
     const sql = `
         SELECT 
-            e.*,
+            e.id,
+            e.custom_id,
+            e.location_id,
+            e.model_id,
+            e.acquisition_date,
+            e.last_maintenance_date,
+            e.notes,
+            e.created_at,
+            e.updated_at,
+            -- Mapear campos correctamente para el frontend
+            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre') as name,
+            CASE 
+                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
+                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
+                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
+                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+            END as type,
+            COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
+            COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
+            COALESCE(NULLIF(e.serial_number, ''), 'No asignado') as serial_number,
+            -- Mantener campos originales para referencia
             em.name as model_name,
             em.brand as model_brand
-        FROM Equipment e
-        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        FROM equipment e
+        LEFT JOIN equipmentmodels em ON e.model_id = em.id
         WHERE e.location_id = ?
-        ORDER BY e.type, e.name
+        ORDER BY 
+            CASE 
+                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
+                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
+                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
+                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+            END, 
+            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre')
     `;
     db.all(sql, [locationId], (err, rows) => {
         if (err) {
@@ -595,6 +624,68 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
         }
         console.log(`✅ Equipment found for location ${locationId}:`, rows.length, 'items');
         res.json(rows);
+    });
+});
+
+// GET individual equipment by ID
+app.get('/api/equipment/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const sql = `
+        SELECT 
+            e.id,
+            e.custom_id,
+            e.location_id,
+            e.model_id,
+            e.acquisition_date,
+            e.last_maintenance_date,
+            e.notes,
+            e.created_at,
+            e.updated_at,
+            -- Mapear campos correctamente para el frontend
+            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre') as name,
+            CASE 
+                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
+                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
+                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
+                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+            END as type,
+            COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
+            COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
+            COALESCE(NULLIF(e.serial_number, ''), 'No asignado') as serial_number,
+            -- Campos adicionales y referencias
+            em.name as model_name,
+            em.brand as model_brand,
+            l.name as location_name,
+            c.name as client_name
+        FROM equipment e
+        LEFT JOIN equipmentmodels em ON e.model_id = em.id
+        LEFT JOIN locations l ON e.location_id = l.id
+        LEFT JOIN clients c ON l.client_id = c.id
+        WHERE e.id = ?
+    `;
+    
+    db.get(sql, [id], (err, row) => {
+        if (err) {
+            console.error(`❌ Error fetching equipment ${id}:`, err);
+            res.status(500).json({ 
+                error: 'Error al obtener el equipo', 
+                code: 'DB_ERROR' 
+            });
+            return;
+        }
+        
+        if (!row) {
+            console.log(`⚠️  Equipment ${id} not found`);
+            res.status(404).json({ 
+                error: 'Equipo no encontrado', 
+                code: 'EQUIPMENT_NOT_FOUND' 
+            });
+            return;
+        }
+        
+        console.log(`✅ Equipment ${id} found:`, row.name || row.type);
+        res.json(row);
     });
 });
 
@@ -830,7 +921,7 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
     const ticketId = req.params.id;
     console.log(`🔍 Obteniendo detalle completo del ticket ID: ${ticketId}`);
     
-    // Query principal del ticket con información completa
+    // Query principal del ticket con información completa (corregido para lowercase)
     const ticketSql = `
         SELECT 
             t.*,
@@ -850,12 +941,12 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
             em.category as equipment_category,
             em.brand as equipment_brand,
             u.username as assigned_to_name
-        FROM Tickets t
-        LEFT JOIN Clients c ON t.client_id = c.id
-        LEFT JOIN Locations l ON t.location_id = l.id
-        LEFT JOIN Equipment e ON t.equipment_id = e.id
-        LEFT JOIN EquipmentModels em ON e.model_id = em.id
-        LEFT JOIN Users u ON t.assigned_technician_id = u.id
+        FROM tickets t
+        LEFT JOIN clients c ON t.client_id = c.id
+        LEFT JOIN locations l ON t.location_id = l.id
+        LEFT JOIN equipment e ON t.equipment_id = e.id
+        LEFT JOIN equipmentmodels em ON e.model_id = em.id
+        LEFT JOIN users u ON t.assigned_technician_id = u.id
         WHERE t.id = ?
     `;
     
@@ -878,8 +969,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
         
         console.log(`✅ Ticket ${ticketId} encontrado: ${ticket.title}`);
         
-        // Obtener fotos del ticket (con manejo robusto de errores)
-        const photosSql = `SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC`;
+        // Obtener fotos del ticket (corregido para usar nombre de tabla lowercase)
+        const photosSql = `SELECT * FROM ticketphotos WHERE ticket_id = ? ORDER BY created_at DESC`;
         
         db.all(photosSql, [ticketId], (photoErr, photos) => {
             if (photoErr) {
@@ -889,69 +980,53 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
             
             console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
             
-            // Verificar si tabla TicketActivities existe antes de consultarla
-            const checkTableSql = `SHOW TABLES LIKE 'TicketActivities'`;
+            // Obtener notas del ticket (CORRIGIENDO EL PROBLEMA PRINCIPAL)
+            const notesSql = `SELECT * FROM ticketnotes WHERE ticket_id = ? ORDER BY created_at DESC`;
             
-            db.all(checkTableSql, [], (checkErr, tableExists) => {
-                let activities = [];
+            db.all(notesSql, [ticketId], (notesErr, notes) => {
+                if (notesErr) {
+                    console.log('⚠️ Error obteniendo notas (continuando sin notas):', notesErr.message);
+                    notes = [];
+                }
                 
-                if (checkErr || !tableExists || tableExists.length === 0) {
-                    console.log('⚠️ Tabla TicketActivities no existe, continuando sin actividades...');
+                console.log(`📝 Encontradas ${notes ? notes.length : 0} notas para ticket ${ticketId}`);
+                
+                // Obtener checklist del ticket (CORRIGIENDO EL PROBLEMA PRINCIPAL)
+                const checklistSql = `SELECT * FROM ticketchecklists WHERE ticket_id = ? ORDER BY created_at DESC`;
+                
+                db.all(checklistSql, [ticketId], (checklistErr, checklist) => {
+                    if (checklistErr) {
+                        console.log('⚠️ Error obteniendo checklist (continuando sin checklist):', checklistErr.message);
+                        checklist = [];
+                    }
                     
-                    // Continuar directamente con la respuesta
+                    console.log(`📋 Encontradas ${checklist ? checklist.length : 0} tareas de checklist para ticket ${ticketId}`);
+                    
+                    // Estructurar respuesta completa con TODOS los datos
                     const detailedTicket = {
                         ...ticket,
                         photos: photos || [],
-                        activities: [],
+                        notes: notes || [],
+                        checklist: checklist || [],
+                        activities: [], // Mantenemos actividades vacío por ahora
                         metadata: {
                             photos_count: photos ? photos.length : 0,
+                            notes_count: notes ? notes.length : 0,
+                            checklist_count: checklist ? checklist.length : 0,
                             activities_count: 0,
                             last_updated: ticket.updated_at,
                             created_date: ticket.created_at
                         }
                     };
                     
-                    console.log(`✅ Detalle completo del ticket ${ticketId} preparado`);
+                    console.log(`✅ Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}`);
                     
                     return res.json({
                         success: true,
                         message: "success", 
                         data: detailedTicket
                     });
-                } else {
-                    // La tabla existe, consultar actividades
-                    const activitiesSql = `SELECT * FROM TicketActivities WHERE ticket_id = ? ORDER BY created_at DESC`;
-                    
-                    db.all(activitiesSql, [ticketId], (actErr, activities) => {
-                        if (actErr) {
-                            console.log('⚠️ Error obteniendo actividades (continuando sin actividades):', actErr.message);
-                            activities = [];
-                        }
-                        
-                        console.log(`📋 Encontradas ${activities ? activities.length : 0} actividades para ticket ${ticketId}`);
-                        
-                        // Estructurar respuesta completa
-                        const detailedTicket = {
-                            ...ticket,
-                            photos: photos || [],
-                            activities: activities || [],
-                            metadata: {
-                                photos_count: photos ? photos.length : 0,
-                                activities_count: activities ? activities.length : 0,
-                                last_updated: ticket.updated_at,
-                                created_date: ticket.created_at
-                            }
-                        };
-                        
-                        console.log(`✅ Detalle completo del ticket ${ticketId} preparado`);
-                        
-                        return res.json({
-                            success: true,
-                            message: "success", 
-                            data: detailedTicket
-                        });
-                    });
-                }
+                });
             });
         });
     });
@@ -1048,7 +1123,7 @@ app.delete('/api/tickets/:id', authenticateToken, (req, res) => {
 app.get('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
     const { ticketId } = req.params;
     const sql = `
-        SELECT * FROM TicketNotes 
+        SELECT * FROM ticketnotes 
         WHERE ticket_id = ? 
         ORDER BY created_at DESC
     `;
@@ -1077,7 +1152,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
         });
     }
     
-    const sql = `INSERT INTO TicketNotes 
+    const sql = `INSERT INTO ticketnotes 
                  (ticket_id, note, note_type, author, is_internal, created_at) 
                  VALUES (?, ?, ?, ?, ?, NOW())`;
     const params = [
@@ -1101,7 +1176,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
         console.log(`✅ Nota agregada al ticket ${ticketId}, ID: ${this.lastID}`);
         
         // Obtener la nota recién creada
-        db.get('SELECT * FROM TicketNotes WHERE id = ?', [this.lastID], (err, newNote) => {
+        db.get('SELECT * FROM ticketnotes WHERE id = ?', [this.lastID], (err, newNote) => {
             if (err) {
                 console.error('❌ Error obteniendo nota creada:', err.message);
                 return res.status(500).json({ 
@@ -1122,7 +1197,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
 app.delete('/api/tickets/notes/:noteId', authenticateToken, (req, res) => {
     const { noteId } = req.params;
     
-    const sql = 'DELETE FROM TicketNotes WHERE id = ?';
+    const sql = 'DELETE FROM ticketnotes WHERE id = ?';
     db.run(sql, [noteId], function(err) {
         if (err) {
             console.error('❌ Error eliminando nota de ticket:', err.message);
@@ -1266,6 +1341,363 @@ app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
         res.json({ 
             message: "Foto eliminada exitosamente", 
             changes: this.changes 
+        });
+    });
+});
+
+// ===================================================================
+// GESTIÓN DE FOTOS PARA EQUIPOS
+// ===================================================================
+
+// GET all photos for a specific equipment
+app.get('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
+    const { equipmentId } = req.params;
+    const sql = `
+        SELECT * FROM equipmentphotos 
+        WHERE equipment_id = ? 
+        ORDER BY created_at DESC
+    `;
+    
+    db.all(sql, [equipmentId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching equipment photos:', err.message);
+            res.status(500).json({ 
+                error: 'Error al obtener fotos del equipo',
+                code: 'PHOTOS_FETCH_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`📸 Fotos encontradas para equipo ${equipmentId}:`, rows.length);
+        res.json(rows || []);
+    });
+});
+
+// POST upload photo for equipment
+app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
+    const { equipmentId } = req.params;
+    const { photo_data, mime_type, filename, description, photo_type } = req.body;
+    
+    if (!photo_data || !mime_type) {
+        return res.status(400).json({ 
+            error: 'Se requiere photo_data y mime_type',
+            code: 'MISSING_PHOTO_DATA'
+        });
+    }
+    
+    const sql = `INSERT INTO equipmentphotos 
+                 (equipment_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
+    
+    const file_size = filename ? Math.round(photo_data.length * 0.75) : 0; // Aproximación del tamaño real
+    const params = [
+        parseInt(equipmentId), 
+        photo_data, 
+        filename || 'foto.jpg', 
+        mime_type, 
+        file_size, 
+        description || null, 
+        photo_type || 'Otros'
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error agregando foto al equipo:', err.message);
+            res.status(500).json({ 
+                error: 'Error al agregar foto al equipo',
+                code: 'PHOTO_UPLOAD_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ Foto agregada al equipo ${equipmentId}, ID: ${this.lastID}`);
+        res.json({ 
+            message: "Foto agregada exitosamente", 
+            photoId: this.lastID 
+        });
+    });
+});
+
+// DELETE photo from equipment
+app.delete('/api/equipment/photos/:photoId', authenticateToken, (req, res) => {
+    const { photoId } = req.params;
+    
+    const sql = 'DELETE FROM equipmentphotos WHERE id = ?';
+    db.run(sql, [photoId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando foto de equipo:', err.message);
+            res.status(500).json({ 
+                error: 'Error al eliminar foto del equipo',
+                code: 'PHOTO_DELETE_ERROR'
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ 
+                error: "Foto no encontrada",
+                code: 'PHOTO_NOT_FOUND'
+            });
+        }
+        
+        console.log(`✅ Foto ${photoId} eliminada del equipo`);
+        res.json({ 
+            message: "Foto eliminada exitosamente", 
+            changes: this.changes 
+        });
+    });
+});
+
+// ===================================================================
+// GESTIÓN DE NOTAS PARA EQUIPOS
+// ===================================================================
+
+// GET all notes for a specific equipment
+app.get('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
+    const { equipmentId } = req.params;
+    const sql = `
+        SELECT * FROM equipmentnotes 
+        WHERE equipment_id = ? 
+        ORDER BY created_at DESC
+    `;
+    
+    db.all(sql, [equipmentId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching equipment notes:', err.message);
+            res.status(500).json({ 
+                error: 'Error al obtener notas del equipo',
+                code: 'NOTES_FETCH_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`📝 Notas encontradas para equipo ${equipmentId}:`, rows.length);
+        res.json(rows || []);
+    });
+});
+
+// POST add note to equipment
+app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
+    const { equipmentId } = req.params;
+    const { note, note_type } = req.body;
+    
+    if (!note || note.trim() === '') {
+        return res.status(400).json({ 
+            error: 'La nota no puede estar vacía',
+            code: 'EMPTY_NOTE'
+        });
+    }
+    
+    const sql = `INSERT INTO equipmentnotes 
+                 (equipment_id, note, note_type, author, created_at) 
+                 VALUES (?, ?, ?, ?, NOW())`;
+    
+    const params = [
+        parseInt(equipmentId), 
+        note.trim(), 
+        note_type || 'General',
+        req.user.username || 'Sistema'
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error agregando nota al equipo:', err.message);
+            res.status(500).json({ 
+                error: 'Error al agregar nota al equipo',
+                code: 'NOTE_ADD_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ Nota agregada al equipo ${equipmentId}, ID: ${this.lastID}`);
+        res.json({ 
+            message: "Nota agregada exitosamente", 
+            noteId: this.lastID 
+        });
+    });
+});
+
+// DELETE note from equipment
+app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
+    const { noteId } = req.params;
+    
+    const sql = 'DELETE FROM equipmentnotes WHERE id = ?';
+    db.run(sql, [noteId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando nota de equipo:', err.message);
+            res.status(500).json({ 
+                error: 'Error al eliminar nota del equipo',
+                code: 'NOTE_DELETE_ERROR'
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ 
+                error: "Nota no encontrada",
+                code: 'NOTE_NOT_FOUND'
+            });
+        }
+        
+        console.log(`✅ Nota ${noteId} eliminada del equipo`);
+        res.json({ 
+            message: "Nota eliminada exitosamente", 
+            changes: this.changes 
+        });
+    });
+});
+
+// ===================================================================
+// GESTIÓN DE TICKETS PARA EQUIPOS
+// ===================================================================
+
+// GET all tickets for a specific equipment
+app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => {
+    const { equipmentId } = req.params;
+    const sql = `
+        SELECT 
+            t.*,
+            c.name as client_name,
+            l.name as location_name
+        FROM tickets t
+        LEFT JOIN clients c ON t.client_id = c.id
+        LEFT JOIN locations l ON t.location_id = l.id
+        WHERE t.equipment_id = ?
+        ORDER BY t.created_at DESC
+    `;
+    
+    db.all(sql, [equipmentId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching equipment tickets:', err.message);
+            res.status(500).json({ 
+                error: 'Error al obtener tickets del equipo',
+                code: 'TICKETS_FETCH_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`🎫 Tickets encontrados para equipo ${equipmentId}:`, rows.length);
+        res.json(rows || []);
+    });
+});
+
+// ===================================================================
+// GESTIÓN DE REPUESTOS PARA TICKETS
+// ===================================================================
+
+// POST spare part usage to ticket
+app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => {
+    const { ticketId } = req.params;
+    const { spare_part_id, quantity_used, unit_cost, notes } = req.body;
+    
+    console.log(`🔧 Agregando repuesto al ticket ${ticketId}:`, { spare_part_id, quantity_used, unit_cost });
+    
+    // Validaciones
+    if (!spare_part_id || !quantity_used || quantity_used <= 0) {
+        return res.status(400).json({
+            error: 'spare_part_id y quantity_used son requeridos y quantity_used debe ser > 0',
+            code: 'VALIDATION_ERROR'
+        });
+    }
+    
+    // Verificar que el ticket existe
+    db.get('SELECT id FROM Tickets WHERE id = ?', [ticketId], (err, ticket) => {
+        if (err) {
+            console.error('❌ Error verificando ticket:', err.message);
+            return res.status(500).json({ 
+                error: 'Error verificando ticket',
+                code: 'TICKET_CHECK_ERROR'
+            });
+        }
+        
+        if (!ticket) {
+            return res.status(404).json({
+                error: 'Ticket no encontrado',
+                code: 'TICKET_NOT_FOUND'
+            });
+        }
+        
+        // Verificar que el repuesto existe y tiene stock
+        db.get('SELECT id, name, sku, current_stock FROM spareparts WHERE id = ?', [spare_part_id], (err, sparePart) => {
+            if (err) {
+                console.error('❌ Error verificando repuesto:', err.message);
+                return res.status(500).json({ 
+                    error: 'Error verificando repuesto',
+                    code: 'SPARE_PART_CHECK_ERROR'
+                });
+            }
+            
+            if (!sparePart) {
+                return res.status(404).json({
+                    error: 'Repuesto no encontrado',
+                    code: 'SPARE_PART_NOT_FOUND'
+                });
+            }
+            
+            if (sparePart.current_stock < quantity_used) {
+                return res.status(400).json({
+                    error: `Stock insuficiente. Disponible: ${sparePart.current_stock}, solicitado: ${quantity_used}`,
+                    code: 'INSUFFICIENT_STOCK'
+                });
+            }
+            
+            // Insertar en ticketspareparts
+            const insertSql = `
+                INSERT INTO ticketspareparts 
+                (ticket_id, spare_part_id, quantity_used, unit_cost, notes, used_at) 
+                VALUES (?, ?, ?, ?, ?, NOW())
+            `;
+            
+            db.run(insertSql, [ticketId, spare_part_id, quantity_used, unit_cost || null, notes || null], function(err) {
+                if (err) {
+                    console.error('❌ Error insertando repuesto en ticket:', err.message);
+                    return res.status(500).json({ 
+                        error: 'Error al agregar repuesto al ticket',
+                        code: 'INSERT_ERROR'
+                    });
+                }
+                
+                // Actualizar stock del repuesto
+                const updateStockSql = 'UPDATE spareparts SET current_stock = current_stock - ? WHERE id = ?';
+                db.run(updateStockSql, [quantity_used, spare_part_id], (err) => {
+                    if (err) {
+                        console.error('❌ Error actualizando stock:', err.message);
+                        // Revertir la inserción
+                        db.run('DELETE FROM ticketspareparts WHERE id = ?', [this.lastID]);
+                        return res.status(500).json({ 
+                            error: 'Error actualizando stock del repuesto',
+                            code: 'STOCK_UPDATE_ERROR'
+                        });
+                    }
+                    
+                    // Obtener el registro completo insertado con datos del repuesto
+                    const selectSql = `
+                        SELECT 
+                            tsp.*,
+                            sp.name as spare_part_name,
+                            sp.sku as spare_part_sku
+                        FROM ticketspareparts tsp
+                        JOIN spareparts sp ON tsp.spare_part_id = sp.id
+                        WHERE tsp.id = ?
+                    `;
+                    
+                    db.get(selectSql, [this.lastID], (err, newRecord) => {
+                        if (err) {
+                            console.error('❌ Error obteniendo registro creado:', err.message);
+                            return res.status(500).json({ 
+                                error: 'Error obteniendo registro creado',
+                                code: 'RECORD_FETCH_ERROR'
+                            });
+                        }
+                        
+                        console.log(`✅ Repuesto agregado al ticket ${ticketId}, ID: ${this.lastID}`);
+                        res.status(201).json({
+                            message: "Repuesto agregado exitosamente",
+                            data: newRecord
+                        });
+                    });
+                });
+            });
         });
     });
 });

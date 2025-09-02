@@ -548,4 +548,47 @@ router.post('/categories', async (req, res) => {
     }
 });
 
+// ===================================================================
+// REPUESTOS (SPARE PARTS) PARA TICKETS
+// ===================================================================
+
+/**
+ * @route GET /api/inventory/spare-parts
+ * @desc Obtener lista de repuestos disponibles para tickets
+ */
+router.get('/spare-parts', (req, res) => {
+    console.log('🔧 Obteniendo lista de repuestos disponibles...');
+    
+    const sql = `
+        SELECT 
+            id,
+            name,
+            sku,
+            current_stock,
+            minimum_stock,
+            created_at,
+            updated_at
+        FROM spareparts 
+        WHERE current_stock > 0
+        ORDER BY name ASC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo repuestos:', err.message);
+            res.status(500).json({ 
+                error: 'Error al cargar repuestos disponibles',
+                code: 'SPARE_PARTS_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} repuestos disponibles encontrados`);
+        res.json({
+            message: "success",
+            data: rows
+        });
+    });
+});
+
 module.exports = router;

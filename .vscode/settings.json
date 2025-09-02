@@ -11,15 +11,16 @@
   // GitHub Copilot Configuration
   "github.copilot.enable": {
     "*": true,
-    "plaintext": false,
     "markdown": true,
-    "scminput": false,
-    "yaml": false
+    "yaml": true,
+    "scminput": true,
+    "plaintext": true
   },
   "github.copilot.chat.localeOverride": "es",
   "github.copilot.advanced": {
+
     "secret_key": "sk-github-copilot",
-    "length": 500,
+    "length": 1000,
     "temperature": 0.1,
     "top_p": 1,
     "stop": ["\n\n\n"]
@@ -179,5 +180,47 @@
   
   // Breadcrumbs for Navigation
   "breadcrumbs.enabled": true,
-  "breadcrumbs.symbolPath": "on"
+  "breadcrumbs.symbolPath": "on",
+  "github.copilot.chat.codesearch.enabled": true,
+  "github.copilot.chat.agent.thinkingTool": true,
+  "github.copilot.chat.editor.temporalContext.enabled": true,
+  "github.copilot.chat.edits.temporalContext.enabled": true,
+  "github.copilot.chat.enableRetryAfterFilteredResponse": true,
+  "github.copilot.chat.generateTests.codeLens": true,
+  "github.copilot.chat.languageContext.fix.typescript.enabled": true,
+  "github.copilot.chat.languageContext.inline.typescript.enabled": true,
+  "github.copilot.chat.languageContext.typescript.enabled": true,
+  "editor.inlineSuggest.edits.renderSideBySide": "auto",
+  "editor.inlineSuggest.edits.showCollapsed": true,
+  "editor.inlineSuggest.experimental.triggerCommandOnProviderChange": true,
+  "geminicodeassist.inlineSuggestions.suggestionSpeed": "Fast",
+  "emmet.useInlineCompletions": true,
+  
+  // =======================================================================
+  // CONFIGURACIONES AGREGADAS PARA COPILOT MENOS PREGUNTÓN
+  // Estas líneas hacen que Copilot sugiera automáticamente sin interrumpir
+  // Solo va a preguntar para acciones destructivas como eliminar archivos
+  // =======================================================================
+  "editor.inlineSuggest.enabled": true,
+  "editor.acceptSuggestionOnEnter": "on",
+  "editor.tabCompletion": "on",
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": true,
+    "strings": true
+  },
+  
+  // =======================================================================
+  // CONFIGURACIONES PARA EVITAR PREGUNTAS DE VS CODE
+  // Evita que VS Code pregunte por actualizaciones, puertos y otras cosas
+  // =======================================================================
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
+  "workbench.settings.enableNaturalLanguageSearch": false,
+  "debug.console.acceptSuggestionOnEnter": "off",
+  "debug.allowBreakpointsEverywhere": true,
+  "debug.confirmOnExit": "never",
+  "remote.autoForwardPorts": false,
+  "remote.autoForwardPortsSource": "hybrid",
+  "workbench.editor.enablePreview": false
 }

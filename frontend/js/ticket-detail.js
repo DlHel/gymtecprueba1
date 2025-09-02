@@ -4583,14 +4583,76 @@ async function showAddSparePartModal() {
         const result = await response.json();
         const spareParts = result.data || [];
         
-        // Crear y mostrar modal usando la función existente
-        const modal = createSparePartModal(spareParts);
+        // Crear modal directamente (patrón consistente con otros modales)
+        const modal = document.createElement('div');
+        modal.className = 'base-modal';
+        modal.innerHTML = `
+            <div class="base-modal-content">
+                <div class="base-modal-header">
+                    <h3 class="base-modal-title">Agregar Repuesto al Ticket</h3>
+                    <button class="base-modal-close" onclick="closeModal(this)">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="base-modal-body">
+                    <form id="spare-part-form">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Repuesto <span class="required">*</span></label>
+                            <select name="spare_part_id" class="base-form-input" required>
+                                <option value="">Seleccionar repuesto</option>
+                                ${spareParts.map(part => `
+                                    <option value="${part.id}" data-stock="${part.current_stock}">
+                                        ${part.name} (${part.sku}) - Stock: ${part.current_stock}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Cantidad Utilizada <span class="required">*</span></label>
+                            <input type="number" name="quantity_used" class="base-form-input" required min="1" placeholder="1">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Costo Unitario (opcional)</label>
+                            <input type="number" name="unit_cost" class="base-form-input" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Notas</label>
+                            <textarea name="notes" class="base-form-input" rows="3" placeholder="Descripción del uso del repuesto..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="base-modal-footer">
+                    <button type="button" class="base-btn-cancel" onclick="closeModal(this)">Cancelar</button>
+                    <button type="button" class="base-btn-primary" onclick="submitSparePartForm(this)">Agregar Repuesto</button>
+                </div>
+            </div>
+        `;
+        
+        // Configurar validación de stock en tiempo real
+        const select = modal.querySelector('select[name="spare_part_id"]');
+        const quantityInput = modal.querySelector('input[name="quantity_used"]');
+        
+        quantityInput.addEventListener('input', () => {
+            const selectedOption = select.selectedOptions[0];
+            if (selectedOption) {
+                const stock = parseInt(selectedOption.dataset.stock);
+                const quantity = parseInt(quantityInput.value);
+                
+                if (quantity > stock) {
+                    quantityInput.setCustomValidity(`Stock insuficiente. Disponible: ${stock}`);
+                } else {
+                    quantityInput.setCustomValidity('');
+                }
+            }
+        });
+        
         document.body.appendChild(modal);
         
         // Mostrar modal
         setTimeout(() => {
             modal.style.display = 'flex';
             modal.classList.add('is-open');
+            lucide.createIcons();
         }, 10);
         
     } catch (error) {
@@ -4806,6 +4868,61 @@ async function editSparePartUsage(usageId) {
     showNotification('Función de edición en desarrollo', 'info');
 }
 
+// Enviar formulario de repuesto
+async function submitSparePartForm(button) {
+    console.log('📝 Enviando formulario de repuesto...');
+    
+    const modal = button.closest('.base-modal');
+    const form = modal.querySelector('#spare-part-form');
+    const formData = new FormData(form);
+    
+    const data = {
+        spare_part_id: parseInt(formData.get('spare_part_id')),
+        quantity_used: parseInt(formData.get('quantity_used')),
+        unit_cost: formData.get('unit_cost') ? parseFloat(formData.get('unit_cost')) : null,
+        notes: formData.get('notes') || null
+    };
+    
+    try {
+        button.disabled = true;
+        button.textContent = 'Agregando...';
+        
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/spare-parts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al agregar repuesto');
+        }
+        
+        const result = await response.json();
+        
+        // Cerrar modal
+        modal.remove();
+        
+        // Agregar el repuesto al estado local
+        if (result.data) {
+            state.spareParts.unshift(result.data);
+        }
+        
+        // Re-renderizar solo los repuestos
+        renderSpareParts();
+        lucide.createIcons();
+        
+        showNotification('Repuesto agregado exitosamente', 'success');
+        console.log('✅ Repuesto agregado:', result.data);
+        
+    } catch (error) {
+        console.error('❌ Error agregando repuesto:', error);
+        showNotification(error.message || 'Error al agregar el repuesto', 'error');
+        button.disabled = false;
+        button.textContent = 'Agregar Repuesto';
+    }
+}
+
 // Cerrar modal genérico
 function closeModal(button) {
     const modal = button.closest('.base-modal');
@@ -4866,4 +4983,5 @@ window.showAddSparePartModal = showAddSparePartModal;
 window.showRequestSparePartModal = showRequestSparePartModal;
 window.requestSparePartOrder = requestSparePartOrder;
 window.editSparePartUsage = editSparePartUsage;
+window.submitSparePartForm = submitSparePartForm;
 window.closeModal = closeModal;

@@ -355,7 +355,7 @@ router.get('/tickets/:ticketId/checklist', async (req, res) => {
         const checklist = await db.get(`
             SELECT tc.*, ct.name as template_name, ct.description as template_description,
                    u.username as assigned_technician_name
-            FROM TicketChecklist tc
+            FROM ticketchecklists tc
             LEFT JOIN ChecklistTemplates ct ON tc.template_id = ct.id
             LEFT JOIN Users u ON tc.assigned_technician_id = u.id
             WHERE tc.ticket_id = ?
