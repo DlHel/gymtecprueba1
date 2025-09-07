@@ -730,6 +730,17 @@ try {
     console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
 }
 
+// SERVICE TICKETS SYSTEM - Sistema de Tickets de Servicio para Gimnasios Completos
+try {
+    const serviceTicketsRoutes = require('./routes/service-tickets');
+    
+    app.use('/api/service-tickets', serviceTicketsRoutes);
+    
+    console.log('✅ Service Tickets Routes loaded: Sistema de Tickets de Servicio para Gimnasios');
+} catch (error) {
+    console.warn('⚠️  Warning: Service Tickets routes could not be loaded:', error.message);
+}
+
 // ===================================================================
 // FUNCIONES UTILITARIAS
 // ===================================================================
@@ -2736,6 +2747,7 @@ function startServer() {
         console.log('   ⏱️  /api/time-entries/* (Control de Tiempo)');
         console.log('   🔔 /api/notifications/* (Notificaciones - Fase 2)');
         console.log('   📈 /api/inventory/* (Inventario Inteligente - Fase 3)');
+        console.log('   🏢 /api/service-tickets/* (Tickets de Servicio - Gimnasios Completos)');
         console.log('🚀 ========================================\n');
         
         try {
