@@ -1,6 +1,7 @@
 const express = require('express');
 const AuthController = require('../controllers/authController');
 const ClientController = require('../controllers/clientController');
+const TicketController = require('../controllers/ticketController');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 /**
@@ -77,6 +78,7 @@ function setupRoutes(app) {
     console.log('⏳ Rutas de equipos pendientes de modularizar');
     
     // TODO: Mover a TicketController
+    app.get('/api/tickets', authenticateToken, TicketController.getAll);
     console.log('⏳ Rutas de tickets pendientes de modularizar');
     
     // TODO: Mover a InventoryController
