@@ -37,52 +37,180 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // API wrapper con autenticación
+    // --- Funciones de Utilidad para Manejo de Errores ---
+    /**
+     * Mostrar error al usuario de manera user-friendly
+     * @param {string} message - Mensaje de error a mostrar
+     * @param {string} context - Contexto del error para logging
+     */
+    function showError(message, context = 'Finanzas') {
+        console.error(`❌ ${context}:`, message);
+
+        // Buscar elemento de error o usar notificación genérica
+        const errorElement = document.getElementById('error-display');
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+
+            // Auto-hide después de 5 segundos
+            setTimeout(() => {
+                if (errorElement) errorElement.classList.add('hidden');
+            }, 5000);
+        } else {
+            // Fallback: usar alert o console
+            console.warn('⚠️ Elemento error-display no encontrado, usando alert');
+            alert(message);
+        }
+    }
+
+    /**
+     * Mostrar mensaje de éxito al usuario
+     * @param {string} message - Mensaje de éxito a mostrar
+     */
+    function showSuccess(message) {
+        console.log(`✅ FINANZAS: ${message}`);
+
+        // Buscar elemento de éxito o usar notificación genérica
+        const successElement = document.getElementById('success-display');
+        if (successElement) {
+            successElement.textContent = message;
+            successElement.classList.remove('hidden');
+
+            // Auto-hide después de 3 segundos
+            setTimeout(() => {
+                if (successElement) successElement.classList.add('hidden');
+            }, 3000);
+        }
+    }
+
+    // API wrapper con autenticación mejorado
     const api = {
         async get(endpoint) {
-            const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`);
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            try {
+                console.log(`🔄 GET ${endpoint}`);
+                const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const result = await response.json();
+                console.log(`✅ GET ${endpoint} exitoso`);
+                return result;
+
+            } catch (error) {
+                const errorId = `FIN_GET_${Date.now()}`;
+                console.error(`❌ Error GET ${endpoint} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    endpoint,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando datos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'api.get');
+                throw error;
             }
-            return await response.json();
         },
 
         async post(endpoint, data) {
-            const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            try {
+                console.log(`🔄 POST ${endpoint}`);
+                const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const result = await response.json();
+                console.log(`✅ POST ${endpoint} exitoso`);
+                return result;
+
+            } catch (error) {
+                const errorId = `FIN_POST_${Date.now()}`;
+                console.error(`❌ Error POST ${endpoint} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    endpoint,
+                    data,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error guardando datos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'api.post');
+                throw error;
             }
-            return await response.json();
         },
 
         async put(endpoint, data) {
-            const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            try {
+                console.log(`🔄 PUT ${endpoint}`);
+                const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const result = await response.json();
+                console.log(`✅ PUT ${endpoint} exitoso`);
+                return result;
+
+            } catch (error) {
+                const errorId = `FIN_PUT_${Date.now()}`;
+                console.error(`❌ Error PUT ${endpoint} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    endpoint,
+                    data,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error actualizando datos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'api.put');
+                throw error;
             }
-            return await response.json();
         },
 
         async delete(endpoint) {
-            const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`, {
-                method: 'DELETE'
-            });
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            try {
+                console.log(`🔄 DELETE ${endpoint}`);
+                const response = await AuthManager.authenticatedFetch(`${config.API_URL}${endpoint}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const result = await response.json();
+                console.log(`✅ DELETE ${endpoint} exitoso`);
+                return result;
+
+            } catch (error) {
+                const errorId = `FIN_DELETE_${Date.now()}`;
+                console.error(`❌ Error DELETE ${endpoint} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    endpoint,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error eliminando datos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'api.delete');
+                throw error;
             }
-            return await response.json();
         }
     };
 
@@ -94,7 +222,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             setLoading(true);
             console.log('📊 Cargando datos financieros...');
-            
+
             const [quotesResponse, invoicesResponse, expensesResponse, categoriesResponse] = await Promise.all([
                 api.get('/api/quotes'),
                 api.get('/api/invoices'),
@@ -106,23 +234,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.invoices = invoicesResponse.data || [];
             state.expenses = expensesResponse.data || [];
             state.expenseCategories = categoriesResponse.data || [];
-            
+
             // Inicializar gastos filtrados
             state.filteredExpenses = [...state.expenses];
-            
+
             calculateMetrics();
             renderCurrentTab();
-            
+
             console.log('✅ Datos financieros cargados:', {
                 quotes: state.quotes.length,
                 invoices: state.invoices.length,
                 expenses: state.expenses.length,
                 categories: state.expenseCategories.length
             });
-            
+
         } catch (error) {
-            console.error('❌ Error cargando datos financieros:', error);
-            
+            const errorId = `FIN_LOAD_DATA_${Date.now()}`;
+            console.error(`❌ Error cargando datos financieros [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
             // Si el error es de gastos, cargar solo quotes e invoices
             if (error.message.includes('expenses')) {
                 console.log('⚠️ Cargando sin datos de gastos...');
@@ -131,22 +265,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                         api.get('/api/quotes'),
                         api.get('/api/invoices')
                     ]);
-                    
+
                     state.quotes = quotesResponse.data || [];
                     state.invoices = invoicesResponse.data || [];
                     state.expenses = [];
                     state.expenseCategories = [];
                     state.filteredExpenses = [];
-                    
+
                     calculateMetrics();
                     renderCurrentTab();
-                    
+
                     console.log('✅ Datos parciales cargados (sin gastos)');
                 } catch (fallbackError) {
-                    showError('Error al cargar los datos financieros: ' + fallbackError.message);
+                    console.error(`❌ Error en fallback de carga de datos [${errorId}]:`, fallbackError);
+                    showError('Error al cargar los datos financieros. Por favor recarga la página. (Ref: ' + errorId + ')');
                 }
             } else {
-                showError('Error al cargar los datos financieros: ' + error.message);
+                showError('Error al cargar los datos financieros. Por favor intenta nuevamente. (Ref: ' + errorId + ')');
             }
         } finally {
             setLoading(false);
@@ -674,13 +809,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.deleteQuote = async (id) => {
         if (!confirm('¿Estás seguro de eliminar esta cotización?')) return;
-        
+
         try {
+            console.log(`🗑️ Eliminando cotización ID: ${id}`);
             await api.delete(`/api/quotes/${id}`);
             showSuccess('Cotización eliminada correctamente');
             await loadData();
+            console.log(`✅ Cotización ${id} eliminada exitosamente`);
         } catch (error) {
-            showError('Error al eliminar la cotización: ' + error.message);
+            const errorId = `FIN_DEL_QUOTE_${Date.now()}`;
+            console.error(`❌ Error eliminando cotización ${id} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                quoteId: id,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al eliminar la cotización. Por favor intenta nuevamente. (Ref: ${errorId})`, 'deleteQuote');
         }
     };
 
@@ -695,13 +841,24 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.deleteInvoice = async (id) => {
         if (!confirm('¿Estás seguro de eliminar esta factura?')) return;
-        
+
         try {
+            console.log(`🗑️ Eliminando factura ID: ${id}`);
             await api.delete(`/api/invoices/${id}`);
             showSuccess('Factura eliminada correctamente');
             await loadData();
+            console.log(`✅ Factura ${id} eliminada exitosamente`);
         } catch (error) {
-            showError('Error al eliminar la factura: ' + error.message);
+            const errorId = `FIN_DEL_INVOICE_${Date.now()}`;
+            console.error(`❌ Error eliminando factura ${id} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                invoiceId: id,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al eliminar la factura. Por favor intenta nuevamente. (Ref: ${errorId})`, 'deleteInvoice');
         }
     };
 
@@ -734,56 +891,102 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     window.approveExpense = async (expenseId) => {
         if (!confirm('¿Está seguro de que desea aprobar este gasto?')) return;
-        
+
         try {
+            console.log(`✅ Aprobando gasto ID: ${expenseId}`);
             const response = await api.put(`/api/expenses/${expenseId}/approve`, {});
             showSuccess('Gasto aprobado exitosamente');
             await loadData();
+            console.log(`✅ Gasto ${expenseId} aprobado exitosamente`);
         } catch (error) {
-            showError('Error al aprobar gasto: ' + error.message);
+            const errorId = `FIN_APPROVE_EXPENSE_${Date.now()}`;
+            console.error(`❌ Error aprobando gasto ${expenseId} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                expenseId,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al aprobar gasto. Por favor intenta nuevamente. (Ref: ${errorId})`, 'approveExpense');
         }
     };
 
     window.rejectExpense = async (expenseId) => {
         const reason = prompt('Ingrese el motivo del rechazo:');
         if (!reason) return;
-        
+
         try {
+            console.log(`❌ Rechazando gasto ID: ${expenseId}`);
             const response = await api.put(`/api/expenses/${expenseId}/reject`, {
                 notes: reason
             });
             showSuccess('Gasto rechazado exitosamente');
             await loadData();
+            console.log(`✅ Gasto ${expenseId} rechazado exitosamente`);
         } catch (error) {
-            showError('Error al rechazar gasto: ' + error.message);
+            const errorId = `FIN_REJECT_EXPENSE_${Date.now()}`;
+            console.error(`❌ Error rechazando gasto ${expenseId} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                expenseId,
+                reason,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al rechazar gasto. Por favor intenta nuevamente. (Ref: ${errorId})`, 'rejectExpense');
         }
     };
 
     window.payExpense = async (expenseId) => {
         const paymentMethod = prompt('Método de pago:', 'Transferencia');
         if (!paymentMethod) return;
-        
+
         try {
+            console.log(`💰 Pagando gasto ID: ${expenseId}`);
             const response = await api.put(`/api/expenses/${expenseId}/pay`, {
                 payment_method: paymentMethod,
                 payment_notes: `Pagado mediante ${paymentMethod}`
             });
             showSuccess('Gasto marcado como pagado exitosamente');
             await loadData();
+            console.log(`✅ Gasto ${expenseId} pagado exitosamente`);
         } catch (error) {
-            showError('Error al marcar gasto como pagado: ' + error.message);
+            const errorId = `FIN_PAY_EXPENSE_${Date.now()}`;
+            console.error(`❌ Error pagando gasto ${expenseId} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                expenseId,
+                paymentMethod,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al marcar gasto como pagado. Por favor intenta nuevamente. (Ref: ${errorId})`, 'payExpense');
         }
     };
 
     window.deleteExpense = async (expenseId) => {
         if (!confirm('¿Está seguro de que desea eliminar este gasto?')) return;
-        
+
         try {
+            console.log(`🗑️ Eliminando gasto ID: ${expenseId}`);
             const response = await api.delete(`/api/expenses/${expenseId}`);
             showSuccess('Gasto eliminado exitosamente');
             await loadData();
+            console.log(`✅ Gasto ${expenseId} eliminado exitosamente`);
         } catch (error) {
-            showError('Error al eliminar gasto: ' + error.message);
+            const errorId = `FIN_DEL_EXPENSE_${Date.now()}`;
+            console.error(`❌ Error eliminando gasto ${expenseId} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                expenseId,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al eliminar gasto. Por favor intenta nuevamente. (Ref: ${errorId})`, 'deleteExpense');
         }
     };
 
@@ -797,25 +1000,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     const init = async () => {
         try {
             console.log('🚀 Iniciando dashboard financiero...');
-            
+
             // Renderizar información del usuario
             AuthManager.renderUserInfo();
-            
+
             // Inicializar sistema de pestañas
             initTabs();
-            
+
             // Inicializar modales
             modals = window.initFinancialModals(api);
             console.log('✅ Modales financieros inicializados');
-            
+
             // Cargar datos
             await loadData();
-            
+
             console.log('✅ Dashboard financiero inicializado correctamente');
-            
+
         } catch (error) {
-            console.error('❌ Error inicializando dashboard financiero:', error);
-            showError('Error al inicializar el sistema: ' + error.message);
+            const errorId = `FIN_INIT_${Date.now()}`;
+            console.error(`❌ Error inicializando dashboard financiero [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            showError(`Error al inicializar el sistema. Por favor recarga la página. (Ref: ${errorId})`, 'init');
         }
     };
 

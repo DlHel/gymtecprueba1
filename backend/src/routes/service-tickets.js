@@ -28,7 +28,7 @@ const db = require('../db-adapter');
 /**
  * GET /api/service-tickets - Listar todos los service tickets
  */
-router.get('/service-tickets', async (req, res) => {
+router.get('/', async (req, res) => {
     try {
         const { client_id, location_id, status, assigned_technician_id, limit = 50, offset = 0 } = req.query;
         
@@ -110,7 +110,7 @@ router.get('/service-tickets', async (req, res) => {
 /**
  * POST /api/service-tickets - Crear nuevo service ticket
  */
-router.post('/service-tickets', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
         const {
             title,
@@ -256,7 +256,7 @@ function insertServiceTicketEquipment(serviceTicketId, equipmentIds, res, locati
 /**
  * GET /api/service-tickets/:id - Obtener service ticket específico
  */
-router.get('/service-tickets/:id', async (req, res) => {
+router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -318,7 +318,7 @@ router.get('/service-tickets/:id', async (req, res) => {
 /**
  * GET /api/service-tickets/:id/equipment - Obtener equipos del service ticket
  */
-router.get('/service-tickets/:id/equipment', async (req, res) => {
+router.get('/:id/equipment', async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -391,7 +391,7 @@ router.get('/service-tickets/:id/equipment', async (req, res) => {
 /**
  * PUT /api/service-tickets/:id/equipment/:equipmentId - Actualizar estado de equipo
  */
-router.put('/service-tickets/:id/equipment/:equipmentId', async (req, res) => {
+router.put('/:id/equipment/:equipmentId', async (req, res) => {
     try {
         const { id, equipmentId } = req.params;
         const { status, notes, technician_notes, actual_duration_minutes } = req.body;

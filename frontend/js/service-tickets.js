@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Técnicos
         getTechnicians: async () => {
             try {
-                const response = await authenticatedFetch(`${API_URL}/users?role=tecnico`);
+                const response = await authenticatedFetch(`${API_URL}/users/technicians`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 return await response.json();
             } catch (error) {

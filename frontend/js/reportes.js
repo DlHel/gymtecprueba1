@@ -23,11 +23,23 @@ class ReportsManager {
     }
 
     async init() {
-        console.log('🚀 Inicializando módulo de Reportes...');
-        this.setupEventListeners();
-        await this.loadInitialData();
-        this.updateStatistics();
-        console.log('✅ Módulo de Reportes inicializado');
+        try {
+            console.log('🚀 Inicializando módulo de Reportes...');
+            this.setupEventListeners();
+            await this.loadInitialData();
+            this.updateStatistics();
+            console.log('✅ Módulo de Reportes inicializado correctamente');
+        } catch (error) {
+            const errorId = `REP_INIT_${Date.now()}`;
+            console.error(`❌ Error inicializando módulo de reportes [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showNotification(`Error al inicializar el módulo de reportes. Por favor recarga la página. (Ref: ${errorId})`, 'error');
+        }
     }
 
     setupEventListeners() {
@@ -85,15 +97,24 @@ class ReportsManager {
 
     async loadInitialData() {
         try {
+            console.log('📊 Cargando datos iniciales de reportes...');
             // Cargar datos necesarios
             await Promise.all([
                 this.loadReportsHistory(),
                 this.loadTickets(),
                 this.loadTechnicians()
             ]);
+            console.log('✅ Datos iniciales cargados exitosamente');
         } catch (error) {
-            console.error('Error cargando datos iniciales:', error);
-            this.showNotification('Error al cargar datos iniciales', 'error');
+            const errorId = `REP_LOAD_INITIAL_${Date.now()}`;
+            console.error(`❌ Error cargando datos iniciales [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showNotification(`Error al cargar datos iniciales. Por favor intenta nuevamente. (Ref: ${errorId})`, 'error');
         }
     }
 
@@ -132,8 +153,15 @@ class ReportsManager {
 
             this.renderReportsHistory();
         } catch (error) {
-            console.error('Error cargando historial:', error);
-            this.showNotification('Error al cargar historial de reportes', 'error');
+            const errorId = `REP_LOAD_HISTORY_${Date.now()}`;
+            console.error(`❌ Error cargando historial de reportes [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showNotification(`Error al cargar historial de reportes. Por favor intenta nuevamente. (Ref: ${errorId})`, 'error');
         }
     }
 
@@ -317,71 +345,123 @@ class ReportsManager {
 
     async handleReportSubmit(e) {
         e.preventDefault();
-        
+
         const formData = new FormData(e.target);
         const reportData = Object.fromEntries(formData.entries());
-        
+
         try {
+            console.log('📄 Generando reporte:', { type: reportData.type, format: reportData.format });
             this.showNotification('Generando reporte...', 'info');
-            
+
             // Simular generación de reporte
-            await this.generateReport(reportData);
-            
+            const report = await this.generateReport(reportData);
+
             this.closeModal(document.getElementById('new-report-modal'));
             this.showNotification('Reporte generado exitosamente', 'success');
             this.loadReportsHistory();
-            
+
+            console.log('✅ Reporte generado exitosamente:', {
+                reportId: report.id,
+                reportName: report.name,
+                format: report.format
+            });
+
         } catch (error) {
-            console.error('Error generando reporte:', error);
-            this.showNotification('Error al generar el reporte', 'error');
+            const errorId = `REP_SUBMIT_${Date.now()}`;
+            console.error(`❌ Error generando reporte [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                reportData,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showNotification(`Error al generar el reporte. Por favor intenta nuevamente. (Ref: ${errorId})`, 'error');
         }
     }
 
     async generateReport(reportData) {
-        switch (reportData.type) {
-            case 'technical-ticket':
-                return await this.generateTechnicalReport(reportData);
-            case 'tickets':
-                return await this.generateTicketsReport(reportData);
-            case 'clients':
-                return await this.generateClientsReport(reportData);
-            case 'equipment':
-                return await this.generateEquipmentReport(reportData);
-            case 'inventory':
-                return await this.generateInventoryReport(reportData);
-            case 'financial':
-                return await this.generateFinancialReport(reportData);
-            default:
-                throw new Error('Tipo de reporte no válido');
+        try {
+            console.log('🔧 Iniciando generación de reporte:', reportData.type);
+
+            switch (reportData.type) {
+                case 'technical-ticket':
+                    return await this.generateTechnicalReport(reportData);
+                case 'tickets':
+                    return await this.generateTicketsReport(reportData);
+                case 'clients':
+                    return await this.generateClientsReport(reportData);
+                case 'equipment':
+                    return await this.generateEquipmentReport(reportData);
+                case 'inventory':
+                    return await this.generateInventoryReport(reportData);
+                case 'financial':
+                    return await this.generateFinancialReport(reportData);
+                default:
+                    throw new Error(`Tipo de reporte no válido: ${reportData.type}`);
+            }
+        } catch (error) {
+            const errorId = `REP_GENERATE_${Date.now()}`;
+            console.error(`❌ Error generando reporte [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                reportType: reportData.type,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            throw error; // Re-throw para que sea manejado por handleReportSubmit
         }
     }
 
     async generateTechnicalReport(data) {
-        if (!data.ticket_id) {
-            throw new Error('Debe seleccionar un ticket');
-        }
+        try {
+            console.log('🔧 Generando reporte técnico:', { ticketId: data.ticket_id, technicianId: data.technician_id });
 
-        const ticket = this.tickets.find(t => t.id == data.ticket_id);
-        const technician = this.technicians.find(t => t.id == data.technician_id);
-        
-        if (data.format === 'pdf') {
-            return this.generateTechnicalReportPDF(ticket, technician, data);
+            if (!data.ticket_id) {
+                throw new Error('Debe seleccionar un ticket');
+            }
+
+            const ticket = this.tickets.find(t => t.id == data.ticket_id);
+            const technician = this.technicians.find(t => t.id == data.technician_id);
+
+            if (!ticket) {
+                throw new Error(`Ticket con ID ${data.ticket_id} no encontrado`);
+            }
+
+            if (data.format === 'pdf') {
+                return this.generateTechnicalReportPDF(ticket, technician, data);
+            }
+
+            // Simular generación
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    const report = {
+                        id: Date.now(),
+                        name: `Informe Técnico #${ticket.id}`,
+                        type: 'Informe Técnico',
+                        format: data.format.toUpperCase(),
+                        status: 'completed',
+                        created_at: new Date().toISOString(),
+                        size: '2.1 MB'
+                    };
+                    console.log('✅ Reporte técnico simulado generado:', report);
+                    resolve(report);
+                }, 2000);
+            });
+        } catch (error) {
+            const errorId = `REP_TECH_REPORT_${Date.now()}`;
+            console.error(`❌ Error generando reporte técnico [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                ticketId: data.ticket_id,
+                technicianId: data.technician_id,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            throw error; // Re-throw para que sea manejado por generateReport
         }
-        
-        // Simular generación
-        return new Promise(resolve => {
-            setTimeout(() => {
-                resolve({
-                    id: Date.now(),
-                    name: `Informe Técnico #${ticket.id}`,
-                    type: 'Informe Técnico',
-                    format: data.format.toUpperCase(),
-                    status: 'completed',
-                    created_at: new Date().toISOString(),
-                    size: '2.1 MB'
-                });
-            }, 2000);
-        });
     }
 
     generateTechnicalReportPDF(ticket, technician, data) {
@@ -695,12 +775,32 @@ class ReportsManager {
     }
 
     deleteReport(reportId) {
-        const report = this.reports.find(r => r.id === reportId);
-        if (report && confirm(`¿Está seguro de eliminar "${report.name}"?`)) {
-            this.reports = this.reports.filter(r => r.id !== reportId);
-            this.renderReportsHistory();
-            this.updateStatistics();
-            this.showNotification('Reporte eliminado', 'success');
+        try {
+            console.log(`🗑️ Eliminando reporte ID: ${reportId}`);
+            const report = this.reports.find(r => r.id === reportId);
+
+            if (!report) {
+                throw new Error(`Reporte con ID ${reportId} no encontrado`);
+            }
+
+            if (confirm(`¿Está seguro de eliminar "${report.name}"?`)) {
+                this.reports = this.reports.filter(r => r.id !== reportId);
+                this.renderReportsHistory();
+                this.updateStatistics();
+                this.showNotification('Reporte eliminado exitosamente', 'success');
+                console.log(`✅ Reporte ${reportId} eliminado exitosamente`);
+            }
+        } catch (error) {
+            const errorId = `REP_DELETE_${Date.now()}`;
+            console.error(`❌ Error eliminando reporte ${reportId} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                reportId,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showNotification(`Error al eliminar reporte. Por favor intenta nuevamente. (Ref: ${errorId})`, 'error');
         }
     }
 
@@ -778,6 +878,8 @@ class ReportsManager {
     }
 
     showNotification(message, type) {
+        console.log(`📢 Notificación ${type}:`, message);
+
         const notification = document.createElement('div');
         notification.className = `reports-alert ${type}`;
         notification.innerHTML = `

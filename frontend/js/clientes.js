@@ -18,8 +18,6 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
                 originalFetch.apply(this, args)
                     .then(resolve)
                     .catch(error => {
-                        console.log(`Intento ${attempt + 1} falló:`, error.message);
-                        
                         // Errores específicos de extensiones del navegador
                         const isExtensionError = error.message && (
                             error.message.includes('message channel closed') ||
@@ -28,6 +26,11 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
                             error.message.includes('The message port closed') ||
                             error.message.includes('receiving end does not exist')
                         );
+                        
+                        // Solo log errores de extensiones, no errores HTTP normales
+                        if (isExtensionError) {
+                            console.log(`🔧 Intento ${attempt + 1} falló por extensión:`, error.message);
+                        }
                         
                         if (isExtensionError && attempt < maxRetries) {
                             console.warn(`🔄 Reintentando petición (${attempt + 1}/${maxRetries}) debido a interferencia de extensión`);
@@ -233,6 +236,52 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
 
     console.log('🚀 Iniciando módulo de clientes con API_URL:', API_URL);
 
+    // --- Funciones de Utilidad para Manejo de Errores ---
+    /**
+     * Mostrar error al usuario de manera user-friendly
+     * @param {string} message - Mensaje de error a mostrar
+     * @param {string} context - Contexto del error para logging
+     */
+    function showError(message, context = 'Clientes') {
+        console.error(`❌ ${context}:`, message);
+
+        // Buscar elemento de error o usar notificación genérica
+        const errorElement = document.getElementById('error-display');
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+
+            // Auto-hide después de 5 segundos
+            setTimeout(() => {
+                if (errorElement) errorElement.classList.add('hidden');
+            }, 5000);
+        } else {
+            // Fallback: usar alert o console
+            console.warn('⚠️ Elemento error-display no encontrado, usando alert');
+            alert(message);
+        }
+    }
+
+    /**
+     * Mostrar mensaje de éxito al usuario
+     * @param {string} message - Mensaje de éxito a mostrar
+     */
+    function showSuccess(message) {
+        console.log(`✅ CLIENTES: ${message}`);
+
+        // Buscar elemento de éxito o usar notificación genérica
+        const successElement = document.getElementById('success-display');
+        if (successElement) {
+            successElement.textContent = message;
+            successElement.classList.remove('hidden');
+
+            // Auto-hide después de 3 segundos
+            setTimeout(() => {
+                if (successElement) successElement.classList.add('hidden');
+            }, 3000);
+        }
+    }
+
     // --- Estado de la Aplicación ---
     const state = {
         clients: [],
@@ -258,188 +307,343 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
         },
     };
 
-    // --- Lógica de la API (sin cambios, pero la incluyo por completitud) ---
+    // --- Lógica de la API Mejorada ---
     const api = {
         getClients: async () => {
             try {
-                console.log('📡 Solicitando lista de clientes...');
-                
-                // Crear un timeout para la petición
+                console.log('� Cargando clientes...');
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
-                
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
                 const response = await authenticatedFetch(`${API_URL}/clients`, {
                     signal: controller.signal,
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
+                    headers: { 'Content-Type': 'application/json' }
                 });
-                
+
                 clearTimeout(timeoutId);
-                
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
                 }
-                
+
                 const data = await response.json();
-                console.log('✅ Clientes recibidos:', data);
+                console.log(`✅ Clientes cargados: ${data.data?.length || 0} clientes`);
                 return data;
-                
+
             } catch (error) {
                 if (error.name === 'AbortError') {
                     throw new Error('La petición tardó demasiado tiempo. Verifique su conexión.');
                 }
-                
-                // Manejar errores específicos de extensiones
+
+                // Manejar errores específicos de extensiones del navegador
                 if (error.message && (
                     error.message.includes('message channel closed') ||
                     error.message.includes('Extension context invalidated') ||
                     error.message.includes('Could not establish connection')
                 )) {
                     console.warn('⚠️ Error de extensión del navegador detectado, reintentando...');
-                    // Reintentar una vez más
                     try {
                         const retryResponse = await authenticatedFetch(`${API_URL}/clients`);
                         if (!retryResponse.ok) {
-                            throw new Error(`HTTP ${retryResponse.status}: ${retryResponse.statusText}`);
+                            const errorData = await retryResponse.json().catch(() => ({}));
+                            throw new Error(`HTTP ${retryResponse.status}: ${errorData.error || 'Error desconocido'}`);
                         }
-                        return await retryResponse.json();
+                        const retryData = await retryResponse.json();
+                        console.log('✅ Reintento exitoso, clientes cargados');
+                        return retryData;
                     } catch (retryError) {
-                        throw new Error('Error persistente. Intente desactivar extensiones del navegador.');
+                        const errorId = `CLI_RETRY_${Date.now()}`;
+                        console.error(`❌ Error persistente en reintento [${errorId}]:`, {
+                            error: retryError.message,
+                            stack: retryError.stack,
+                            timestamp: new Date().toISOString(),
+                            user: AuthManager.getCurrentUser()?.username
+                        });
+                        showError(`Error persistente al cargar clientes. Intente desactivar extensiones del navegador. (Ref: ${errorId})`, 'getClients');
+                        throw retryError;
                     }
                 }
-                
-                console.error('Error fetching clients:', error);
+
+                const errorId = `CLI_FETCH_${Date.now()}`;
+                console.error(`❌ Error cargando clientes [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando clientes. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getClients');
                 throw error;
             }
         },
         getClient: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getClient: ID no proporcionado');
+                return null;
+            }
+
             try {
+                console.log(`🔄 Cargando cliente ${id}...`);
                 const response = await authenticatedFetch(`${API_URL}/clients/${id}`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
                 }
-                return await response.json();
+
+                const data = await response.json();
+                console.log(`✅ Cliente ${id} cargado:`, data);
+                return data;
+
             } catch (error) {
-                console.error('Error fetching client:', error);
+                const errorId = `CLI_SINGLE_${Date.now()}`;
+                console.error(`❌ Error cargando cliente ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    clientId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando cliente. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getClient');
                 throw error;
             }
         },
         getClientLocations: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getClientLocations: ID de cliente no proporcionado');
+                return [];
+            }
+
             try {
+                console.log(`🔄 Cargando sedes para cliente ${id}...`);
                 const response = await authenticatedFetch(`${API_URL}/clients/${id}/locations`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
                 }
+
                 const data = await response.json();
-                return data.data || [];
+                const locations = data.data || [];
+                console.log(`✅ Sedes cargadas para cliente ${id}: ${locations.length} sedes`);
+                return locations;
+
             } catch (error) {
-                console.error('Error fetching client locations:', error);
+                const errorId = `CLI_LOC_${Date.now()}`;
+                console.error(`❌ Error cargando sedes para cliente ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    clientId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando sedes del cliente. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getClientLocations');
                 throw error;
             }
         },
         getLocation: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getLocation: ID de sede no proporcionado');
+                return null;
+            }
+
             try {
+                console.log(`🔄 Cargando sede ${id}...`);
                 const response = await authenticatedFetch(`${API_URL}/locations/${id}`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
                 }
-                return await response.json();
+
+                const data = await response.json();
+                console.log(`✅ Sede ${id} cargada:`, data);
+                return data;
+
             } catch (error) {
-                console.error('Error fetching location:', error);
+                const errorId = `LOC_SINGLE_${Date.now()}`;
+                console.error(`❌ Error cargando sede ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    locationId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando sede. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getLocation');
                 throw error;
             }
         },
         getLocationEquipment: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getLocationEquipment: ID de sede no proporcionado');
+                return [];
+            }
+
             try {
-                console.log(`🔍 Obteniendo equipos para ubicación ${id}...`);
+                console.log(`� Cargando equipos para sede ${id}...`);
                 const response = await authenticatedFetch(`${API_URL}/locations/${id}/equipment`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
                 }
+
                 const data = await response.json();
-                console.log(`✅ Equipos recibidos para ubicación ${id}:`, data);
-                // La API devuelve directamente un array, no un objeto con propiedad data
-                return Array.isArray(data) ? data : (data.data || []);
+                const equipment = Array.isArray(data) ? data : (data.data || []);
+                console.log(`✅ Equipos cargados para sede ${id}: ${equipment.length} equipos`);
+                return equipment;
+
             } catch (error) {
-                console.error('Error fetching location equipment:', error);
+                const errorId = `LOC_EQP_${Date.now()}`;
+                console.error(`❌ Error cargando equipos para sede ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    locationId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando equipos de la sede. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getLocationEquipment');
                 throw error;
             }
         },
         getEquipment: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getEquipment: ID de equipo no proporcionado');
+                return null;
+            }
+
             try {
+                console.log(`🔄 Cargando equipo ${id}...`);
                 const response = await authenticatedFetch(`${API_URL}/equipment/${id}`);
+
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
                 }
-                return await response.json();
+
+                const data = await response.json();
+                console.log(`✅ Equipo ${id} cargado:`, data);
+                return data;
+
             } catch (error) {
-                console.error('Error fetching equipment:', error);
+                const errorId = `EQP_SINGLE_${Date.now()}`;
+                console.error(`❌ Error cargando equipo ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    equipmentId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getEquipment');
                 throw error;
             }
         },
         save: async (resource, data) => {
+            if (!resource || !data) {
+                console.warn('⚠️ save: Parámetros resource o data no proporcionados');
+                throw new Error('Parámetros inválidos para guardar');
+            }
+
             try {
                 const id = data.get('id');
                 const url = id ? `${API_URL}/${resource}/${id}` : `${API_URL}/${resource}`;
                 const method = id ? 'PUT' : 'POST';
                 const requestBody = Object.fromEntries(data);
-                
-                console.log(`📡 ${method} ${url}`);
+                const operation = id ? 'actualizar' : 'crear';
+
+                console.log(`� ${operation === 'crear' ? 'Creando' : 'Actualizando'} ${resource}...`);
                 console.log('📤 Request body:', requestBody);
-                
+
                 const response = await authenticatedFetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(requestBody),
                 });
-                
+
                 if (!response.ok) {
-                    // Intentar obtener el mensaje de error del backend
-                    let errorMessage = `Error al guardar ${resource}: ${response.status} ${response.statusText}`;
-                    try {
-                        const errorData = await response.json();
-                        if (errorData.error) {
-                            errorMessage = errorData.error;
-                            if (errorData.details) {
-                                errorMessage += `\n\nDetalles: ${errorData.details}`;
-                            }
-                        }
-                    } catch (jsonError) {
-                        // Si no se puede parsear JSON, usar mensaje genérico
+                    const errorData = await response.json().catch(() => ({}));
+                    let errorMessage = errorData.error || `HTTP ${response.status}: ${response.statusText}`;
+
+                    if (errorData.details) {
+                        errorMessage += `\n\nDetalles: ${errorData.details}`;
                     }
+
                     throw new Error(errorMessage);
                 }
-                
+
                 // Intentar parsear JSON, pero no fallar si no hay contenido
+                let result = {};
                 try {
-                    const result = await response.json();
-                    console.log('📥 Response:', result);
-                    return result;
+                    result = await response.json();
+                    console.log(`✅ ${resource} ${operation === 'crear' ? 'creado' : 'actualizado'} exitosamente:`, result);
                 } catch (jsonError) {
                     console.log('⚠️ No JSON response, returning empty object');
-                    return {};
                 }
+
+                return result;
+
             } catch (error) {
-                console.error('Error saving:', error);
+                const errorId = `SAVE_${resource.toUpperCase()}_${Date.now()}`;
+                console.error(`❌ Error ${id ? 'actualizando' : 'creando'} ${resource} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    resource,
+                    hasId: !!id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error al ${id ? 'actualizar' : 'crear'} ${resource}. Por favor intenta nuevamente. (Ref: ${errorId})`, 'save');
                 throw error;
             }
         },
         delete: async (resource, id) => {
+            if (!resource || !id) {
+                console.warn('⚠️ delete: Parámetros resource o id no proporcionados');
+                throw new Error('Parámetros inválidos para eliminar');
+            }
+
             try {
-                const response = await authenticatedFetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+                console.log(`🔄 Eliminando ${resource} ${id}...`);
+                const response = await authenticatedFetch(`${API_URL}/${resource}/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
                 if (!response.ok) {
-                    throw new Error(`Error al eliminar ${resource}: ${response.status} ${response.statusText}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al eliminar'}`);
                 }
-                
+
                 // Intentar parsear JSON, pero no fallar si no hay contenido
+                let result = {};
                 try {
-                    return await response.json();
+                    result = await response.json();
+                    console.log(`✅ ${resource} ${id} eliminado exitosamente:`, result);
                 } catch (jsonError) {
-                    return {};
+                    console.log('⚠️ No JSON response en eliminación, returning empty object');
                 }
+
+                return result;
+
             } catch (error) {
-                console.error('Error deleting:', error);
+                const errorId = `DELETE_${resource.toUpperCase()}_${Date.now()}`;
+                console.error(`❌ Error eliminando ${resource} ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    resource,
+                    resourceId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error al eliminar ${resource}. Por favor intenta nuevamente. (Ref: ${errorId})`, 'delete');
                 throw error;
             }
         }
@@ -1286,53 +1490,50 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
 
     // --- Función para eliminar cliente ---
     async function handleDeleteClient(clientId, clientName) {
+        if (!clientId || !clientName) {
+            console.warn('⚠️ handleDeleteClient: Parámetros clientId o clientName no proporcionados');
+            showError('Parámetros inválidos para eliminar cliente', 'handleDeleteClient');
+            return;
+        }
+
         // Guardar referencia al botón antes de hacer cambios
         const deleteButton = document.querySelector('.delete-client-btn');
         const originalText = deleteButton ? deleteButton.innerHTML : '<i data-lucide="trash-2" class="w-4 h-4"></i>';
-        
+
         try {
             console.log(`🗑️ Iniciando eliminación del cliente ID: ${clientId}, Nombre: ${clientName}`);
-            
+
             // Mostrar indicador de carga
             if (deleteButton) {
                 deleteButton.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Eliminando...';
                 deleteButton.disabled = true;
             }
-            
-            // Llamar al API para eliminar el cliente (API_URL ya incluye /api)
+
+            // Llamar al API para eliminar el cliente
             const response = await authenticatedFetch(`${API_URL}/clients/${clientId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
+                headers: { 'Content-Type': 'application/json' }
             });
-            
+
             if (!response.ok) {
-                // Intentar parsear como JSON solo si es posible
-                let errorData;
-                try {
-                    errorData = await response.json();
-                } catch (parseError) {
-                    // Si no es JSON, usar el status como error
-                    errorData = { error: `HTTP ${response.status} - ${response.statusText}` };
-                }
-                throw new Error(errorData.error || `HTTP ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al eliminar cliente'}`);
             }
-            
+
             const result = await response.json();
             console.log('✅ Cliente eliminado exitosamente:', result);
-            
+
             // Actualizar el estado eliminando el cliente del array
             state.clients = state.clients.filter(client => client.id !== parseInt(clientId));
             console.log('🔄 Estado actualizado, clientes restantes:', state.clients.length);
-            
+
             // Mostrar mensaje de éxito
-            alert(`✅ Cliente "${clientName}" y todos sus datos han sido eliminados exitosamente.`);
-            
+            showSuccess(`Cliente "${clientName}" y todos sus datos han sido eliminados exitosamente.`);
+
             // Recargar la lista de clientes con el estado actualizado
             render.clientList();
-            
-            // Limpiar el detalle del cliente (verificar que el elemento exista)
+
+            // Limpiar el detalle del cliente
             if (dom.detailContainer) {
                 dom.detailContainer.innerHTML = `
                     <div class="clients-empty-state">
@@ -1347,30 +1548,35 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
                         </button>
                     </div>
                 `;
-                
+
                 // Reinicializar iconos
                 lucide.createIcons();
             } else {
                 console.warn('⚠️ Contenedor de detalles de cliente no encontrado');
             }
-            
+
             // Limpiar estado
             state.currentClient = null;
-            
+
         } catch (error) {
-            console.error('❌ Error al eliminar cliente:', error);
-            console.error('❌ Error stack:', error.stack);
-            console.error('❌ Error tipo:', typeof error);
-            console.error('❌ Error mensaje:', error.message);
-            
+            const errorId = `CLI_DELETE_${Date.now()}`;
+            console.error(`❌ Error eliminando cliente ${clientId} [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                clientId,
+                clientName,
+                user: AuthManager.getCurrentUser()?.username
+            });
+
             // Restaurar botón si existe
             if (deleteButton) {
                 deleteButton.innerHTML = originalText;
                 deleteButton.disabled = false;
             }
-            
+
             // Mostrar error específico
-            let errorMessage = error.message || 'Error desconocido';
+            let errorMessage = error.message;
             if (error.message && error.message.includes('Failed to fetch')) {
                 errorMessage = 'No se puede conectar con el servidor. Verifique la conexión.';
             } else if (error.message && error.message.includes('500')) {
@@ -1378,8 +1584,8 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
             } else if (error.message && error.message.includes('404')) {
                 errorMessage = 'Cliente no encontrado en el sistema.';
             }
-            
-            alert(`❌ Error al eliminar cliente: ${errorMessage}`);
+
+            showError(`Error al eliminar cliente: ${errorMessage} (Ref: ${errorId})`, 'handleDeleteClient');
         }
     }
     

@@ -1,0 +1,200 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\playwright.config.js",
+    "rootDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": "C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\utils\\global-setup.js",
+    "globalTeardown": "C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\utils\\global-teardown.js",
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {},
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        {
+          "outputFolder": "reports/html-report"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "reports/test-results.json"
+        }
+      ],
+      [
+        "junit",
+        {
+          "outputFile": "reports/test-results.xml"
+        }
+      ],
+      [
+        "line",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+        "testIgnore": [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/test-results/**",
+          "**/reports/**"
+        ],
+        "testMatch": [
+          "**/*.spec.js",
+          "**/*.test.js",
+          "**/*.e2e.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "firefox",
+        "name": "firefox",
+        "testDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+        "testIgnore": [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/test-results/**",
+          "**/reports/**"
+        ],
+        "testMatch": [
+          "**/*.spec.js",
+          "**/*.test.js",
+          "**/*.e2e.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "webkit",
+        "name": "webkit",
+        "testDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+        "testIgnore": [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/test-results/**",
+          "**/reports/**"
+        ],
+        "testMatch": [
+          "**/*.spec.js",
+          "**/*.test.js",
+          "**/*.e2e.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Mobile Chrome",
+        "name": "Mobile Chrome",
+        "testDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+        "testIgnore": [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/test-results/**",
+          "**/reports/**"
+        ],
+        "testMatch": [
+          "**/*.spec.js",
+          "**/*.test.js",
+          "**/*.e2e.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Mobile Safari",
+        "name": "Mobile Safari",
+        "testDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+        "testIgnore": [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/test-results/**",
+          "**/reports/**"
+        ],
+        "testMatch": [
+          "**/*.spec.js",
+          "**/*.test.js",
+          "**/*.e2e.js"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {},
+        "id": "Tablet",
+        "name": "Tablet",
+        "testDir": "C:/Users/felip/OneDrive/Desktop/desa/g/gymtecprueba1/e2e-tests/tests",
+        "testIgnore": [
+          "**/.git/**",
+          "**/node_modules/**",
+          "**/test-results/**",
+          "**/reports/**"
+        ],
+        "testMatch": [
+          "**/*.spec.js",
+          "**/*.test.js",
+          "**/*.e2e.js"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 8,
+    "webServer": null
+  },
+  "suites": [],
+  "errors": [
+    {
+      "message": "Error: This command is not supported in the prepared statement protocol yet",
+      "stack": "Error: This command is not supported in the prepared statement protocol yet\n    at PromiseConnection.execute (C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\node_modules\\mysql2\\lib\\promise\\connection.js:47:22)\n    at createTestDatabase (C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\utils\\global-setup.js:53:20)\n    at globalSetup (C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\utils\\global-setup.js:33:7)",
+      "location": {
+        "file": "C:\\Users\\felip\\OneDrive\\Desktop\\desa\\g\\gymtecprueba1\\e2e-tests\\utils\\global-setup.js",
+        "column": 20,
+        "line": 53
+      },
+      "snippet": "\u001b[90m   at \u001b[39m..\\utils\\global-setup.js:53\n\n\u001b[0m \u001b[90m 51 |\u001b[39m   \n \u001b[90m 52 |\u001b[39m   \u001b[90m// Usar la nueva base de datos\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 53 |\u001b[39m   \u001b[36mawait\u001b[39m connection\u001b[33m.\u001b[39mexecute(\u001b[32m'USE gymtec_erp_test'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                    \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 54 |\u001b[39m   \n \u001b[90m 55 |\u001b[39m   \u001b[90m// Crear tablas básicas para testing\u001b[39m\n \u001b[90m 56 |\u001b[39m   \u001b[36mawait\u001b[39m createTestTables(connection)\u001b[33m;\u001b[39m\u001b[0m"
+    }
+  ],
+  "stats": {
+    "startTime": "2025-09-11T02:15:01.343Z",
+    "duration": 153.10699999999997,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  }
+}

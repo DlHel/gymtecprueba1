@@ -20,8 +20,15 @@ class DashboardManager {
             this.setupEventListeners();
             console.log('✅ Dashboard inicializado correctamente');
         } catch (error) {
-            console.error('❌ Error inicializando dashboard:', error);
-            this.showError('Error al cargar el dashboard');
+            const errorId = `DASH_INIT_${Date.now()}`;
+            console.error(`❌ Error inicializando dashboard [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error al cargar el dashboard. Por favor recarga la página. (Ref: ${errorId})`, 'init');
         }
     }
 
@@ -29,17 +36,35 @@ class DashboardManager {
         console.log('📊 Cargando KPIs...');
         try {
             const response = await authenticatedFetch(`${API_URL}/dashboard/kpis`);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const data = await response.json();
-            
+
             if (data.message === 'success') {
                 this.kpis = data.data;
                 this.renderKPIs();
+                console.log('✅ KPIs cargados exitosamente:', {
+                    totalClients: this.kpis.total_clients,
+                    totalEquipment: this.kpis.total_equipment,
+                    activeTickets: this.kpis.active_tickets
+                });
             } else {
                 throw new Error('Error obteniendo KPIs');
             }
         } catch (error) {
-            console.error('❌ Error cargando KPIs:', error);
-            this.showError('Error al cargar las estadísticas');
+            const errorId = `DASH_LOAD_KPIS_${Date.now()}`;
+            console.error(`❌ Error cargando KPIs [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error al cargar las estadísticas. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadKPIs');
         }
     }
 
@@ -215,16 +240,32 @@ class DashboardManager {
         console.log('📋 Cargando actividad reciente...');
         try {
             const response = await authenticatedFetch(`${API_URL}/dashboard/activity?limit=10`);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const data = await response.json();
-            
+
             if (data.message === 'success') {
                 this.renderRecentActivity(data.data);
+                console.log('✅ Actividad reciente cargada exitosamente:', {
+                    activitiesCount: data.data?.length || 0
+                });
             } else {
                 throw new Error('Error obteniendo actividad');
             }
         } catch (error) {
-            console.error('❌ Error cargando actividad:', error);
-            this.showError('Error al cargar la actividad reciente');
+            const errorId = `DASH_LOAD_ACTIVITY_${Date.now()}`;
+            console.error(`❌ Error cargando actividad reciente [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error al cargar la actividad reciente. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadRecentActivity');
         }
     }
 
@@ -315,7 +356,9 @@ class DashboardManager {
         });
     }
 
-    showError(message) {
+    showError(message, context = '') {
+        console.error(`❌ UI Error${context ? ` (${context})` : ''}:`, message);
+
         const errorContainer = document.getElementById('error-container');
         if (errorContainer) {
             errorContainer.innerHTML = `
@@ -324,6 +367,18 @@ class DashboardManager {
                     <span>${message}</span>
                 </div>
             `;
+
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (errorContainer) {
+                    errorContainer.innerHTML = '';
+                }
+            }, 5000);
+        }
+
+        // Re-render icons after adding content
+        if (window.lucide) {
+            window.lucide.createIcons();
         }
     }
 

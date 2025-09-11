@@ -1,0 +1,27 @@
+{
+  "name": "gymtec-unit-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for GymTec ERP frontend modules",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:clientes": "jest clientes.test.js"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "@jest/globals": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFilesAfterEnv": ["<rootDir>/setup.js"],
+    "modulePathIgnorePatterns": ["<rootDir>/../node_modules/"],
+    "collectCoverageFrom": [
+      "../frontend/js/**/*.js",
+      "!../frontend/js/vendor/**"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "html"]
+  }
+}

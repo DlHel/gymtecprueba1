@@ -38,6 +38,44 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, '../../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// ===================================================================
+// ENDPOINT DE PRUEBA PARA DIAGNOSTICAR RUTAS (TEMPRANO)
+// ===================================================================
+
+app.get('/api/test-early', (req, res) => {
+    console.log('🔍 Endpoint /api/test-early called');
+    res.json({
+        message: 'Server is working! (Early endpoint)',
+        timestamp: new Date().toISOString(),
+        loadedRoutes: [
+            'GET /api/test-early',
+            'Static files configured',
+            'CORS enabled',
+            'JSON middleware enabled'
+        ]
+    });
+});
+
+// Endpoint de diagnóstico adicional
+app.get('/api/diag', (req, res) => {
+    console.log('🔍 Endpoint /api/diag called');
+    res.json({
+        message: 'Diagnostic endpoint working!',
+        timestamp: new Date().toISOString(),
+        server: 'Express',
+        port: PORT
+    });
+});
+
+// Endpoint de prueba sin /api
+app.get('/test', (req, res) => {
+    console.log('🔍 Endpoint /test called');
+    res.json({
+        message: 'Test endpoint without /api working!',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Configuración de multer para subida de archivos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -88,10 +126,16 @@ const uploadManuals = multer({
 
 // Verificar token JWT
 function authenticateToken(req, res, next) {
+    console.log('🔍 authenticateToken - Endpoint:', req.method, req.path);
+    
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    console.log('🔑 Authorization header:', authHeader ? 'Present' : 'Missing');
+    console.log('🎫 Token extracted:', token ? 'Present' : 'Missing');
+
     if (!token) {
+        console.log('❌ No token provided');
         return res.status(401).json({
             error: 'Token de acceso requerido',
             code: 'MISSING_TOKEN'
@@ -100,12 +144,14 @@ function authenticateToken(req, res, next) {
 
     jwt.verify(token, AuthService.JWT_SECRET, (err, user) => {
         if (err) {
-            console.log('❌ Token inválido:', err.message);
+            console.log('❌ Token verification failed:', err.message);
+            console.log('🔍 JWT_SECRET being used:', AuthService.JWT_SECRET ? 'Present' : 'Missing');
             return res.status(403).json({
                 error: 'Token inválido o expirado',
                 code: 'INVALID_TOKEN'
             });
         }
+        console.log('✅ Token valid - User:', user.username, 'Role:', user.role);
         req.user = user;
         next();
     });
@@ -627,6 +673,61 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
     });
 });
 
+// GET all equipment (for equipment selector)
+app.get('/api/equipment', authenticateToken, (req, res) => {
+    console.log('🔍 Getting all equipment...');
+    
+    const sql = `
+        SELECT 
+            e.id,
+            e.custom_id,
+            e.location_id,
+            e.model_id,
+            e.acquisition_date,
+            e.last_maintenance_date,
+            e.notes,
+            e.created_at,
+            e.updated_at,
+            -- Mapear campos correctamente para el frontend
+            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre') as name,
+            CASE 
+                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
+                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
+                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
+                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+            END as type,
+            COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
+            COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
+            COALESCE(NULLIF(e.serial_number, ''), 'No asignado') as serial_number,
+            -- Campos adicionales y referencias
+            em.name as model_name,
+            em.brand as model_brand,
+            l.name as location_name,
+            c.name as client_name,
+            c.id as client_id
+        FROM equipment e
+        LEFT JOIN equipmentmodels em ON e.model_id = em.id
+        LEFT JOIN locations l ON e.location_id = l.id
+        LEFT JOIN clients c ON l.client_id = c.id
+        ORDER BY c.name, l.name, e.name
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching all equipment:', err);
+            res.status(500).json({ 
+                error: 'Error al obtener equipos', 
+                code: 'DB_ERROR' 
+            });
+            return;
+        }
+        
+        console.log(`✅ All equipment retrieved:`, rows.length, 'items');
+        res.json(rows);
+    });
+});
+
 // GET individual equipment by ID
 app.get('/api/equipment/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
@@ -699,9 +800,9 @@ try {
     const checklistRoutes = require('./routes/checklist');
     const workflowRoutes = require('./routes/workflow');
     
-    app.use('/api', contractsSlaRoutes);
-    app.use('/api', checklistRoutes);
-    app.use('/api', workflowRoutes);
+    app.use('/api/contracts', contractsSlaRoutes);
+    app.use('/api/checklist', checklistRoutes);
+    app.use('/api/workflow', workflowRoutes);
     
     console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow');
 } catch (error) {
@@ -2673,14 +2774,69 @@ app.get('/api/expenses/stats', authenticateToken, (req, res) => {
         });
 });
 
-app.use('*', (req, res) => {
-    res.status(404).json({
-        error: 'Endpoint no encontrado',
-        path: req.originalUrl,
-        method: req.method,
-        timestamp: new Date().toISOString()
+// ===================================================================
+// ENDPOINT DE PRUEBA PARA DIAGNOSTICAR RUTAS
+// ===================================================================
+
+app.get('/api/test', (req, res) => {
+    res.json({
+        message: 'Server is working!',
+        timestamp: new Date().toISOString(),
+        routes: [
+            'GET /api/test',
+            'GET /api/users/test',
+            'GET /api/inventory',
+            'GET /api/purchase-orders'
+        ]
     });
 });
+
+// USERS MANAGEMENT - Sistema de Gestión de Usuarios
+try {
+    const usersRoutes = require('./routes/users');
+
+    app.use('/api/users', usersRoutes);
+
+    console.log('✅ Users Routes loaded: Sistema de Gestión de Usuarios');
+} catch (error) {
+    console.warn('⚠️  Warning: Users routes could not be loaded:', error.message);
+}
+
+// PURCHASE ORDERS MANAGEMENT - Sistema de Órdenes de Compra
+try {
+    const purchaseOrdersRoutes = require('./routes/purchase-orders');
+
+    app.use('/api/purchase-orders', purchaseOrdersRoutes);
+
+    console.log('✅ Purchase Orders Routes loaded: Sistema de Órdenes de Compra');
+} catch (error) {
+    console.warn('⚠️  Warning: Purchase Orders routes could not be loaded:', error.message);
+}
+
+// ===================================================================
+// ENDPOINT DE PRUEBA DIRECTO EN SERVER
+// ===================================================================
+
+app.get('/api/simple-test', (req, res) => {
+    res.json({
+        message: 'Simple test endpoint working!',
+        timestamp: new Date().toISOString(),
+        route: '/api/simple-test',
+        status: 'OK'
+    });
+});
+
+app.get('/api/test-users', (req, res) => {
+    res.json({
+        message: 'Test endpoint working!',
+        timestamp: new Date().toISOString(),
+        route: '/api/test-users'
+    });
+});
+
+// ===================================================================
+// MIDDLEWARE DE MANEJO DE ERRORES
+// ===================================================================
 
 app.use((err, req, res, next) => {
     console.error('💥 Error no manejado:', err);
@@ -2709,6 +2865,19 @@ app.use((err, req, res, next) => {
     res.status(500).json({
         error: 'Error interno del servidor',
         message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===================================================================
+// MIDDLEWARE CATCH-ALL PARA RUTAS NO ENCONTRADAS (AL FINAL)
+// ===================================================================
+
+app.use('*', (req, res) => {
+    res.status(404).json({
+        error: 'Endpoint no encontrado',
+        path: req.originalUrl,
+        method: req.method,
         timestamp: new Date().toISOString()
     });
 });

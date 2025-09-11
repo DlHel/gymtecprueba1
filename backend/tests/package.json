@@ -1,0 +1,46 @@
+{
+  "name": "gymtec-erp-backend-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for Gymtec ERP Backend with Jest",
+  "scripts": {
+    "test": "jest core-functions.test.js integration.test.js",
+    "test:all": "jest",
+    "test:watch": "jest --watch core-functions.test.js integration.test.js",
+    "test:coverage": "jest --coverage core-functions.test.js integration.test.js",
+    "test:verbose": "jest --verbose core-functions.test.js integration.test.js",
+    "test:core": "jest core-functions.test.js",
+    "test:integration": "jest integration.test.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/server.js",
+      "!src/config/**",
+      "!**/node_modules/**"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
+    ],
+    "coverageDirectory": "coverage",
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "setupFilesAfterEnv": [
+      "<rootDir>/setup.js"
+    ],
+    "verbose": true,
+    "clearMocks": true,
+    "restoreMocks": true
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

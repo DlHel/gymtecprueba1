@@ -75,6 +75,10 @@
                                     <i data-lucide="activity" class="h-4 w-4"></i>
                                     Movimientos
                                 </button>
+                                <button id="tab-inteligente" class="tab-button" data-tab="inteligente">
+                                    <i data-lucide="brain" class="h-4 w-4"></i>
+                                    Inventario Inteligente
+                                </button>
                             </nav>
                         </div>
                     </div>
@@ -185,6 +189,161 @@
                                     <div class="text-center py-8">
                                         <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
                                         <p class="text-gray-500">Cargando movimientos...</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Pestaña Inventario Inteligente -->
+                        <div id="content-inteligente" class="tab-content">
+                            <div class="p-6">
+                                <!-- Dashboard Overview -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                    <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <p class="text-gray-600 text-sm font-medium">Total Inventario</p>
+                                                <p class="text-3xl font-bold text-gray-900" id="inteligente-total-items">-</p>
+                                            </div>
+                                            <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                                                <span class="text-blue-600 text-xl">📦</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <p class="text-gray-600 text-sm font-medium">Stock Bajo</p>
+                                                <p class="text-3xl font-bold text-red-600" id="inteligente-low-stock">-</p>
+                                            </div>
+                                            <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                                <span class="text-red-600 text-xl">⚠️</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <p class="text-gray-600 text-sm font-medium">Categorías</p>
+                                                <p class="text-3xl font-bold text-green-600" id="inteligente-total-categories">-</p>
+                                            </div>
+                                            <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                                <span class="text-green-600 text-xl">🏷️</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-200">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <p class="text-gray-600 text-sm font-medium">Proveedores</p>
+                                                <p class="text-3xl font-bold text-purple-600" id="inteligente-total-suppliers">-</p>
+                                            </div>
+                                            <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                                                <span class="text-purple-600 text-xl">🏢</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Sub-pestañas para Inventario Inteligente -->
+                                <div class="mb-6">
+                                    <div class="border-b border-gray-200">
+                                        <nav class="flex space-x-8">
+                                            <button id="subtab-inventory" class="subtab-button active" data-subtab="inventory">
+                                                <i data-lucide="package" class="h-4 w-4"></i>
+                                                Productos
+                                            </button>
+                                            <button id="subtab-categories" class="subtab-button" data-subtab="categories">
+                                                <i data-lucide="tag" class="h-4 w-4"></i>
+                                                Categorías
+                                            </button>
+                                            <button id="subtab-suppliers" class="subtab-button" data-subtab="suppliers">
+                                                <i data-lucide="building" class="h-4 w-4"></i>
+                                                Proveedores
+                                            </button>
+                                            <button id="subtab-analytics" class="subtab-button" data-subtab="analytics">
+                                                <i data-lucide="bar-chart" class="h-4 w-4"></i>
+                                                Análisis
+                                            </button>
+                                        </nav>
+                                    </div>
+                                </div>
+
+                                <!-- Contenido de sub-pestañas -->
+                                <div id="subcontent-inventory" class="subtab-content active">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-800">Productos del Inventario</h3>
+                                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                                            <i data-lucide="plus" class="h-4 w-4"></i>
+                                            Nuevo Producto
+                                        </button>
+                                    </div>
+                                    <div id="inteligente-inventory-container">
+                                        <div class="text-center py-8">
+                                            <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                            <p class="text-gray-500">Cargando productos...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="subcontent-categories" class="subtab-content">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-800">Categorías de Productos</h3>
+                                        <button class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2">
+                                            <i data-lucide="plus" class="h-4 w-4"></i>
+                                            Nueva Categoría
+                                        </button>
+                                    </div>
+                                    <div id="inteligente-categories-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        <div class="text-center py-8 col-span-full">
+                                            <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                            <p class="text-gray-500">Cargando categorías...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="subcontent-suppliers" class="subtab-content">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-800">Proveedores</h3>
+                                        <button class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
+                                            <i data-lucide="plus" class="h-4 w-4"></i>
+                                            Nuevo Proveedor
+                                        </button>
+                                    </div>
+                                    <div id="inteligente-suppliers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        <div class="text-center py-8 col-span-full">
+                                            <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                            <p class="text-gray-500">Cargando proveedores...</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="subcontent-analytics" class="subtab-content">
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                        <!-- Movimientos Recientes -->
+                                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Movimientos Recientes</h3>
+                                            <div id="inteligente-recent-movements">
+                                                <div class="text-center py-8">
+                                                    <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                                    <p class="text-gray-500">Cargando movimientos...</p>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Alertas de Stock -->
+                                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                            <h3 class="text-lg font-semibold text-gray-800 mb-4">Alertas de Stock</h3>
+                                            <div id="inteligente-stock-alerts">
+                                                <div class="text-center py-8">
+                                                    <div class="animate-spin w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4"></div>
+                                                    <p class="text-gray-500">Cargando alertas...</p>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -366,6 +525,8 @@
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/base-modal.js"></script>
     <script src="js/nav-loader.js"></script>
     <script src="js/inventario.js"></script>
 </body>

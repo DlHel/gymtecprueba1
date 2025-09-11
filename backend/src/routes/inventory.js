@@ -591,4 +591,74 @@ router.get('/spare-parts', (req, res) => {
     });
 });
 
+/**
+ * @route GET /api/inventory/technicians
+ * @desc Obtener inventario asignado a técnicos
+ */
+router.get('/technicians', async (req, res) => {
+    try {
+        console.log('🔧 Obteniendo inventario de técnicos...');
+
+        // Obtener técnicos con su inventario asignado
+        const sql = `
+            SELECT
+                u.id as technician_id,
+                u.username,
+                u.first_name,
+                u.last_name,
+                COUNT(DISTINCT ti.inventory_item_id) as assigned_items,
+                SUM(ti.quantity) as total_quantity,
+                GROUP_CONCAT(DISTINCT i.item_name) as item_names
+            FROM Users u
+            LEFT JOIN TechnicianInventory ti ON u.id = ti.technician_id
+            LEFT JOIN Inventory i ON ti.inventory_item_id = i.id
+            WHERE u.role = 'technician' AND u.status = 'active'
+            GROUP BY u.id, u.username, u.first_name, u.last_name
+            ORDER BY u.first_name ASC, u.last_name ASC
+        `;
+
+        const technicians = await db.all(sql);
+
+        // Para cada técnico, obtener detalles de sus items asignados
+        if (technicians && technicians.length > 0) {
+            for (const tech of technicians) {
+                const itemsSql = `
+                    SELECT
+                        ti.*,
+                        i.item_name,
+                        i.item_code,
+                        i.unit_of_measure,
+                        i.current_stock,
+                        i.minimum_stock
+                    FROM TechnicianInventory ti
+                    JOIN Inventory i ON ti.inventory_item_id = i.id
+                    WHERE ti.technician_id = ?
+                    ORDER BY i.item_name ASC
+                `;
+
+                const items = await db.all(itemsSql, [tech.technician_id]);
+                tech.assigned_items_detail = items || [];
+            }
+        }
+
+        console.log(`✅ Inventario de ${technicians ? technicians.length : 0} técnicos obtenido`);
+
+        res.json({
+            message: 'success',
+            data: technicians || [],
+            summary: {
+                total_technicians: technicians ? technicians.length : 0,
+                technicians_with_inventory: technicians ? technicians.filter(t => t.assigned_items > 0).length : 0
+            }
+        });
+
+    } catch (error) {
+        console.error('❌ Error obteniendo inventario de técnicos:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
 module.exports = router;
