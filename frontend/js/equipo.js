@@ -12,6 +12,52 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
     const pageTitle = document.getElementById('page-title');
     const backButton = document.querySelector('header a');
 
+    // --- Funciones de Utilidad para Manejo de Errores ---
+    /**
+     * Mostrar error al usuario de manera user-friendly
+     * @param {string} message - Mensaje de error a mostrar
+     * @param {string} context - Contexto del error para logging
+     */
+    function showError(message, context = 'Equipo') {
+        console.error(`❌ ${context}:`, message);
+
+        // Buscar elemento de error o usar notificación genérica
+        const errorElement = document.getElementById('error-display');
+        if (errorElement) {
+            errorElement.textContent = message;
+            errorElement.classList.remove('hidden');
+
+            // Auto-hide después de 5 segundos
+            setTimeout(() => {
+                if (errorElement) errorElement.classList.add('hidden');
+            }, 5000);
+        } else {
+            // Fallback: usar alert o console
+            console.warn('⚠️ Elemento error-display no encontrado, usando alert');
+            alert(message);
+        }
+    }
+
+    /**
+     * Mostrar mensaje de éxito al usuario
+     * @param {string} message - Mensaje de éxito a mostrar
+     */
+    function showSuccess(message) {
+        console.log(`✅ EQUIPO: ${message}`);
+
+        // Buscar elemento de éxito o usar notificación genérica
+        const successElement = document.getElementById('success-display');
+        if (successElement) {
+            successElement.textContent = message;
+            successElement.classList.remove('hidden');
+
+            // Auto-hide después de 3 segundos
+            setTimeout(() => {
+                if (successElement) successElement.classList.add('hidden');
+            }, 3000);
+        }
+    }
+
     const state = {
         equipment: null,
         tickets: [],
@@ -19,28 +65,292 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
     };
 
     const api = {
-        getEquipment: id => authenticatedFetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
-        getEquipmentTickets: id => authenticatedFetch(`${API_URL}/equipment/${id}/tickets`).then(res => res.json()),
-        getEquipmentNotes: id => authenticatedFetch(`${API_URL}/equipment/${id}/notes`).then(res => res.json()),
-        addEquipmentNote: (id, note) => authenticatedFetch(`${API_URL}/equipment/${id}/notes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(note)
-        }).then(res => res.json()),
-        deleteEquipmentNote: (noteId) => authenticatedFetch(`${API_URL}/equipment/notes/${noteId}`, {
-            method: 'DELETE'
-        }).then(res => res.json())
+        getEquipment: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getEquipment: ID no proporcionado');
+                throw new Error('ID de equipo requerido');
+            }
+
+            try {
+                console.log(`🔄 Cargando equipo ${id}...`);
+                const response = await authenticatedFetch(`${API_URL}/equipment/${id}`);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                console.log(`✅ Equipo ${id} cargado:`, data);
+                return data;
+
+            } catch (error) {
+                const errorId = `EQP_DETAIL_${Date.now()}`;
+                console.error(`❌ Error cargando equipo ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    equipmentId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getEquipment');
+                throw error;
+            }
+        },
+
+        getEquipmentTickets: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getEquipmentTickets: ID no proporcionado');
+                return [];
+            }
+
+            try {
+                console.log(`🔄 Cargando tickets para equipo ${id}...`);
+                const response = await authenticatedFetch(`${API_URL}/equipment/${id}/tickets`);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                const tickets = data.data || [];
+                console.log(`✅ Tickets cargados para equipo ${id}: ${tickets.length} tickets`);
+                return tickets;
+
+            } catch (error) {
+                const errorId = `EQP_TICKETS_${Date.now()}`;
+                console.error(`❌ Error cargando tickets para equipo ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    equipmentId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando tickets del equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getEquipmentTickets');
+                throw error;
+            }
+        },
+
+        getEquipmentNotes: async (id) => {
+            if (!id) {
+                console.warn('⚠️ getEquipmentNotes: ID no proporcionado');
+                return [];
+            }
+
+            try {
+                console.log(`🔄 Cargando notas para equipo ${id}...`);
+                const response = await authenticatedFetch(`${API_URL}/equipment/${id}/notes`);
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                const notes = data.data || [];
+                console.log(`✅ Notas cargadas para equipo ${id}: ${notes.length} notas`);
+                return notes;
+
+            } catch (error) {
+                const errorId = `EQP_NOTES_${Date.now()}`;
+                console.error(`❌ Error cargando notas para equipo ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    equipmentId: id,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error cargando notas del equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'getEquipmentNotes');
+                throw error;
+            }
+        },
+
+        addEquipmentNote: async (id, note) => {
+            if (!id || !note) {
+                console.warn('⚠️ addEquipmentNote: Parámetros id o note no proporcionados');
+                throw new Error('ID de equipo y contenido de nota requeridos');
+            }
+
+            try {
+                console.log(`🔄 Agregando nota a equipo ${id}...`);
+                const response = await authenticatedFetch(`${API_URL}/equipment/${id}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(note)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                console.log(`✅ Nota agregada a equipo ${id}:`, data);
+                return data;
+
+            } catch (error) {
+                const errorId = `EQP_ADD_NOTE_${Date.now()}`;
+                console.error(`❌ Error agregando nota a equipo ${id} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    equipmentId: id,
+                    note,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error agregando nota al equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'addEquipmentNote');
+                throw error;
+            }
+        },
+
+        deleteEquipmentNote: async (noteId) => {
+            if (!noteId) {
+                console.warn('⚠️ deleteEquipmentNote: noteId no proporcionado');
+                throw new Error('ID de nota requerido');
+            }
+
+            try {
+                console.log(`🔄 Eliminando nota ${noteId}...`);
+                const response = await authenticatedFetch(`${API_URL}/equipment/notes/${noteId}`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                console.log(`✅ Nota ${noteId} eliminada:`, data);
+                return data;
+
+            } catch (error) {
+                const errorId = `EQP_DEL_NOTE_${Date.now()}`;
+                console.error(`❌ Error eliminando nota ${noteId} [${errorId}]:`, {
+                    error: error.message,
+                    stack: error.stack,
+                    timestamp: new Date().toISOString(),
+                    noteId,
+                    user: AuthManager.getCurrentUser()?.username
+                });
+
+                showError(`Error eliminando nota del equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'deleteEquipmentNote');
+                throw error;
+            }
+        },
+
+        // Nuevas funciones para el selector de equipos
+        getAllEquipment: async (filters = {}) => {
+            try {
+                console.log('🔄 Cargando lista completa de equipos...');
+                let url = `${API_URL}/equipment`;
+                
+                // Agregar filtros si existen
+                const params = new URLSearchParams();
+                if (filters.client_id) params.append('client_id', filters.client_id);
+                if (filters.location_id) params.append('location_id', filters.location_id);
+                if (filters.search) params.append('search', filters.search);
+                
+                if (params.toString()) {
+                    url += `?${params.toString()}`;
+                }
+
+                const response = await authenticatedFetch(url);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                const equipments = data.data || [];
+                console.log(`✅ Equipos cargados: ${equipments.length} equipos`);
+                return equipments;
+
+            } catch (error) {
+                console.error('❌ Error cargando equipos:', error);
+                throw error;
+            }
+        },
+
+        getAllClients: async () => {
+            try {
+                console.log('🔄 Cargando lista de clientes...');
+                const response = await authenticatedFetch(`${API_URL}/clients`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                const clients = data.data || [];
+                console.log(`✅ Clientes cargados: ${clients.length} clientes`);
+                return clients;
+
+            } catch (error) {
+                console.error('❌ Error cargando clientes:', error);
+                throw error;
+            }
+        },
+
+        getLocationsByClient: async (clientId) => {
+            try {
+                console.log(`🔄 Cargando ubicaciones para cliente ${clientId}...`);
+                const response = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+                }
+
+                const data = await response.json();
+                const locations = data.data || [];
+                console.log(`✅ Ubicaciones cargadas: ${locations.length} ubicaciones`);
+                return locations;
+
+            } catch (error) {
+                console.error('❌ Error cargando ubicaciones:', error);
+                throw error;
+            }
+        }
     };
 
     const render = {
         all: () => {
             const { equipment, tickets } = state;
             if (!equipment) {
-                mainContent.innerHTML = '<div class="equipment-error">No se pudo cargar la información del equipo.</div>';
+                mainContent.innerHTML = `
+                    <div class="equipment-error-container">
+                        <div class="equipment-error-card">
+                            <div class="equipment-error-icon">
+                                <i data-lucide="alert-triangle" class="h-12 w-12 text-red-500"></i>
+                            </div>
+                            <h2 class="equipment-error-title">Error cargando equipo</h2>
+                            <p class="equipment-error-message">No se pudo cargar la información del equipo.</p>
+                        </div>
+                    </div>
+                `;
                 return;
             }
 
-            pageTitle.textContent = `${equipment.type} - ${equipment.model || equipment.name}`;
+            // Actualizar título y breadcrumbs
+            pageTitle.innerHTML = `
+                <i data-lucide="wrench" class="equipment-title-icon"></i>
+                <span>${equipment.name || equipment.type}</span>
+            `;
+            
+            // Actualizar breadcrumbs
+            const clientBreadcrumb = document.getElementById('breadcrumb-client');
+            const locationBreadcrumb = document.getElementById('breadcrumb-location');
+            const equipmentBreadcrumb = document.getElementById('breadcrumb-equipment');
+            
+            if (clientBreadcrumb) clientBreadcrumb.textContent = equipment.client_name || 'Cliente';
+            if (locationBreadcrumb) locationBreadcrumb.textContent = equipment.location_name || 'Ubicación';
+            if (equipmentBreadcrumb) equipmentBreadcrumb.textContent = equipment.name || equipment.type || 'Equipo';
 
             const formatDate = (dateString) => {
                 return dateString ? new Date(dateString).toLocaleDateString('es-CL') : 'N/A';
@@ -48,15 +358,33 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
             
             const ticketsHtml = tickets.length > 0 ? tickets.map(t => `
                 <div class="equipment-ticket-item">
-                    <div class="equipment-ticket-title">${t.title}</div>
+                    <div class="equipment-ticket-header">
+                        <div class="equipment-ticket-title">${t.title}</div>
+                        <span class="equipment-ticket-status ${t.status.toLowerCase()}">${t.status}</span>
+                    </div>
                     <div class="equipment-ticket-description">${t.description}</div>
                     <div class="equipment-ticket-meta">
-                        <span><i data-lucide="calendar"></i>${formatDate(t.created_at)}</span>
-                        <span><i data-lucide="flag"></i>Estado: ${t.status}</span>
-                        <span><i data-lucide="alert-circle"></i>Prioridad: ${t.priority}</span>
+                        <span class="ticket-meta-item">
+                            <i data-lucide="calendar" class="h-4 w-4"></i>
+                            ${formatDate(t.created_at)}
+                        </span>
+                        <span class="ticket-meta-item">
+                            <i data-lucide="flag" class="h-4 w-4"></i>
+                            Estado: ${t.status}
+                        </span>
+                        <span class="ticket-meta-item priority-${t.priority.toLowerCase()}">
+                            <i data-lucide="alert-circle" class="h-4 w-4"></i>
+                            ${t.priority}
+                        </span>
                     </div>
                 </div>
-            `).join('') : '<div class="equipment-empty">No hay tickets para este equipo.</div>';
+            `).join('') : `
+                <div class="equipment-empty">
+                    <i data-lucide="inbox" class="equipment-empty-icon"></i>
+                    <h3>No hay tickets registrados</h3>
+                    <p>Este equipo no tiene tickets de mantenimiento asociados.</p>
+                </div>
+            `;
 
             mainContent.innerHTML = `
                 <div class="equipment-container">
@@ -170,9 +498,18 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
                         colorLight : "#ffffff",
                         correctLevel : QRCode.CorrectLevel.H
                     });
-                    console.log('QR generado exitosamente');
+                    console.log('✅ QR generado exitosamente');
                 } catch (error) {
-                    console.error('Error al generar QR:', error);
+                    const errorId = `QR_GEN_${Date.now()}`;
+                    console.error(`❌ Error generando QR [${errorId}]:`, {
+                        error: error.message,
+                        stack: error.stack,
+                        timestamp: new Date().toISOString(),
+                        qrUrl,
+                        equipmentId: state.equipment?.id
+                    });
+
+                    showError(`Error generando código QR. (Ref: ${errorId})`, 'generateQR');
                     qrContainer.innerHTML = '<p class="text-red-500">Error al generar código QR</p>';
                 }
             } else {
@@ -214,6 +551,337 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
         }
     };
 
+    const ui = {
+        showEquipmentSelection: async () => {
+            try {
+                console.log('🔄 Iniciando selector de equipos...');
+                
+                // Obtener client_id de la URL si viene de la página de clientes
+                const urlParams = new URLSearchParams(window.location.search);
+                const preselectedClientId = urlParams.get('clientId');
+                
+                // Mostrar loading inicial
+                mainContent.innerHTML = `
+                    <div class="equipment-selector-container">
+                        <div class="equipment-selector-loading">
+                            <div class="spinner"></div>
+                            <p>Cargando selector de equipos...</p>
+                        </div>
+                    </div>
+                `;
+
+                // Cargar datos iniciales
+                const [equipments, clients] = await Promise.all([
+                    api.getAllEquipment(preselectedClientId ? { client_id: preselectedClientId } : {}),
+                    api.getAllClients()
+                ]);
+
+                // Renderizar el selector
+                await this.renderEquipmentSelector(equipments, clients, preselectedClientId);
+                
+            } catch (error) {
+                console.error('❌ Error mostrando selector de equipos:', error);
+                const fallbackHTML = `
+                    <div class="equipment-error-container">
+                        <div class="equipment-error-card">
+                            <div class="equipment-error-icon">
+                                <i data-lucide="alert-triangle" class="h-12 w-12 text-red-500"></i>
+                            </div>
+                            <h2 class="equipment-error-title">Error cargando equipos</h2>
+                            <p class="equipment-error-message">
+                                No se pudo cargar la lista de equipos. Por favor, intenta navegar desde la página de clientes.
+                            </p>
+                            <div class="equipment-error-actions">
+                                <a href="clientes.html" class="btn btn-primary">
+                                    <i data-lucide="users" class="h-4 w-4 mr-2"></i>
+                                    Ir a Clientes
+                                </a>
+                                <a href="dashboard.html" class="btn btn-secondary">
+                                    <i data-lucide="home" class="h-4 w-4 mr-2"></i>
+                                    Dashboard
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                mainContent.innerHTML = fallbackHTML;
+                
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            }
+        },
+
+        renderEquipmentSelector: async (equipments, clients, preselectedClientId = null) => {
+            // Actualizar título de la página
+            pageTitle.textContent = 'Seleccionar Equipo';
+            
+            const selectorHTML = `
+                <div class="equipment-selector-container">
+                    <div class="equipment-selector-header">
+                        <div class="equipment-selector-title">
+                            <h1><i data-lucide="wrench" class="h-6 w-6 mr-2"></i>Seleccionar Equipo</h1>
+                            <p>Selecciona un equipo para ver sus detalles, historial de mantenimiento y documentación.</p>
+                        </div>
+                    </div>
+
+                    <div class="equipment-selector-filters">
+                        <div class="equipment-filter-group">
+                            <div class="equipment-search-container">
+                                <i data-lucide="search" class="equipment-search-icon"></i>
+                                <input 
+                                    type="text" 
+                                    id="equipment-search" 
+                                    placeholder="Buscar por nombre, modelo o código..."
+                                    class="equipment-search-input"
+                                >
+                            </div>
+                        </div>
+                        
+                        <div class="equipment-filter-group">
+                            <label for="client-filter" class="equipment-filter-label">
+                                <i data-lucide="building" class="h-4 w-4 mr-1"></i>Cliente:
+                            </label>
+                            <select id="client-filter" class="equipment-filter-select">
+                                <option value="">Todos los clientes</option>
+                                ${clients.map(client => `
+                                    <option value="${client.id}" ${client.id == preselectedClientId ? 'selected' : ''}>
+                                        ${client.name}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+
+                        <div class="equipment-filter-group">
+                            <label for="location-filter" class="equipment-filter-label">
+                                <i data-lucide="map-pin" class="h-4 w-4 mr-1"></i>Ubicación:
+                            </label>
+                            <select id="location-filter" class="equipment-filter-select">
+                                <option value="">Todas las ubicaciones</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="equipment-selector-results">
+                        <div class="equipment-results-header">
+                            <span class="equipment-results-count" id="equipment-count">
+                                ${equipments.length} equipos encontrados
+                            </span>
+                            <div class="equipment-view-toggle">
+                                <button class="equipment-view-btn active" data-view="grid">
+                                    <i data-lucide="grid" class="h-4 w-4"></i>
+                                </button>
+                                <button class="equipment-view-btn" data-view="list">
+                                    <i data-lucide="list" class="h-4 w-4"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="equipment-list-container" id="equipment-list">
+                            ${this.renderEquipmentGrid(equipments)}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            mainContent.innerHTML = selectorHTML;
+            
+            // Inicializar iconos de Lucide
+            if (typeof lucide !== 'undefined') {
+                lucide.createIcons();
+            }
+
+            // Configurar event listeners
+            this.setupSelectorEventListeners(equipments, clients);
+            
+            // Cargar ubicaciones si hay cliente preseleccionado
+            if (preselectedClientId) {
+                await this.loadLocationsByClient(preselectedClientId);
+            }
+        },
+
+        renderEquipmentGrid: (equipments) => {
+            if (equipments.length === 0) {
+                return `
+                    <div class="equipment-empty-state">
+                        <i data-lucide="wrench" class="equipment-empty-icon"></i>
+                        <h3>No se encontraron equipos</h3>
+                        <p>Intenta ajustar los filtros o agregar equipos desde la gestión de clientes.</p>
+                        <a href="clientes.html" class="btn btn-primary">
+                            <i data-lucide="plus" class="h-4 w-4 mr-2"></i>
+                            Gestionar Equipos
+                        </a>
+                    </div>
+                `;
+            }
+
+            return `
+                <div class="equipment-grid">
+                    ${equipments.map(equipment => `
+                        <div class="equipment-card-selector" data-equipment-id="${equipment.id}">
+                            <div class="equipment-card-header">
+                                <div class="equipment-card-title">
+                                    <h3>${equipment.name || equipment.type}</h3>
+                                    <span class="equipment-card-code">#${equipment.id}</span>
+                                </div>
+                                <div class="equipment-card-status ${equipment.activo ? 'active' : 'inactive'}">
+                                    ${equipment.activo ? 'Activo' : 'Inactivo'}
+                                </div>
+                            </div>
+                            
+                            <div class="equipment-card-details">
+                                <div class="equipment-detail-item">
+                                    <i data-lucide="tag" class="equipment-detail-icon"></i>
+                                    <span><strong>Modelo:</strong> ${equipment.model || 'N/A'}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <i data-lucide="building" class="equipment-detail-icon"></i>
+                                    <span><strong>Cliente:</strong> ${equipment.client_name || 'N/A'}</span>
+                                </div>
+                                <div class="equipment-detail-item">
+                                    <i data-lucide="map-pin" class="equipment-detail-icon"></i>
+                                    <span><strong>Ubicación:</strong> ${equipment.location_name || 'N/A'}</span>
+                                </div>
+                                ${equipment.serial_number ? `
+                                <div class="equipment-detail-item">
+                                    <i data-lucide="hash" class="equipment-detail-icon"></i>
+                                    <span><strong>Serie:</strong> ${equipment.serial_number}</span>
+                                </div>
+                                ` : ''}
+                            </div>
+                            
+                            <div class="equipment-card-actions">
+                                <button class="btn btn-primary equipment-select-btn" data-equipment-id="${equipment.id}">
+                                    <i data-lucide="eye" class="h-4 w-4 mr-2"></i>
+                                    Ver Detalles
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        },
+
+        setupSelectorEventListeners: (equipments, clients) => {
+            // Búsqueda en tiempo real
+            const searchInput = document.getElementById('equipment-search');
+            const clientFilter = document.getElementById('client-filter');
+            const locationFilter = document.getElementById('location-filter');
+            const equipmentList = document.getElementById('equipment-list');
+            const equipmentCount = document.getElementById('equipment-count');
+
+            let currentEquipments = [...equipments];
+
+            // Función para filtrar equipos
+            const filterEquipments = () => {
+                const searchTerm = searchInput.value.toLowerCase();
+                const selectedClient = clientFilter.value;
+                const selectedLocation = locationFilter.value;
+
+                let filtered = equipments.filter(equipment => {
+                    const matchesSearch = !searchTerm || 
+                        (equipment.name && equipment.name.toLowerCase().includes(searchTerm)) ||
+                        (equipment.model && equipment.model.toLowerCase().includes(searchTerm)) ||
+                        (equipment.serial_number && equipment.serial_number.toLowerCase().includes(searchTerm)) ||
+                        equipment.id.toString().includes(searchTerm);
+
+                    const matchesClient = !selectedClient || equipment.client_id == selectedClient;
+                    const matchesLocation = !selectedLocation || equipment.location_id == selectedLocation;
+
+                    return matchesSearch && matchesClient && matchesLocation;
+                });
+
+                currentEquipments = filtered;
+                equipmentList.innerHTML = this.renderEquipmentGrid(filtered);
+                equipmentCount.textContent = `${filtered.length} equipos encontrados`;
+                
+                // Reconfigurar event listeners para botones de selección
+                this.setupEquipmentSelectListeners();
+                
+                // Reinicializar iconos
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+            };
+
+            // Event listeners para filtros
+            searchInput.addEventListener('input', filterEquipments);
+            clientFilter.addEventListener('change', async (e) => {
+                // Cargar ubicaciones del cliente seleccionado
+                await this.loadLocationsByClient(e.target.value);
+                filterEquipments();
+            });
+            locationFilter.addEventListener('change', filterEquipments);
+
+            // Event listeners para botones de vista
+            document.querySelectorAll('.equipment-view-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    document.querySelectorAll('.equipment-view-btn').forEach(b => b.classList.remove('active'));
+                    e.target.closest('.equipment-view-btn').classList.add('active');
+                    
+                    const view = e.target.closest('.equipment-view-btn').dataset.view;
+                    const container = document.querySelector('.equipment-list-container');
+                    container.className = `equipment-list-container equipment-view-${view}`;
+                });
+            });
+
+            // Configurar event listeners iniciales para selección de equipos
+            this.setupEquipmentSelectListeners();
+        },
+
+        setupEquipmentSelectListeners: () => {
+            // Event listeners para seleccionar equipos
+            document.querySelectorAll('.equipment-select-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const equipmentId = e.target.closest('.equipment-select-btn').dataset.equipmentId;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const clientId = urlParams.get('clientId');
+                    
+                    // Navegar al equipo seleccionado
+                    let targetUrl = `equipo.html?id=${equipmentId}`;
+                    if (clientId) {
+                        targetUrl += `&clientId=${clientId}`;
+                    }
+                    
+                    console.log(`🔄 Navegando a equipo ${equipmentId}...`);
+                    window.location.href = targetUrl;
+                });
+            });
+
+            // También permitir click en toda la tarjeta
+            document.querySelectorAll('.equipment-card-selector').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    if (!e.target.closest('.equipment-select-btn')) {
+                        const equipmentId = card.dataset.equipmentId;
+                        const btn = card.querySelector('.equipment-select-btn');
+                        if (btn) btn.click();
+                    }
+                });
+            });
+        },
+
+        loadLocationsByClient: async (clientId) => {
+            const locationFilter = document.getElementById('location-filter');
+            if (!locationFilter || !clientId) return;
+
+            try {
+                const locations = await api.getLocationsByClient(clientId);
+                
+                locationFilter.innerHTML = `
+                    <option value="">Todas las ubicaciones</option>
+                    ${locations.map(location => `
+                        <option value="${location.id}">${location.name}</option>
+                    `).join('')}
+                `;
+                
+            } catch (error) {
+                console.error('❌ Error cargando ubicaciones:', error);
+                locationFilter.innerHTML = '<option value="">Error cargando ubicaciones</option>';
+            }
+        }
+    };
+
     const actions = {
         init: async () => {
             console.log('Iniciando carga de equipo...');
@@ -230,7 +898,7 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
 
             if (!equipmentId) {
                 console.error('No se proporcionó ID de equipo');
-                mainContent.innerHTML = '<div class="equipment-error">ID de equipo no especificado.</div>';
+                await ui.showEquipmentSelection();
                 return;
             }
 
@@ -307,8 +975,8 @@ if (!window.AuthManager || !AuthManager.isAuthenticated()) {
                 console.log('Nota eliminada exitosamente');
                 
             } catch (error) {
-                console.error('Error al eliminar la nota:', error);
-                alert('Error al eliminar la nota. Por favor, inténtalo de nuevo.');
+                console.error('❌ Error al eliminar la nota:', error);
+                showError('Error al eliminar la nota. Por favor, inténtalo de nuevo.', 'deleteNote');
             }
         }
     };

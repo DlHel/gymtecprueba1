@@ -1146,3 +1146,170 @@ try {
     ui.showError(`Error loading tickets. Please try again. (Ref: ${errorId})`);
 }
 ```
+
+## 🎯 REGLAS DE TESTING OBLIGATORIAS CON PLAYWRIGHT E2E (2025)
+
+### **Antes de cada Commit (OBLIGATORIO)**
+1. ✅ `npm run test:unit` → 32 unit tests passing  
+2. ✅ `npm run test:e2e:smoke` → E2E smoke tests passing con Playwright
+3. ✅ `npm audit` → 0 vulnerabilities
+4. ✅ Actualizar bitácora si es cambio significativo con @bitacora
+
+### **Antes de cada Pull Request (OBLIGATORIO)**
+1. ✅ `npm run test:full` → Test suite completo (Unit + E2E)
+2. ✅ Manual testing en 3 browsers (Chrome, Firefox, Safari)
+3. ✅ Performance baseline < 2s load time
+4. ✅ Documentación actualizada con @bitacora
+5. ✅ Visual regression testing con screenshots
+
+### **Testing E2E con Playwright + MCP (NUEVO OBLIGATORIO)**
+```bash
+# Suite de comandos E2E disponibles
+npm run test:e2e              # Suite completa E2E
+npm run test:e2e:smoke        # Tests críticos rápidos (@smoke)
+npm run test:e2e:headed       # Con interfaz gráfica para debug
+npm run test:e2e:debug        # Modo debug step-by-step
+npm run test:e2e:install      # Instalar browsers Playwright
+
+# Script interactivo con MCP
+cd e2e-tests && ./run-tests.ps1    # Demo interactivo completo
+```
+
+### **Cobertura de Testing Mínima Obligatoria (ACTUALIZADA)**
+- **Unit Tests**: 90%+ funciones core (32 tests actuales) ✅
+- **E2E Tests**: 100% flujos críticos obligatorios ⭐
+  - 🔐 Autenticación completa (login, logout, sessions)
+  - 🎫 Sistema de tickets (CRUD, workflow, filtros)
+  - 🏋️ Gestión de equipos (CRUD, mantenimiento, QR)
+  - 👥 Administración de clientes (CRUD, ubicaciones)
+  - 📦 Sistema de inventario (stock, alertas, movimientos)
+  - 💰 Gestión de gastos (categorías, aprobaciones)
+- **API Tests**: 100% endpoints autenticados
+- **Security Tests**: 100% validaciones de entrada
+- **Cross-browser**: Chrome, Firefox, Safari (3 browsers)
+- **Mobile/Responsive**: 3 tamaños de pantalla obligatorios
+
+### **Flujos E2E Críticos - NUNCA PUEDEN FALLAR**
+```javascript
+// 1. AUTENTICACIÓN (crítico @critical @smoke)
+test('should login and maintain session', async ({ page }) => {
+  await page.goto('/login.html');
+  await page.fill('#username', 'admin@gymtec.com');
+  await page.fill('#password', 'admin123');
+  await page.click('#login-button');
+  await page.waitForURL('**/dashboard.html');
+  // Session debe persistir después de refresh
+  await page.reload();
+  await expect(page.locator('#main-dashboard')).toBeVisible();
+});
+
+// 2. TICKETS WORKFLOW (crítico @critical)
+test('should create and process ticket end-to-end', async ({ page }) => {
+  // Login → Crear ticket → Asignar → Completar → Cerrar
+  await authenticateAsAdmin(page);
+  await createMaintenanceTicket(page, {
+    title: 'E2E Test Ticket',
+    priority: 'high',
+    equipment: 'Cinta Test'
+  });
+  await assignTicketToTechnician(page);
+  await completeTicketWorkflow(page);
+});
+
+// 3. EQUIPMENT MANAGEMENT (crítico @critical) 
+test('should manage equipment lifecycle', async ({ page }) => {
+  // Crear equipo → Programar mantenimiento → Generar QR → Historial
+  await createEquipment(page, equipmentData);
+  await scheduleMaintenanceFor(page, equipmentId);
+  await generateQRCode(page, equipmentId);
+  await verifyMaintenanceHistory(page, equipmentId);
+});
+```
+
+### **MCP Integration para Testing Automatizado**
+```javascript
+// Uso obligatorio de MCP para testing complejo
+const { mcp } = require('@playwright/test');
+
+// Navegación automatizada con MCP
+await mcp.playwright.navigate('http://localhost:8080');
+await mcp.playwright.fill('#username', testUser.email);
+await mcp.playwright.click('#login-button');
+await mcp.playwright.expect('#dashboard').toBeVisible();
+
+// Screenshots automáticos para visual regression
+await mcp.playwright.screenshot({ 
+  path: `visual-tests/${testName}.png`,
+  fullPage: true 
+});
+
+// Performance monitoring integrado
+const metrics = await mcp.playwright.evaluate(() => {
+  return {
+    loadTime: performance.timing.loadEventEnd - performance.timing.navigationStart,
+    firstPaint: performance.getEntriesByType('paint')[0]?.startTime
+  };
+});
+```
+
+### **CI/CD Pipeline Requirements**
+```yaml
+# .github/workflows/e2e-tests.yml (obligatorio)
+name: E2E Testing Pipeline
+on: [push, pull_request]
+jobs:
+  e2e-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+      - run: npm ci
+      - run: npx playwright install
+      - run: npm run start-servers
+      - run: npm run test:e2e:smoke  # Tests críticos
+      - run: npm run test:e2e        # Suite completa
+      - uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-report
+          path: e2e-tests/reports/
+```
+
+### **Page Object Pattern Obligatorio**
+```javascript
+// Usar Page Objects para mantenibilidad
+const loginPage = new LoginPage(page);
+const ticketsPage = new TicketsPage(page);
+
+await loginPage.goto();
+await loginPage.loginAsAdmin();
+await ticketsPage.goto();
+await ticketsPage.createTicket(ticketData);
+```
+
+### **Reglas de Fallos E2E - ACCIÓN INMEDIATA REQUERIDA**
+1. **Test @smoke falla** → 🚨 Bloqueo de deployment inmediato
+2. **Test @critical falla** → ⚠️ Investigación obligatoria antes de merge
+3. **Cross-browser falla** → 🔧 Fix requerido para compatibilidad
+4. **Performance regression** → ⚡ Optimización obligatoria
+5. **Visual regression** → 🎨 Review de UI/UX requerido
+
+### **Integración con @bitacora para Testing**
+```bash
+# Antes de escribir tests, consultar contexto
+"@bitacora testing patterns"
+"@bitacora equipment flows" 
+"@bitacora authentication implementation"
+
+# Después de implementar tests, documentar
+"@bitacora update with new E2E test patterns"
+```
+
+### **NUNCA HACER - Reglas de Testing Prohibidas**
+❌ **NO** commitear con tests E2E fallando  
+❌ **NO** mergear PR sin suite E2E passing  
+❌ **NO** deploy sin testing cross-browser  
+❌ **NO** usar sleeps fijos (usar waitForSelector)  
+❌ **NO** hardcodear datos (usar test fixtures)  
+❌ **NO** tests sin Page Objects  
+❌ **NO** tests sin tags @smoke o @critical  

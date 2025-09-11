@@ -35,18 +35,289 @@
     background-color: #eff6ff;
 }
 
-/* === CONTENIDO DE PESTAÑAS === */
-.tab-content {
-    display: none;
-    background-color: #f8fafc;
-    border-radius: 0 0 8px 8px;
-    min-height: 300px;
-    padding: 1rem;
+/* === SUB-PESTAÑAS PARA INVENTARIO INTELIGENTE === */
+.sub-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+    background: white;
+    border-radius: 6px 6px 0 0;
+    overflow: hidden;
 }
 
-.tab-content.active {
+.sub-tab-button {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: none;
+    color: #6b7280;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    font-size: 0.875rem;
+    text-align: center;
+}
+
+.sub-tab-button:hover {
+    color: #374151;
+    background-color: #f9fafb;
+}
+
+.sub-tab-button.active {
+    color: #2563eb;
+    border-bottom-color: #2563eb;
+    background-color: #eff6ff;
+}
+
+/* === CONTENIDO DE SUB-PESTAÑAS === */
+.sub-tab-content {
+    display: none;
+    background: white;
+    border-radius: 0 0 6px 6px;
+    padding: 1.5rem;
+    min-height: 400px;
+}
+
+.sub-tab-content.active {
     display: block;
 }
+
+/* === TARJETAS DE MÉTRICAS DEL DASHBOARD === */
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.metric-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    font-weight: 500;
+}
+
+/* === ESTILOS PARA PRODUCTOS === */
+.products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.product-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.product-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+}
+
+.product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.75rem;
+}
+
+.product-name {
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+.product-sku {
+    font-size: 0.75rem;
+    color: #6b7280;
+    font-family: monospace;
+}
+
+.product-stock {
+    text-align: center;
+    margin-bottom: 0.75rem;
+}
+
+.stock-value {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.stock-label {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* === ESTILOS PARA CATEGORÍAS === */
+.categories-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 1rem;
+}
+
+.category-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.category-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #10b981;
+}
+
+.category-name {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.category-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+/* === ESTILOS PARA PROVEEDORES === */
+.suppliers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1rem;
+}
+
+.supplier-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.supplier-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border-color: #f59e0b;
+}
+
+.supplier-name {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 0.5rem;
+}
+
+.supplier-contact {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.supplier-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+/* === ESTILOS PARA ANALYTICS === */
+.analytics-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+}
+
+.analytics-section {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.analytics-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+.recent-movements {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.movement-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.movement-item:last-child {
+    border-bottom: none;
+}
+
+.movement-type {
+    font-weight: 500;
+    color: #1f2937;
+}
+
+.movement-date {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
+.stock-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.alert-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: #dc2626;
+}
+
+.alert-item.warning {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #d97706;
+}
+
+/* === TARJETAS DE INVENTARIO === */
 
 /* === TARJETAS DE INVENTARIO === */
 .inventory-item-card {

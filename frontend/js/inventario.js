@@ -8,12 +8,57 @@ class InventoryManager {
             purchaseOrders: [],
             transactions: [],
             technicians: [],
-            spareParts: []
+            spareParts: [],
+            // Nuevos datos para pestaña inteligente
+            categories: [],
+            suppliers: [],
+            analytics: {
+                recentMovements: [],
+                stockAlerts: [],
+                dashboardStats: {}
+            }
         };
-        
+
         // Configurar la URL base de la API según el puerto actual
         this.apiBaseUrl = this.getApiBaseUrl();
-        
+
+        // Funciones de utilidad para manejo de errores
+        this.showError = (message, context = 'Inventario') => {
+            console.error(`❌ ${context}:`, message);
+
+            // Buscar elemento de error o usar notificación genérica
+            const errorElement = document.getElementById('error-display');
+            if (errorElement) {
+                errorElement.textContent = message;
+                errorElement.classList.remove('hidden');
+
+                // Auto-hide después de 5 segundos
+                setTimeout(() => {
+                    if (errorElement) errorElement.classList.add('hidden');
+                }, 5000);
+            } else {
+                // Fallback: usar alert o console
+                console.warn('⚠️ Elemento error-display no encontrado, usando alert');
+                alert(message);
+            }
+        };
+
+        this.showSuccess = (message) => {
+            console.log(`✅ INVENTARIO: ${message}`);
+
+            // Buscar elemento de éxito o usar notificación genérica
+            const successElement = document.getElementById('success-display');
+            if (successElement) {
+                successElement.textContent = message;
+                successElement.classList.remove('hidden');
+
+                // Auto-hide después de 3 segundos
+                setTimeout(() => {
+                    if (successElement) successElement.classList.add('hidden');
+                }, 3000);
+            }
+        };
+
         this.init();
     }
 
@@ -79,6 +124,9 @@ class InventoryManager {
 
         // Delegación de eventos para botones dinámicos
         document.body.addEventListener('click', this.handleDynamicClicks.bind(this));
+
+        // Event listeners para sub-pestañas del tab inteligente
+        this.setupInteligenteEventListeners();
     }
 
     setupModalEvents() {
@@ -221,66 +269,105 @@ class InventoryManager {
             case 'transactions':
                 await this.loadTransactions();
                 break;
+            case 'inteligente':
+                await this.loadInteligenteData();
+                break;
         }
     }
 
     async loadCentralInventory() {
         try {
-            console.log('📦 Cargando inventario central...');
+            console.log('� Cargando inventario central...');
             const container = document.getElementById('central-inventory-container');
-            
-            const response = await fetch(`${this.apiBaseUrl}/inventory`);
-            if (!response.ok) throw new Error('Error al cargar inventario');
-            
+
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const result = await response.json();
             this.data.centralInventory = result.data || [];
-            
+
             this.renderCentralInventory();
             this.updateStats('central', this.data.centralInventory.length);
-            
+
             console.log(`✅ Inventario central cargado: ${this.data.centralInventory.length} items`);
+
         } catch (error) {
-            console.error('Error loading central inventory:', error);
+            const errorId = `INV_CENTRAL_${Date.now()}`;
+            console.error(`❌ Error cargando inventario central [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error cargando inventario central. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadCentralInventory');
             this.showErrorState('central-inventory-container', 'Error al cargar el inventario central');
         }
     }
 
     async loadTechnicianInventory() {
         try {
-            console.log('👥 Cargando inventario de técnicos...');
-            
-            const response = await fetch(`${this.apiBaseUrl}/inventory/technicians`);
-            if (!response.ok) throw new Error('Error al cargar inventario de técnicos');
-            
+            console.log('� Cargando inventario de técnicos...');
+
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/technicians`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const result = await response.json();
             this.data.technicianInventory = result.data || [];
-            
+
             this.renderTechnicianInventory();
             this.updateStats('technicians', this.data.technicianInventory.length);
-            
+
             console.log(`✅ Inventario de técnicos cargado: ${this.data.technicianInventory.length} asignaciones`);
+
         } catch (error) {
-            console.error('Error loading technician inventory:', error);
+            const errorId = `INV_TECH_${Date.now()}`;
+            console.error(`❌ Error cargando inventario de técnicos [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error cargando inventario de técnicos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadTechnicianInventory');
             this.showErrorState('technicians-inventory-container', 'Error al cargar inventario de técnicos');
         }
     }
 
     async loadPurchaseOrders() {
         try {
-            console.log('🚚 Cargando órdenes de compra...');
-            
-            const response = await fetch(`${this.apiBaseUrl}/purchase-orders`);
-            if (!response.ok) throw new Error('Error al cargar órdenes de compra');
-            
+            console.log('� Cargando órdenes de compra...');
+
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders`);
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const result = await response.json();
             this.data.purchaseOrders = result.data || [];
-            
+
             this.renderPurchaseOrders();
             this.updateStats('orders', this.data.purchaseOrders.length);
-            
+
             console.log(`✅ Órdenes de compra cargadas: ${this.data.purchaseOrders.length} órdenes`);
+
         } catch (error) {
-            console.error('Error loading purchase orders:', error);
+            const errorId = `INV_ORDERS_${Date.now()}`;
+            console.error(`❌ Error cargando órdenes de compra [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error cargando órdenes de compra. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadPurchaseOrders');
             this.showErrorState('orders-container', 'Error al cargar órdenes de compra');
         }
     }
@@ -307,31 +394,61 @@ class InventoryManager {
 
     async loadTechnicians() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/users?role=technician`);
-            if (!response.ok) throw new Error('Error al cargar técnicos');
-            
+            console.log('🔄 Cargando técnicos...');
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/users?role=technician`);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const result = await response.json();
             this.data.technicians = result.data || [];
-            
+
             // Poblar filtros y selects
             this.populateTechnicianSelects();
+            console.log(`✅ Técnicos cargados: ${this.data.technicians.length} técnicos`);
+
         } catch (error) {
-            console.error('Error loading technicians:', error);
+            const errorId = `INV_TECHS_${Date.now()}`;
+            console.error(`❌ Error cargando técnicos [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error cargando técnicos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadTechnicians');
         }
     }
 
     async loadSpareParts() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/inventory`);
-            if (!response.ok) throw new Error('Error al cargar repuestos');
-            
+            console.log('🔄 Cargando repuestos...');
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
+
             const result = await response.json();
             this.data.spareParts = result.data || [];
-            
+
             // Poblar selects de repuestos
             this.populateSparePartSelects();
+            console.log(`✅ Repuestos cargados: ${this.data.spareParts.length} items`);
+
         } catch (error) {
-            console.error('Error loading spare parts:', error);
+            const errorId = `INV_SPARES_${Date.now()}`;
+            console.error(`❌ Error cargando repuestos [${errorId}]:`, {
+                error: error.message,
+                stack: error.stack,
+                timestamp: new Date().toISOString(),
+                user: AuthManager.getCurrentUser()?.username
+            });
+
+            this.showError(`Error cargando repuestos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'loadSpareParts');
         }
     }
 
@@ -821,6 +938,416 @@ class InventoryManager {
     handleFilter(filterType, value) {
         console.log(`🔽 Filtro ${filterType}: ${value}`);
         // Implementar lógica de filtrado
+    }
+
+    // === FUNCIONALIDAD DEL TAB INTELIGENTE ===
+
+    // Método para manejar sub-pestañas del tab inteligente
+    switchSubTab(subTabName) {
+        // Actualizar botones de sub-pestañas
+        document.querySelectorAll('.sub-tab-button').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        document.querySelector(`[data-subtab="${subTabName}"]`).classList.add('active');
+
+        // Actualizar contenido de sub-pestañas
+        document.querySelectorAll('.sub-tab-content').forEach(content => {
+            content.classList.remove('active');
+        });
+        document.getElementById(`subcontent-${subTabName}`).classList.add('active');
+
+        // Cargar datos específicos de la sub-pestaña
+        this.loadSubTabData(subTabName);
+    }
+
+    // Cargar datos del tab inteligente
+    async loadInteligenteData() {
+        try {
+            console.log('🧠 Cargando datos del inventario inteligente...');
+
+            // Cargar datos en paralelo
+            await Promise.all([
+                this.loadDashboardStats(),
+                this.loadCategories(),
+                this.loadSuppliers(),
+                this.loadAnalyticsData()
+            ]);
+
+            // Cargar la sub-pestaña por defecto (dashboard)
+            this.switchSubTab('dashboard');
+
+        } catch (error) {
+            console.error('❌ Error cargando datos inteligentes:', error);
+            this.showError('Error al cargar datos del inventario inteligente', 'Tab Inteligente');
+        }
+    }
+
+    // Cargar datos de una sub-pestaña específica
+    async loadSubTabData(subTabName) {
+        switch (subTabName) {
+            case 'dashboard':
+                await this.loadDashboardStats();
+                this.renderDashboard();
+                break;
+            case 'products':
+                await this.loadProductsData();
+                this.renderProducts();
+                break;
+            case 'categories':
+                await this.loadCategories();
+                this.renderCategories();
+                break;
+            case 'suppliers':
+                await this.loadSuppliers();
+                this.renderSuppliers();
+                break;
+            case 'analytics':
+                await this.loadAnalyticsData();
+                this.renderAnalytics();
+                break;
+        }
+    }
+
+    // === DASHBOARD STATS ===
+    async loadDashboardStats() {
+        try {
+            console.log('📊 Cargando estadísticas del dashboard...');
+
+            // Cargar estadísticas desde la API
+            const [inventoryResponse, categoriesResponse, suppliersResponse] = await Promise.all([
+                authenticatedFetch(`${this.apiBaseUrl}/inventory`),
+                authenticatedFetch(`${this.apiBaseUrl}/inventory/categories`),
+                authenticatedFetch(`${this.apiBaseUrl}/suppliers`)
+            ]);
+
+            if (!inventoryResponse.ok || !categoriesResponse.ok || !suppliersResponse.ok) {
+                throw new Error('Error al cargar estadísticas del dashboard');
+            }
+
+            const inventoryData = await inventoryResponse.json();
+            const categoriesData = await categoriesResponse.json();
+            const suppliersData = await suppliersResponse.json();
+
+            // Calcular estadísticas
+            const totalItems = inventoryData.data?.length || 0;
+            const lowStockItems = inventoryData.data?.filter(item => item.current_stock <= item.minimum_stock).length || 0;
+            const totalCategories = categoriesData.data?.length || 0;
+            const totalSuppliers = suppliersData.data?.length || 0;
+
+            this.data.analytics.dashboardStats = {
+                totalItems,
+                lowStockItems,
+                totalCategories,
+                totalSuppliers
+            };
+
+            console.log('✅ Estadísticas del dashboard cargadas:', this.data.analytics.dashboardStats);
+
+        } catch (error) {
+            console.error('❌ Error cargando estadísticas del dashboard:', error);
+            // Usar datos por defecto en caso de error
+            this.data.analytics.dashboardStats = {
+                totalItems: 0,
+                lowStockItems: 0,
+                totalCategories: 0,
+                totalSuppliers: 0
+            };
+        }
+    }
+
+    renderDashboard() {
+        const stats = this.data.analytics.dashboardStats;
+        const container = document.getElementById('inteligente-dashboard');
+
+        if (!container) {
+            console.error('❌ Contenedor del dashboard no encontrado');
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-value">${stats.totalItems}</div>
+                    <div class="metric-label">Total de Artículos</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${stats.lowStockItems}</div>
+                    <div class="metric-label">Artículos con Stock Bajo</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${stats.totalCategories}</div>
+                    <div class="metric-label">Categorías</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${stats.totalSuppliers}</div>
+                    <div class="metric-label">Proveedores</div>
+                </div>
+            </div>
+        `;
+
+        console.log('📊 Dashboard renderizado');
+    }
+
+    // === PRODUCTS ===
+    async loadProductsData() {
+        try {
+            console.log('📦 Cargando datos de productos...');
+
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
+            if (!response.ok) {
+                throw new Error('Error al cargar productos');
+            }
+
+            const result = await response.json();
+            this.data.centralInventory = result.data || [];
+
+            console.log('✅ Productos cargados:', this.data.centralInventory.length);
+
+        } catch (error) {
+            console.error('❌ Error cargando productos:', error);
+            this.data.centralInventory = [];
+        }
+    }
+
+    renderProducts() {
+        const container = document.getElementById('inteligente-products-container');
+
+        if (!container) {
+            console.error('❌ Contenedor de productos no encontrado');
+            return;
+        }
+
+        if (!this.data.centralInventory || this.data.centralInventory.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500">No hay productos disponibles</p>';
+            return;
+        }
+
+        const productsHtml = this.data.centralInventory.map(product => `
+            <div class="product-card">
+                <div class="product-header">
+                    <div>
+                        <h3 class="product-name">${product.item_name || 'Sin nombre'}</h3>
+                        <p class="product-sku">SKU: ${product.item_code || 'N/A'}</p>
+                    </div>
+                </div>
+                <div class="product-stock">
+                    <div class="stock-value">${product.current_stock || 0}</div>
+                    <div class="stock-label">Stock Actual</div>
+                </div>
+                <div class="product-details">
+                    <div class="text-sm text-gray-600">
+                        <span>Mínimo: ${product.minimum_stock || 0}</span>
+                        <span class="ml-4">Precio: $${product.unit_cost || 0}</span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = `<div class="products-grid">${productsHtml}</div>`;
+        console.log('📦 Productos renderizados');
+    }
+
+    // === CATEGORIES ===
+    async loadCategories() {
+        try {
+            console.log('🏷️ Cargando categorías...');
+
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/categories`);
+            if (!response.ok) {
+                throw new Error('Error al cargar categorías');
+            }
+
+            const result = await response.json();
+            this.data.categories = result.data || [];
+
+            console.log('✅ Categorías cargadas:', this.data.categories.length);
+
+        } catch (error) {
+            console.error('❌ Error cargando categorías:', error);
+            this.data.categories = [];
+        }
+    }
+
+    renderCategories() {
+        const container = document.getElementById('inteligente-categories-container');
+
+        if (!container) {
+            console.error('❌ Contenedor de categorías no encontrado');
+            return;
+        }
+
+        if (!this.data.categories || this.data.categories.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500">No hay categorías disponibles</p>';
+            return;
+        }
+
+        const categoriesHtml = this.data.categories.map(category => `
+            <div class="category-card">
+                <h3 class="category-name">${category.name || 'Sin nombre'}</h3>
+                <div class="category-stats">
+                    <span>${category.item_count || 0} artículos</span>
+                    <span>Activa</span>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = `<div class="categories-grid">${categoriesHtml}</div>`;
+        console.log('🏷️ Categorías renderizadas');
+    }
+
+    // === SUPPLIERS ===
+    async loadSuppliers() {
+        try {
+            console.log('🏢 Cargando proveedores...');
+
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/suppliers`);
+            if (!response.ok) {
+                throw new Error('Error al cargar proveedores');
+            }
+
+            const result = await response.json();
+            this.data.suppliers = result.data || [];
+
+            console.log('✅ Proveedores cargados:', this.data.suppliers.length);
+
+        } catch (error) {
+            console.error('❌ Error cargando proveedores:', error);
+            this.data.suppliers = [];
+        }
+    }
+
+    renderSuppliers() {
+        const container = document.getElementById('inteligente-suppliers-container');
+
+        if (!container) {
+            console.error('❌ Contenedor de proveedores no encontrado');
+            return;
+        }
+
+        if (!this.data.suppliers || this.data.suppliers.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500">No hay proveedores disponibles</p>';
+            return;
+        }
+
+        const suppliersHtml = this.data.suppliers.map(supplier => `
+            <div class="supplier-card">
+                <h3 class="supplier-name">${supplier.name || 'Sin nombre'}</h3>
+                <p class="supplier-contact">${supplier.contact_email || supplier.contact_phone || 'Sin contacto'}</p>
+                <div class="supplier-stats">
+                    <span>${supplier.total_orders || 0} pedidos</span>
+                    <span>Activo</span>
+                </div>
+            </div>
+        `).join('');
+
+        container.innerHTML = `<div class="suppliers-grid">${suppliersHtml}</div>`;
+        console.log('🏢 Proveedores renderizados');
+    }
+
+    // === ANALYTICS ===
+    async loadAnalyticsData() {
+        try {
+            console.log('📈 Cargando datos de analytics...');
+
+            // Cargar movimientos recientes y alertas de stock
+            const [movementsResponse, inventoryResponse] = await Promise.all([
+                authenticatedFetch(`${this.apiBaseUrl}/inventory/movements?limit=10`),
+                authenticatedFetch(`${this.apiBaseUrl}/inventory`)
+            ]);
+
+            if (movementsResponse.ok) {
+                const movementsResult = await movementsResponse.json();
+                this.data.analytics.recentMovements = movementsResult.data || [];
+            }
+
+            if (inventoryResponse.ok) {
+                const inventoryResult = await inventoryResponse.json();
+                const inventory = inventoryResult.data || [];
+
+                // Generar alertas de stock bajo
+                this.data.analytics.stockAlerts = inventory
+                    .filter(item => item.current_stock <= item.minimum_stock)
+                    .map(item => ({
+                        item_name: item.item_name,
+                        current_stock: item.current_stock,
+                        minimum_stock: item.minimum_stock,
+                        severity: item.current_stock === 0 ? 'critical' : 'warning'
+                    }));
+            }
+
+            console.log('✅ Datos de analytics cargados');
+
+        } catch (error) {
+            console.error('❌ Error cargando analytics:', error);
+            this.data.analytics.recentMovements = [];
+            this.data.analytics.stockAlerts = [];
+        }
+    }
+
+    renderAnalytics() {
+        const container = document.getElementById('inteligente-analytics-container');
+
+        if (!container) {
+            console.error('❌ Contenedor de analytics no encontrado');
+            return;
+        }
+
+        const movements = this.data.analytics.recentMovements || [];
+        const alerts = this.data.analytics.stockAlerts || [];
+
+        const analyticsHtml = `
+            <div class="analytics-grid">
+                <div class="analytics-section">
+                    <h3 class="analytics-title">Movimientos Recientes</h3>
+                    <div class="recent-movements">
+                        ${movements.length > 0 ?
+                            movements.map(movement => `
+                                <div class="movement-item">
+                                    <div class="movement-type">${movement.type || 'Movimiento'}</div>
+                                    <div class="movement-date">${new Date(movement.created_at).toLocaleDateString()}</div>
+                                </div>
+                            `).join('') :
+                            '<p class="text-center text-gray-500">No hay movimientos recientes</p>'
+                        }
+                    </div>
+                </div>
+
+                <div class="analytics-section">
+                    <h3 class="analytics-title">Alertas de Stock</h3>
+                    <div class="stock-alerts">
+                        ${alerts.length > 0 ?
+                            alerts.map(alert => `
+                                <div class="alert-item ${alert.severity === 'critical' ? 'critical' : 'warning'}">
+                                    <div>
+                                        <strong>${alert.item_name}</strong><br>
+                                        <small>Stock: ${alert.current_stock} / Mínimo: ${alert.minimum_stock}</small>
+                                    </div>
+                                    <div class="alert-badge ${alert.severity}">${alert.severity === 'critical' ? 'CRÍTICO' : 'BAJO'}</div>
+                                </div>
+                            `).join('') :
+                            '<p class="text-center text-gray-500">No hay alertas de stock</p>'
+                        }
+                    </div>
+                </div>
+            </div>
+        `;
+
+        container.innerHTML = analyticsHtml;
+        console.log('📈 Analytics renderizados');
+    }
+
+    // === INICIALIZACIÓN DE SUB-PESTAÑAS ===
+    setupInteligenteEventListeners() {
+        // Event listeners para sub-pestañas
+        document.querySelectorAll('.sub-tab-button').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const subTab = btn.dataset.subtab;
+                this.switchSubTab(subTab);
+            });
+        });
+
+        console.log('🎯 Event listeners del tab inteligente configurados');
     }
 }
 

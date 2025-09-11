@@ -17,8 +17,9 @@ class DatabaseAdapter {
         }
     }
 
-    // Función para MySQL db.all() - convertir callback a promesa
+    // Función para MySQL db.all() - compatible con callbacks SQLite
     all(sql, params, callback) {
+        // Si no se proporciona callback, mantener compatibilidad async
         if (typeof params === 'function') {
             callback = params;
             params = [];
@@ -27,14 +28,18 @@ class DatabaseAdapter {
         this.db.query(sql, params)
             .then(results => {
                 if (callback) callback(null, results);
+                return results;
             })
             .catch(error => {
-                if (callback) callback(error);
+                console.error('Error en db.all():', error);
+                if (callback) callback(error, null);
+                else throw error;
             });
     }
 
-    // Función para MySQL db.get() - obtener solo el primer resultado
+    // Función para MySQL db.get() - compatible con callbacks SQLite
     get(sql, params, callback) {
+        // Si no se proporciona callback, mantener compatibilidad async
         if (typeof params === 'function') {
             callback = params;
             params = [];
@@ -42,14 +47,20 @@ class DatabaseAdapter {
         
         this.db.query(sql, params)
             .then(results => {
-                const row = results.length > 0 ? results[0] : null;
-                callback(null, row);
+                const result = results.length > 0 ? results[0] : null;
+                if (callback) callback(null, result);
+                return result;
             })
-            .catch(error => callback(error));
+            .catch(error => {
+                console.error('Error en db.get():', error);
+                if (callback) callback(error, null);
+                else throw error;
+            });
     }
 
-    // Función para MySQL db.run() - para INSERT, UPDATE, DELETE
+    // Función para MySQL db.run() - compatible con callbacks SQLite
     run(sql, params, callback) {
+        // Si no se proporciona callback, mantener compatibilidad async
         if (typeof params === 'function') {
             callback = params;
             params = [];
@@ -57,17 +68,26 @@ class DatabaseAdapter {
         
         this.db.query(sql, params)
             .then(result => {
-                // Simular el objeto de resultado de MySQL callback
-                const callbackResult = {
+                // Simular el objeto de resultado de SQLite callback
+                const sqliteResult = {
                     lastID: result.insertId || null,
                     changes: result.affectedRows || 0
                 };
-                callback.call(callbackResult, null);
+                
+                if (callback) {
+                    // Para callbacks, usar el contexto 'this' como en SQLite
+                    const context = { lastID: sqliteResult.lastID, changes: sqliteResult.changes };
+                    callback.call(context, null);
+                } else {
+                    return sqliteResult;
+                }
             })
-            .catch(error => callback(error));
-    }
-
-    // Función para MySQL db.exec() - ejecutar múltiples statements
+            .catch(error => {
+                console.error('Error en db.run():', error);
+                if (callback) callback(error);
+                else throw error;
+            });
+    }    // Función para MySQL db.exec() - ejecutar múltiples statements
     exec(sql, callback) {
         this.db.query(sql)
             .then(() => callback(null))
@@ -84,13 +104,4 @@ class DatabaseAdapter {
     }
 }
 
-// Crear instancia única del adaptador
-const dbAdapter = new DatabaseAdapter();
-
-// Inicializar cuando se importe
-dbAdapter.initialize().catch(err => {
-    console.error('❌ Error inicializando base de datos MySQL:', err.message);
-    console.error('💡 Asegúrate de que MySQL esté corriendo y configurado correctamente');
-});
-
-module.exports = dbAdapter; 
+module.exports = DatabaseAdapter; 

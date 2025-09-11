@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Service Tickets - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🧪 Test Service Tickets</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Login Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">🔐 Test Login</h2>
+                <button id="testLogin" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    Probar Login
+                </button>
+                <div id="loginResult" class="mt-4 p-3 rounded text-sm"></div>
+            </div>
+
+            <!-- AuthManager Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">👤 Test AuthManager</h2>
+                <button id="testAuth" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    Verificar AuthManager
+                </button>
+                <div id="authResult" class="mt-4 p-3 rounded text-sm"></div>
+            </div>
+
+            <!-- Service Tickets Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">🎫 Test Service Tickets API</h2>
+                <button id="testServiceTickets" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    Probar APIs
+                </button>
+                <div id="serviceTicketsResult" class="mt-4 p-3 rounded text-sm"></div>
+            </div>
+
+            <!-- Navigation Test -->
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h2 class="text-xl font-semibold mb-4">🚀 Test Navigation</h2>
+                <div class="space-y-2">
+                    <a href="/login.html" class="block bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 text-center">
+                        Ir a Login
+                    </a>
+                    <a href="/service-tickets.html" class="block bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 text-center">
+                        Ir a Service Tickets
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Log Area -->
+        <div class="mt-8 bg-gray-900 text-green-400 p-4 rounded-lg">
+            <h3 class="text-lg font-semibold mb-2">📝 Log de Pruebas</h3>
+            <div id="logArea" class="font-mono text-sm max-h-96 overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        // Función para log
+        function log(message, type = 'info') {
+            const logArea = document.getElementById('logArea');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.innerHTML = `[${timestamp}] ${type.toUpperCase()}: ${message}`;
+            
+            if (type === 'error') {
+                logEntry.className = 'text-red-400';
+            } else if (type === 'success') {
+                logEntry.className = 'text-green-400';
+            } else if (type === 'warning') {
+                logEntry.className = 'text-yellow-400';
+            }
+            
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        // Test Login
+        document.getElementById('testLogin').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('loginResult');
+            log('Iniciando test de login...');
+            
+            try {
+                const response = await fetch(`${window.API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    resultDiv.innerHTML = `<div class="text-green-700 bg-green-100 p-2 rounded">✅ Login exitoso!<br>Token: ${result.token.substring(0, 20)}...</div>`;
+                    log('Login exitoso, guardando token...', 'success');
+                    
+                    // Guardar token
+                    localStorage.setItem('gymtec_token', result.token);
+                    localStorage.setItem('gymtec_user', JSON.stringify(result.user));
+                } else {
+                    const error = await response.json();
+                    resultDiv.innerHTML = `<div class="text-red-700 bg-red-100 p-2 rounded">❌ Error: ${error.error}</div>`;
+                    log(`Error en login: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="text-red-700 bg-red-100 p-2 rounded">❌ Error de red: ${error.message}</div>`;
+                log(`Error de red: ${error.message}`, 'error');
+            }
+        });
+
+        // Test AuthManager
+        document.getElementById('testAuth').addEventListener('click', () => {
+            const resultDiv = document.getElementById('authResult');
+            log('Verificando AuthManager...');
+            
+            if (window.authManager) {
+                const isAuth = window.authManager.isAuthenticated();
+                const user = window.authManager.getUser();
+                
+                resultDiv.innerHTML = `
+                    <div class="text-green-700 bg-green-100 p-2 rounded">
+                        ✅ AuthManager disponible<br>
+                        Autenticado: ${isAuth ? 'Sí' : 'No'}<br>
+                        Usuario: ${user ? user.username : 'N/A'}
+                    </div>
+                `;
+                log(`AuthManager OK - Autenticado: ${isAuth}`, 'success');
+            } else {
+                resultDiv.innerHTML = `<div class="text-red-700 bg-red-100 p-2 rounded">❌ AuthManager no disponible</div>`;
+                log('AuthManager no disponible', 'error');
+            }
+        });
+
+        // Test Service Tickets API
+        document.getElementById('testServiceTickets').addEventListener('click', async () => {
+            const resultDiv = document.getElementById('serviceTicketsResult');
+            log('Probando APIs de Service Tickets...');
+            
+            if (!window.authManager || !window.authManager.isAuthenticated()) {
+                resultDiv.innerHTML = `<div class="text-yellow-700 bg-yellow-100 p-2 rounded">⚠️ Necesitas hacer login primero</div>`;
+                log('Login requerido para probar APIs', 'warning');
+                return;
+            }
+
+            try {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/service-tickets`);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    resultDiv.innerHTML = `
+                        <div class="text-green-700 bg-green-100 p-2 rounded">
+                            ✅ API funcionando<br>
+                            Service Tickets: ${result.data?.length || 0}
+                        </div>
+                    `;
+                    log(`API de Service Tickets OK - ${result.data?.length || 0} tickets`, 'success');
+                } else {
+                    const error = await response.json();
+                    resultDiv.innerHTML = `<div class="text-red-700 bg-red-100 p-2 rounded">❌ Error API: ${error.error}</div>`;
+                    log(`Error en API: ${error.error}`, 'error');
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="text-red-700 bg-red-100 p-2 rounded">❌ Error: ${error.message}</div>`;
+                log(`Error probando API: ${error.message}`, 'error');
+            }
+        });
+
+        // Inicialización
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Test page cargada', 'info');
+            log(`API URL: ${window.API_URL}`, 'info');
+            
+            // Verificar AuthManager cada segundo hasta que esté disponible
+            let attempts = 0;
+            const checkAuth = setInterval(() => {
+                attempts++;
+                if (window.authManager) {
+                    log('AuthManager detectado automáticamente', 'success');
+                    clearInterval(checkAuth);
+                } else if (attempts > 10) {
+                    log('AuthManager no se cargó después de 10 segundos', 'error');
+                    clearInterval(checkAuth);
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

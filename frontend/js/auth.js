@@ -27,6 +27,13 @@ class AuthManager {
     }
 
     /**
+     * Alias para getUser() - compatibilidad con código existente
+     */
+    getCurrentUser() {
+        return this.getUser();
+    }
+
+    /**
      * Verificar si el usuario está autenticado
      */
     isAuthenticated() {
@@ -382,6 +389,9 @@ class AuthManager {
 
 // Crear instancia global
 window.authManager = new AuthManager();
+
+// Hacer AuthManager disponible globalmente para compatibilidad
+window.AuthManager = window.authManager;
 
 /**
  * Función de utilidad para proteger páginas

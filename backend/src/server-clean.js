@@ -38,6 +38,44 @@ app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname, '../../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// ===================================================================
+// ENDPOINT DE PRUEBA PARA DIAGNOSTICAR RUTAS (TEMPRANO)
+// ===================================================================
+
+app.get('/api/test-early', (req, res) => {
+    console.log('🔍 Endpoint /api/test-early called');
+    res.json({
+        message: 'Server is working! (Early endpoint)',
+        timestamp: new Date().toISOString(),
+        loadedRoutes: [
+            'GET /api/test-early',
+            'Static files configured',
+            'CORS enabled',
+            'JSON middleware enabled'
+        ]
+    });
+});
+
+// Endpoint de diagnóstico adicional
+app.get('/api/diag', (req, res) => {
+    console.log('🔍 Endpoint /api/diag called');
+    res.json({
+        message: 'Diagnostic endpoint working!',
+        timestamp: new Date().toISOString(),
+        server: 'Express',
+        port: PORT
+    });
+});
+
+// Endpoint de prueba sin /api
+app.get('/test', (req, res) => {
+    console.log('🔍 Endpoint /test called');
+    res.json({
+        message: 'Test endpoint without /api working!',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // Configuración de multer para subida de archivos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
@@ -88,10 +126,16 @@ const uploadManuals = multer({
 
 // Verificar token JWT
 function authenticateToken(req, res, next) {
+    console.log('🔍 authenticateToken - Endpoint:', req.method, req.path);
+    
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
+    console.log('🔑 Authorization header:', authHeader ? 'Present' : 'Missing');
+    console.log('🎫 Token extracted:', token ? 'Present' : 'Missing');
+
     if (!token) {
+        console.log('❌ No token provided');
         return res.status(401).json({
             error: 'Token de acceso requerido',
             code: 'MISSING_TOKEN'
@@ -100,12 +144,14 @@ function authenticateToken(req, res, next) {
 
     jwt.verify(token, AuthService.JWT_SECRET, (err, user) => {
         if (err) {
-            console.log('❌ Token inválido:', err.message);
+            console.log('❌ Token verification failed:', err.message);
+            console.log('🔍 JWT_SECRET being used:', AuthService.JWT_SECRET ? 'Present' : 'Missing');
             return res.status(403).json({
                 error: 'Token inválido o expirado',
                 code: 'INVALID_TOKEN'
             });
         }
+        console.log('✅ Token valid - User:', user.username, 'Role:', user.role);
         req.user = user;
         next();
     });
@@ -627,6 +673,61 @@ app.get('/api/locations/:locationId/equipment', (req, res) => {
     });
 });
 
+// GET all equipment (for equipment selector)
+app.get('/api/equipment', authenticateToken, (req, res) => {
+    console.log('🔍 Getting all equipment...');
+    
+    const sql = `
+        SELECT 
+            e.id,
+            e.custom_id,
+            e.location_id,
+            e.model_id,
+            e.acquisition_date,
+            e.last_maintenance_date,
+            e.notes,
+            e.created_at,
+            e.updated_at,
+            -- Mapear campos correctamente para el frontend
+            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre') as name,
+            CASE 
+                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
+                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
+                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
+                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+            END as type,
+            COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
+            COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
+            COALESCE(NULLIF(e.serial_number, ''), 'No asignado') as serial_number,
+            -- Campos adicionales y referencias
+            em.name as model_name,
+            em.brand as model_brand,
+            l.name as location_name,
+            c.name as client_name,
+            c.id as client_id
+        FROM equipment e
+        LEFT JOIN equipmentmodels em ON e.model_id = em.id
+        LEFT JOIN locations l ON e.location_id = l.id
+        LEFT JOIN clients c ON l.client_id = c.id
+        ORDER BY c.name, l.name, e.name
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching all equipment:', err);
+            res.status(500).json({ 
+                error: 'Error al obtener equipos', 
+                code: 'DB_ERROR' 
+            });
+            return;
+        }
+        
+        console.log(`✅ All equipment retrieved:`, rows.length, 'items');
+        res.json(rows);
+    });
+});
+
 // GET individual equipment by ID
 app.get('/api/equipment/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
@@ -699,9 +800,9 @@ try {
     const checklistRoutes = require('./routes/checklist');
     const workflowRoutes = require('./routes/workflow');
     
-    app.use('/api', contractsSlaRoutes);
-    app.use('/api', checklistRoutes);
-    app.use('/api', workflowRoutes);
+    app.use('/api/contracts', contractsSlaRoutes);
+    app.use('/api/checklist', checklistRoutes);
+    app.use('/api/workflow', workflowRoutes);
     
     console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow');
 } catch (error) {
@@ -728,6 +829,17 @@ try {
     console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
 } catch (error) {
     console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
+}
+
+// SERVICE TICKETS SYSTEM - Sistema de Tickets de Servicio para Gimnasios Completos
+try {
+    const serviceTicketsRoutes = require('./routes/service-tickets');
+    
+    app.use('/api/service-tickets', serviceTicketsRoutes);
+    
+    console.log('✅ Service Tickets Routes loaded: Sistema de Tickets de Servicio para Gimnasios');
+} catch (error) {
+    console.warn('⚠️  Warning: Service Tickets routes could not be loaded:', error.message);
 }
 
 // ===================================================================
@@ -843,78 +955,10 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
 // RUTAS DE TICKETS - SISTEMA DE TICKETS DE MANTENIMIENTO
 // ===================================================================
 
-// GET all tickets
-app.get('/api/tickets', authenticateToken, (req, res) => {
-    const { location_id } = req.query;
-    
-    let sql = `
-        SELECT 
-            t.*,
-            c.name as client_name,
-            l.name as location_name,
-            e.name as equipment_name,
-            e.custom_id as equipment_custom_id
-        FROM Tickets t
-        LEFT JOIN Clients c ON t.client_id = c.id
-        LEFT JOIN Equipment e ON t.equipment_id = e.id
-        LEFT JOIN Locations l ON t.location_id = l.id
-    `;
-    
-    let params = [];
-    
-    // Filtrar por location_id si se proporciona
-    if (location_id) {
-        sql += ` WHERE t.location_id = ?`;
-        params.push(location_id);
-    }
-    
-    sql += ` ORDER BY t.created_at DESC`;
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('❌ Error en consulta de tickets:', err.message);
-            res.status(500).json({ "error": err.message });
-            return;
-        }
-        console.log(`✅ Tickets encontrados: ${rows.length}`);
-        res.json({
-            message: "success",
-            data: rows
-        });
-    });
-});
+
 
 // GET a single ticket by id
-app.get('/api/tickets/:id', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT 
-            t.*,
-            c.name as client_name,
-            l.name as location_name,
-            e.name as equipment_name,
-            e.custom_id as equipment_custom_id
-        FROM Tickets t
-        LEFT JOIN Clients c ON t.client_id = c.id
-        LEFT JOIN Equipment e ON t.equipment_id = e.id
-        LEFT JOIN Locations l ON t.location_id = l.id
-        WHERE t.id = ?
-    `;
-    
-    db.get(sql, [req.params.id], (err, row) => {
-        if (err) {
-            console.error('❌ Error obteniendo ticket:', err.message);
-            res.status(500).json({ "error": err.message });
-            return;
-        }
-        if (!row) {
-            return res.status(404).json({ error: "Ticket no encontrado" });
-        }
-        res.json({
-            message: "success",
-            data: row
-        });
-    });
-});
+
 
 // GET detailed ticket information (for ticket-detail page)
 app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
@@ -1033,87 +1077,13 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
 });
 
 // POST new ticket
-app.post('/api/tickets', authenticateToken, (req, res) => {
-    const { client_id, location_id, equipment_id, title, description, priority, due_date } = req.body;
 
-    // Basic validation
-    if (!title || !client_id || !priority) {
-        return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
-    }
-
-    const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
-    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto'];
-    
-    db.run(sql, params, function(err) {
-        if (err) {
-            console.error('❌ Error creando ticket:', err.message);
-            res.status(500).json({ "error": err.message });
-            return;
-        }
-        console.log(`✅ Ticket creado con ID: ${this.lastID}`);
-        res.status(201).json({
-            message: "success",
-            data: { id: this.lastID, ...req.body, status: 'Abierto' }
-        });
-    });
-});
 
 // PUT (update) a ticket
-app.put('/api/tickets/:id', authenticateToken, (req, res) => {
-    const { client_id, location_id, equipment_id, title, description, status, priority, due_date } = req.body;
-    
-    if (!title || !client_id || !priority || !status) {
-        return res.status(400).json({ error: "Título, Cliente, Prioridad y Estado son campos obligatorios." });
-    }
 
-    const sql = `UPDATE Tickets SET
-                    client_id = ?,
-                    location_id = ?,
-                    equipment_id = ?,
-                    title = ?,
-                    description = ?,
-                    status = ?,
-                    priority = ?,
-                    due_date = ?,
-                    updated_at = CURRENT_TIMESTAMP
-                 WHERE id = ?`;
-                 
-    const params = [client_id, location_id, equipment_id, title, description, status, priority, due_date, req.params.id];
-
-    db.run(sql, params, function(err) {
-        if (err) {
-            console.error('❌ Error actualizando ticket:', err.message);
-            res.status(500).json({ "error": err.message });
-            return;
-        }
-        if (this.changes === 0) {
-            return res.status(404).json({ error: "Ticket no encontrado." });
-        }
-        console.log(`✅ Ticket ${req.params.id} actualizado`);
-        res.json({
-            message: "success",
-            changes: this.changes
-        });
-    });
-});
 
 // DELETE a ticket
-app.delete('/api/tickets/:id', authenticateToken, (req, res) => {
-    const sql = 'DELETE FROM Tickets WHERE id = ?';
-    db.run(sql, [req.params.id], function(err) {
-        if (err) {
-            console.error('❌ Error eliminando ticket:', err.message);
-            res.status(500).json({ "error": err.message });
-            return;
-        }
-        if (this.changes === 0) {
-            return res.status(404).json({ error: "Ticket no encontrado." });
-        }
-        console.log(`✅ Ticket ${req.params.id} eliminado`);
-        res.json({ "message": "deleted", changes: this.changes });
-    });
-});
+
 
 // ===================================================================
 // RUTAS DE NOTAS DE TICKETS
@@ -1977,699 +1947,71 @@ app.post('/api/models', authenticateToken, async (req, res) => {
     }
 });
 
+
+
 // ===================================================================
-// RUTAS DE GASTOS - SISTEMA FINANCIERO
+// ENDPOINT DE PRUEBA PARA DIAGNOSTICAR RUTAS
 // ===================================================================
 
-// GET /api/expenses - Obtener todos los gastos
-app.get('/api/expenses', authenticateToken, (req, res) => {
-    console.log('💸 Obteniendo lista de gastos...');
-    
-    const { status, category, date_from, date_to, limit = 50, offset = 0 } = req.query;
-    
-    let sql = `
-        SELECT 
-            e.*,
-            ec.name as category_name,
-            u_created.username as created_by_name,
-            u_approved.username as approved_by_name
-        FROM Expenses e
-        LEFT JOIN ExpenseCategories ec ON e.category_id = ec.id
-        LEFT JOIN Users u_created ON e.created_by = u_created.id
-        LEFT JOIN Users u_approved ON e.approved_by = u_approved.id
-        WHERE 1=1
-    `;
-    
-    const params = [];
-    
-    if (status) {
-        sql += ` AND e.status = ?`;
-        params.push(status);
-    }
-    
-    if (category) {
-        sql += ` AND (e.category = ? OR ec.name = ?)`;
-        params.push(category, category);
-    }
-    
-    if (date_from) {
-        sql += ` AND e.date >= ?`;
-        params.push(date_from);
-    }
-    
-    if (date_to) {
-        sql += ` AND e.date <= ?`;
-        params.push(date_to);
-    }
-    
-    sql += ` ORDER BY e.date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('❌ Error obteniendo gastos:', err);
-            res.status(500).json({ 
-                error: 'Error obteniendo gastos',
-                details: err.message 
-            });
-            return;
-        }
-        
-        console.log(`✅ ${rows.length} gastos obtenidos`);
-        res.json({
-            message: 'success',
-            data: rows,
-            total: rows.length,
-            offset: parseInt(offset),
-            limit: parseInt(limit)
-        });
+app.get('/api/test', (req, res) => {
+    res.json({
+        message: 'Server is working!',
+        timestamp: new Date().toISOString(),
+        routes: [
+            'GET /api/test',
+            'GET /api/users/test',
+            'GET /api/inventory',
+            'GET /api/purchase-orders'
+        ]
     });
 });
 
-// POST /api/expenses - Crear nuevo gasto
-app.post('/api/expenses', authenticateToken, (req, res) => {
-    const {
-        category,
-        category_id,
-        description,
-        amount,
-        date,
-        supplier,
-        receipt_number,
-        payment_method,
-        reference_type,
-        reference_id,
-        notes,
-        receipt_file
-    } = req.body;
-    
-    // Validaciones básicas
-    if (!description || !amount || !date) {
-        return res.status(400).json({
-            error: 'Descripción, monto y fecha son requeridos'
-        });
-    }
-    
-    if (amount <= 0) {
-        return res.status(400).json({
-            error: 'El monto debe ser mayor a 0'
-        });
-    }
-    
-    console.log(`💸 Creando nuevo gasto: ${description} - $${amount}`);
-    
-    const sql = `
-        INSERT INTO Expenses (
-            category_id, category, description, amount, date, supplier,
-            receipt_number, payment_method, reference_type, reference_id,
-            notes, receipt_file, created_by, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente')
-    `;
-    
-    const params = [
-        category_id || null,
-        category || 'Otros',
-        description,
-        amount,
-        date,
-        supplier || null,
-        receipt_number || null,
-        payment_method || null,
-        reference_type || 'General',
-        reference_id || null,
-        notes || null,
-        receipt_file || null,
-        req.user.id
-    ];
-    
-    db.run(sql, params, function(err) {
-        if (err) {
-            console.error('❌ Error creando gasto:', err);
-            res.status(500).json({
-                error: 'Error al crear gasto',
-                details: err.message
-            });
-            return;
-        }
-        
-        console.log(`✅ Gasto creado con ID: ${this.lastID}`);
-        
-        // Obtener el gasto completo creado
-        const getSql = `
-            SELECT 
-                e.*,
-                ec.name as category_name,
-                u.username as created_by_name
-            FROM Expenses e
-            LEFT JOIN ExpenseCategories ec ON e.category_id = ec.id
-            LEFT JOIN Users u ON e.created_by = u.id
-            WHERE e.id = ?
-        `;
-        
-        db.get(getSql, [this.lastID], (err, row) => {
-            if (err) {
-                console.error('❌ Error obteniendo gasto creado:', err);
-                res.status(201).json({
-                    message: 'Gasto creado exitosamente',
-                    id: this.lastID
-                });
-                return;
-            }
-            
-            res.status(201).json({
-                message: 'Gasto creado exitosamente',
-                data: row
-            });
-        });
+// USERS MANAGEMENT - Sistema de Gestión de Usuarios
+try {
+    const usersRoutes = require('./routes/users');
+
+    app.use('/api/users', usersRoutes);
+
+    console.log('✅ Users Routes loaded: Sistema de Gestión de Usuarios');
+} catch (error) {
+    console.warn('⚠️  Warning: Users routes could not be loaded:', error.message);
+}
+
+// PURCHASE ORDERS MANAGEMENT - Sistema de Órdenes de Compra
+try {
+    const purchaseOrdersRoutes = require('./routes/purchase-orders');
+
+    app.use('/api/purchase-orders', purchaseOrdersRoutes);
+
+    console.log('✅ Purchase Orders Routes loaded: Sistema de Órdenes de Compra');
+} catch (error) {
+    console.warn('⚠️  Warning: Purchase Orders routes could not be loaded:', error.message);
+}
+
+// ===================================================================
+// ENDPOINT DE PRUEBA DIRECTO EN SERVER
+// ===================================================================
+
+app.get('/api/simple-test', (req, res) => {
+    res.json({
+        message: 'Simple test endpoint working!',
+        timestamp: new Date().toISOString(),
+        route: '/api/simple-test',
+        status: 'OK'
     });
 });
 
-// PUT /api/expenses/:id - Actualizar gasto
-app.put('/api/expenses/:id', authenticateToken, (req, res) => {
-    const expenseId = req.params.id;
-    const {
-        category,
-        category_id,
-        description,
-        amount,
-        date,
-        supplier,
-        receipt_number,
-        payment_method,
-        reference_type,
-        reference_id,
-        notes,
-        receipt_file
-    } = req.body;
-    
-    console.log(`💸 Actualizando gasto ID: ${expenseId}`);
-    
-    // Primero verificar que el gasto existe y obtener su estado actual
-    const checkSql = `SELECT status, created_by FROM Expenses WHERE id = ?`;
-    
-    db.get(checkSql, [expenseId], (err, expense) => {
-        if (err) {
-            console.error('❌ Error verificando gasto:', err);
-            return res.status(500).json({
-                error: 'Error verificando gasto',
-                details: err.message
-            });
-        }
-        
-        if (!expense) {
-            return res.status(404).json({
-                error: 'Gasto no encontrado'
-            });
-        }
-        
-        // Solo el creador o admin puede editar gastos pendientes
-        if (expense.status !== 'Pendiente' && req.user.role !== 'Admin') {
-            return res.status(403).json({
-                error: 'Solo se pueden editar gastos pendientes'
-            });
-        }
-        
-        if (expense.created_by !== req.user.id && req.user.role !== 'Admin') {
-            return res.status(403).json({
-                error: 'No tienes permisos para editar este gasto'
-            });
-        }
-        
-        const sql = `
-            UPDATE Expenses SET
-                category_id = COALESCE(?, category_id),
-                category = COALESCE(?, category),
-                description = COALESCE(?, description),
-                amount = COALESCE(?, amount),
-                date = COALESCE(?, date),
-                supplier = COALESCE(?, supplier),
-                receipt_number = COALESCE(?, receipt_number),
-                payment_method = COALESCE(?, payment_method),
-                reference_type = COALESCE(?, reference_type),
-                reference_id = COALESCE(?, reference_id),
-                notes = COALESCE(?, notes),
-                receipt_file = COALESCE(?, receipt_file),
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        `;
-        
-        const params = [
-            category_id,
-            category,
-            description,
-            amount,
-            date,
-            supplier,
-            receipt_number,
-            payment_method,
-            reference_type,
-            reference_id,
-            notes,
-            receipt_file,
-            expenseId
-        ];
-        
-        db.run(sql, params, function(err) {
-            if (err) {
-                console.error('❌ Error actualizando gasto:', err);
-                return res.status(500).json({
-                    error: 'Error al actualizar gasto',
-                    details: err.message
-                });
-            }
-            
-            console.log(`✅ Gasto ${expenseId} actualizado`);
-            
-            // Obtener el gasto actualizado
-            const getSql = `
-                SELECT 
-                    e.*,
-                    ec.name as category_name,
-                    u_created.username as created_by_name,
-                    u_approved.username as approved_by_name
-                FROM Expenses e
-                LEFT JOIN ExpenseCategories ec ON e.category_id = ec.id
-                LEFT JOIN Users u_created ON e.created_by = u_created.id
-                LEFT JOIN Users u_approved ON e.approved_by = u_approved.id
-                WHERE e.id = ?
-            `;
-            
-            db.get(getSql, [expenseId], (err, row) => {
-                if (err) {
-                    console.error('❌ Error obteniendo gasto actualizado:', err);
-                    return res.json({
-                        message: 'Gasto actualizado exitosamente',
-                        changes: this.changes
-                    });
-                }
-                
-                res.json({
-                    message: 'Gasto actualizado exitosamente',
-                    data: row,
-                    changes: this.changes
-                });
-            });
-        });
+app.get('/api/test-users', (req, res) => {
+    res.json({
+        message: 'Test endpoint working!',
+        timestamp: new Date().toISOString(),
+        route: '/api/test-users'
     });
 });
 
-// PUT /api/expenses/:id/approve - Aprobar gasto
-app.put('/api/expenses/:id/approve', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const expenseId = req.params.id;
-    const { notes } = req.body;
-    
-    console.log(`✅ Aprobando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
-    
-    const sql = `
-        UPDATE Expenses SET
-            status = 'Aprobado',
-            approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP,
-            notes = COALESCE(?, notes),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND status = 'Pendiente'
-    `;
-    
-    db.run(sql, [req.user.id, notes, expenseId], function(err) {
-        if (err) {
-            console.error('❌ Error aprobando gasto:', err);
-            return res.status(500).json({
-                error: 'Error al aprobar gasto',
-                details: err.message
-            });
-        }
-        
-        if (this.changes === 0) {
-            return res.status(404).json({
-                error: 'Gasto no encontrado o ya fue procesado'
-            });
-        }
-        
-        console.log(`✅ Gasto ${expenseId} aprobado exitosamente`);
-        
-        res.json({
-            message: 'Gasto aprobado exitosamente',
-            expense_id: expenseId,
-            approved_by: req.user.username,
-            approved_at: new Date().toISOString()
-        });
-    });
-});
-
-// PUT /api/expenses/:id/reject - Rechazar gasto
-app.put('/api/expenses/:id/reject', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const expenseId = req.params.id;
-    const { notes } = req.body;
-    
-    if (!notes) {
-        return res.status(400).json({
-            error: 'Se requiere una nota explicando el motivo del rechazo'
-        });
-    }
-    
-    console.log(`❌ Rechazando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
-    
-    const sql = `
-        UPDATE Expenses SET
-            status = 'Rechazado',
-            approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP,
-            notes = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND status = 'Pendiente'
-    `;
-    
-    db.run(sql, [req.user.id, notes, expenseId], function(err) {
-        if (err) {
-            console.error('❌ Error rechazando gasto:', err);
-            return res.status(500).json({
-                error: 'Error al rechazar gasto',
-                details: err.message
-            });
-        }
-        
-        if (this.changes === 0) {
-            return res.status(404).json({
-                error: 'Gasto no encontrado o ya fue procesado'
-            });
-        }
-        
-        console.log(`❌ Gasto ${expenseId} rechazado exitosamente`);
-        
-        res.json({
-            message: 'Gasto rechazado exitosamente',
-            expense_id: expenseId,
-            rejected_by: req.user.username,
-            rejected_at: new Date().toISOString(),
-            reason: notes
-        });
-    });
-});
-
-// PUT /api/expenses/:id/pay - Marcar gasto como pagado
-app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const expenseId = req.params.id;
-    const { payment_method, payment_notes } = req.body;
-    
-    console.log(`💳 Marcando gasto ID: ${expenseId} como pagado`);
-    
-    const sql = `
-        UPDATE Expenses SET
-            status = 'Pagado',
-            payment_method = COALESCE(?, payment_method),
-            paid_at = CURRENT_TIMESTAMP,
-            notes = CASE 
-                WHEN ? IS NOT NULL THEN CONCAT(COALESCE(notes, ''), '\n--- PAGO ---\n', ?)
-                ELSE notes
-            END,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND status = 'Aprobado'
-    `;
-    
-    db.run(sql, [payment_method, payment_notes, payment_notes, expenseId], function(err) {
-        if (err) {
-            console.error('❌ Error marcando gasto como pagado:', err);
-            return res.status(500).json({
-                error: 'Error al marcar gasto como pagado',
-                details: err.message
-            });
-        }
-        
-        if (this.changes === 0) {
-            return res.status(404).json({
-                error: 'Gasto no encontrado o no está aprobado'
-            });
-        }
-        
-        console.log(`💳 Gasto ${expenseId} marcado como pagado`);
-        
-        res.json({
-            message: 'Gasto marcado como pagado exitosamente',
-            expense_id: expenseId,
-            paid_at: new Date().toISOString(),
-            payment_method: payment_method
-        });
-    });
-});
-
-// DELETE /api/expenses/:id - Eliminar gasto
-app.delete('/api/expenses/:id', authenticateToken, (req, res) => {
-    const expenseId = req.params.id;
-    
-    console.log(`🗑️ Eliminando gasto ID: ${expenseId}`);
-    
-    // Verificar permisos: solo el creador o admin pueden eliminar gastos pendientes
-    const checkSql = `SELECT status, created_by FROM Expenses WHERE id = ?`;
-    
-    db.get(checkSql, [expenseId], (err, expense) => {
-        if (err) {
-            console.error('❌ Error verificando gasto:', err);
-            return res.status(500).json({
-                error: 'Error verificando gasto',
-                details: err.message
-            });
-        }
-        
-        if (!expense) {
-            return res.status(404).json({
-                error: 'Gasto no encontrado'
-            });
-        }
-        
-        // Solo se pueden eliminar gastos pendientes o rechazados
-        if (!['Pendiente', 'Rechazado'].includes(expense.status)) {
-            return res.status(403).json({
-                error: 'Solo se pueden eliminar gastos pendientes o rechazados'
-            });
-        }
-        
-        // Solo el creador o admin pueden eliminar
-        if (expense.created_by !== req.user.id && req.user.role !== 'Admin') {
-            return res.status(403).json({
-                error: 'No tienes permisos para eliminar este gasto'
-            });
-        }
-        
-        const deleteSql = `DELETE FROM Expenses WHERE id = ?`;
-        
-        db.run(deleteSql, [expenseId], function(err) {
-            if (err) {
-                console.error('❌ Error eliminando gasto:', err);
-                return res.status(500).json({
-                    error: 'Error al eliminar gasto',
-                    details: err.message
-                });
-            }
-            
-            console.log(`✅ Gasto ${expenseId} eliminado exitosamente`);
-            
-            res.json({
-                message: 'Gasto eliminado exitosamente',
-                expense_id: expenseId,
-                deleted_by: req.user.username
-            });
-        });
-    });
-});
-
-// GET /api/expense-categories - Obtener categorías de gastos
-app.get('/api/expense-categories', authenticateToken, (req, res) => {
-    console.log('📁 Obteniendo categorías de gastos...');
-    
-    const sql = `
-        SELECT * FROM ExpenseCategories 
-        WHERE is_active = 1 
-        ORDER BY name ASC
-    `;
-    
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            console.error('❌ Error obteniendo categorías:', err);
-            res.status(500).json({
-                error: 'Error obteniendo categorías',
-                details: err.message
-            });
-            return;
-        }
-        
-        console.log(`✅ ${rows.length} categorías obtenidas`);
-        res.json({
-            message: 'success',
-            data: rows,
-            total: rows.length
-        });
-    });
-});
-
-// POST /api/expense-categories - Crear nueva categoría
-app.post('/api/expense-categories', authenticateToken, requireRole(['Admin']), (req, res) => {
-    const { name, description } = req.body;
-    
-    if (!name) {
-        return res.status(400).json({
-            error: 'El nombre de la categoría es requerido'
-        });
-    }
-    
-    console.log(`📁 Creando nueva categoría: ${name}`);
-    
-    const sql = `
-        INSERT INTO ExpenseCategories (name, description)
-        VALUES (?, ?)
-    `;
-    
-    db.run(sql, [name, description || null], function(err) {
-        if (err) {
-            if (err.message.includes('UNIQUE constraint')) {
-                return res.status(409).json({
-                    error: 'Ya existe una categoría con ese nombre'
-                });
-            }
-            
-            console.error('❌ Error creando categoría:', err);
-            return res.status(500).json({
-                error: 'Error al crear categoría',
-                details: err.message
-            });
-        }
-        
-        console.log(`✅ Categoría creada con ID: ${this.lastID}`);
-        
-        res.status(201).json({
-            message: 'Categoría creada exitosamente',
-            data: {
-                id: this.lastID,
-                name,
-                description,
-                is_active: true,
-                created_at: new Date().toISOString()
-            }
-        });
-    });
-});
-
-// GET /api/expenses/stats - Obtener estadísticas de gastos
-app.get('/api/expenses/stats', authenticateToken, (req, res) => {
-    console.log('📊 Calculando estadísticas de gastos...');
-    
-    const { period = 'month' } = req.query;
-    
-    let dateFilter = '';
-    switch (period) {
-        case 'week':
-            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)`;
-            break;
-        case 'month':
-            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`;
-            break;
-        case 'quarter':
-            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 90 DAY)`;
-            break;
-        case 'year':
-            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 365 DAY)`;
-            break;
-        default:
-            dateFilter = `AND e.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)`;
-    }
-    
-    const queries = [
-        // Total gastos por estado
-        new Promise((resolve, reject) => {
-            const sql = `
-                SELECT 
-                    status,
-                    COUNT(*) as count,
-                    SUM(amount) as total_amount
-                FROM Expenses e
-                WHERE 1=1 ${dateFilter}
-                GROUP BY status
-            `;
-            
-            db.all(sql, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ type: 'by_status', data: rows });
-            });
-        }),
-        
-        // Total gastos por categoría
-        new Promise((resolve, reject) => {
-            const sql = `
-                SELECT 
-                    COALESCE(e.category, 'Sin categoría') as category,
-                    COUNT(*) as count,
-                    SUM(amount) as total_amount
-                FROM Expenses e
-                WHERE 1=1 ${dateFilter}
-                GROUP BY e.category
-                ORDER BY total_amount DESC
-                LIMIT 10
-            `;
-            
-            db.all(sql, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ type: 'by_category', data: rows });
-            });
-        }),
-        
-        // Totales generales
-        new Promise((resolve, reject) => {
-            const sql = `
-                SELECT 
-                    COUNT(*) as total_count,
-                    SUM(amount) as total_amount,
-                    AVG(amount) as avg_amount,
-                    SUM(CASE WHEN status = 'Pendiente' THEN amount ELSE 0 END) as pending_amount,
-                    SUM(CASE WHEN status = 'Aprobado' THEN amount ELSE 0 END) as approved_amount,
-                    SUM(CASE WHEN status = 'Pagado' THEN amount ELSE 0 END) as paid_amount
-                FROM Expenses e
-                WHERE 1=1 ${dateFilter}
-            `;
-            
-            db.get(sql, [], (err, row) => {
-                if (err) reject(err);
-                else resolve({ type: 'totals', data: row });
-            });
-        })
-    ];
-    
-    Promise.all(queries)
-        .then(results => {
-            const stats = {
-                period,
-                date_range: {
-                    from: new Date(Date.now() - (period === 'week' ? 7 : period === 'month' ? 30 : period === 'quarter' ? 90 : 365) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-                    to: new Date().toISOString().split('T')[0]
-                }
-            };
-            
-            results.forEach(result => {
-                stats[result.type] = result.data;
-            });
-            
-            console.log('✅ Estadísticas de gastos calculadas');
-            res.json({
-                message: 'success',
-                data: stats,
-                timestamp: new Date().toISOString()
-            });
-        })
-        .catch(error => {
-            console.error('❌ Error calculando estadísticas:', error);
-            res.status(500).json({
-                error: 'Error calculando estadísticas',
-                details: error.message
-            });
-        });
-});
-
-app.use('*', (req, res) => {
-    res.status(404).json({
-        error: 'Endpoint no encontrado',
-        path: req.originalUrl,
-        method: req.method,
-        timestamp: new Date().toISOString()
-    });
-});
+// ===================================================================
+// MIDDLEWARE DE MANEJO DE ERRORES
+// ===================================================================
 
 app.use((err, req, res, next) => {
     console.error('💥 Error no manejado:', err);
@@ -2698,6 +2040,19 @@ app.use((err, req, res, next) => {
     res.status(500).json({
         error: 'Error interno del servidor',
         message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===================================================================
+// MIDDLEWARE CATCH-ALL PARA RUTAS NO ENCONTRADAS (AL FINAL)
+// ===================================================================
+
+app.use('*', (req, res) => {
+    res.status(404).json({
+        error: 'Endpoint no encontrado',
+        path: req.originalUrl,
+        method: req.method,
         timestamp: new Date().toISOString()
     });
 });
@@ -2736,6 +2091,7 @@ function startServer() {
         console.log('   ⏱️  /api/time-entries/* (Control de Tiempo)');
         console.log('   🔔 /api/notifications/* (Notificaciones - Fase 2)');
         console.log('   📈 /api/inventory/* (Inventario Inteligente - Fase 3)');
+        console.log('   🏢 /api/service-tickets/* (Tickets de Servicio - Gimnasios Completos)');
         console.log('🚀 ========================================\n');
         
         try {

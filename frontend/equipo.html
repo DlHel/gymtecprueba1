@@ -4,39 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Detalle de Equipo - Gymtec ERP</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <link rel="stylesheet" href="css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/equipo.css?v=3">
+    <link rel="stylesheet" href="css/equipo.css?v=4">
 </head>
 <body>
-    <div id="app" class="flex flex-col min-h-screen">
-        <!-- Header -->
-        <header class="app-header z-20">
-            <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <a href="clientes.html" class="p-2 rounded-md hover:bg-gray-200" title="Volver a clientes">
-                        <i data-lucide="arrow-left" class="h-6 w-6"></i>
+    <div id="app" class="equipment-app">
+        <!-- Header Mejorado -->
+        <header class="equipment-header">
+            <div class="equipment-header-container">
+                <div class="equipment-header-nav">
+                    <a href="clientes.html" class="equipment-back-btn" title="Volver a clientes">
+                        <i data-lucide="arrow-left" class="h-5 w-5"></i>
+                        <span>Volver</span>
                     </a>
-                    <h1 id="page-title">Detalle de Equipo</h1>
+                    <div class="equipment-header-breadcrumb">
+                        <span class="breadcrumb-item">
+                            <i data-lucide="building" class="h-4 w-4"></i>
+                            <span id="breadcrumb-client">Cliente</span>
+                        </span>
+                        <i data-lucide="chevron-right" class="breadcrumb-separator"></i>
+                        <span class="breadcrumb-item">
+                            <i data-lucide="map-pin" class="h-4 w-4"></i>
+                            <span id="breadcrumb-location">Ubicación</span>
+                        </span>
+                        <i data-lucide="chevron-right" class="breadcrumb-separator"></i>
+                        <span class="breadcrumb-item active">
+                            <i data-lucide="wrench" class="h-4 w-4"></i>
+                            <span id="breadcrumb-equipment">Equipo</span>
+                        </span>
+                    </div>
                 </div>
-                <div class="user-info">
-                    Felipe Maturana (Admin)
+                
+                <div class="equipment-header-title">
+                    <h1 id="page-title" class="equipment-title">
+                        <i data-lucide="wrench" class="equipment-title-icon"></i>
+                        <span>Detalle de Equipo</span>
+                    </h1>
+                    <p class="equipment-subtitle">Información completa, historial y mantenimiento</p>
+                </div>
+
+                <div class="equipment-header-actions">
+                    <button class="equipment-action-btn secondary" id="equipment-print-btn" title="Imprimir información del equipo">
+                        <i data-lucide="printer" class="h-4 w-4"></i>
+                        <span>Imprimir</span>
+                    </button>
+                    <button class="equipment-action-btn secondary" id="equipment-export-btn" title="Exportar datos del equipo">
+                        <i data-lucide="download" class="h-4 w-4"></i>
+                        <span>Exportar</span>
+                    </button>
+                    <button class="equipment-action-btn primary" id="equipment-edit-btn" title="Editar información del equipo">
+                        <i data-lucide="edit" class="h-4 w-4"></i>
+                        <span>Editar</span>
+                    </button>
+                </div>
+
+                <div class="equipment-header-user">
+                    <div class="user-info">
+                        <i data-lucide="user" class="h-4 w-4"></i>
+                        <span>Felipe Maturana (Admin)</span>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-4 md:p-6">
-            <!-- El contenido se cargará aquí -->
-             <div class="equipment-loading">Cargando datos del equipo...</div>
+        <!-- Contenido Principal Mejorado -->
+        <main id="main-content" class="equipment-main">
+            <!-- Loading state profesional -->
+            <div class="equipment-loading-container">
+                <div class="equipment-loading-card">
+                    <div class="equipment-loading-spinner">
+                        <div class="spinner-ring"></div>
+                    </div>
+                    <h3 class="equipment-loading-title">Cargando información del equipo</h3>
+                    <p class="equipment-loading-text">Obteniendo datos de mantenimiento, historial y documentación...</p>
+                    <div class="equipment-loading-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
+
+        <!-- Footer de página -->
+        <footer class="equipment-footer">
+            <div class="equipment-footer-container">
+                <div class="equipment-footer-info">
+                    <span>Gymtec ERP - Sistema de Gestión de Mantenimiento</span>
+                </div>
+                <div class="equipment-footer-actions">
+                    <button class="equipment-footer-btn" id="equipment-help-btn" title="Ayuda y documentación">
+                        <i data-lucide="help-circle" class="h-4 w-4"></i>
+                        <span>Ayuda</span>
+                    </button>
+                    <button class="equipment-footer-btn" id="equipment-feedback-btn" title="Enviar comentarios">
+                        <i data-lucide="message-circle" class="h-4 w-4"></i>
+                        <span>Feedback</span>
+                    </button>
+                </div>
+            </div>
+        </footer>
     </div>
     
+    <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/base-modal.js"></script>
     <script src="js/qrcode.min.js"></script>
-    <script src="js/equipo.js?v=3"></script>
+    <script src="js/equipo.js?v=4"></script>
 </body>
 </html> 

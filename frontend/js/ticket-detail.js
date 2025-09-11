@@ -218,8 +218,16 @@ async function loadTicketDetail(ticketId) {
         showContent();
         
     } catch (error) {
-        console.error('❌ Error al cargar ticket:', error);
-        showError(`Error al cargar el ticket: ${error.message}`);
+        const errorId = `TICKET_LOAD_${Date.now()}`;
+        console.error(`❌ Error al cargar ticket ${ticketId} [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            ticketId,
+            user: authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al cargar el ticket. Por favor intenta nuevamente. (Ref: ${errorId})`);
     }
 }
 
@@ -716,27 +724,40 @@ function toggleDropZone() {
 // === FUNCIÓN PARA SUBIR FOTO ===
 async function uploadPhoto(file) {
     try {
+        console.log(`📤 Subiendo foto: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
+
         const formData = new FormData();
         formData.append('photo', file);
-        
+
         const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             body: formData
         });
-        
+
         if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
         }
-        
+
         const result = await response.json();
-        console.log('Foto subida exitosamente:', result);
-        
+        console.log('✅ Foto subida exitosamente:', result);
+
         // Recargar el ticket para mostrar la nueva foto
         await loadTicketDetail(state.currentTicket.id);
-        
+
     } catch (error) {
-        console.error('Error al subir foto:', error);
-        showError('Error al subir la foto');
+        const errorId = `TICKET_UPLOAD_PHOTO_${Date.now()}`;
+        console.error(`❌ Error al subir foto [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            fileName: file.name,
+            fileSize: file.size,
+            ticketId: state.currentTicket?.id,
+            user: authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al subir la foto. Por favor intenta nuevamente. (Ref: ${errorId})`);
     }
 }
 
@@ -1384,8 +1405,16 @@ async function renderStockAlerts() {
         setTimeout(() => lucide.createIcons(), 10);
         
     } catch (error) {
-        console.error('❌ Error al cargar alertas de stock:', error);
+        const errorId = `TICKET_STOCK_ALERTS_${Date.now()}`;
+        console.error(`❌ Error al cargar alertas de stock [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            user: authManager?.getCurrentUser()?.username
+        });
+
         sparePartsAlerts.classList.add('hidden');
+        // No mostrar error al usuario para no interrumpir la experiencia
     }
 }
 
@@ -1742,8 +1771,10 @@ function updateTimerDisplay() {
 
 async function saveTimeEntry(durationSeconds) {
     if (!state.currentTicket) return;
-    
+
     try {
+        console.log(`⏱️ Guardando entrada de tiempo: ${formatDuration(durationSeconds)}`);
+
         const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/time-entries`, {
             method: 'POST',
             headers: {
@@ -1755,24 +1786,39 @@ async function saveTimeEntry(durationSeconds) {
                 description: 'Sesión de trabajo'
             })
         });
-        
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+        }
+
         const result = await response.json();
-        
-        if (response.ok && result.success) {
+
+        if (result.success) {
             // Actualizar estado
             state.timeEntries.push(result.data);
-            
+
             // Re-renderizar
             renderTimeEntries();
             renderTicketStats();
             updateTabCounters();
-            
-            console.log('✅ Entrada de tiempo guardada:', result.data);
+
+            console.log('✅ Entrada de tiempo guardada exitosamente:', result.data);
         } else {
-            console.error('❌ Error al guardar entrada de tiempo:', result.error);
+            throw new Error(result.error || 'Error al guardar entrada de tiempo');
         }
     } catch (error) {
-        console.error('❌ Error al guardar entrada de tiempo:', error);
+        const errorId = `TICKET_SAVE_TIME_${Date.now()}`;
+        console.error(`❌ Error al guardar entrada de tiempo [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            durationSeconds,
+            ticketId: state.currentTicket?.id,
+            user: authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al guardar el tiempo trabajado. Por favor intenta nuevamente. (Ref: ${errorId})`);
     }
 }
 
@@ -2045,8 +2091,18 @@ async function addChecklistItem(title, description = '') {
         console.log('🔄 Checklist actualizado en interfaz');
         
     } catch (error) {
-        console.error('❌ Error al agregar tarea al checklist:', error);
-        throw error;
+        const errorId = `TICKET_ADD_CHECKLIST_${Date.now()}`;
+        console.error(`❌ Error al agregar tarea al checklist [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            title,
+            description,
+            ticketId: state.currentTicket?.id,
+            user: authManager?.getCurrentUser()?.username
+        });
+
+        throw error; // Re-throw para que sea manejado por submitChecklistItem
     }
 }
 
@@ -2092,16 +2148,25 @@ async function toggleChecklistItem(itemId, isCompleted) {
         renderTicketStats();
         
     } catch (error) {
-        console.error('❌ Error al cambiar estado de tarea:', error);
-        
+        const errorId = `TICKET_TOGGLE_CHECKLIST_${Date.now()}`;
+        console.error(`❌ Error al cambiar estado de tarea ${itemId} [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            itemId,
+            isCompleted,
+            ticketId: state.currentTicket?.id,
+            user: authManager?.getCurrentUser()?.username
+        });
+
         // Revertir el checkbox si hay error
         const checkbox = document.querySelector(`input[data-item-id="${itemId}"]`);
         if (checkbox) {
             checkbox.checked = !isCompleted;
             console.log('🔄 Checkbox revertido:', { itemId, originalState: !isCompleted });
         }
-        
-        alert(`Error al actualizar el estado de la tarea: ${error.message}`);
+
+        showError(`Error al actualizar el estado de la tarea. Por favor intenta nuevamente. (Ref: ${errorId})`);
     }
 }
 

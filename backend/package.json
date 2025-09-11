@@ -1,12 +1,15 @@
 {
   "name": "gymtec-backend",
-  "version": "1.0.0",
-  "description": "Backend para GymTec",
-  "main": "src/server-clean.js",
+  "version": "2.0.0",
+  "description": "Backend para GymTec - Arquitectura Modular",
+  "main": "src/server-modular.js",
   "scripts": {
-    "start": "node src/server-clean.js",
-    "dev": "nodemon src/server-clean.js",
-    "test": "jest",
+    "start": "node src/server-modular.js",
+    "start:legacy": "node src/server-clean.js",
+    "dev": "nodemon src/server-modular.js",
+    "dev:legacy": "nodemon src/server-clean.js",
+    "cleanup": "node src/utils/cleanup.js",
+    "test": "node tests/setup.js && cross-env NODE_ENV=test JWT_SECRET=supersecretkeyforlocaldev DB_HOST=localhost DB_NAME=gymtec_erp_test jest",
     "lint": "eslint src/**/*.js"
   },
   "dependencies": {
@@ -14,18 +17,20 @@
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
+    "express-rate-limit": "^8.1.0",
     "express-validator": "^7.0.1",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
-    "mongoose": "^7.0.3",
     "morgan": "^1.10.0",
     "multer": "^2.0.2",
     "mysql2": "^3.14.3",
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "cross-env": "^10.0.0",
     "eslint": "^8.38.0",
-    "jest": "^29.5.0",
-    "nodemon": "^2.0.22"
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.10",
+    "supertest": "^7.1.4"
   }
 }

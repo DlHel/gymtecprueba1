@@ -1,3 +1,6 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+/* Importar componentes personalizados consolidados */
+@import './components.css'; 

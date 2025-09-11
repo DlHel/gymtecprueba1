@@ -33,51 +33,88 @@ const clientFilter = document.getElementById('tickets-filter-client');
 const clearFiltersBtn = document.getElementById('tickets-clear-filters');
 const emptyState = document.getElementById('tickets-empty-state');
 
+// --- Utility Functions ---
+/**
+ * Mostrar error al usuario de manera user-friendly
+ * @param {string} message - Mensaje de error a mostrar
+ * @param {string} context - Contexto del error para logging
+ */
+function showError(message, context = 'Tickets') {
+    console.error(`❌ ${context}:`, message);
+
+    // Buscar elemento de error o usar notificación genérica
+    const errorElement = document.getElementById('error-display');
+    if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.remove('hidden');
+
+        // Auto-hide después de 5 segundos
+        setTimeout(() => {
+            if (errorElement) errorElement.classList.add('hidden');
+        }, 5000);
+    } else {
+        // Fallback: usar alert o console
+        console.warn('⚠️ Elemento error-display no encontrado, usando console');
+        alert(message);
+    }
+}
+
+/**
+ * Mostrar mensaje de éxito al usuario
+ * @param {string} message - Mensaje de éxito a mostrar
+ */
+function showSuccess(message) {
+    console.log(`✅ TICKETS: ${message}`);
+
+    // Buscar elemento de éxito o usar notificación genérica
+    const successElement = document.getElementById('success-display');
+    if (successElement) {
+        successElement.textContent = message;
+        successElement.classList.remove('hidden');
+
+        // Auto-hide después de 3 segundos
+        setTimeout(() => {
+            if (successElement) successElement.classList.add('hidden');
+        }, 3000);
+    }
+}
+
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🔍 TICKETS: Iniciando verificación de autenticación...');
-    
+
     // Verificar que estamos en la página correcta
     if (!ticketList) {
         console.warn('⚠️ TICKETS: ticketList no encontrado en DOM');
         return;
     }
-    
-    // USAR protectPage en lugar de verificación manual
-    if (typeof window.protectPage === 'function') {
-        console.log('✅ TICKETS: Usando protectPage para verificar autenticación...');
-        const hasAccess = await window.protectPage();
-        if (!hasAccess) {
-            console.warn('❌ TICKETS: Acceso denegado por protectPage');
-            return; // protectPage ya maneja la redirección
-        }
-    } else {
-        // Fallback a verificación manual (menos robusta)
-        console.warn('⚠️ TICKETS: protectPage no disponible, usando verificación manual...');
-        
-        if (!window.authManager) {
-            console.error('❌ TICKETS: authManager no disponible');
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        if (!window.authManager.isAuthenticated()) {
-            console.error('❌ TICKETS: Usuario no autenticado');
-            window.location.href = 'login.html';
-            return;
-        }
+
+    // ✅ PROTECCIÓN DE AUTENTICACIÓN OBLIGATORIA - Usar AuthManager estándar
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.warn('❌ TICKETS: Usuario no autenticado, redirigiendo a login...');
+        window.location.href = '/login.html';
+        return;
     }
-    
+
     console.log('✅ TICKETS: Autenticación verificada, inicializando...');
-    
+
     // Inicializar la aplicación
     try {
+        console.log('🚀 Inicializando módulo de tickets...');
         await fetchAllInitialData();
         checkForUrlParams();
         setupFilters();
-        console.log('✅ TICKETS: Inicialización completada');
+        console.log('✅ Módulo de tickets inicializado exitosamente');
     } catch (error) {
-        console.error('❌ TICKETS: Error en inicialización:', error);
+        const errorId = `INIT_MODULE_${Date.now()}`;
+        console.error(`❌ Error inicializando módulo de tickets [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al inicializar la aplicación. Por favor recarga la página. (Ref: ${errorId})`, 'Module Initialization');
     }
     
     // --- Event Listeners ---
@@ -474,115 +511,226 @@ function populateClientFilter() {
 // --- API Calls ---
 async function fetchAllInitialData() {
     try {
+        console.log('🔄 Cargando datos iniciales...');
         await Promise.all([
             fetchTickets(),
             fetchClients()
         ]);
+        console.log('✅ Datos iniciales cargados exitosamente');
     } catch (error) {
-        console.error('Error fetching initial data:', error);
+        const errorId = `INIT_DATA_${Date.now()}`;
+        console.error(`❌ Error cargando datos iniciales [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error cargando datos iniciales. Por favor recarga la página. (Ref: ${errorId})`, 'fetchAllInitialData');
+        throw error;
     }
 }
 
 async function fetchTickets() {
     try {
+        console.log('🔄 Cargando tickets...');
         const response = await authenticatedFetch(`${API_URL}/tickets`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+        }
+
         const result = await response.json();
         state.tickets = result.data || [];
         state.filteredTickets = [...state.tickets];
-        
+
         populateClientFilter();
         renderTickets(state.filteredTickets);
         updateStatistics();
+
+        console.log(`✅ Tickets cargados: ${state.tickets.length} tickets`);
+        return state.tickets;
+
     } catch (error) {
-        console.error('Error fetching tickets:', error);
+        const errorId = `TKT_FETCH_${Date.now()}`;
+        console.error(`❌ Error cargando tickets [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
         state.tickets = [];
         state.filteredTickets = [];
         renderTickets([]);
+        showError(`Error cargando tickets. Por favor intenta nuevamente. (Ref: ${errorId})`, 'fetchTickets');
+        throw error;
     }
 }
 
 async function fetchClients() {
     try {
+        console.log('🔄 Cargando clientes...');
         const response = await authenticatedFetch(`${API_URL}/clients`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+        }
+
         const result = await response.json();
         state.clients = result.data || [];
-        
+
         if (clientSelect) {
             populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente' });
         }
-        
+
         populateClientFilter();
+        console.log(`✅ Clientes cargados: ${state.clients.length} clientes`);
+        return state.clients;
+
     } catch (error) {
-        console.error('Error fetching clients:', error);
+        const errorId = `CLI_FETCH_${Date.now()}`;
+        console.error(`❌ Error cargando clientes [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
         state.clients = [];
+        showError(`Error cargando clientes. Por favor intenta nuevamente. (Ref: ${errorId})`, 'fetchClients');
+        throw error;
     }
 }
 
 async function fetchLocations(clientId) {
+    if (!clientId) {
+        console.warn('⚠️ fetchLocations: clientId no proporcionado');
+        return [];
+    }
+
     try {
-        console.log('Fetching locations for client:', clientId);
+        console.log(`🔄 Cargando sedes para cliente ${clientId}...`);
         const response = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+        }
+
         const result = await response.json();
-        console.log('Locations API response:', result);
         state.locations = result.data || [];
-        console.log('Filtered locations for client', clientId, ':', state.locations);
-        
+        console.log(`✅ Sedes cargadas: ${state.locations.length} sedes para cliente ${clientId}`);
+
         if (locationSelect) {
             populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede' });
             locationSelect.disabled = false;
         }
+
+        return state.locations;
+
     } catch (error) {
-        console.error('Error fetching locations:', error);
+        const errorId = `LOC_FETCH_${Date.now()}`;
+        console.error(`❌ Error cargando sedes [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            clientId,
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
         state.locations = [];
         if (locationSelect) {
             populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
             locationSelect.disabled = false;
         }
+
+        showError(`Error cargando sedes. Por favor intenta nuevamente. (Ref: ${errorId})`, 'fetchLocations');
+        throw error;
     }
 }
 
 async function fetchEquipment(locationId) {
+    if (!locationId) {
+        console.warn('⚠️ fetchEquipment: locationId no proporcionado');
+        return [];
+    }
+
     try {
+        console.log(`🔄 Cargando equipos para sede ${locationId}...`);
         const response = await authenticatedFetch(`${API_URL}/equipment?location_id=${locationId}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+        }
+
         const result = await response.json();
         state.equipment = result.data || [];
-        
+        console.log(`✅ Equipos cargados: ${state.equipment.length} equipos para sede ${locationId}`);
+
         if (equipmentSelect) {
             populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo' });
             equipmentSelect.disabled = false;
         }
+
+        return state.equipment;
+
     } catch (error) {
-        console.error('Error fetching equipment:', error);
+        const errorId = `EQP_FETCH_${Date.now()}`;
+        console.error(`❌ Error cargando equipos [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            locationId,
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
         state.equipment = [];
         if (equipmentSelect) {
             populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
             equipmentSelect.disabled = false;
         }
+
+        showError(`Error cargando equipos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'fetchEquipment');
+        throw error;
     }
 }
 
 async function fetchEquipmentModels() {
     try {
+        console.log('🔄 Cargando modelos de equipos...');
         const response = await authenticatedFetch(`${API_URL}/equipment-models`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+        }
+
         const result = await response.json();
         const models = result.data || [];
-        
+        console.log(`✅ Modelos de equipos cargados: ${models.length} modelos`);
+
         const modelSelect = document.getElementById('new-equipment-model-select');
         if (modelSelect) {
             populateSelect(modelSelect, models, { placeholder: 'Seleccione un modelo...' });
         }
+
+        return models;
+
     } catch (error) {
-        console.error('Error fetching equipment models:', error);
+        const errorId = `MOD_FETCH_${Date.now()}`;
+        console.error(`❌ Error cargando modelos de equipos [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error cargando modelos de equipos. Por favor intenta nuevamente. (Ref: ${errorId})`, 'fetchEquipmentModels');
+        throw error;
     }
 }
 
@@ -624,7 +772,7 @@ async function handleFormSubmit(e) {
     const form = e.target;
     const id = form.querySelector('input[name="id"]').value;
     const body = Object.fromEntries(new FormData(form));
-    
+
     // El ID no debe ir en el cuerpo de la solicitud, se usa en la URL
     delete body.id;
 
@@ -635,23 +783,40 @@ async function handleFormSubmit(e) {
 
     const url = id ? `${API_URL}/tickets/${id}` : `${API_URL}/tickets`;
     const method = id ? 'PUT' : 'POST';
+    const operation = id ? 'actualizar' : 'crear';
 
     try {
+        console.log(`🔄 ${operation === 'crear' ? 'Creando' : 'Actualizando'} ticket...`);
         const response = await authenticatedFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
+
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error desconocido');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
         }
-        
+
+        const result = await response.json();
+        console.log(`✅ Ticket ${operation === 'crear' ? 'creado' : 'actualizado'} exitosamente:`, result);
+
         closeModal('ticket-modal');
-        fetchTickets();
+        await fetchTickets();
+        showSuccess(`Ticket ${operation === 'crear' ? 'creado' : 'actualizado'} exitosamente`);
+
     } catch (error) {
-        console.error('Form submission error:', error);
-        alert(`Error al guardar: ${error.message}`);
+        const errorId = `TKT_SUBMIT_${Date.now()}`;
+        console.error(`❌ Error ${operation === 'crear' ? 'creando' : 'actualizando'} ticket [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            operation,
+            ticketId: id,
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al ${operation} el ticket. Por favor intenta nuevamente. (Ref: ${errorId})`, 'handleFormSubmit');
     }
 }
 
@@ -661,6 +826,7 @@ async function handleNewClientSubmit(e) {
     const body = Object.fromEntries(new FormData(form));
 
     try {
+        console.log('🔄 Creando nuevo cliente...');
         const response = await authenticatedFetch(`${API_URL}/clients`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -668,15 +834,16 @@ async function handleNewClientSubmit(e) {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Error al crear el cliente');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al crear el cliente'}`);
         }
 
         const newClient = await response.json();
-        
+        console.log('✅ Cliente creado exitosamente:', newClient);
+
         // 1. Añadir el nuevo cliente al estado local
         state.clients.push(newClient);
-        
+
         // 2. Repoblar y seleccionar en el desplegable de tickets
         populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
         clientSelect.value = newClient.id;
@@ -688,9 +855,19 @@ async function handleNewClientSubmit(e) {
         closeModal('add-client-modal');
         form.reset();
 
+        showSuccess('Cliente creado exitosamente');
+
     } catch (error) {
-        console.error('Error creating new client:', error);
-        alert(`Error: ${error.message}`);
+        const errorId = `CLI_SUBMIT_${Date.now()}`;
+        console.error(`❌ Error creando cliente [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            clientData: body,
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al crear el cliente. Por favor intenta nuevamente. (Ref: ${errorId})`, 'handleNewClientSubmit');
     }
 }
 
@@ -700,19 +877,26 @@ async function handleNewLocationSubmit(e) {
     const body = Object.fromEntries(new FormData(form));
 
     try {
+        console.log('🔄 Creando nueva sede...');
         const response = await authenticatedFetch(`${API_URL}/locations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to create location');
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al crear la sede'}`);
+        }
+
         const newLocation = await response.json();
+        console.log('✅ Sede creada exitosamente:', newLocation);
 
         // 1. Añadir a estado y repoblar desplegable de sedes
         state.locations.push(newLocation);
         populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
         locationSelect.value = newLocation.id;
-        
+
         // 2. Disparar evento para actualizar la UI dependiente (equipos)
         locationSelect.dispatchEvent(new Event('change'));
 
@@ -720,9 +904,19 @@ async function handleNewLocationSubmit(e) {
         closeModal('add-location-modal');
         form.reset();
 
+        showSuccess('Sede creada exitosamente');
+
     } catch (error) {
-        console.error('Error creating new location:', error);
-        alert('Error al crear la sede.');
+        const errorId = `LOC_SUBMIT_${Date.now()}`;
+        console.error(`❌ Error creando sede [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            locationData: body,
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al crear la sede. Por favor intenta nuevamente. (Ref: ${errorId})`, 'handleNewLocationSubmit');
     }
 }
 
@@ -730,18 +924,25 @@ async function handleNewEquipmentSubmit(e) {
     e.preventDefault();
     const form = e.target;
     const body = Object.fromEntries(new FormData(form));
-    
+
     // El modelo es opcional, si no se selecciona, enviar null
     if (!body.model_id) body.model_id = null;
 
     try {
+        console.log('🔄 Creando nuevo equipo...');
         const response = await authenticatedFetch(`${API_URL}/equipment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to create equipment');
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al crear el equipo'}`);
+        }
+
         const newEquipment = await response.json();
+        console.log('✅ Equipo creado exitosamente:', newEquipment);
 
         // 1. Añadir a estado y repoblar desplegable de equipos
         state.equipment.push(newEquipment);
@@ -752,9 +953,19 @@ async function handleNewEquipmentSubmit(e) {
         closeModal('add-equipment-modal');
         form.reset();
 
+        showSuccess('Equipo creado exitosamente');
+
     } catch (error) {
-        console.error('Error creating new equipment:', error);
-        alert('Error al crear el equipo.');
+        const errorId = `EQP_SUBMIT_${Date.now()}`;
+        console.error(`❌ Error creando equipo [${errorId}]:`, {
+            error: error.message,
+            stack: error.stack,
+            timestamp: new Date().toISOString(),
+            equipmentData: body,
+            user: window.authManager?.getCurrentUser()?.username
+        });
+
+        showError(`Error al crear el equipo. Por favor intenta nuevamente. (Ref: ${errorId})`, 'handleNewEquipmentSubmit');
     }
 }
 
