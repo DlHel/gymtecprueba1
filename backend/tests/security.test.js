@@ -3,6 +3,7 @@ const request = require('supertest');
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const helmet = require('helmet'); // Importar helmet
 
 /**
  * Pruebas Unitarias - Security Middleware
@@ -16,7 +17,8 @@ describe('Security Middleware', () => {
         
         beforeEach(() => {
             app = express();
-            app.use(security.helmetConfig);
+            // Usar helmet(security.helmetConfig) para obtener el middleware
+            app.use(helmet(security.helmetConfig));
             app.get('/test', (req, res) => {
                 res.json({ message: 'test' });
             });

@@ -9,7 +9,7 @@
     "dev": "nodemon src/server-modular.js",
     "dev:legacy": "nodemon src/server-clean.js",
     "cleanup": "node src/utils/cleanup.js",
-    "test": "jest",
+    "test": "node tests/setup.js && cross-env NODE_ENV=test JWT_SECRET=supersecretkeyforlocaldev DB_HOST=localhost DB_NAME=gymtec_erp_test jest",
     "lint": "eslint src/**/*.js"
   },
   "dependencies": {
@@ -27,6 +27,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "cross-env": "^10.0.0",
     "eslint": "^8.38.0",
     "jest": "^29.7.0",
     "nodemon": "^3.1.10",

@@ -11,7 +11,7 @@
     "build:css": "tailwindcss -i ./frontend/css/input.css -o ./frontend/css/style.css --watch",
     "setup:mysql": "cd backend && npm run setup-mysql",
     "test:api": "cd backend && npm run test-endpoints",
-    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:unit": "jest --testPathPatterns=tests/unit",
     "test:backend": "cd backend && npm test",
     "test:e2e": "cd e2e-tests && npm run test:e2e",
     "test:e2e:headed": "cd e2e-tests && npm run test:e2e:headed",
@@ -29,6 +29,12 @@
     "clean:logs": "del /q logs\\*.log backend\\logs\\*.log"
   },
   "devDependencies": {
+    "@babel/core": "^7.28.4",
+    "@babel/preset-env": "^7.28.3",
+    "@babel/preset-react": "^7.27.1",
+    "babel-jest": "^30.1.2",
+    "jest": "^30.1.3",
+    "jest-environment-jsdom": "^30.1.2",
     "tailwindcss": "^4.1.13"
   },
   "keywords": [
@@ -49,5 +55,8 @@
   "bugs": {
     "url": "https://github.com/DlHel/gymtecprueba1/issues"
   },
-  "homepage": "https://github.com/DlHel/gymtecprueba1#readme"
+  "homepage": "https://github.com/DlHel/gymtecprueba1#readme",
+  "dependencies": {
+    "dotenv": "^17.2.2"
+  }
 }

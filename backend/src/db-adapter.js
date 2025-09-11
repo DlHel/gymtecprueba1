@@ -104,13 +104,4 @@ class DatabaseAdapter {
     }
 }
 
-// Crear instancia única del adaptador
-const dbAdapter = new DatabaseAdapter();
-
-// Inicializar cuando se importe
-dbAdapter.initialize().catch(err => {
-    console.error('❌ Error inicializando base de datos MySQL:', err.message);
-    console.error('💡 Asegúrate de que MySQL esté corriendo y configurado correctamente');
-});
-
-module.exports = dbAdapter; 
+module.exports = DatabaseAdapter; 
