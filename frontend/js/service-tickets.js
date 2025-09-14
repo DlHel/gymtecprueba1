@@ -54,6 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
             assigned_technician_id: ''
         },
         selectedEquipment: new Set(),
+        editingTicketId: null, // ID del ticket que se está editando
         isLoading: false,
         error: null
     };
@@ -102,6 +103,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+        updateServiceTicket: async (id, data) => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/service-tickets/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error actualizando service ticket');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('❌ Error actualizando service ticket:', error);
+                throw error;
+            }
+        },
+
+        getServiceTicketEquipment: async (id) => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/service-tickets/${id}/equipment`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('❌ Error obteniendo equipos del service ticket:', error);
+                throw error;
+            }
+        },
+
         // Clientes y ubicaciones
         getClients: async () => {
             try {
@@ -145,6 +175,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 return await response.json();
             } catch (error) {
                 console.error('❌ Error obteniendo técnicos:', error);
+                throw error;
+            }
+        },
+
+        deleteServiceTicket: async (id) => {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/service-tickets/${id}`, {
+                    method: 'DELETE'
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error eliminando service ticket');
+                }
+                return await response.json();
+            } catch (error) {
+                console.error('❌ Error eliminando service ticket:', error);
                 throw error;
             }
         }
@@ -494,6 +540,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateSelectedEquipmentCheckboxes() {
+        document.querySelectorAll('#equipment-selector input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = state.selectedEquipment.has(parseInt(checkbox.value));
+        });
+        updateSelectedEquipmentCount();
+    }
+
     // Carga de datos
     async function loadInitialData() {
         try {
@@ -592,27 +645,35 @@ document.addEventListener('DOMContentLoaded', () => {
         if (modal) {
             modal.classList.add('hidden');
             state.selectedEquipment.clear();
+            state.editingTicketId = null;
+
+            // Reset modal to create mode
+            document.getElementById('modal-title').innerHTML = '<i data-lucide="clipboard-list" class="text-green-600 mr-2"></i>Nuevo Ticket de Servicio';
+            const submitBtn = document.querySelector('#service-ticket-form button[type="submit"]');
+            if(submitBtn) {
+                submitBtn.innerHTML = '<i data-lucide="save" class="mr-2"></i>Crear Ticket de Servicio';
+            }
         }
     };
 
     // Carga de ubicaciones por cliente
-    window.loadLocationsForClient = async () => {
+    window.loadLocationsForClient = async (clientId) => {
         const clientSelect = document.getElementById('ticket-client');
         const locationSelect = document.getElementById('ticket-location');
         
         if (!clientSelect || !locationSelect) return;
         
-        const clientId = clientSelect.value;
+        const currentClientId = clientId || clientSelect.value;
         
         // Reset location and equipment
         locationSelect.innerHTML = '<option value="">Seleccionar ubicación...</option>';
         resetEquipmentSelector();
         
-        if (!clientId) return;
+        if (!currentClientId) return;
         
         try {
             locationSelect.disabled = true;
-            const response = await api.getLocationsByClient(clientId);
+            const response = await api.getLocationsByClient(currentClientId);
             const locations = response.data || [];
             
             locationSelect.innerHTML = '<option value="">Seleccionar ubicación...</option>' +
@@ -629,18 +690,18 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Carga de equipos por ubicación
-    window.loadEquipmentForLocation = async () => {
+    window.loadEquipmentForLocation = async (locationId) => {
         const locationSelect = document.getElementById('ticket-location');
         const equipmentLoading = document.getElementById('equipment-loading');
         
         if (!locationSelect) return;
         
-        const locationId = locationSelect.value;
+        const currentLocationId = locationId || locationSelect.value;
         
         // Reset equipment selector
         resetEquipmentSelector();
         
-        if (!locationId) return;
+        if (!currentLocationId) return;
         
         try {
             if (equipmentLoading) {
@@ -648,7 +709,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 equipmentLoading.textContent = 'Cargando equipos del gimnasio...';
             }
             
-            const response = await api.getEquipmentGrouped(locationId);
+            const response = await api.getEquipmentGrouped(currentLocationId);
             const groupedEquipment = response.grouped_data || {};
             
             ui.updateEquipmentSelector(groupedEquipment);
@@ -681,8 +742,9 @@ document.addEventListener('DOMContentLoaded', () => {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
+            const submitBtn = form.querySelector('button[type="submit"]');
+
             try {
-                // Validar que se hayan seleccionado equipos
                 if (state.selectedEquipment.size === 0) {
                     alert('Debes seleccionar al menos un equipo para el servicio.');
                     return;
@@ -695,40 +757,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     client_id: parseInt(formData.get('client_id')),
                     location_id: parseInt(formData.get('location_id')),
                     priority: formData.get('priority'),
+                    status: 'pendiente', // Default status
+                    assigned_technician_id: null, // Can be assigned later
                     scheduled_date: formData.get('scheduled_date') || null,
                     estimated_duration_hours: formData.get('estimated_duration_hours') ? parseFloat(formData.get('estimated_duration_hours')) : null,
                     equipment_ids: Array.from(state.selectedEquipment)
                 };
-                
-                console.log('📝 Creando service ticket:', data);
-                
-                // Deshabilitar botón de envío
-                const submitBtn = form.querySelector('button[type="submit"]');
+
                 if (submitBtn) {
                     submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creando...';
+                }
+
+                if (state.editingTicketId) {
+                    // Update existing ticket
+                    data.status = (await api.getServiceTicket(state.editingTicketId)).data.status; // Preserve status on update
+                    console.log('📝 Actualizando service ticket:', data);
+                    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Guardando...';
+                    
+                    const response = await api.updateServiceTicket(state.editingTicketId, data);
+                    console.log('✅ Service ticket actualizado:', response);
+                    alert('Ticket de servicio actualizado exitosamente!');
+
+                } else {
+                    // Create new ticket
+                    console.log('📝 Creando service ticket:', data);
+                    if (submitBtn) submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creando...';
+                    
+                    const response = await api.createServiceTicket(data);
+                    console.log('✅ Service ticket creado:', response);
+                    alert(`Service ticket creado exitosamente!\nTicket #${response.service_ticket_id}\nEquipos incluidos: ${response.equipment_count}`);
                 }
                 
-                const response = await api.createServiceTicket(data);
-                
-                console.log('✅ Service ticket creado:', response);
-                
-                // Cerrar modal y recargar datos
                 closeModal();
                 await loadServiceTickets();
                 
-                // Mostrar mensaje de éxito
-                alert(`Service ticket creado exitosamente!\nTicket #${response.service_ticket_id}\nEquipos incluidos: ${response.equipment_count}`);
-                
             } catch (error) {
-                console.error('❌ Error creando service ticket:', error);
-                alert(`Error creando service ticket: ${error.message}`);
+                console.error(`❌ Error en el formulario de service ticket: ${error.message}`);
+                alert(`Error: ${error.message}`);
             } finally {
-                // Rehabilitar botón
-                const submitBtn = form.querySelector('button[type="submit"]');
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Crear Ticket de Servicio';
                 }
             }
         });
@@ -761,22 +829,64 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.viewServiceTicket = (id) => {
-        console.log('👁️ Ver service ticket:', id);
-        // TODO: Implementar vista detallada
-        alert(`Función de vista detallada para service ticket #${id} pendiente de implementar`);
+        window.location.href = `service-ticket-detail.html?id=${id}`;
     };
 
-    window.editServiceTicket = (id) => {
-        console.log('✏️ Editar service ticket:', id);
-        // TODO: Implementar edición
-        alert(`Función de edición para service ticket #${id} pendiente de implementar`);
+    window.editServiceTicket = async (id) => {
+        console.log('✏️ Editando service ticket:', id);
+        state.editingTicketId = id;
+
+        try {
+            const [ticketResponse, equipmentResponse] = await Promise.all([
+                api.getServiceTicket(id),
+                api.getServiceTicketEquipment(id)
+            ]);
+
+            const ticket = ticketResponse.data;
+            const equipment = equipmentResponse.data;
+
+            // Populate form
+            document.getElementById('ticket-title').value = ticket.title;
+            document.getElementById('ticket-description').value = ticket.description;
+            document.getElementById('ticket-client').value = ticket.client_id;
+            
+            await window.loadLocationsForClient(ticket.client_id);
+            document.getElementById('ticket-location').value = ticket.location_id;
+
+            await window.loadEquipmentForLocation(ticket.location_id);
+
+            state.selectedEquipment.clear();
+            equipment.forEach(eq => state.selectedEquipment.add(eq.equipment_id));
+            updateSelectedEquipmentCheckboxes();
+
+            document.getElementById('ticket-priority').value = ticket.priority;
+            document.getElementById('ticket-scheduled-date').value = ticket.scheduled_date ? ticket.scheduled_date.split('T')[0] : '';
+            document.getElementById('ticket-duration').value = ticket.estimated_duration_hours;
+
+            // Change modal for editing
+            document.getElementById('modal-title').innerHTML = `<i data-lucide="clipboard-list" class="text-green-600 mr-2"></i>Editar Ticket de Servicio #${id}`;
+            document.querySelector('#service-ticket-form button[type="submit"]').innerHTML = '<i data-lucide="save" class="mr-2"></i>Guardar Cambios';
+            
+            window.showCreateModal();
+
+        } catch (error) {
+            console.error('❌ Error preparando la edición del ticket:', error);
+            alert('Error al cargar los datos del ticket para editar.');
+            state.editingTicketId = null;
+        }
     };
 
-    window.deleteServiceTicket = (id) => {
+    window.deleteServiceTicket = async (id) => {
         if (confirm('¿Estás seguro de que quieres eliminar este service ticket?')) {
-            console.log('🗑️ Eliminar service ticket:', id);
-            // TODO: Implementar eliminación
-            alert(`Función de eliminación para service ticket #${id} pendiente de implementar`);
+            console.log('🗑️ Eliminando service ticket:', id);
+            try {
+                await api.deleteServiceTicket(id);
+                alert('Ticket de servicio eliminado exitosamente.');
+                loadServiceTickets(); // Recargar la lista de tickets
+            } catch (error) {
+                console.error('❌ Error eliminando service ticket:', error);
+                alert(`Error al eliminar el ticket de servicio: ${error.message}`);
+            }
         }
     };
 

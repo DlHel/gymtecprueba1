@@ -544,4 +544,153 @@ router.get('/locations/:id/equipment/grouped', async (req, res) => {
     }
 });
 
+
+/**
+ * PUT /api/service-tickets/:id - Actualizar un service ticket
+ */
+router.put('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const {
+            title,
+            description,
+            client_id,
+            location_id,
+            priority,
+            status,
+            assigned_technician_id,
+            scheduled_date,
+            estimated_duration_hours,
+            equipment_ids = []
+        } = req.body;
+
+        // Validaciones
+        if (!title || !client_id || !location_id || !status) {
+            return res.status(400).json({
+                error: 'Campos requeridos: title, client_id, location_id, status',
+                code: 'MISSING_REQUIRED_FIELDS'
+            });
+        }
+
+        // 1. Actualizar el ticket principal
+        const updateTicketSql = `
+            UPDATE ServiceTickets SET
+                title = ?,
+                description = ?,
+                client_id = ?,
+                location_id = ?,
+                priority = ?,
+                status = ?,
+                assigned_technician_id = ?,
+                scheduled_date = ?,
+                estimated_duration_hours = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `;
+        const ticketParams = [
+            title, description, client_id, location_id, priority, status,
+            assigned_technician_id, scheduled_date, estimated_duration_hours, id
+        ];
+
+        db.run(updateTicketSql, ticketParams, function(err) {
+            if (err) {
+                console.error('❌ Error actualizando el service ticket:', err);
+                return res.status(500).json({ error: 'Error interno del servidor', code: 'DB_ERROR' });
+            }
+
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Service ticket no encontrado', code: 'SERVICE_TICKET_NOT_FOUND' });
+            }
+
+            // 2. Eliminar equipos antiguos
+            const deleteEquipmentSql = 'DELETE FROM ServiceTicketEquipment WHERE service_ticket_id = ?';
+            db.run(deleteEquipmentSql, [id], (err) => {
+                if (err) {
+                    console.error('❌ Error eliminando equipos antiguos:', err);
+                    return res.status(500).json({ error: 'Error actualizando equipos', code: 'DB_ERROR' });
+                }
+
+                // 3. Insertar equipos nuevos (si los hay)
+                if (Array.isArray(equipment_ids) && equipment_ids.length > 0) {
+                    const values = equipment_ids.map(equipmentId => `(${id}, ${equipmentId})`).join(',');
+                    const insertEquipmentSql = `INSERT INTO ServiceTicketEquipment (service_ticket_id, equipment_id) VALUES ${values}`;
+
+                    db.run(insertEquipmentSql, [], (err) => {
+                        if (err) {
+                            console.error('❌ Error insertando nuevos equipos:', err);
+                            return res.status(500).json({ error: 'Error actualizando equipos', code: 'DB_ERROR' });
+                        }
+                        console.log(`✅ Ticket ${id} actualizado con ${equipment_ids.length} equipos.`);
+                        res.json({ message: 'Service ticket actualizado exitosamente' });
+                    });
+                } else {
+                    console.log(`✅ Ticket ${id} actualizado sin equipos.`);
+                    res.json({ message: 'Service ticket actualizado exitosamente' });
+                }
+            });
+        });
+
+    } catch (error) {
+        console.error('❌ Error en PUT /service-tickets/:id:', error);
+        res.status(500).json({ error: 'Error interno del servidor', code: 'UNEXPECTED_ERROR' });
+    }
+});
+
+/**
+ * DELETE /api/service-tickets/:id - Eliminar un service ticket
+ */
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        // 1. Eliminar equipos asociados al ticket
+        const deleteEquipmentSql = 'DELETE FROM ServiceTicketEquipment WHERE service_ticket_id = ?';
+        db.run(deleteEquipmentSql, [id], function(err) {
+            if (err) {
+                console.error('❌ Error eliminando equipos del service ticket:', err);
+                return res.status(500).json({
+                    error: 'Error interno del servidor al eliminar equipos asociados',
+                    code: 'DB_ERROR'
+                });
+            }
+
+            console.log(`✅ ${this.changes} equipos eliminados para service ticket ${id}`);
+
+            // 2. Eliminar el ticket principal
+            const deleteTicketSql = 'DELETE FROM ServiceTickets WHERE id = ?';
+            db.run(deleteTicketSql, [id], function(err) {
+                if (err) {
+                    console.error('❌ Error eliminando el service ticket:', err);
+                    return res.status(500).json({
+                        error: 'Error interno del servidor al eliminar el ticket',
+                        code: 'DB_ERROR'
+                    });
+                }
+
+                if (this.changes === 0) {
+                    return res.status(404).json({
+                        error: 'Service ticket no encontrado',
+                        code: 'SERVICE_TICKET_NOT_FOUND'
+                    });
+                }
+
+                console.log(`✅ Service ticket ${id} eliminado exitosamente`);
+                res.json({
+                    message: 'Service ticket eliminado exitosamente',
+                    service_ticket_id: id,
+                    changes: this.changes
+                });
+            });
+        });
+
+    } catch (error) {
+        console.error('❌ Error en DELETE /service-tickets/:id:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            code: 'UNEXPECTED_ERROR'
+        });
+    }
+});
+
 module.exports = router;
+
