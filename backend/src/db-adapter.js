@@ -104,4 +104,4 @@ class DatabaseAdapter {
     }
 }
 
-module.exports = DatabaseAdapter; 
+module.exports = new DatabaseAdapter(); 
