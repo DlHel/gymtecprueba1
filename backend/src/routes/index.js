@@ -196,14 +196,7 @@ function setupRoutes(app) {
     // ===================================================================
     // RUTAS DE GASTOS (EXPENSES) - MODULAR
     // ===================================================================
-    const { router: expensesRouter, setDependencies: setExpensesDependencies } = require('./expenses');
-    const db = require('../db-adapter');
-
-    setExpensesDependencies({
-        db,
-        authenticateToken,
-        requireRole
-    });
+    const expensesRouter = require('./expenses');
     app.use('/api/expenses', expensesRouter);
     console.log('   ✅ Módulo de Gastos (Expenses) cargado');
 
