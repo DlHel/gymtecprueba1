@@ -42,9 +42,9 @@ if not exist "node_modules\" (
 echo ✅ Dependencias npm verificadas
 
 echo [4/5] Verificando servidor disponible...
-if exist "src\server-clean.js" (
-    echo ✅ Usando servidor optimizado: server-clean.js
-    set SERVER_FILE=src/server-clean.js
+if exist "src\server-modular.js" (
+    echo ✅ Usando servidor optimizado: server-modular.js
+    set SERVER_FILE=src/server-modular.js
 ) else (
     echo ⚠️  Usando servidor principal: server.js
     set SERVER_FILE=src/server.js
