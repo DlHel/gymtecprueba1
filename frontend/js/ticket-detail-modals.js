@@ -459,7 +459,8 @@ async function submitSparePartForm(button) {
             
             showNotification('Repuesto agregado exitosamente', 'success');
         } else {
-            throw new Error('Error al agregar repuesto');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al agregar repuesto'}`);
         }
     } catch (error) {
         console.error('Error adding spare part:', error);
@@ -519,7 +520,8 @@ async function submitPhotoForm(button) {
             
             showNotification('Foto subida exitosamente', 'success');
         } else {
-            throw new Error('Error al subir foto');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al subir foto'}`);
         }
     } catch (error) {
         console.error('Error uploading photo:', error);
@@ -692,7 +694,8 @@ async function submitAdvancedNote(button) {
                 // Agregar al estado local
                 state.notes.unshift(noteResult.data);
             } else {
-                throw new Error('Error al crear la nota');
+                const errorData = await noteResponse.json().catch(() => ({}));
+                throw new Error(`HTTP ${noteResponse.status}: ${errorData.error || 'Error al crear la nota'}`);
             }
         }
         
@@ -784,7 +787,8 @@ async function deleteTicketPhoto(photoId, button) {
             
             showNotification('Foto eliminada exitosamente', 'success');
         } else {
-            throw new Error('Error al eliminar foto');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al eliminar foto'}`);
         }
     } catch (error) {
         console.error('Error deleting photo:', error);

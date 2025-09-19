@@ -166,7 +166,8 @@ class ModelosManager {
             
             const response = await authenticatedFetch(`${this.apiBaseUrl}/models`);
             if (!response.ok) {
-                throw new Error('Error al cargar los modelos');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al cargar los modelos'}`);
             }
             
             const data = await response.json();
@@ -379,7 +380,8 @@ class ModelosManager {
             });
 
             if (!response.ok) {
-                throw new Error('Error al eliminar el modelo');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al eliminar el modelo'}`);
             }
 
             this.showNotification('Modelo eliminado exitosamente', 'success');
@@ -514,7 +516,7 @@ class ModelosManager {
 
     async loadModelPhotos(modelId) {
         try {
-            const response = await authenticatedFetch(`${API_URL}/models/${modelId}/photos`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/models/${modelId}/photos`);
             if (response.ok) {
                 this.photos = await response.json();
                 this.renderPhotoPreview();
@@ -526,7 +528,7 @@ class ModelosManager {
 
     async loadModelManuals(modelId) {
         try {
-            const response = await authenticatedFetch(`${API_URL}/models/${modelId}/manuals`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/models/${modelId}/manuals`);
             if (response.ok) {
                 this.manuals = await response.json();
                 this.renderManualList();

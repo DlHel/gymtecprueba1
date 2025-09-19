@@ -1,7 +1,7 @@
 const express = require('express');
 const AuthController = require('../controllers/authController');
 const ClientController = require('../controllers/clientController');
-const TicketController = require('../controllers/ticketController');
+const TicketController = require('../controllers/TicketController');
 const EquipmentController = require('../controllers/equipmentController');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 const upload = require('../middleware/upload');
