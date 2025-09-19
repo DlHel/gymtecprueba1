@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Communication - Gymtec ERP</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; border-color: #c3e6cb; }
+        .error { background: #f8d7da; border-color: #f5c6cb; }
+        button { padding: 8px 16px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Pruebas de Comunicación Frontend-Backend</h1>
+    
+    <div id="api-url-test" class="test">
+        <h3>✅ Test 1: Configuración API_URL</h3>
+        <p>API_URL detectada: <span id="api-url-value"></span></p>
+    </div>
+
+    <div id="auth-test" class="test">
+        <h3>Test 2: Función authenticatedFetch</h3>
+        <p>Estado: <span id="auth-status"></span></p>
+        <button onclick="testAuthenticatedFetch()">Probar authenticatedFetch</button>
+    </div>
+
+    <div id="error-handling-test" class="test">
+        <h3>Test 3: Manejo de Errores Consistente</h3>
+        <p>Estado: <span id="error-status"></span></p>
+        <button onclick="testErrorHandling()">Probar Manejo de Errores</button>
+    </div>
+
+    <div id="backend-test" class="test">
+        <h3>Test 4: Comunicación con Backend</h3>
+        <p>Estado: <span id="backend-status"></span></p>
+        <button onclick="testBackendCommunication()">Probar Backend</button>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Test 1: Verificar API_URL
+        document.getElementById('api-url-value').textContent = window.API_URL || 'No definida';
+        if (window.API_URL) {
+            document.getElementById('api-url-test').classList.add('success');
+        } else {
+            document.getElementById('api-url-test').classList.add('error');
+        }
+
+        // Test 2: Verificar authenticatedFetch
+        if (typeof window.authenticatedFetch === 'function') {
+            document.getElementById('auth-status').textContent = '✅ Función disponible';
+            document.getElementById('auth-test').classList.add('success');
+        } else {
+            document.getElementById('auth-status').textContent = '❌ Función no disponible';
+            document.getElementById('auth-test').classList.add('error');
+        }
+
+        // Test 3: Probar manejo de errores
+        async function testErrorHandling() {
+            const statusEl = document.getElementById('error-status');
+            const testEl = document.getElementById('error-handling-test');
+            
+            try {
+                statusEl.textContent = 'Probando...';
+                
+                // Probar endpoint que no existe para generar error 404
+                const response = await fetch(`${window.API_URL}/endpoint-inexistente`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = `HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`;
+                    
+                    statusEl.textContent = `✅ Error manejado correctamente: ${errorMessage}`;
+                    testEl.classList.remove('error');
+                    testEl.classList.add('success');
+                } else {
+                    statusEl.textContent = '❌ No se generó error esperado';
+                    testEl.classList.add('error');
+                }
+            } catch (error) {
+                statusEl.textContent = `✅ Error capturado: ${error.message}`;
+                testEl.classList.remove('error');
+                testEl.classList.add('success');
+            }
+        }
+
+        // Test 4: Probar comunicación con backend
+        async function testBackendCommunication() {
+            const statusEl = document.getElementById('backend-status');
+            const testEl = document.getElementById('backend-test');
+            
+            try {
+                statusEl.textContent = 'Conectando...';
+                
+                const response = await fetch(`${window.API_URL}/test-early`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    statusEl.textContent = `✅ Backend conectado: ${data.message}`;
+                    testEl.classList.remove('error');
+                    testEl.classList.add('success');
+                } else {
+                    statusEl.textContent = `❌ Error de conexión: ${response.status}`;
+                    testEl.classList.add('error');
+                }
+            } catch (error) {
+                statusEl.textContent = `❌ Error de red: ${error.message}`;
+                testEl.classList.add('error');
+            }
+        }
+
+        // Test authenticatedFetch
+        async function testAuthenticatedFetch() {
+            const statusEl = document.getElementById('auth-status');
+            
+            try {
+                statusEl.textContent = 'Probando...';
+                
+                // Probar endpoint que requiere autenticación (debería dar 401)
+                await window.authenticatedFetch(`${window.API_URL}/auth/verify`);
+                statusEl.textContent = '❌ No se detectó falta de autenticación';
+            } catch (error) {
+                if (error.message.includes('Sesión expirada') || error.message.includes('401')) {
+                    statusEl.textContent = '✅ authenticatedFetch funciona correctamente (detectó falta de auth)';
+                } else {
+                    statusEl.textContent = `✅ authenticatedFetch ejecutada: ${error.message}`;
+                }
+            }
+        }
+
+        // Ejecutar test backend automáticamente
+        window.addEventListener('load', () => {
+            setTimeout(testBackendCommunication, 1000);
+        });
+    </script>
+</body>
+</html>
