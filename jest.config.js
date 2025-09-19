@@ -5,5 +5,5 @@ module.exports = {
     transform: {
         '^.+\.m?js$': 'babel-jest',
     },
-    transformIgnorePatterns: ['/node_modules/(?!your-es-module-package-here)']
+    globalSetup: './backend/tests/setup.js'
 };

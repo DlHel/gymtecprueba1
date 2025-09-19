@@ -10,6 +10,11 @@ class AuthService {
         return JWT_SECRET;
     }
     
+    // Exportar JWT_EXPIRES_IN para uso en otras partes
+    static get JWT_EXPIRES_IN() {
+        return process.env.JWT_EXPIRES_IN || '10h';
+    }
+    
     /**
      * Realizar login de usuario
      */

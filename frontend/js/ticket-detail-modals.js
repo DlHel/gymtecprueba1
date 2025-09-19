@@ -438,7 +438,7 @@ async function submitSparePartForm(button) {
         button.disabled = true;
         button.textContent = 'Agregando...';
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/spare-parts`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/spare-parts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -459,7 +459,8 @@ async function submitSparePartForm(button) {
             
             showNotification('Repuesto agregado exitosamente', 'success');
         } else {
-            throw new Error('Error al agregar repuesto');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al agregar repuesto'}`);
         }
     } catch (error) {
         console.error('Error adding spare part:', error);
@@ -497,7 +498,7 @@ async function submitPhotoForm(button) {
             author: 'Felipe Maturana'
         };
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -519,7 +520,8 @@ async function submitPhotoForm(button) {
             
             showNotification('Foto subida exitosamente', 'success');
         } else {
-            throw new Error('Error al subir foto');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al subir foto'}`);
         }
     } catch (error) {
         console.error('Error uploading photo:', error);
@@ -556,7 +558,7 @@ async function submitStatusChange(button) {
         
         console.log('📡 Enviando request de cambio de estado...');
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -570,7 +572,7 @@ async function submitStatusChange(button) {
         if (response.ok) {
             // Agregar nota del cambio si hay comentario
             if (comment) {
-                await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+                await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -679,7 +681,7 @@ async function submitAdvancedNote(button) {
                 is_internal: isInternal
             };
             
-            const noteResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(noteData)
@@ -692,7 +694,8 @@ async function submitAdvancedNote(button) {
                 // Agregar al estado local
                 state.notes.unshift(noteResult.data);
             } else {
-                throw new Error('Error al crear la nota');
+                const errorData = await noteResponse.json().catch(() => ({}));
+                throw new Error(`HTTP ${noteResponse.status}: ${errorData.error || 'Error al crear la nota'}`);
             }
         }
         
@@ -719,7 +722,7 @@ async function submitAdvancedNote(button) {
                     photoData.note_id = noteId;
                 }
                 
-                const photoResponse = await fetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+                const photoResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(photoData)
@@ -768,7 +771,7 @@ async function deleteTicketPhoto(photoId, button) {
     try {
         button.disabled = true;
         
-        const response = await fetch(`${API_URL}/tickets/photos/${photoId}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/photos/${photoId}`, {
             method: 'DELETE'
         });
         
@@ -784,7 +787,8 @@ async function deleteTicketPhoto(photoId, button) {
             
             showNotification('Foto eliminada exitosamente', 'success');
         } else {
-            throw new Error('Error al eliminar foto');
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error al eliminar foto'}`);
         }
     } catch (error) {
         console.error('Error deleting photo:', error);
@@ -851,7 +855,7 @@ async function submitEditTicket(button) {
         button.disabled = true;
         button.textContent = 'Guardando...';
         
-        const response = await fetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)

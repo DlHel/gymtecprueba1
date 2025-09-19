@@ -41,14 +41,8 @@ if not exist "node_modules\" (
 )
 echo ✅ Dependencias npm verificadas
 
-echo [4/5] Verificando servidor disponible...
-if exist "src\server-clean.js" (
-    echo ✅ Usando servidor optimizado: server-clean.js
-    set SERVER_FILE=src/server-clean.js
-) else (
-    echo ⚠️  Usando servidor principal: server.js
-    set SERVER_FILE=src/server.js
-)
+echo [4/5] Estableciendo archivo de servidor...
+set SERVER_FILE=src/server-modular.js
 cd ..
 
 echo [5/5] Iniciando Backend (Node.js)...
@@ -57,15 +51,8 @@ start "Gymtec Backend" cmd /k "cd backend && echo Iniciando servidor GYMTEC ERP.
 echo [6/6] Esperando que el backend inicie y luego iniciando Frontend...
 timeout /t 5 /nobreak >nul
 
-echo [INFO] Verificando Python para frontend...
-python --version >nul 2>&1
-if %ERRORLEVEL% neq 0 (
-    echo ⚠️  Python no detectado, intentando iniciar frontend con servidor alternativo...
-    start "Gymtec Frontend" cmd /k "cd frontend && echo Frontend estatico iniciado en puerto 8080 && echo Abre http://localhost:8080 en tu navegador && pause"
-) else (
-    echo ✅ Python detectado, iniciando servidor HTTP...
-    start "Gymtec Frontend" cmd /k "cd frontend && echo Iniciando servidor frontend con Python... && echo Frontend: http://localhost:8080 && python -m http.server 8080"
-)
+echo [INFO] Iniciando Frontend (Node.js)...
+start "Gymtec Frontend" cmd /k "npm run start:frontend"
 
 echo.
 echo ========================================

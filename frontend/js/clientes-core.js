@@ -620,7 +620,7 @@ export const render = {
                     </details>
                 `).join('');
 
-                dom.detailContainer.innerHTML = 
+                dom.detailContainer.innerHTML = `
                     <div class="app-card p-6">
                         ${clientInfoHtml}
                         <div class="mt-6">
@@ -635,7 +635,7 @@ export const render = {
                             </div>
                         </div>
                     </div>
-                ;
+                `;
                  
             // lucide.createIcons(); // This needs to be mocked or handled in test setup
 

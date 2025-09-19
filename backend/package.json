@@ -5,9 +5,7 @@
   "main": "src/server-modular.js",
   "scripts": {
     "start": "node src/server-modular.js",
-    "start:legacy": "node src/server-clean.js",
     "dev": "nodemon src/server-modular.js",
-    "dev:legacy": "nodemon src/server-clean.js",
     "cleanup": "node src/utils/cleanup.js",
     "test": "node tests/setup.js && cross-env NODE_ENV=test JWT_SECRET=supersecretkeyforlocaldev DB_HOST=localhost DB_NAME=gymtec_erp_test jest",
     "lint": "eslint src/**/*.js"
