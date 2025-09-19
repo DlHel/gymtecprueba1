@@ -164,7 +164,7 @@ class ModelosManager {
                 loadingDiv.style.display = 'block';
             }
             
-            const response = await fetch(`${this.apiBaseUrl}/models`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/models`);
             if (!response.ok) {
                 throw new Error('Error al cargar los modelos');
             }
@@ -232,7 +232,7 @@ class ModelosManager {
         let photoCount = 0;
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
             if (response.ok) {
                 const photos = await response.json();
                 photoCount = photos.length;
@@ -374,7 +374,7 @@ class ModelosManager {
         }
 
         try {
-            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}`, {
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/models/${modelId}`, {
                 method: 'DELETE'
             });
 
