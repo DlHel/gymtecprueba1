@@ -1,3 +1,4 @@
+const DatabaseAdapter = require('../db-adapter');
 const db = require('../db-adapter');
 
 /**

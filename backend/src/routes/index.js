@@ -2,7 +2,9 @@ const express = require('express');
 const AuthController = require('../controllers/authController');
 const ClientController = require('../controllers/clientController');
 const TicketController = require('../controllers/ticketController');
+const EquipmentController = require('../controllers/equipmentController');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 /**
  * Configurador de Rutas Principal
@@ -131,33 +133,23 @@ function setupRoutes(app) {
     // RUTAS DE EQUIPOS (EQUIPMENT)
     // ===================================================================
     
-    app.get('/api/equipment', (req, res) => {
-        console.log('🏋️ GET /api/equipment called');
-        // Mock data para testing
-        res.json({
-            message: 'success',
-            data: [
-                { id: 1, name: 'Cinta Corredor Pro', model_id: 1, location_id: 1, serial_number: 'TC001', activo: true },
-                { id: 2, name: 'Bicicleta Estática X1', model_id: 2, location_id: 1, serial_number: 'BE001', activo: true }
-            ]
-        });
-    });
+    app.get('/api/equipment', authenticateToken, EquipmentController.getAll);
     
-    app.get('/api/equipment/:id', (req, res) => {
-        console.log(`🏋️ GET /api/equipment/${req.params.id} called`);
-        res.json({
-            message: 'success',
-            data: { id: req.params.id, name: 'Cinta Corredor Pro', model_id: 1, location_id: 1, serial_number: 'TC001', activo: true }
-        });
-    });
+    app.get('/api/equipment/:id', authenticateToken, EquipmentController.getById);
     
-    app.post('/api/equipment', (req, res) => {
-        console.log('🏋️ POST /api/equipment called', req.body);
-        res.json({
-            message: 'Equipment created successfully',
-            data: { id: Date.now(), ...req.body }
-        });
-    });
+    app.post('/api/equipment', authenticateToken, EquipmentController.create);
+
+    app.put('/api/equipment/:id', authenticateToken, EquipmentController.update);
+
+    app.delete('/api/equipment/:id', authenticateToken, requireRole(['Admin', 'Manager']), EquipmentController.remove);
+
+    app.get('/api/equipment/:id/notes', authenticateToken, EquipmentController.getEquipmentNotes);
+
+    app.get('/api/equipment/:id/tickets', authenticateToken, EquipmentController.getEquipmentTickets);
+
+    app.get('/api/equipment/:id/photos', authenticateToken, EquipmentController.getEquipmentPhotos);
+
+    app.post('/api/equipment/:id/photos', authenticateToken, upload.single('photo'), EquipmentController.addEquipmentPhoto);
 
     // ===================================================================
     // RUTAS DE TICKETS (EXPANDIDAS)

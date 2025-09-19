@@ -1,4 +1,6 @@
 const cron = require('node-cron');
+const DatabaseAdapter = require('../db-adapter');
+const logger = require('./logger');
 const db = require('../db-adapter');
 const alertProcessor = require('./alert-processor');
 

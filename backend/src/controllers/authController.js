@@ -25,56 +25,66 @@ class AuthController {
             const sql = 'SELECT * FROM Users WHERE username = ?';
             
             const db = require('../db-adapter');
+            
+            // Usar callback correctamente
             db.get(sql, [username], async (err, user) => {
-                if (err) {
-                    console.error('❌ Error de base de datos en login:', err);
-                    return res.status(500).json({ 
-                        error: 'Error interno del servidor', 
-                        code: 'DATABASE_ERROR' 
-                    });
-                }
-
-                if (!user) {
-                    console.log('❌ Usuario no encontrado:', username);
-                    return res.status(401).json({ 
-                        error: 'Credenciales inválidas', 
-                        code: 'INVALID_CREDENTIALS' 
-                    });
-                }
-
-                console.log('🔍 Usuario encontrado:', user.username, 'ID:', user.id);
-
-                const isPasswordValid = await bcrypt.compare(password, user.password);
-                if (!isPasswordValid) {
-                    console.log('❌ Contraseña incorrecta para usuario:', username);
-                    return res.status(401).json({ 
-                        error: 'Credenciales inválidas', 
-                        code: 'INVALID_CREDENTIALS' 
-                    });
-                }
-
-                const token = jwt.sign(
-                    { 
-                        id: user.id, 
-                        username: user.username, 
-                        role: user.role 
-                    },
-                    AuthService.JWT_SECRET,
-                    { expiresIn: AuthService.JWT_EXPIRES_IN }
-                );
-
-                console.log('✅ Login exitoso:', user.username, 'Token generado');
-
-                res.json({
-                    message: 'Login exitoso',
-                    token,
-                    user: {
-                        id: user.id,
-                        username: user.username,
-                        role: user.role,
-                        email: user.email
+                try {
+                    if (err) {
+                        console.error('❌ Error de base de datos en login:', err);
+                        return res.status(500).json({ 
+                            error: 'Error interno del servidor', 
+                            code: 'DATABASE_ERROR' 
+                        });
                     }
-                });
+
+                    if (!user) {
+                        console.log('❌ Usuario no encontrado:', username);
+                        return res.status(401).json({ 
+                            error: 'Credenciales inválidas', 
+                            code: 'INVALID_CREDENTIALS' 
+                        });
+                    }
+
+                    console.log('🔍 Usuario encontrado:', user.username, 'ID:', user.id);
+
+                    const isPasswordValid = await bcrypt.compare(password, user.password);
+                    if (!isPasswordValid) {
+                        console.log('❌ Contraseña incorrecta para usuario:', username);
+                        return res.status(401).json({ 
+                            error: 'Credenciales inválidas', 
+                            code: 'INVALID_CREDENTIALS' 
+                        });
+                    }
+
+                    const token = jwt.sign(
+                        { 
+                            id: user.id, 
+                            username: user.username, 
+                            role: user.role 
+                        },
+                        AuthService.JWT_SECRET,
+                        { expiresIn: AuthService.JWT_EXPIRES_IN }
+                    );
+
+                    console.log('✅ Login exitoso:', user.username, 'Token generado');
+
+                    res.json({
+                        message: 'Login exitoso',
+                        token,
+                        user: {
+                            id: user.id,
+                            username: user.username,
+                            role: user.role,
+                            email: user.email
+                        }
+                    });
+                } catch (innerError) {
+                    console.error('❌ Error interno en login callback:', innerError);
+                    res.status(500).json({ 
+                        error: 'Error interno del servidor', 
+                        code: 'INTERNAL_ERROR' 
+                    });
+                }
             });
         } catch (error) {
             console.error('❌ Error en login:', error);

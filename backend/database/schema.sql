@@ -113,4 +113,14 @@ CREATE TABLE IF NOT EXISTS EquipmentNotes (
     author TEXT DEFAULT 'Sistema',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (equipment_id) REFERENCES Equipment (id) ON DELETE CASCADE
+);
+
+-- Tabla para fotos del equipo
+CREATE TABLE IF NOT EXISTS EquipmentPhotos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    equipment_id INTEGER NOT NULL,
+    file_path TEXT NOT NULL,
+    description TEXT,
+    uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (equipment_id) REFERENCES Equipment (id) ON DELETE CASCADE
 ); 

@@ -19,8 +19,8 @@ class InventoryManager {
             }
         };
 
-        // Configurar la URL base de la API según el puerto actual
-        this.apiBaseUrl = this.getApiBaseUrl();
+        // Usar la configuración global de la API
+        this.apiBaseUrl = window.API_URL || this.getApiBaseUrl();
 
         // Funciones de utilidad para manejo de errores
         this.showError = (message, context = 'Inventario') => {
@@ -376,7 +376,7 @@ class InventoryManager {
         try {
             console.log('📊 Cargando transacciones...');
             
-            const response = await fetch(`${this.apiBaseUrl}/inventory/transactions`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/transactions`);
             if (!response.ok) throw new Error('Error al cargar transacciones');
             
             const result = await response.json();

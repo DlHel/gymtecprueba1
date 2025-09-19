@@ -4,9 +4,9 @@
   "description": "Sistema ERP profesional de gestión de mantenimiento de equipos de gimnasio",
   "private": true,
   "scripts": {
-    "start": "start-servers.bat",
+    "start": "concurrently \"npm:start:backend\" \"npm:start:frontend\"",
     "start:backend": "cd backend && npm start",
-    "start:frontend": "cd frontend && python -m http.server 8080",
+    "start:frontend": "http-server ./frontend -p 8080",
     "dev": "npm run build:css",
     "build:css": "tailwindcss -i ./frontend/css/input.css -o ./frontend/css/style.css --watch",
     "setup:mysql": "cd backend && npm run setup-mysql",
@@ -33,6 +33,8 @@
     "@babel/preset-env": "^7.28.3",
     "@babel/preset-react": "^7.27.1",
     "babel-jest": "^30.1.2",
+    "concurrently": "^9.2.1",
+    "http-server": "^14.1.1",
     "jest": "^30.1.3",
     "jest-environment-jsdom": "^30.1.2",
     "tailwindcss": "^4.1.13"

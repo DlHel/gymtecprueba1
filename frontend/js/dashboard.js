@@ -1,9 +1,4 @@
 ﻿// dashboard.js - Dashboard Principal con KPIs en tiempo real
-const CONFIG = {
-    API_BASE_URL: 'http://localhost:3000/api',
-    REFRESH_INTERVAL: 300000 // 5 minutos en milisegundos
-};
-
 class DashboardManager {
     constructor() {
         this.kpis = {};
@@ -35,7 +30,7 @@ class DashboardManager {
     async loadKPIs() {
         console.log('📊 Cargando KPIs...');
         try {
-            const response = await authenticatedFetch(`${API_URL}/dashboard/kpis`);
+            const response = await authenticatedFetch(`${window.API_URL}/dashboard/stats`);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -239,7 +234,7 @@ class DashboardManager {
     async loadRecentActivity() {
         console.log('📋 Cargando actividad reciente...');
         try {
-            const response = await authenticatedFetch(`${API_URL}/dashboard/activity?limit=10`);
+            const response = await authenticatedFetch(`${window.API_URL}/dashboard/activity?limit=10`);
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -310,7 +305,7 @@ class DashboardManager {
             console.log('🔄 Actualizando dashboard...');
             this.loadKPIs();
             this.loadRecentActivity();
-        }, CONFIG.REFRESH_INTERVAL);
+        }, 300000); // 5 minutos
     }
 
     setupEventListeners() {

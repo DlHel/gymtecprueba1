@@ -104,4 +104,5 @@ class DatabaseAdapter {
     }
 }
 
+// Exportar una instancia única (singleton)
 module.exports = new DatabaseAdapter(); 

@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // ✅ PROTECCIÓN DE AUTENTICACIÓN OBLIGATORIA - Usar AuthManager estándar
-    if (!window.authManager || !window.authManager.isAuthenticated()) {
+    if (!window.AuthManager || !window.AuthManager.isAuthenticated()) {
         console.warn('❌ TICKETS: Usuario no autenticado, redirigiendo a login...');
         window.location.href = '/login.html';
         return;
