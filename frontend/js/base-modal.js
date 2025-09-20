@@ -1,9 +1,9 @@
-// base-modal.js - Sistema básico de modales para Gymtec ERP
-// ✅ Verificación de autenticación eliminada - Los modales no requieren autenticación directa
-// La autenticación se maneja a nivel de página, no de componentes individuales
+// base-modal.js - Sistema bÃ¡sico de modales para Gymtec ERP
+// âœ… VerificaciÃ³n de autenticaciÃ³n eliminada - Los modales no requieren autenticaciÃ³n directa
+// La autenticaciÃ³n se maneja a nivel de pÃ¡gina, no de componentes individuales
 
 /**
- * Sistema básico de gestión de modales
+ * Sistema bÃ¡sico de gestiÃ³n de modales
  */
 class BaseModal {
     constructor(modalId) {
@@ -15,7 +15,7 @@ class BaseModal {
 
     init() {
         if (!this.modal) {
-            console.warn(`⚠️ Modal ${this.modalId} no encontrado`);
+            console.warn(`âš ï¸ Modal ${this.modalId} no encontrado`);
             return;
         }
 
@@ -53,7 +53,7 @@ class BaseModal {
             setTimeout(() => firstInput.focus(), 100);
         }
         
-        console.log(`📖 Modal ${this.modalId} abierto`);
+        console.log(`ðŸ“– Modal ${this.modalId} abierto`);
     }
 
     close() {
@@ -63,7 +63,7 @@ class BaseModal {
         this.modal.classList.remove('flex');
         this.isOpen = false;
         
-        console.log(`📕 Modal ${this.modalId} cerrado`);
+        console.log(`ðŸ“• Modal ${this.modalId} cerrado`);
     }
 
     toggle() {
@@ -97,4 +97,4 @@ window.toggleModal = function(modalId) {
     modal.toggle();
 };
 
-console.log('✅ base-modal.js cargado correctamente');
+console.log('âœ… base-modal.js cargado correctamente');

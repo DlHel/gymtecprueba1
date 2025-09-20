@@ -1,17 +1,17 @@
-// nav-loader.js - Sistema de navegación estandarizado
+// nav-loader.js - Sistema de navegaciÃ³n estandarizado
 document.addEventListener("DOMContentLoaded", () => {
     const menuPlaceholder = document.getElementById("menu-placeholder");
     if (!menuPlaceholder) {
-        console.warn('nav-loader.js: No se encontró el elemento #menu-placeholder');
+        console.warn('nav-loader.js: No se encontrÃ³ el elemento #menu-placeholder');
         return;
     }
 
-    // Cargar el menú
+    // Cargar el menÃº
     loadMenu();
 
     async function loadMenu() {
         try {
-            console.log('🔄 Cargando menú de navegación...');
+            console.log('ðŸ”„ Cargando menÃº de navegaciÃ³n...');
             
             const response = await fetch("menu.html");
             if (!response.ok) {
@@ -21,13 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const menuHTML = await response.text();
             menuPlaceholder.innerHTML = menuHTML;
             
-            // Configurar la navegación después de cargar el menú
+            // Configurar la navegaciÃ³n despuÃ©s de cargar el menÃº
             setupNavigation();
             
-            console.log('✅ Menú cargado correctamente');
+            console.log('âœ… MenÃº cargado correctamente');
         } catch (error) {
-            console.error('❌ Error cargando menú:', error);
-            // Mostrar un menú de fallback básico
+            console.error('âŒ Error cargando menÃº:', error);
+            // Mostrar un menÃº de fallback bÃ¡sico
             showFallbackMenu();
         }
     }
@@ -38,11 +38,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const mobileToggle = document.getElementById('mobile-sidebar-toggle');
         
         if (!sidebar) {
-            console.warn('nav-loader.js: No se encontró el elemento #main-sidebar');
+            console.warn('nav-loader.js: No se encontrÃ³ el elemento #main-sidebar');
             return;
         }
 
-        // Configurar toggle del menú para escritorio
+        // Configurar toggle del menÃº para escritorio
         if (desktopToggle) {
             desktopToggle.addEventListener('click', () => {
                 sidebar.classList.toggle('is-collapsed');
@@ -51,7 +51,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Configurar toggle del menú para móvil
+        // Configurar toggle del menÃº para mÃ³vil
         if (mobileToggle) {
             mobileToggle.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -59,28 +59,28 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         }
 
-        // Cerrar menú móvil al hacer clic fuera
+        // Cerrar menÃº mÃ³vil al hacer clic fuera
         menuPlaceholder.addEventListener('click', (e) => {
             if (e.target === menuPlaceholder && sidebar.classList.contains('is-open')) {
                 sidebar.classList.remove('is-open');
             }
         });
 
-        // Cerrar menú móvil al hacer clic en un enlace
+        // Cerrar menÃº mÃ³vil al hacer clic en un enlace
         const navLinks = sidebar.querySelectorAll('.nav-link');
         navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
-                // DEBUG: Monitorear clics en navegación
+                // DEBUG: Monitorear clics en navegaciÃ³n
                 const href = link.getAttribute('href');
-                console.log('🔗 Clic en navegación:', {
+                console.log('ðŸ”— Clic en navegaciÃ³n:', {
                     href: href,
                     currentPage: window.location.pathname,
                     target: e.target,
                     isDefaultPrevented: e.defaultPrevented
                 });
                 
-                // IMPORTANTE: No interceptar la navegación normal
-                // Solo cerrar el menú móvil si es necesario
+                // IMPORTANTE: No interceptar la navegaciÃ³n normal
+                // Solo cerrar el menÃº mÃ³vil si es necesario
                 if (window.innerWidth < 1024) {
                     sidebar.classList.remove('is-open');
                 }
@@ -88,13 +88,13 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        // Marcar la página actual como activa
+        // Marcar la pÃ¡gina actual como activa
         setActiveNavLink();
         
-        // Restaurar el estado del menú desde localStorage
+        // Restaurar el estado del menÃº desde localStorage
         restoreMenuState();
         
-        // Inicializar íconos de Lucide
+        // Inicializar Ã­conos de Lucide
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
         try {
             localStorage.setItem('gymtec-menu-expanded', isExpanded ? 'true' : 'false');
         } catch (error) {
-            console.warn('nav-loader.js: No se pudo guardar el estado del menú:', error);
+            console.warn('nav-loader.js: No se pudo guardar el estado del menÃº:', error);
         }
     }
 
@@ -136,7 +136,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 sidebar.classList.add('is-collapsed');
             }
         } catch (error) {
-            console.warn('nav-loader.js: No se pudo restaurar el estado del menú:', error);
+            console.warn('nav-loader.js: No se pudo restaurar el estado del menÃº:', error);
         }
     }
 
@@ -155,7 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         <span class="sidebar-text">Dashboard</span>
                     </a>
                     <div class="text-center text-red-500 text-sm py-4">
-                        Error cargando menú completo
+                        Error cargando menÃº completo
                     </div>
                 </nav>
             </aside>
@@ -163,11 +163,11 @@ document.addEventListener("DOMContentLoaded", () => {
         
         menuPlaceholder.innerHTML = fallbackMenu;
         
-        // Configurar navegación básica
+        // Configurar navegaciÃ³n bÃ¡sica
         setupNavigation();
     }
 
-    // Manejo de cambios de tamaño de ventana
+    // Manejo de cambios de tamaÃ±o de ventana
     window.addEventListener('resize', () => {
         const sidebar = document.getElementById('main-sidebar');
         if (sidebar && window.innerWidth >= 1024) {
@@ -176,11 +176,11 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-// Función global para limpiar el estado del menú (útil para scripts de página)
+// FunciÃ³n global para limpiar el estado del menÃº (Ãºtil para scripts de pÃ¡gina)
 window.clearMenuState = function() {
     try {
         localStorage.removeItem('gymtec-menu-expanded');
     } catch (error) {
-        console.warn('No se pudo limpiar el estado del menú:', error);
+        console.warn('No se pudo limpiar el estado del menÃº:', error);
     }
 }; 

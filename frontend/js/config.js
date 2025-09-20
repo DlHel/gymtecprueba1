@@ -1,4 +1,4 @@
-// Configuración automática de API URL
+// ConfiguraciÃ³n automÃ¡tica de API URL
 const getApiUrl = () => {
     const hostname = window.location.hostname;
     const port = window.location.port;
@@ -48,20 +48,20 @@ const getApiUrl = () => {
 };
 
 const API_URL = getApiUrl();
-console.log('🔗 API URL configurada:', API_URL);
+console.log('ðŸ”— API URL configurada:', API_URL);
 
-// Configuración de límites de archivos (debe coincidir con backend)
+// ConfiguraciÃ³n de lÃ­mites de archivos (debe coincidir con backend)
 const FILE_LIMITS = {
-    // Límites en bytes
+    // LÃ­mites en bytes
     IMAGE_MAX_SIZE: 5 * 1024 * 1024,      // 5MB - mismo que backend
     MANUAL_MAX_SIZE: 10 * 1024 * 1024,    // 10MB - mismo que backend
     
-    // Límites formateados para mostrar al usuario
+    // LÃ­mites formateados para mostrar al usuario
     IMAGE_MAX_SIZE_TEXT: '5MB',
     MANUAL_MAX_SIZE_TEXT: '10MB'
 };
 
-console.log('📁 Límites de archivos configurados:', FILE_LIMITS);
+console.log('ðŸ“ LÃ­mites de archivos configurados:', FILE_LIMITS);
 
 // Hacer disponible globalmente
 window.config = {
@@ -69,8 +69,8 @@ window.config = {
     FILE_LIMITS
 };
 
-// También crear las variables globales directas para compatibilidad
+// TambiÃ©n crear las variables globales directas para compatibilidad
 window.API_URL = API_URL;
 window.FILE_LIMITS = FILE_LIMITS;
 
-console.log('⚙️ Configuración disponible globalmente:', window.config); 
+console.log('âš™ï¸ ConfiguraciÃ³n disponible globalmente:', window.config); 

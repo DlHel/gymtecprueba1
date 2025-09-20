@@ -12,6 +12,9 @@ const db = dbAdapter;
 // Servicios de Autenticación
 const AuthService = require('./services/authService');
 
+// Sistema de Notificaciones
+const { triggerNotificationProcessing } = require('../notification-hooks');
+
 // Validadores
 const { 
     validateClient, 
@@ -911,8 +914,18 @@ try {
 // FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes
 try {
     const notificationsRoutes = require('./routes/notifications');
+    const notificationsTestRoutes = require('./routes/notifications-test');
+    const notificationsSimpleTestRoutes = require('./routes/notifications-simple-test');
+    const notificationsFixedRoutes = require('./routes/notifications-fixed');
+    const testDbRoutes = require('./routes/test-db');
+    const simpleTestRoutes = require('./routes/simple-test');
     
     app.use('/api/notifications', notificationsRoutes);
+    app.use('/api/notifications', notificationsTestRoutes);
+    app.use('/api/notifications', notificationsSimpleTestRoutes);
+    app.use('/api/notifications', notificationsFixedRoutes);
+    app.use('/api', testDbRoutes);
+    app.use('/api', simpleTestRoutes);
     
     console.log('✅ Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
 } catch (error) {
@@ -1252,6 +1265,13 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
             return;
         }
         console.log(`✅ Ticket creado con ID: ${this.lastID}`);
+        
+        // 🔔 Trigger notificaciones después de crear ticket
+        const ticketId = this.lastID;
+        triggerNotificationProcessing('create', ticketId).catch(error => {
+            console.error('⚠️  Error procesando notificaciones post-creación:', error.message);
+        });
+        
         res.status(201).json({
             message: "success",
             data: { id: this.lastID, ...req.body, status: 'Abierto' }
@@ -1291,6 +1311,12 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
             return res.status(404).json({ error: "Ticket no encontrado." });
         }
         console.log(`✅ Ticket ${req.params.id} actualizado`);
+        
+        // 🔔 Trigger notificaciones después de actualizar ticket
+        triggerNotificationProcessing('update', req.params.id).catch(error => {
+            console.error('⚠️  Error procesando notificaciones post-actualización:', error.message);
+        });
+        
         res.json({
             message: "success",
             changes: this.changes

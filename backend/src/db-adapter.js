@@ -33,6 +33,11 @@ class DatabaseAdapter {
             });
     }
 
+    // Versión async/await de all()
+    async allAsync(sql, params = []) {
+        return await this.db.query(sql, params);
+    }
+
     // Función para MySQL db.get() - obtener solo el primer resultado
     get(sql, params, callback) {
         if (typeof params === 'function') {
@@ -46,6 +51,12 @@ class DatabaseAdapter {
                 callback(null, row);
             })
             .catch(error => callback(error));
+    }
+
+    // Versión async/await de get()
+    async getAsync(sql, params = []) {
+        const results = await this.db.query(sql, params);
+        return results.length > 0 ? results[0] : null;
     }
 
     // Función para MySQL db.run() - para INSERT, UPDATE, DELETE
@@ -65,6 +76,15 @@ class DatabaseAdapter {
                 callback.call(callbackResult, null);
             })
             .catch(error => callback(error));
+    }
+
+    // Versión async/await de run()
+    async runAsync(sql, params = []) {
+        const result = await this.db.query(sql, params);
+        return {
+            lastID: result.insertId || null,
+            changes: result.affectedRows || 0
+        };
     }
 
     // Función para MySQL db.exec() - ejecutar múltiples statements

@@ -1,34 +1,12 @@
 // Dashboard de Notificaciones - Versión Corporativa Corregida
 document.addEventListener('DOMContentLoaded', () => {
-    // Esperar a que todos los scripts estén cargados
-    function waitForDependencies() {
-        return new Promise((resolve) => {
-            const checkDependencies = () => {
-                if (window.authManager && 
-                    window.authenticatedFetch && 
-                    window.API_URL &&
-                    document.getElementById('total-notifications')) {
-                    resolve();
-                } else {
-                    setTimeout(checkDependencies, 100);
-                }
-            };
-            checkDependencies();
-        });
+    // 🚀 Protección de autenticación PRIMERO
+    if (!AuthManager.isAuthenticated()) {
+        window.location.href = '/login.html';
+        return;
     }
 
-    // Inicializar después de que las dependencias estén listas
-    waitForDependencies().then(() => {
-        // 🚀 Protección de autenticación PRIMERO
-        if (!window.authManager || !window.authManager.isAuthenticated()) {
-            console.log('❌ Usuario no autenticado, redirigiendo al login...');
-            window.location.href = '/login.html';
-            return;
-        }
-
-        console.log('🚀 Inicializando Dashboard de Notificaciones Corporativo...');
-
-        // Continuar con la inicialización...
+    console.log('🚀 Inicializando Dashboard de Notificaciones Corporativo...');
 
     // State management
     const state = {
@@ -49,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const api = {
         getStats: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/notifications/stats`);
+                const response = await authenticatedFetch(`${API_URL}/notifications/stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || {};
@@ -68,7 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         getNotifications: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/notifications`);
+                const response = await authenticatedFetch(`${API_URL}/notifications`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || [];
@@ -166,16 +144,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 second: '2-digit' 
             });
             
-            // Actualizar ambos elementos de last-update
-            const updateElements = [
-                document.getElementById('last-update'),
-                document.getElementById('last-update-main')
-            ];
-            
+            const updateElements = document.querySelectorAll('#last-update');
             updateElements.forEach(el => {
-                if (el) {
-                    el.textContent = timeString;
-                }
+                el.textContent = timeString;
             });
         },
 
@@ -396,6 +367,4 @@ document.addEventListener('DOMContentLoaded', () => {
     init().catch(error => {
         console.error('💥 Error crítico en inicialización:', error);
     });
-
-    }); // Cierre de waitForDependencies().then()
 });

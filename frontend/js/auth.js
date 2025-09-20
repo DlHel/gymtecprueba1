@@ -1,6 +1,6 @@
 /**
- * Sistema de Autenticación Frontend - Gymtec ERP
- * Maneja tokens JWT, verificación de sesiones y redirecciones
+ * Sistema de AutenticaciÃ³n Frontend - Gymtec ERP
+ * Maneja tokens JWT, verificaciÃ³n de sesiones y redirecciones
  */
 
 class AuthManager {
@@ -27,14 +27,14 @@ class AuthManager {
     }
 
     /**
-     * Verificar si el usuario está autenticado
+     * Verificar si el usuario estÃ¡ autenticado
      */
     isAuthenticated() {
         return !!this.getToken();
     }
 
     /**
-     * Verificar si el usuario tiene un rol específico
+     * Verificar si el usuario tiene un rol especÃ­fico
      */
     hasRole(role) {
         const user = this.getUser();
@@ -54,7 +54,7 @@ class AuthManager {
     }
 
     /**
-     * Obtener headers de autorización para fetch
+     * Obtener headers de autorizaciÃ³n para fetch
      */
     getAuthHeaders() {
         const token = this.getToken();
@@ -62,7 +62,7 @@ class AuthManager {
     }
 
     /**
-     * Realizar fetch con autenticación automática
+     * Realizar fetch con autenticaciÃ³n automÃ¡tica
      */
     async authenticatedFetch(url, options = {}) {
         const headers = {
@@ -76,12 +76,12 @@ class AuthManager {
             headers
         });
 
-        // Si recibimos 401, el token expiró o es inválido
+        // Si recibimos 401, el token expirÃ³ o es invÃ¡lido
         if (response.status === 401) {
-            console.warn('🔒 Token expirado o inválido (401), haciendo logout automático...');
+            console.warn('ðŸ”’ Token expirado o invÃ¡lido (401), haciendo logout automÃ¡tico...');
             this.logout();
             window.location.href = '/login.html';
-            throw new Error('Sesión expirada');
+            throw new Error('SesiÃ³n expirada');
         }
 
         return response;
@@ -92,80 +92,80 @@ class AuthManager {
      */
     async verifyToken() {
         if (!this.isAuthenticated()) {
-            console.log('🔍 verifyToken: No hay token, usuario no autenticado');
+            console.log('ðŸ” verifyToken: No hay token, usuario no autenticado');
             return false;
         }
 
         try {
-            console.log('🔍 verifyToken: Verificando token con servidor...');
+            console.log('ðŸ” verifyToken: Verificando token con servidor...');
             const response = await fetch(`${this.apiUrl}/auth/verify`, {
                 headers: this.getAuthHeaders()
             });
 
-            console.log('🔍 verifyToken: Respuesta del servidor:', response.status);
+            console.log('ðŸ” verifyToken: Respuesta del servidor:', response.status);
 
             if (response.ok) {
                 const data = await response.json();
-                console.log('✅ verifyToken: Token válido, usuario:', data.user?.username);
+                console.log('âœ… verifyToken: Token vÃ¡lido, usuario:', data.user?.username);
                 // Actualizar datos del usuario si es necesario
                 localStorage.setItem(this.userKey, JSON.stringify(data.user));
                 return true;
             } else if (response.status === 401 || response.status === 403) {
-                // Solo hacer logout si el token es realmente inválido (401/403)
-                console.warn('❌ verifyToken: Token inválido o expirado, haciendo logout');
+                // Solo hacer logout si el token es realmente invÃ¡lido (401/403)
+                console.warn('âŒ verifyToken: Token invÃ¡lido o expirado, haciendo logout');
                 this.logout();
                 return false;
             } else {
-                // Para otros errores (500, timeout, etc), no hacer logout automático
-                console.warn('⚠️ verifyToken: Error del servidor, pero manteniendo sesión:', response.status);
+                // Para otros errores (500, timeout, etc), no hacer logout automÃ¡tico
+                console.warn('âš ï¸ verifyToken: Error del servidor, pero manteniendo sesiÃ³n:', response.status);
                 return false; // Retornar false pero NO hacer logout
             }
         } catch (error) {
-            // Para errores de red, NO hacer logout automático
-            console.warn('⚠️ verifyToken: Error de red, manteniendo sesión:', error.message);
+            // Para errores de red, NO hacer logout automÃ¡tico
+            console.warn('âš ï¸ verifyToken: Error de red, manteniendo sesiÃ³n:', error.message);
             return false; // Retornar false pero NO hacer logout
         }
     }
 
     /**
-     * Proteger página - redireccionar a login si no está autenticado
+     * Proteger pÃ¡gina - redireccionar a login si no estÃ¡ autenticado
      */
     async protectPage(requiredRole = null) {
-        console.log('🔍 protectPage: Iniciando protección de página...');
+        console.log('ðŸ” protectPage: Iniciando protecciÃ³n de pÃ¡gina...');
         
         // Si no hay token, redireccionar a login
         if (!this.isAuthenticated()) {
-            console.log('❌ protectPage: No hay token, redirigiendo a login');
+            console.log('âŒ protectPage: No hay token, redirigiendo a login');
             this.redirectToLogin();
             return false;
         }
 
-        console.log('✅ protectPage: Token presente, verificando con servidor...');
+        console.log('âœ… protectPage: Token presente, verificando con servidor...');
 
         // Verificar token con el servidor
         const isValid = await this.verifyToken();
         if (isValid === false) {
-            // Solo redireccionar si verifyToken retornó false Y el usuario ya no está autenticado
-            // (esto significa que se hizo logout automático por token inválido)
+            // Solo redireccionar si verifyToken retornÃ³ false Y el usuario ya no estÃ¡ autenticado
+            // (esto significa que se hizo logout automÃ¡tico por token invÃ¡lido)
             if (!this.isAuthenticated()) {
-                console.log('❌ protectPage: Token inválido, redirigiendo a login');
+                console.log('âŒ protectPage: Token invÃ¡lido, redirigiendo a login');
                 this.redirectToLogin();
                 return false;
             } else {
-                // Si el token sigue presente pero la verificación falló (error de red),
+                // Si el token sigue presente pero la verificaciÃ³n fallÃ³ (error de red),
                 // permitir el acceso pero mostrar warning
-                console.warn('⚠️ protectPage: Error de red verificando token, pero permitiendo acceso');
+                console.warn('âš ï¸ protectPage: Error de red verificando token, pero permitiendo acceso');
             }
         }
 
         // Verificar rol si es requerido
         if (requiredRole && !this.hasRole(requiredRole)) {
-            console.warn('❌ protectPage: Rol insuficiente');
+            console.warn('âŒ protectPage: Rol insuficiente');
             this.showUnauthorized();
             return false;
         }
 
-        console.log('✅ protectPage: Acceso permitido');
+        console.log('âœ… protectPage: Acceso permitido');
         return true;
     }
 
@@ -174,18 +174,18 @@ class AuthManager {
      */
     redirectToLogin() {
         const currentPage = window.location.pathname;
-        console.log('🚨 REDIRECT TO LOGIN LLAMADO desde:', currentPage);
+        console.log('ðŸš¨ REDIRECT TO LOGIN LLAMADO desde:', currentPage);
         
-        // PREVENIR BUCLES DE REDIRECCIÓN
+        // PREVENIR BUCLES DE REDIRECCIÃ“N
         if (currentPage.includes('login.html')) {
-            console.log('⚠️ Ya estamos en login, evitando bucle');
+            console.log('âš ï¸ Ya estamos en login, evitando bucle');
             return;
         }
         
-        // Delay para evitar redirecciones demasiado rápidas
+        // Delay para evitar redirecciones demasiado rÃ¡pidas
         setTimeout(() => {
             const returnUrl = encodeURIComponent(currentPage + window.location.search);
-            console.log('🔄 Redirigiendo a login con return URL:', returnUrl);
+            console.log('ðŸ”„ Redirigiendo a login con return URL:', returnUrl);
             window.location.href = `login.html?return=${returnUrl}`;
         }, 100);
     }
@@ -201,7 +201,7 @@ class AuthManager {
                         <i data-lucide="shield-alert" class="w-16 h-16 mx-auto text-red-500"></i>
                     </div>
                     <h1 class="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h1>
-                    <p class="text-gray-600 mb-6">No tienes permisos para acceder a esta página.</p>
+                    <p class="text-gray-600 mb-6">No tienes permisos para acceder a esta pÃ¡gina.</p>
                     <button onclick="window.location.href='index.html'" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
                         Volver al Dashboard
                     </button>
@@ -214,7 +214,7 @@ class AuthManager {
     }
 
     /**
-     * Cerrar sesión
+     * Cerrar sesiÃ³n
      */
     async logout() {
         const token = this.getToken();
@@ -236,21 +236,21 @@ class AuthManager {
         localStorage.removeItem(this.userKey);
         localStorage.removeItem(this.rememberKey);
 
-        // Redireccionar a login CON PROTECCIÓN ANTI-BUCLE
+        // Redireccionar a login CON PROTECCIÃ“N ANTI-BUCLE
         const currentPage = window.location.pathname;
         if (currentPage.includes('login.html')) {
-            console.log('⚠️ Ya estamos en login después de logout');
+            console.log('âš ï¸ Ya estamos en login despuÃ©s de logout');
             return;
         }
         
-        console.log('🔄 Logout: Redirigiendo a login');
+        console.log('ðŸ”„ Logout: Redirigiendo a login');
         setTimeout(() => {
             window.location.href = 'login.html';
         }, 100);
     }
 
     /**
-     * Cambiar contraseña
+     * Cambiar contraseÃ±a
      */
     async changePassword(currentPassword, newPassword) {
         const response = await this.authenticatedFetch(`${this.apiUrl}/auth/change-password`, {
@@ -263,14 +263,14 @@ class AuthManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Error cambiando contraseña');
+            throw new Error(error.error || 'Error cambiando contraseÃ±a');
         }
 
         return await response.json();
     }
 
     /**
-     * Obtener información del usuario para mostrar en la UI
+     * Obtener informaciÃ³n del usuario para mostrar en la UI
      */
     getUserDisplayInfo() {
         const user = this.getUser();
@@ -299,7 +299,7 @@ class AuthManager {
     }
 
     /**
-     * Obtener color según el rol
+     * Obtener color segÃºn el rol
      */
     getRoleColor(role) {
         const colors = {
@@ -312,7 +312,7 @@ class AuthManager {
     }
 
     /**
-     * Renderizar información del usuario en el header
+     * Renderizar informaciÃ³n del usuario en el header
      */
     renderUserInfo(containerId = 'user-info') {
         const container = document.getElementById(containerId);
@@ -338,24 +338,24 @@ class AuthManager {
                     </button>
                     <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
                         <a href="#" onclick="authManager.showChangePasswordModal()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            <i data-lucide="key" class="w-4 h-4 inline mr-2"></i>Cambiar Contraseña
+                            <i data-lucide="key" class="w-4 h-4 inline mr-2"></i>Cambiar ContraseÃ±a
                         </a>
                         <hr class="my-2">
                         <a href="#" onclick="authManager.logout()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                            <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>Cerrar Sesión
+                            <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>Cerrar SesiÃ³n
                         </a>
                     </div>
                 </div>
             </div>
         `;
 
-        // Event listener para el menú desplegable
+        // Event listener para el menÃº desplegable
         document.getElementById('user-menu-btn').addEventListener('click', () => {
             const menu = document.getElementById('user-menu');
             menu.classList.toggle('hidden');
         });
 
-        // Cerrar menú al hacer clic fuera
+        // Cerrar menÃº al hacer clic fuera
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('user-menu');
             const btn = document.getElementById('user-menu-btn');
@@ -371,28 +371,31 @@ class AuthManager {
     }
 
     /**
-     * Mostrar modal para cambiar contraseña
+     * Mostrar modal para cambiar contraseÃ±a
      */
     showChangePasswordModal() {
-        // Implementar modal de cambio de contraseña
-        console.log('Mostrar modal de cambio de contraseña');
-        // Esta funcionalidad se puede implementar más adelante
+        // Implementar modal de cambio de contraseÃ±a
+        console.log('Mostrar modal de cambio de contraseÃ±a');
+        // Esta funcionalidad se puede implementar mÃ¡s adelante
     }
 }
 
 // Crear instancia global
 window.authManager = new AuthManager();
 
+// Compatibilidad con cÃ³digo que usa AuthManager (mayÃºscula)
+window.AuthManager = window.authManager;
+
 /**
- * Función de utilidad para proteger páginas
- * Usar al inicio de cada página que requiera autenticación
+ * FunciÃ³n de utilidad para proteger pÃ¡ginas
+ * Usar al inicio de cada pÃ¡gina que requiera autenticaciÃ³n
  */
 window.protectPage = async function(requiredRole = null) {
     return await window.authManager.protectPage(requiredRole);
 };
 
 /**
- * Función de utilidad para fetch autenticado
+ * FunciÃ³n de utilidad para fetch autenticado
  */
 window.authenticatedFetch = async function(url, options = {}) {
     return await window.authManager.authenticatedFetch(url, options);
