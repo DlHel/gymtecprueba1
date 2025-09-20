@@ -10,33 +10,72 @@
     <link rel="stylesheet" href="css/equipo.css?v=3">
 </head>
 <body>
-    <div id="app" class="flex flex-col min-h-screen">
-        <!-- Header -->
-        <header class="app-header z-20">
-            <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
-                <div class="flex items-center space-x-2">
-                    <a href="clientes.html" class="p-2 rounded-md hover:bg-gray-200" title="Volver a clientes">
-                        <i data-lucide="arrow-left" class="h-6 w-6"></i>
-                    </a>
-                    <h1 id="page-title">Detalle de Equipo</h1>
-                </div>
-                <div class="user-info">
-                    Felipe Maturana (Admin)
-                </div>
-            </div>
-        </header>
+    <div id="app" class="flex min-h-screen">
+        <!-- Sidebar -->
+        <div id="sidebar-container" class="hidden lg:flex">
+            <!-- El menú se cargará aquí -->
+        </div>
 
         <!-- Contenido principal -->
-        <main id="main-content" class="flex-1 p-4 md:p-6">
-            <!-- El contenido se cargará aquí -->
-             <div class="equipment-loading">Cargando datos del equipo...</div>
-        </main>
+        <div class="flex-1 flex flex-col">
+            <!-- Header -->
+            <header class="app-header z-20">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-2">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                        <a href="clientes.html" class="p-2 rounded-md hover:bg-gray-200" title="Volver a clientes">
+                            <i data-lucide="arrow-left" class="h-6 w-6"></i>
+                        </a>
+                        <h1 id="page-title">Detalle de Equipo</h1>
+                    </div>
+                    <div class="user-info">
+                        Felipe Maturana (Admin)
+                    </div>
+                </div>
+            </header>
+
+            <!-- Contenido principal -->
+            <main id="main-content" class="flex-1 p-4 md:p-6">
+                <!-- El contenido se cargará aquí -->
+                <div class="equipment-loading">Cargando datos del equipo...</div>
+            </main>
+        </div>
     </div>
     
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/base-modal.js"></script>
     <script src="js/qrcode.min.js"></script>
-    <script src="js/equipo.js?v=3"></script>
+    <script>
+        // Cargar menú lateral
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const response = await fetch('menu.html');
+                const menuHtml = await response.text();
+                document.getElementById('sidebar-container').innerHTML = menuHtml;
+                
+                // Inicializar iconos de Lucide después de cargar el menú
+                if (typeof lucide !== 'undefined') {
+                    lucide.createIcons();
+                }
+                
+                // Configurar toggle del menú móvil
+                const mobileToggle = document.getElementById('mobile-sidebar-toggle');
+                const sidebar = document.getElementById('main-sidebar');
+                
+                if (mobileToggle && sidebar) {
+                    mobileToggle.addEventListener('click', () => {
+                        sidebar.classList.toggle('hidden');
+                        sidebar.classList.toggle('block');
+                    });
+                }
+            } catch (error) {
+                console.error('Error al cargar el menú:', error);
+            }
+        });
+    </script>
+    <script src="js/equipo.js?v=4"></script>
 </body>
 </html> 

@@ -537,3 +537,122 @@
         break-inside: avoid;
     }
 } 
+
+/* ===== FORMULARIO DE CREACIÓN DE EQUIPO ===== */
+
+.equipment-form {
+    width: 100%;
+}
+
+.equipment-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.equipment-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.equipment-form-group.full-width {
+    grid-column: 1 / -1;
+}
+
+.equipment-form-label {
+    font-weight: 600;
+    color: #374151;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.equipment-form-label::after {
+    content: "*";
+    color: #ef4444;
+    margin-left: 0.25rem;
+}
+
+.equipment-form-label:not([for*="name"]):not([for*="type"]):not([for*="client"]):not([for*="location"])::after {
+    display: none;
+}
+
+.equipment-form-input {
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    background: white;
+}
+
+.equipment-form-input:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.equipment-form-input:disabled {
+    background-color: #f9fafb;
+    color: #9ca3af;
+    cursor: not-allowed;
+}
+
+.equipment-form-input::placeholder {
+    color: #9ca3af;
+}
+
+.equipment-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+}
+
+/* Responsive del formulario */
+@media (max-width: 768px) {
+    .equipment-form-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .equipment-form-actions {
+        flex-direction: column-reverse;
+        gap: 0.75rem;
+    }
+    
+    .equipment-form-actions .equipment-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+/* Estados de validación del formulario */
+.equipment-form-input:invalid {
+    border-color: #ef4444;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.equipment-form-input:valid {
+    border-color: #10b981;
+}
+
+/* Animaciones del formulario */
+.equipment-form {
+    animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

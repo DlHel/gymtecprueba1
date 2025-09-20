@@ -210,6 +210,103 @@ document.addEventListener('DOMContentLoaded', () => {
             }).join('');
             
             notesContainer.innerHTML = notesHtml;
+        },
+
+        createEquipmentForm: () => {
+            console.log('Renderizando formulario de creación de equipo...');
+            
+            mainContent.innerHTML = `
+                <div class="equipment-container">
+                    <!-- Formulario de creación de equipo -->
+                    <div class="equipment-card">
+                        <h2 class="equipment-section-title">
+                            <i data-lucide="plus-circle"></i>
+                            Crear Nuevo Equipo
+                        </h2>
+                        
+                        <form id="create-equipment-form" class="equipment-form">
+                            <div class="equipment-form-grid">
+                                <div class="equipment-form-group">
+                                    <label for="equipment-name" class="equipment-form-label">Nombre del Equipo *</label>
+                                    <input type="text" id="equipment-name" name="name" class="equipment-form-input" required>
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-type" class="equipment-form-label">Tipo de Equipo *</label>
+                                    <select id="equipment-type" name="type" class="equipment-form-input" required>
+                                        <option value="">Seleccionar tipo...</option>
+                                        <option value="Cardiovascular">Cardiovascular</option>
+                                        <option value="Fuerza">Fuerza</option>
+                                        <option value="Funcional">Funcional</option>
+                                        <option value="Accesorio">Accesorio</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-brand" class="equipment-form-label">Marca</label>
+                                    <input type="text" id="equipment-brand" name="brand" class="equipment-form-input">
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-model" class="equipment-form-label">Modelo</label>
+                                    <input type="text" id="equipment-model" name="model" class="equipment-form-input">
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-serial" class="equipment-form-label">Número de Serie</label>
+                                    <input type="text" id="equipment-serial" name="serial_number" class="equipment-form-input">
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-client" class="equipment-form-label">Cliente *</label>
+                                    <select id="equipment-client" name="client_id" class="equipment-form-input" required>
+                                        <option value="">Seleccionar cliente...</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-location" class="equipment-form-label">Ubicación *</label>
+                                    <select id="equipment-location" name="location_id" class="equipment-form-input" required disabled>
+                                        <option value="">Primero selecciona un cliente...</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-acquisition-date" class="equipment-form-label">Fecha de Adquisición</label>
+                                    <input type="date" id="equipment-acquisition-date" name="acquisition_date" class="equipment-form-input">
+                                </div>
+                                
+                                <div class="equipment-form-group">
+                                    <label for="equipment-installation-date" class="equipment-form-label">Fecha de Instalación</label>
+                                    <input type="date" id="equipment-installation-date" name="installation_date" class="equipment-form-input">
+                                </div>
+                                
+                                <div class="equipment-form-group full-width">
+                                    <label for="equipment-description" class="equipment-form-label">Descripción</label>
+                                    <textarea id="equipment-description" name="description" class="equipment-form-input" rows="3" placeholder="Describe las características especiales del equipo..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <div class="equipment-form-actions">
+                                <button type="button" id="cancel-equipment-btn" class="equipment-btn equipment-btn-ghost">
+                                    <i data-lucide="x"></i> Cancelar
+                                </button>
+                                <button type="submit" id="save-equipment-btn" class="equipment-btn equipment-btn-primary">
+                                    <i data-lucide="check"></i> Crear Equipo
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+            
+            lucide.createIcons();
+            
+            // Cargar datos para los selectores
+            actions.loadFormData();
+            
+            // Event listeners del formulario
+            actions.setupFormEventListeners();
         }
     };
 
@@ -227,14 +324,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 backButton.href = `clientes.html?openClient=${clientId}`;
             }
 
+            // NUEVO: Soportar modo crear y modo editar
             if (!equipmentId) {
-                console.error('No se proporcionó ID de equipo');
-                mainContent.innerHTML = '<div class="equipment-error">ID de equipo no especificado.</div>';
+                console.log('Modo CREAR EQUIPO - No se proporcionó ID de equipo');
+                // Cambiar título de la página
+                document.getElementById('page-title').textContent = 'Crear Nuevo Equipo';
+                
+                // Renderizar formulario de creación
+                render.createEquipmentForm();
                 return;
             }
 
             try {
-                console.log('Cargando datos del equipo...');
+                console.log('Modo EDITAR EQUIPO - Cargando datos del equipo...');
                 const [equipmentData, ticketsData, notesData] = await Promise.all([
                     api.getEquipment(equipmentId),
                     api.getEquipmentTickets(equipmentId),
@@ -308,6 +410,143 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (error) {
                 console.error('Error al eliminar la nota:', error);
                 alert('Error al eliminar la nota. Por favor, inténtalo de nuevo.');
+            }
+        },
+
+        // NUEVAS FUNCIONES para el formulario de creación
+        loadFormData: async () => {
+            try {
+                console.log('Cargando datos para el formulario...');
+                
+                // Cargar clientes
+                const clientsResponse = await authenticatedFetch(`${API_URL}/clients`);
+                if (!clientsResponse.ok) throw new Error('Error al cargar clientes');
+                const clientsData = await clientsResponse.json();
+                
+                const clientSelect = document.getElementById('equipment-client');
+                clientSelect.innerHTML = '<option value="">Seleccionar cliente...</option>';
+                
+                if (clientsData.data && clientsData.data.length > 0) {
+                    clientsData.data.forEach(client => {
+                        clientSelect.innerHTML += `<option value="${client.id}">${client.name}</option>`;
+                    });
+                }
+                
+                console.log('Datos del formulario cargados exitosamente');
+                
+            } catch (error) {
+                console.error('Error al cargar datos del formulario:', error);
+                alert('Error al cargar datos del formulario. Por favor, recarga la página.');
+            }
+        },
+
+        loadLocations: async (clientId) => {
+            try {
+                console.log('Cargando ubicaciones para cliente:', clientId);
+                
+                const locationsResponse = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
+                if (!locationsResponse.ok) throw new Error('Error al cargar ubicaciones');
+                const locationsData = await locationsResponse.json();
+                
+                const locationSelect = document.getElementById('equipment-location');
+                locationSelect.innerHTML = '<option value="">Seleccionar ubicación...</option>';
+                locationSelect.disabled = false;
+                
+                if (locationsData.data && locationsData.data.length > 0) {
+                    locationsData.data.forEach(location => {
+                        locationSelect.innerHTML += `<option value="${location.id}">${location.name}</option>`;
+                    });
+                } else {
+                    locationSelect.innerHTML = '<option value="">No hay ubicaciones disponibles</option>';
+                }
+                
+                console.log('Ubicaciones cargadas exitosamente');
+                
+            } catch (error) {
+                console.error('Error al cargar ubicaciones:', error);
+                const locationSelect = document.getElementById('equipment-location');
+                locationSelect.innerHTML = '<option value="">Error al cargar ubicaciones</option>';
+            }
+        },
+
+        setupFormEventListeners: () => {
+            console.log('Configurando event listeners del formulario...');
+            
+            // Evento change del selector de cliente
+            const clientSelect = document.getElementById('equipment-client');
+            clientSelect.addEventListener('change', (e) => {
+                const clientId = e.target.value;
+                if (clientId) {
+                    actions.loadLocations(clientId);
+                } else {
+                    const locationSelect = document.getElementById('equipment-location');
+                    locationSelect.innerHTML = '<option value="">Primero selecciona un cliente...</option>';
+                    locationSelect.disabled = true;
+                }
+            });
+
+            // Evento submit del formulario
+            const form = document.getElementById('create-equipment-form');
+            form.addEventListener('submit', actions.handleFormSubmit);
+
+            // Evento cancelar
+            const cancelBtn = document.getElementById('cancel-equipment-btn');
+            cancelBtn.addEventListener('click', () => {
+                if (confirm('¿Estás seguro de que quieres cancelar? Se perderán los datos ingresados.')) {
+                    window.location.href = 'clientes.html';
+                }
+            });
+        },
+
+        handleFormSubmit: async (e) => {
+            e.preventDefault();
+            
+            console.log('Enviando formulario de creación de equipo...');
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            const equipmentData = Object.fromEntries(formData);
+            
+            // Validar campos requeridos
+            if (!equipmentData.name || !equipmentData.type || !equipmentData.client_id || !equipmentData.location_id) {
+                alert('Por favor, completa todos los campos requeridos (*)');
+                return;
+            }
+            
+            try {
+                const saveBtn = document.getElementById('save-equipment-btn');
+                saveBtn.disabled = true;
+                saveBtn.innerHTML = '<i data-lucide="loader-2" class="animate-spin"></i> Creando...';
+                
+                console.log('Datos del equipo a crear:', equipmentData);
+                
+                const response = await authenticatedFetch(`${API_URL}/equipment`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(equipmentData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al crear el equipo');
+                }
+                
+                const result = await response.json();
+                console.log('Equipo creado exitosamente:', result);
+                
+                alert('Equipo creado exitosamente');
+                
+                // Redirigir al detalle del equipo creado
+                window.location.href = `equipo.html?id=${result.data.id}&clientId=${equipmentData.client_id}`;
+                
+            } catch (error) {
+                console.error('Error al crear el equipo:', error);
+                alert(`Error al crear el equipo: ${error.message}`);
+            } finally {
+                const saveBtn = document.getElementById('save-equipment-btn');
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i data-lucide="check"></i> Crear Equipo';
+                lucide.createIcons();
             }
         }
     };
