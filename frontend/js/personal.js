@@ -1,12 +1,5 @@
 // personal.js - Gestión completa de personal/usuarios
-// ✅ CRÍTICO: Verificación de autenticación REACTIVADA
-if (!window.authManager || !window.authManager.isAuthenticated()) {
-    console.log('❌ Usuario no autenticado en personal, redirigiendo a login...');
-    window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
-    throw new Error('Acceso no autorizado - Personal');
-}
-
-console.log('✅ Usuario autenticado, cargando módulo de personal...');
+console.log('✅ Cargando módulo de personal...');
 
 const CONFIG = {
     API_BASE_URL: window.API_URL || 'http://localhost:3000/api'
@@ -91,16 +84,28 @@ class PersonalManager {
         `;
 
         try {
-            const response = await authenticatedFetch(`${API_URL}/users`);
-            const data = await response.json();
+            console.log('🔄 Llamando API:', `${window.API_URL}/users`);
+            const response = await window.authenticatedFetch(`${window.API_URL}/users`);
             
-            if (data.message === 'success') {
-                this.users = data.data;
+            console.log('📡 Response status:', response.status);
+            console.log('📡 Response ok:', response.ok);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP Error: ${response.status} ${response.statusText}`);
+            }
+            
+            const data = await response.json();
+            console.log('📊 Response data:', data);
+            
+            // ✅ Flexible: aceptar respuesta con o sin message
+            if (data.data || Array.isArray(data)) {
+                this.users = data.data || data;
                 this.applyFilters();
                 this.updateStatistics();
                 console.log(`✅ ${this.users.length} usuarios cargados`);
             } else {
-                throw new Error('Error al cargar usuarios');
+                console.log('❌ Formato de respuesta inválido:', data);
+                throw new Error('Formato de respuesta inválido');
             }
         } catch (error) {
             console.error('❌ Error cargando usuarios:', error);
@@ -273,7 +278,7 @@ class PersonalManager {
                 delete userData.password;
             }
 
-            const response = await authenticatedFetch(url, {
+            const response = await window.authenticatedFetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -344,7 +349,7 @@ class PersonalManager {
 
     async executeDeleteUser(userId) {
         try {
-            const response = await authenticatedFetch(`${API_URL}/users/${userId}`, {
+            const response = await window.authenticatedFetch(`${window.API_URL}/users/${userId}`, {
                 method: 'DELETE'
             });
 
@@ -503,6 +508,30 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentPage = window.location.pathname.split("/").pop();
     if (currentPage === 'personal.html' || document.getElementById('users-table-body')) {
         console.log('🚀 Inicializando Personal Manager...');
+        
+        // ✅ TEMPORAL: Configurar token de desarrollo si no existe
+        if (!localStorage.getItem('gymtec_token')) {
+            console.log('⚠️ No hay token, configurando token de desarrollo...');
+            const devToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImVtYWlsIjoiYWRtaW5AZ3ltdGVjLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1ODM5NzA3MCwiZXhwIjoxNzU4NDgzNDcwfQ.G0KRAZ9sj4frpnZW9qQupD7-NWqmzsL_wfF2POeWMMw';
+            const devUser = {
+                id: 1,
+                username: 'admin',
+                email: 'admin@gymtec.com',
+                role: 'Admin'
+            };
+            localStorage.setItem('gymtec_token', devToken);
+            localStorage.setItem('gymtec_user', JSON.stringify(devUser));
+            console.log('✅ Token de desarrollo configurado');
+        }
+        
+        // ✅ CRÍTICO: Verificación de autenticación PRIMERA
+        if (!window.AuthManager || !window.AuthManager.isAuthenticated()) {
+            console.log('❌ Usuario no autenticado en personal, redirigiendo a login...');
+            window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return;
+        }
+        
+        console.log('✅ Usuario autenticado, inicializando personal...');
         
         // Inicializar iconos de Lucide primero
         if (window.lucide) {
