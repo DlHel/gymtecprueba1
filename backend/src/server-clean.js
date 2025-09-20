@@ -260,33 +260,100 @@ app.get('/api/users', authenticateToken, (req, res) => {
 // RUTAS PRINCIPALES - TAREAS DE MANTENIMIENTO
 // ===================================================================
 
-// GET all maintenance tasks
-app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
+// GET technicians for task assignment (DEBE IR ANTES de la ruta genérica)
+app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
             id,
-            title,
-            description,
-            scheduled_date,
-            assigned_technician,
-            equipment_id,
-            status,
-            priority,
-            created_at
-        FROM MaintenanceTasks
-        ORDER BY scheduled_date DESC
+            username,
+            email,
+            username as first_name,
+            '' as last_name,
+            username as name,
+            role,
+            '' as phone
+        FROM Users 
+        WHERE role IN ('technician', 'admin', 'Tecnico', 'Admin') 
+        AND status = 'Activo'
+        ORDER BY username
     `;
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting maintenance tasks:', err);
-            // Return empty array as fallback for frontend compatibility
-            res.json({ data: [] });
+            console.error('❌ Error getting technicians:', err.message);
+            res.status(500).json({ 
+                error: 'Error retrieving technicians',
+                code: 'DB_ERROR'
+            });
+            return;
+        }
+        
+        console.log('✅ Technicians found:', rows.length, 'items');
+        res.json({ 
+            message: 'success',
+            data: rows
+        });
+    });
+});
+
+// GET all maintenance tasks
+app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT 
+            mt.id,
+            mt.title,
+            mt.description,
+            mt.type,
+            mt.status,
+            mt.priority,
+            mt.scheduled_date,
+            mt.scheduled_time,
+            mt.estimated_duration,
+            mt.actual_duration,
+            mt.notes,
+            mt.is_preventive,
+            mt.started_at,
+            mt.completed_at,
+            mt.created_at,
+            mt.updated_at,
+            -- Equipment info
+            e.name as equipment_name,
+            e.serial_number as equipment_serial,
+            em.name as equipment_model,
+            -- Technician info
+            u.username as technician_username,
+            u.username as technician_name,
+            -- Client and location info
+            c.name as client_name,
+            l.name as location_name
+        FROM MaintenanceTasks mt
+        LEFT JOIN Equipment e ON mt.equipment_id = e.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        LEFT JOIN Users u ON mt.technician_id = u.id
+        LEFT JOIN Clients c ON mt.client_id = c.id
+        LEFT JOIN Locations l ON mt.location_id = l.id
+        ORDER BY mt.scheduled_date DESC, mt.scheduled_time ASC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error getting maintenance tasks:', err.message);
+            res.status(500).json({ 
+                error: 'Error retrieving maintenance tasks',
+                code: 'DB_ERROR'
+            });
             return;
         }
         
         console.log('✅ Maintenance tasks found:', rows.length, 'items');
-        res.json({ data: rows });
+        res.json({ 
+            message: 'success',
+            data: rows,
+            metadata: {
+                total: rows.length,
+                timestamp: new Date().toISOString()
+            }
+        });
     });
 });
 
@@ -294,52 +361,184 @@ app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
 app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
     const { 
         title, 
-        description, 
-        scheduled_date, 
-        assigned_technician, 
+        description,
+        type = 'maintenance',
         equipment_id, 
-        priority = 'medium' 
+        technician_id,
+        scheduled_date, 
+        scheduled_time,
+        estimated_duration,
+        priority = 'medium',
+        notes,
+        is_preventive = false
     } = req.body;
+    
+    // Validation
+    if (!title || !scheduled_date) {
+        return res.status(400).json({ 
+            error: 'Title and scheduled_date are required',
+            code: 'VALIDATION_ERROR'
+        });
+    }
     
     const sql = `
         INSERT INTO MaintenanceTasks 
-        (title, description, scheduled_date, assigned_technician, equipment_id, priority, status, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, 'scheduled', datetime('now'))
+        (title, description, type, equipment_id, technician_id, scheduled_date, 
+         scheduled_time, estimated_duration, priority, notes, is_preventive, 
+         status, created_by, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW())
     `;
     
-    db.run(sql, [title, description, scheduled_date, assigned_technician, equipment_id, priority], function(err) {
+    const values = [
+        title, 
+        description, 
+        type,
+        equipment_id || null, 
+        technician_id || null, 
+        scheduled_date, 
+        scheduled_time || null,
+        estimated_duration || null,
+        priority, 
+        notes || null,
+        is_preventive,
+        req.user?.id || null
+    ];
+    
+    db.run(sql, values, function(err) {
         if (err) {
-            console.error('❌ Error creating maintenance task:', err);
-            // Return success for frontend compatibility even on error
-            res.json({ 
-                message: 'Maintenance task created (fallback)',
-                data: { 
-                    id: Date.now(),
-                    title,
-                    description,
-                    scheduled_date,
-                    assigned_technician,
-                    equipment_id,
-                    priority,
-                    status: 'scheduled'
-                }
+            console.error('❌ Error creating maintenance task:', err.message);
+            res.status(500).json({ 
+                error: 'Error creating maintenance task',
+                code: 'DB_ERROR',
+                details: err.message
             });
             return;
         }
         
         console.log('✅ Maintenance task created with ID:', this.lastID);
-        res.json({ 
-            message: 'Maintenance task created successfully',
-            data: { 
-                id: this.lastID,
-                title,
-                description,
-                scheduled_date,
-                assigned_technician,
-                equipment_id,
-                priority,
-                status: 'scheduled'
+        
+        // Fetch the created task with all relations
+        const fetchSql = `
+            SELECT 
+                mt.id, mt.title, mt.description, mt.type, mt.status, mt.priority,
+                mt.scheduled_date, mt.scheduled_time, mt.estimated_duration,
+                mt.notes, mt.is_preventive, mt.created_at,
+                e.name as equipment_name,
+                u.username as technician_name
+            FROM MaintenanceTasks mt
+            LEFT JOIN Equipment e ON mt.equipment_id = e.id
+            LEFT JOIN Users u ON mt.technician_id = u.id
+            WHERE mt.id = ?
+        `;
+        
+        db.get(fetchSql, [this.lastID], (err, row) => {
+            if (err) {
+                console.error('❌ Error fetching created task:', err.message);
             }
+            
+            res.status(201).json({ 
+                message: 'Maintenance task created successfully',
+                success: true,
+                data: row || {
+                    id: this.lastID,
+                    title,
+                    type,
+                    scheduled_date,
+                    scheduled_time,
+                    priority,
+                    status: 'pending'
+                }
+            });
+        });
+    });
+});
+
+// PUT update maintenance task
+app.put('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
+    const taskId = parseInt(req.params.id);
+    const { 
+        title, 
+        description,
+        type,
+        equipment_id, 
+        technician_id,
+        scheduled_date, 
+        scheduled_time,
+        estimated_duration,
+        priority,
+        notes,
+        status
+    } = req.body;
+    
+    const sql = `
+        UPDATE MaintenanceTasks 
+        SET title = ?, description = ?, type = ?, equipment_id = ?, 
+            technician_id = ?, scheduled_date = ?, scheduled_time = ?,
+            estimated_duration = ?, priority = ?, notes = ?, status = ?,
+            updated_at = NOW()
+        WHERE id = ?
+    `;
+    
+    const values = [
+        title, description, type, equipment_id || null, technician_id || null,
+        scheduled_date, scheduled_time || null, estimated_duration || null,
+        priority, notes || null, status, taskId
+    ];
+    
+    db.run(sql, values, function(err) {
+        if (err) {
+            console.error('❌ Error updating maintenance task:', err.message);
+            res.status(500).json({ 
+                error: 'Error updating maintenance task',
+                code: 'DB_ERROR'
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({
+                error: 'Maintenance task not found',
+                code: 'NOT_FOUND'
+            });
+            return;
+        }
+        
+        console.log('✅ Maintenance task updated:', taskId);
+        res.json({ 
+            message: 'Maintenance task updated successfully',
+            success: true
+        });
+    });
+});
+
+// DELETE maintenance task
+app.delete('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
+    const taskId = parseInt(req.params.id);
+    
+    const sql = 'DELETE FROM MaintenanceTasks WHERE id = ?';
+    
+    db.run(sql, [taskId], function(err) {
+        if (err) {
+            console.error('❌ Error deleting maintenance task:', err.message);
+            res.status(500).json({ 
+                error: 'Error deleting maintenance task',
+                code: 'DB_ERROR'
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            res.status(404).json({
+                error: 'Maintenance task not found',
+                code: 'NOT_FOUND'
+            });
+            return;
+        }
+        
+        console.log('✅ Maintenance task deleted:', taskId);
+        res.json({ 
+            message: 'Maintenance task deleted successfully',
+            success: true
         });
     });
 });
@@ -798,35 +997,39 @@ app.get('/api/equipment', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
             e.id,
+            e.name,
+            e.type,
+            e.brand,
+            e.model,
+            e.serial_number,
             e.custom_id,
             e.location_id,
             e.model_id,
             e.acquisition_date,
             e.last_maintenance_date,
-            e.status as equipment_status,
+            e.notes,
             l.name as location_name,
-            l.address as location_address,
             c.name as client_name,
-            em.name as model_name,
-            em.brand,
-            em.model_number,
-            em.category
+            em.name as model_name
         FROM Equipment e
-        INNER JOIN Locations l ON e.location_id = l.id
-        INNER JOIN Clients c ON l.client_id = c.id
-        INNER JOIN EquipmentModels em ON e.model_id = em.id
-        ORDER BY c.name, l.name, e.custom_id
+        LEFT JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN Clients c ON l.client_id = c.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        ORDER BY e.name
     `;
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting all equipment:', err);
+            console.error('❌ Error getting all equipment:', err.message);
             res.status(500).json({"error": "Error al obtener equipos: " + err.message});
             return;
         }
         
         console.log('✅ All equipment found:', rows.length, 'items');
-        res.json({ data: rows });
+        res.json({ 
+            message: 'success',
+            data: rows || []
+        });
     });
 });
 

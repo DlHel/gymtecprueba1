@@ -51,123 +51,145 @@ document.addEventListener('DOMContentLoaded', () => {
     const api = {
         fetchTasks: async () => {
             try {
+                console.log('🔄 Fetching maintenance tasks from API...');
                 const response = await authenticatedFetch(`${API_URL}/maintenance-tasks`);
+                
                 if (!response.ok) {
-                    // Fallback con datos mock si no existe el endpoint
-                    return api.getMockTasks();
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
+                
                 const result = await response.json();
-                return result.data || [];
+                console.log('✅ Tasks fetched successfully:', result.data?.length || 0, 'items');
+                
+                // Procesar datos para el frontend
+                const tasks = (result.data || []).map(task => ({
+                    ...task,
+                    // Asegurar formato de fecha consistente
+                    scheduled_date: task.scheduled_date ? new Date(task.scheduled_date).toISOString().split('T')[0] : null,
+                    // Mapear campos legacy si es necesario
+                    equipment_name: task.equipment_name || 'Sin especificar',
+                    technician_name: task.technician_name || 'Sin asignar'
+                }));
+                
+                return tasks;
             } catch (error) {
-                console.warn('⚠️ Usando datos mock para tareas:', error.message);
-                return api.getMockTasks();
+                console.error('❌ Error fetching maintenance tasks:', error.message);
+                throw error;
             }
         },
 
         fetchEquipment: async () => {
             try {
+                console.log('🔄 Fetching equipment from API...');
                 const response = await authenticatedFetch(`${API_URL}/equipment`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
                 const result = await response.json();
+                console.log('✅ Equipment fetched successfully:', result.data?.length || 0, 'items');
                 return result.data || [];
             } catch (error) {
-                console.error('❌ Error loading equipment:', error);
+                console.error('❌ Error loading equipment:', error.message);
                 return [];
             }
         },
 
         fetchTechnicians: async () => {
             try {
-                const response = await authenticatedFetch(`${API_URL}/users?role=technician`);
+                console.log('🔄 Fetching technicians from API...');
+                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks/technicians`);
+                
                 if (!response.ok) {
-                    // Fallback con datos mock
-                    return [
-                        { id: 1, username: 'juan_tech', email: 'juan@gymtec.com', name: 'Juan Pérez' },
-                        { id: 2, username: 'maria_tech', email: 'maria@gymtec.com', name: 'María García' }
-                    ];
+                    // Fallback to general users endpoint
+                    const usersResponse = await authenticatedFetch(`${API_URL}/users?role=technician`);
+                    if (!usersResponse.ok) {
+                        throw new Error(`HTTP ${usersResponse.status}: ${usersResponse.statusText}`);
+                    }
+                    const usersResult = await usersResponse.json();
+                    return usersResult.data || [];
                 }
+                
                 const result = await response.json();
+                console.log('✅ Technicians fetched successfully:', result.data?.length || 0, 'items');
                 return result.data || [];
             } catch (error) {
-                console.warn('⚠️ Usando datos mock para técnicos:', error.message);
-                return [
-                    { id: 1, username: 'juan_tech', email: 'juan@gymtec.com', name: 'Juan Pérez' },
-                    { id: 2, username: 'maria_tech', email: 'maria@gymtec.com', name: 'María García' }
-                ];
+                console.error('❌ Error loading technicians:', error.message);
+                return [];
             }
         },
 
         createTask: async (taskData) => {
             try {
+                console.log('🔄 Creating maintenance task:', taskData.title);
                 const response = await authenticatedFetch(`${API_URL}/maintenance-tasks`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(taskData)
                 });
                 
                 if (!response.ok) {
-                    // Simulamos éxito si no existe el endpoint
-                    console.warn('⚠️ Endpoint no disponible, simulando creación de tarea');
-                    return { success: true, data: { id: Date.now(), ...taskData } };
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
                 }
                 
-                return await response.json();
+                const result = await response.json();
+                console.log('✅ Task created successfully:', result.data?.id);
+                return result;
             } catch (error) {
-                console.warn('⚠️ Simulando creación de tarea:', error.message);
-                return { success: true, data: { id: Date.now(), ...taskData } };
+                console.error('❌ Error creating maintenance task:', error.message);
+                throw error;
             }
         },
 
-        getMockTasks: () => {
-            const today = new Date();
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            
-            const nextWeek = new Date(today);
-            nextWeek.setDate(nextWeek.getDate() + 7);
-
-            return [
-                {
-                    id: 1,
-                    title: 'Mantenimiento Cinta 001',
-                    type: 'maintenance',
-                    equipment_id: 1,
-                    equipment_name: 'Cinta Corredora TechGym Pro',
-                    scheduled_date: today.toISOString().split('T')[0],
-                    scheduled_time: '09:00',
-                    technician_id: 1,
-                    technician_name: 'Juan Pérez',
-                    status: 'pending',
-                    notes: 'Revisión mensual programada'
-                },
-                {
-                    id: 2,
-                    title: 'Inspección Bicicletas',
-                    type: 'inspection',
-                    equipment_id: 2,
-                    equipment_name: 'Bicicleta Estática FitPro',
-                    scheduled_date: tomorrow.toISOString().split('T')[0],
-                    scheduled_time: '14:00',
-                    technician_id: 2,
-                    technician_name: 'María García',
-                    status: 'pending',
-                    notes: 'Inspección semanal de seguridad'
-                },
-                {
-                    id: 3,
-                    title: 'Reparación Elíptica',
-                    type: 'repair',
-                    equipment_id: 3,
-                    equipment_name: 'Elíptica CardioMax',
-                    scheduled_date: nextWeek.toISOString().split('T')[0],
-                    scheduled_time: '10:30',
-                    technician_id: 1,
-                    technician_name: 'Juan Pérez',
-                    status: 'pending',
-                    notes: 'Ruido en pedales reportado'
+        updateTask: async (taskId, taskData) => {
+            try {
+                console.log('🔄 Updating maintenance task:', taskId);
+                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(taskData)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
                 }
-            ];
-        }
+                
+                const result = await response.json();
+                console.log('✅ Task updated successfully:', taskId);
+                return result;
+            } catch (error) {
+                console.error('❌ Error updating maintenance task:', error.message);
+                throw error;
+            }
+        },
+
+        deleteTask: async (taskId) => {
+            try {
+                console.log('🔄 Deleting maintenance task:', taskId);
+                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('✅ Task deleted successfully:', taskId);
+                return result;
+            } catch (error) {
+                console.error('❌ Error deleting maintenance task:', error.message);
+                throw error;
+            }
+        },
     };
 
     // Funciones de UI
@@ -277,24 +299,39 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTasksView: () => {
             const today = new Date();
             const todayStr = today.toISOString().split('T')[0];
+            
+            // Obtener el mes actual para filtrar
+            const currentMonth = state.currentDate.getMonth();
+            const currentYear = state.currentDate.getFullYear();
+            
+            console.log(`📅 Actualizando vista de tareas para ${currentYear}-${currentMonth + 1}`);
 
-            // Tareas pendientes
-            const pendingTasks = state.tasks.filter(task => 
-                task.status === 'pending' && task.scheduled_date >= todayStr
-            );
+            // Tareas pendientes del mes actual
+            const pendingTasks = state.tasks.filter(task => {
+                const taskDate = new Date(task.scheduled_date);
+                return task.status === 'pending' && 
+                       task.scheduled_date >= todayStr &&
+                       taskDate.getMonth() === currentMonth &&
+                       taskDate.getFullYear() === currentYear;
+            });
             ui.renderTaskList(elements.pendingTasks, pendingTasks);
 
-            // Tareas de hoy
+            // Tareas de hoy (sin filtro de mes)
             const todayTasks = state.tasks.filter(task => 
                 task.scheduled_date === todayStr
             );
             ui.renderTaskList(elements.todayTasks, todayTasks);
 
-            // Tareas completadas recientes
-            const completedTasks = state.tasks.filter(task => 
-                task.status === 'completed'
-            ).slice(0, 5);
+            // Tareas completadas del mes actual
+            const completedTasks = state.tasks.filter(task => {
+                const taskDate = new Date(task.scheduled_date);
+                return task.status === 'completed' &&
+                       taskDate.getMonth() === currentMonth &&
+                       taskDate.getFullYear() === currentYear;
+            }).slice(0, 10);
             ui.renderTaskList(elements.completedTasks, completedTasks);
+            
+            console.log(`✅ Vista de tareas actualizada: ${pendingTasks.length} pendientes, ${todayTasks.length} hoy, ${completedTasks.length} completadas`);
         },
 
         renderTaskList: (container, tasks) => {
@@ -360,7 +397,25 @@ document.addEventListener('DOMContentLoaded', () => {
             return labels[type] || type;
         },
 
+        getTaskColor: (task) => {
+            // Determinar color basado en estado y prioridad
+            if (task.status === 'completed') {
+                return 'bg-green-100 text-green-800 border-green-200';
+            } else if (task.status === 'in_progress') {
+                return 'bg-blue-100 text-blue-800 border-blue-200';
+            } else if (task.priority === 'critical') {
+                return 'bg-red-100 text-red-800 border-red-200';
+            } else if (task.priority === 'high') {
+                return 'bg-orange-100 text-orange-800 border-orange-200';
+            } else if (task.priority === 'medium') {
+                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+            } else {
+                return 'bg-gray-100 text-gray-800 border-gray-200';
+            }
+        },
+
         switchView: (view) => {
+            console.log(`🔄 Cambiando a vista: ${view}`);
             state.currentView = view;
             
             // Actualizar botones
@@ -376,11 +431,85 @@ document.addEventListener('DOMContentLoaded', () => {
             if (view === 'month') {
                 elements.calendarView.classList.remove('hidden');
                 elements.tasksView.classList.add('hidden');
+                ui.renderCalendar();
+                console.log('✅ Vista mensual activada');
+            } else if (view === 'week') {
+                elements.calendarView.classList.remove('hidden');
+                elements.tasksView.classList.add('hidden');
+                ui.renderWeekView();
+                console.log('✅ Vista semanal activada');
             } else if (view === 'tasks') {
                 elements.calendarView.classList.add('hidden');
                 elements.tasksView.classList.remove('hidden');
                 ui.updateTasksView();
+                console.log('✅ Vista de tareas activada');
             }
+        },
+
+        renderWeekView: () => {
+            console.log('🗓️ Renderizando vista semanal...');
+            
+            // Calcular semana actual
+            const startOfWeek = new Date(state.currentDate);
+            const day = startOfWeek.getDay();
+            const diff = startOfWeek.getDate() - day;
+            startOfWeek.setDate(diff);
+            
+            // Generar grid semanal
+            const calendarGrid = elements.calendarView.querySelector('.calendar-grid');
+            
+            // Limpiar contenido existente pero mantener headers
+            const headers = calendarGrid.querySelectorAll('.calendar-header');
+            calendarGrid.innerHTML = '';
+            
+            // Re-agregar headers
+            headers.forEach(header => calendarGrid.appendChild(header));
+            
+            // Agregar días de la semana
+            for (let i = 0; i < 7; i++) {
+                const dayDate = new Date(startOfWeek);
+                dayDate.setDate(startOfWeek.getDate() + i);
+                
+                const dayElement = document.createElement('div');
+                dayElement.className = 'calendar-day';
+                dayElement.style.minHeight = '200px'; // Más alto para vista semanal
+                
+                // Marcar día actual
+                const today = new Date();
+                if (dayDate.toDateString() === today.toDateString()) {
+                    dayElement.classList.add('today');
+                }
+                
+                // Día del mes
+                const dayNumber = document.createElement('div');
+                dayNumber.className = 'font-semibold text-sm mb-2';
+                dayNumber.textContent = dayDate.getDate();
+                dayElement.appendChild(dayNumber);
+                
+                // Tareas del día
+                const dayTasks = state.tasks.filter(task => {
+                    const taskDate = new Date(task.scheduled_date);
+                    return taskDate.toDateString() === dayDate.toDateString();
+                });
+                
+                // Mostrar tareas
+                dayTasks.forEach(task => {
+                    const taskDiv = document.createElement('div');
+                    taskDiv.className = `text-xs p-1 mb-1 rounded ${ui.getTaskColor(task)} cursor-pointer`;
+                    taskDiv.textContent = task.title;
+                    taskDiv.title = `${task.title} - ${task.scheduled_time || ''}`;
+                    dayElement.appendChild(taskDiv);
+                });
+                
+                // Event listener para seleccionar día
+                dayElement.addEventListener('click', () => {
+                    ui.selectDate(dayDate);
+                });
+                
+                calendarGrid.appendChild(dayElement);
+            }
+            
+            console.log('✅ Vista semanal renderizada');
         },
 
         openTaskModal: () => {
@@ -393,39 +522,80 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.taskForm.reset();
         },
 
+        populateFormSelects: () => {
+            // Esta función se ejecuta al inicializar para poblar los selects una vez
+            ui.populateFormSelectors();
+        },
+
         populateFormSelectors: () => {
             // Poblar selector de equipos
             const equipmentSelect = elements.taskForm.querySelector('[name="equipment_id"]');
-            equipmentSelect.innerHTML = '<option value="">Seleccionar equipo</option>';
-            state.equipment.forEach(equipment => {
-                const option = document.createElement('option');
-                option.value = equipment.id;
-                option.textContent = equipment.name || `Equipo ${equipment.id}`;
-                equipmentSelect.appendChild(option);
-            });
+            if (equipmentSelect) {
+                equipmentSelect.innerHTML = '<option value="">Seleccionar equipo</option>';
+                state.equipment.forEach(equipment => {
+                    const option = document.createElement('option');
+                    option.value = equipment.id;
+                    option.textContent = equipment.name || `Equipo ${equipment.id}`;
+                    equipmentSelect.appendChild(option);
+                });
+                console.log('✅ Equipos poblados en selector:', state.equipment.length, 'items');
+            }
 
             // Poblar selector de técnicos
             const technicianSelect = elements.taskForm.querySelector('[name="technician_id"]');
-            technicianSelect.innerHTML = '<option value="">Sin asignar</option>';
-            state.technicians.forEach(tech => {
-                const option = document.createElement('option');
-                option.value = tech.id;
-                option.textContent = tech.name || tech.username;
-                technicianSelect.appendChild(option);
-            });
+            if (technicianSelect) {
+                technicianSelect.innerHTML = '<option value="">Sin asignar</option>';
+                state.technicians.forEach(tech => {
+                    const option = document.createElement('option');
+                    option.value = tech.id;
+                    option.textContent = tech.name || tech.username;
+                    technicianSelect.appendChild(option);
+                });
+                console.log('✅ Técnicos poblados en selector:', state.technicians.length, 'items');
+            }
         }
     };
 
     // Event Handlers
     const handlers = {
         prevMonth: () => {
-            state.currentDate.setMonth(state.currentDate.getMonth() - 1);
-            ui.updateCalendar();
+            console.log(`🔙 Navegando al mes anterior (vista actual: ${state.currentView})`);
+            
+            if (state.currentView === 'week') {
+                // En vista semanal, mover una semana hacia atrás
+                state.currentDate.setDate(state.currentDate.getDate() - 7);
+                ui.renderWeekView();
+            } else {
+                // En vista mensual o de tareas, mover un mes hacia atrás
+                state.currentDate.setMonth(state.currentDate.getMonth() - 1);
+                
+                if (state.currentView === 'month') {
+                    ui.updateCalendar();
+                } else if (state.currentView === 'tasks') {
+                    ui.updateCalendar(); // Actualizar título del mes
+                    ui.updateTasksView(); // Actualizar filtros de tareas
+                }
+            }
         },
 
         nextMonth: () => {
-            state.currentDate.setMonth(state.currentDate.getMonth() + 1);
-            ui.updateCalendar();
+            console.log(`🔜 Navegando al mes siguiente (vista actual: ${state.currentView})`);
+            
+            if (state.currentView === 'week') {
+                // En vista semanal, mover una semana hacia adelante
+                state.currentDate.setDate(state.currentDate.getDate() + 7);
+                ui.renderWeekView();
+            } else {
+                // En vista mensual o de tareas, mover un mes hacia adelante
+                state.currentDate.setMonth(state.currentDate.getMonth() + 1);
+                
+                if (state.currentView === 'month') {
+                    ui.updateCalendar();
+                } else if (state.currentView === 'tasks') {
+                    ui.updateCalendar(); // Actualizar título del mes
+                    ui.updateTasksView(); // Actualizar filtros de tareas
+                }
+            }
         },
 
         addTask: () => {
@@ -506,28 +676,47 @@ document.addEventListener('DOMContentLoaded', () => {
     const init = async () => {
         try {
             ui.showLoading();
+            console.log('🚀 Inicializando planificador con datos reales...');
             
-            // Cargar datos iniciales
+            // Cargar datos iniciales en paralelo
             const [tasks, equipment, technicians] = await Promise.all([
-                api.fetchTasks(),
-                api.fetchEquipment(),
-                api.fetchTechnicians()
+                api.fetchTasks().catch(err => {
+                    console.warn('⚠️ Error cargando tareas:', err.message);
+                    return [];
+                }),
+                api.fetchEquipment().catch(err => {
+                    console.warn('⚠️ Error cargando equipos:', err.message);
+                    return [];
+                }),
+                api.fetchTechnicians().catch(err => {
+                    console.warn('⚠️ Error cargando técnicos:', err.message);
+                    return [];
+                })
             ]);
 
+            // Actualizar estado
             state.tasks = tasks;
             state.equipment = equipment;
             state.technicians = technicians;
 
+            // Configurar selectores del formulario
+            ui.populateFormSelects();
+
             // Configurar UI inicial
             setupEventListeners();
             ui.updateCalendar();
+            
+            // Actualizar vista de tareas si es la activa
+            if (state.currentView === 'tasks') {
+                ui.updateTasksView();
+            }
             
             // Inicializar iconos
             if (window.lucide) {
                 window.lucide.createIcons();
             }
 
-            console.log('✅ Planificador inicializado correctamente');
+            console.log('✅ Planificador inicializado correctamente con datos reales');
             console.log('📊 Estado inicial:', {
                 tasks: state.tasks.length,
                 equipment: state.equipment.length,
