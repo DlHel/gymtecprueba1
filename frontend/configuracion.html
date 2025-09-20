@@ -10,6 +10,107 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .nav-link.active { background-color: #eef2ff; color: #4f46e5; font-weight: 600; }
+        
+        .config-section {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .config-item {
+            border-bottom: 1px solid #e2e8f0;
+            padding: 16px 0;
+        }
+        
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 48px;
+            height: 24px;
+        }
+        
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #3b82f6;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+        
+        .success-message {
+            background-color: #dcfce7;
+            border: 1px solid #bbf7d0;
+            color: #166534;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 12px;
+            display: none;
+        }
+        
+        .tab-nav {
+            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 24px;
+        }
+        
+        .tab-nav button {
+            padding: 12px 24px;
+            border: none;
+            background: none;
+            color: #64748b;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .tab-nav button.active {
+            color: #3b82f6;
+            border-bottom-color: #3b82f6;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -20,32 +121,386 @@
         <div class="flex-1 flex flex-col overflow-y-auto">
             <header class="flex-shrink-0 bg-white border-b border-slate-200">
                 <div class="flex items-center justify-between p-4">
-                    <h1 class="text-2xl font-semibold text-slate-800">Configuración</h1>
+                    <div class="flex items-center space-x-3">
+                        <i data-lucide="settings" class="w-6 h-6 text-blue-600"></i>
+                        <h1 class="text-2xl font-semibold text-slate-800">Configuración del Sistema</h1>
+                    </div>
+                    <button id="save-all-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i data-lucide="save" class="w-4 h-4 inline mr-2"></i>
+                        Guardar Cambios
+                    </button>
                 </div>
             </header>
             
             <main class="flex-1 overflow-y-auto p-6 bg-slate-50">
-                <div class="bg-white rounded-lg shadow-md p-6">
-                    <h2 class="text-2xl font-semibold text-slate-800">Módulo en Construcción</h2>
-                    <p class="mt-2 text-slate-600">La funcionalidad para la configuración del sistema se implementará aquí.</p>
+                <!-- Navegación por pestañas -->
+                <div class="bg-white rounded-lg shadow-sm mb-6">
+                    <div class="tab-nav">
+                        <button class="tab-btn active" data-tab="general">
+                            <i data-lucide="settings-2" class="w-4 h-4 inline mr-2"></i>
+                            General
+                        </button>
+                        <button class="tab-btn" data-tab="notifications">
+                            <i data-lucide="bell" class="w-4 h-4 inline mr-2"></i>
+                            Notificaciones
+                        </button>
+                        <button class="tab-btn" data-tab="security">
+                            <i data-lucide="shield" class="w-4 h-4 inline mr-2"></i>
+                            Seguridad
+                        </button>
+                        <button class="tab-btn" data-tab="maintenance">
+                            <i data-lucide="wrench" class="w-4 h-4 inline mr-2"></i>
+                            Mantenimiento
+                        </button>
+                        <button class="tab-btn" data-tab="integrations">
+                            <i data-lucide="plug" class="w-4 h-4 inline mr-2"></i>
+                            Integraciones
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenido de las pestañas -->
+                
+                <!-- Pestaña General -->
+                <div id="general-tab" class="tab-content active">
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="building" class="w-5 h-5 inline mr-2"></i>
+                            Información de la Empresa
+                        </h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nombre de la Empresa</label>
+                                <input type="text" id="company-name" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Gymtec Solutions">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email de Contacto</label>
+                                <input type="email" id="company-email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="contacto@gymtec.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
+                                <input type="tel" id="company-phone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="+1 234 567 8900">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Zona Horaria</label>
+                                <select id="timezone" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="America/Lima">Lima (UTC-5)</option>
+                                    <option value="America/Bogota">Bogotá (UTC-5)</option>
+                                    <option value="America/Mexico_City">Ciudad de México (UTC-6)</option>
+                                    <option value="America/New_York">Nueva York (UTC-5/-4)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="calendar" class="w-5 h-5 inline mr-2"></i>
+                            Configuraciones de Trabajo
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Horario de Trabajo</h4>
+                                        <p class="text-sm text-slate-600">Define el horario laboral para el equipo</p>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <input type="time" id="work-start" value="08:00" class="border border-gray-300 rounded px-2 py-1">
+                                        <span class="self-center">-</span>
+                                        <input type="time" id="work-end" value="18:00" class="border border-gray-300 rounded px-2 py-1">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Días Laborales</h4>
+                                        <p class="text-sm text-slate-600">Selecciona los días de trabajo</p>
+                                    </div>
+                                    <div class="flex space-x-2">
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-mon" checked>
+                                            <span class="text-sm">L</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-tue" checked>
+                                            <span class="text-sm">M</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-wed" checked>
+                                            <span class="text-sm">X</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-thu" checked>
+                                            <span class="text-sm">J</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-fri" checked>
+                                            <span class="text-sm">V</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-sat">
+                                            <span class="text-sm">S</span>
+                                        </label>
+                                        <label class="flex items-center space-x-1">
+                                            <input type="checkbox" id="work-sun">
+                                            <span class="text-sm">D</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Notificaciones -->
+                <div id="notifications-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="mail" class="w-5 h-5 inline mr-2"></i>
+                            Notificaciones por Email
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Nuevos Tickets</h4>
+                                        <p class="text-sm text-slate-600">Recibir emails cuando se crean nuevos tickets</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="email-new-tickets" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Mantenimientos Programados</h4>
+                                        <p class="text-sm text-slate-600">Recordatorios de mantenimientos próximos</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="email-maintenance" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Stock Bajo</h4>
+                                        <p class="text-sm text-slate-600">Alertas cuando el inventario esté bajo</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="email-low-stock" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="smartphone" class="w-5 h-5 inline mr-2"></i>
+                            Notificaciones Push
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Emergencias</h4>
+                                        <p class="text-sm text-slate-600">Notificaciones inmediatas para tickets urgentes</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="push-emergency" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Tareas Asignadas</h4>
+                                        <p class="text-sm text-slate-600">Cuando se te asigna una nueva tarea</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="push-tasks">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Seguridad -->
+                <div id="security-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="lock" class="w-5 h-5 inline mr-2"></i>
+                            Políticas de Seguridad
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Autenticación de Dos Factores</h4>
+                                        <p class="text-sm text-slate-600">Requerir 2FA para usuarios administradores</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="require-2fa">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Duración de Sesión</h4>
+                                        <p class="text-sm text-slate-600">Tiempo antes de cerrar sesión automáticamente</p>
+                                    </div>
+                                    <select id="session-timeout" class="border border-gray-300 rounded px-3 py-2">
+                                        <option value="30">30 minutos</option>
+                                        <option value="60">1 hora</option>
+                                        <option value="240" selected>4 horas</option>
+                                        <option value="480">8 horas</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Intentos de Login</h4>
+                                        <p class="text-sm text-slate-600">Máximo número de intentos fallidos</p>
+                                    </div>
+                                    <select id="max-login-attempts" class="border border-gray-300 rounded px-3 py-2">
+                                        <option value="3">3 intentos</option>
+                                        <option value="5" selected>5 intentos</option>
+                                        <option value="10">10 intentos</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Mantenimiento -->
+                <div id="maintenance-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="calendar-check" class="w-5 h-5 inline mr-2"></i>
+                            Programación Automática
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Mantenimiento Preventivo</h4>
+                                        <p class="text-sm text-slate-600">Crear tickets automáticamente según intervalos</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="auto-maintenance" checked>
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Intervalo Predeterminado</h4>
+                                        <p class="text-sm text-slate-600">Frecuencia para equipos nuevos</p>
+                                    </div>
+                                    <select id="default-interval" class="border border-gray-300 rounded px-3 py-2">
+                                        <option value="weekly">Semanal</option>
+                                        <option value="monthly" selected>Mensual</option>
+                                        <option value="quarterly">Trimestral</option>
+                                        <option value="biannual">Semestral</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="alert-triangle" class="w-5 h-5 inline mr-2"></i>
+                            Alertas y SLA
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">SLA Crítico</h4>
+                                        <p class="text-sm text-slate-600">Tiempo máximo para tickets críticos (horas)</p>
+                                    </div>
+                                    <input type="number" id="sla-critical" value="4" min="1" max="24" class="border border-gray-300 rounded px-3 py-2 w-20">
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">SLA Normal</h4>
+                                        <p class="text-sm text-slate-600">Tiempo máximo para tickets normales (horas)</p>
+                                    </div>
+                                    <input type="number" id="sla-normal" value="24" min="4" max="168" class="border border-gray-300 rounded px-3 py-2 w-20">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pestaña Integraciones -->
+                <div id="integrations-tab" class="tab-content">
+                    <div class="config-section">
+                        <h3 class="text-lg font-semibold text-slate-800 mb-4">
+                            <i data-lucide="link" class="w-5 h-5 inline mr-2"></i>
+                            APIs Externas
+                        </h3>
+                        <div class="space-y-4">
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Integración con WhatsApp</h4>
+                                        <p class="text-sm text-slate-600">Enviar notificaciones por WhatsApp</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="whatsapp-integration">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="config-item">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <h4 class="font-medium text-slate-800">Backup en la Nube</h4>
+                                        <p class="text-sm text-slate-600">Respaldo automático en Google Drive</p>
+                                    </div>
+                                    <label class="toggle">
+                                        <input type="checkbox" id="cloud-backup">
+                                        <span class="slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mensaje de éxito -->
+                <div id="success-message" class="success-message">
+                    <i data-lucide="check-circle" class="w-4 h-4 inline mr-2"></i>
+                    Configuración guardada exitosamente
                 </div>
             </main>
         </div>
     </div>
+
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/base-modal.js"></script>
     <script src="js/nav-loader.js"></script>
-    <script>
-        // ✅ Protección de autenticación al cargar
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-                window.location.href = '/login.html';
-                return;
-            }
-            console.log('✅ Configuración - Autenticación verificada');
-        });
-    </script>
+    <script src="js/configuracion.js"></script>
 </body>
 </html> 

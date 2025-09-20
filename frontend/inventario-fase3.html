@@ -697,10 +697,13 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             // ✅ CRÍTICO: Protección de autenticación PRIMERO
-            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-                window.location.href = '/login.html';
+            if (!window.authManager || !window.authManager.isAuthenticated()) {
+                console.log('❌ Usuario no autenticado en inventario-fase3, redirigiendo a login...');
+                window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
                 return;
             }
+            
+            console.log('✅ Usuario autenticado, inicializando inventario fase 3...');
 
             updateTime();
             setInterval(updateTime, 1000);

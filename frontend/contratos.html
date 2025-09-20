@@ -40,11 +40,12 @@
     <script>
         // ✅ Protección de autenticación al cargar
         document.addEventListener('DOMContentLoaded', function() {
-            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-                window.location.href = '/login.html';
+            if (!window.authManager || !window.authManager.isAuthenticated()) {
+                console.log('❌ Usuario no autenticado en contratos, redirigiendo a login...');
+                window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
                 return;
             }
-            console.log('✅ Contratos - Autenticación verificada');
+            console.log('✅ Contratos - Usuario autenticado, inicializando...');
         });
     </script>
 </body>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Navegación Auth - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">Test de Navegación y Autenticación</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Estado de Autenticación</h2>
+            <div id="auth-status" class="mb-4"></div>
+            <button id="test-logout" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                Cerrar Sesión
+            </button>
+        </div>
+        
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-semibold mb-4">Enlaces de Prueba (Sin estar logueado deberían redirigir)</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <a href="clientes.html" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-center block">
+                    Ir a Clientes
+                </a>
+                <a href="equipo.html?id=1" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-center block">
+                    Ir a Equipo
+                </a>
+                <a href="tickets.html" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600 text-center block">
+                    Ir a Tickets
+                </a>
+                <a href="inventario.html" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 text-center block">
+                    Ir a Inventario
+                </a>
+                <a href="index.html" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 text-center block">
+                    Ir a Dashboard
+                </a>
+                <a href="login.html" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600 text-center block">
+                    Ir a Login
+                </a>
+            </div>
+        </div>
+        
+        <div class="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <h3 class="font-semibold text-yellow-800">Instrucciones de Prueba:</h3>
+            <ol class="list-decimal list-inside text-yellow-700 mt-2">
+                <li>Si estás logueado, haz click en "Cerrar Sesión"</li>
+                <li>Intenta acceder a cualquier página (ej: Clientes)</li>
+                <li>Deberías ser redirigido al login</li>
+                <li>Después del login, deberías volver a la página que intentabas visitar</li>
+                <li>Si vas directo al login, deberías ir al dashboard</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const authStatusDiv = document.getElementById('auth-status');
+            const logoutBtn = document.getElementById('test-logout');
+            
+            function updateAuthStatus() {
+                if (window.authManager && window.authManager.isAuthenticated()) {
+                    const user = window.authManager.getUser();
+                    authStatusDiv.innerHTML = `
+                        <div class="text-green-600">
+                            ✅ <strong>Autenticado</strong> como: ${user?.username || 'Usuario'} 
+                            (${user?.role || 'Sin rol'})
+                        </div>
+                    `;
+                    logoutBtn.style.display = 'block';
+                } else {
+                    authStatusDiv.innerHTML = `
+                        <div class="text-red-600">
+                            ❌ <strong>No autenticado</strong>
+                        </div>
+                    `;
+                    logoutBtn.style.display = 'none';
+                }
+            }
+            
+            logoutBtn.addEventListener('click', () => {
+                if (window.authManager) {
+                    window.authManager.logout();
+                }
+            });
+            
+            // Actualizar estado cada segundo
+            updateAuthStatus();
+            setInterval(updateAuthStatus, 1000);
+        });
+    </script>
+</body>
+</html>

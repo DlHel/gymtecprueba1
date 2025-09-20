@@ -1,9 +1,12 @@
 // personal.js - Gestión completa de personal/usuarios
 // ✅ CRÍTICO: Verificación de autenticación REACTIVADA
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-    window.location.href = '/login.html';
-    throw new Error('Acceso no autorizado');
+if (!window.authManager || !window.authManager.isAuthenticated()) {
+    console.log('❌ Usuario no autenticado en personal, redirigiendo a login...');
+    window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+    throw new Error('Acceso no autorizado - Personal');
 }
+
+console.log('✅ Usuario autenticado, cargando módulo de personal...');
 
 const CONFIG = {
     API_BASE_URL: window.API_URL || 'http://localhost:3000/api'

@@ -43,11 +43,13 @@ const elements = {
 // === INICIALIZACIÓN ===
 document.addEventListener('DOMContentLoaded', async () => {
     // 🔐 CRÍTICO: Protección de autenticación PRIMERO
-    if (!authManager.isAuthenticated()) {
-        console.warn('❌ Usuario no autenticado, redirigiendo a login...');
-        window.location.href = '/login.html';
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.warn('❌ Usuario no autenticado en ticket-detail, redirigiendo a login...');
+        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
         return;
     }
+    
+    console.log('✅ Usuario autenticado, cargando detalle de ticket...');
     
     console.log('🎫 Iniciando detalle de ticket mejorado...');
     console.log('🔗 API URL:', API_URL);

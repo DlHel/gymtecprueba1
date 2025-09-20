@@ -1,13 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     // CRÍTICO: Protección de autenticación PRIMERO
-// ✅ CRÍTICO: Protección de autenticación TEMPORALMENTE DESHABILITADA
-console.log('🔧 DEBUG: clientes.js - Verificación de autenticación deshabilitada temporalmente');
-/*
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-    window.location.href = '/login.html';
-    return;
-}
-*/    // Protección robusta contra interferencia de extensiones del navegador
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.log('❌ Usuario no autenticado en clientes.js, redirigiendo a login...');
+        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+    }
+    
+    console.log('✅ Usuario autenticado, cargando módulo de clientes...');    // Protección robusta contra interferencia de extensiones del navegador
     const originalFetch = window.fetch;
     let retryCount = 0;
     const maxRetries = 3;

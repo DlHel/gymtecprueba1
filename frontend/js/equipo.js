@@ -1,13 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
     // CRÍTICO: Protección de autenticación PRIMERO
-// ✅ CRÍTICO: Protección de autenticación TEMPORALMENTE DESHABILITADA
-console.log('🔧 DEBUG: equipo.js - Verificación de autenticación deshabilitada temporalmente');
-/*
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-    window.location.href = '/login.html';
-    return;
-}
-*/    const API_URL = window.API_URL || 'http://localhost:3000/api';
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.log('❌ Usuario no autenticado en equipo.js, redirigiendo a login...');
+        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+    }
+    
+    console.log('✅ Usuario autenticado, cargando módulo de equipo...');    const API_URL = window.API_URL || 'http://localhost:3000/api';
     const mainContent = document.getElementById('main-content');
     const pageTitle = document.getElementById('page-title');
     const backButton = document.querySelector('header a');

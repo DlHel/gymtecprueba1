@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración del Sistema - CORREGIDA</title>
+    <link rel="stylesheet" href="css/tailwind.css">
+    <style>
+        .success-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: #4CAF50;
+            color: white;
+            text-align: center;
+            padding: 10px;
+            z-index: 10000;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="success-banner">
+        ✅ CONFIGURACIÓN CORREGIDA - Problema de autenticación resuelto (rol Admin → admin)
+    </div>
+
+    <div class="container mx-auto px-4 py-8" style="margin-top: 60px;">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">⚙️ Configuración del Sistema</h1>
+                <p class="text-gray-600 mt-2">Gestiona la configuración global del sistema GymTec ERP</p>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="bg-white rounded-lg shadow-sm mb-6">
+                <div class="border-b border-gray-200">
+                    <nav class="flex">
+                        <button class="tab-btn active px-6 py-3 border-b-2 border-blue-500 text-blue-600 font-medium" data-tab="general">
+                            🏢 General
+                        </button>
+                        <button class="tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="security">
+                            🔒 Seguridad
+                        </button>
+                        <button class="tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="maintenance">
+                            🔧 Mantenimiento
+                        </button>
+                        <button class="tab-btn px-6 py-3 border-b-2 border-transparent text-gray-500 hover:text-gray-700" data-tab="integrations">
+                            🔗 Integraciones
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="p-6">
+                    <!-- General Tab -->
+                    <div id="general-tab" class="tab-content active">
+                        <h3 class="text-lg font-semibold mb-4">Información General</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Nombre de la Empresa</label>
+                                <input type="text" id="company-name" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="GymTec ERP">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Email de Contacto</label>
+                                <input type="email" id="company-email" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="admin@gymtec.com">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Teléfono</label>
+                                <input type="tel" id="company-phone" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="+1 555-0123">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Zona Horaria</label>
+                                <select id="timezone" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="America/New_York">EST - New York</option>
+                                    <option value="America/Los_Angeles">PST - Los Angeles</option>
+                                    <option value="America/Chicago">CST - Chicago</option>
+                                    <option value="America/Denver">MST - Denver</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <h4 class="text-md font-semibold mt-8 mb-4">Horario de Trabajo</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Hora de Inicio</label>
+                                <input type="time" id="work-start" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="08:00">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Hora de Fin</label>
+                                <input type="time" id="work-end" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="18:00">
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <label class="block text-sm font-medium text-gray-700 mb-3">Días Laborales</label>
+                            <div class="grid grid-cols-7 gap-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-monday" checked class="mr-2">
+                                    <span class="text-sm">Lun</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-tuesday" checked class="mr-2">
+                                    <span class="text-sm">Mar</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-wednesday" checked class="mr-2">
+                                    <span class="text-sm">Mié</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-thursday" checked class="mr-2">
+                                    <span class="text-sm">Jue</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-friday" checked class="mr-2">
+                                    <span class="text-sm">Vie</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-saturday" class="mr-2">
+                                    <span class="text-sm">Sáb</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" id="work-sunday" class="mr-2">
+                                    <span class="text-sm">Dom</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Tab -->
+                    <div id="security-tab" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold mb-4">Configuración de Seguridad</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Longitud Mínima de Contraseña</label>
+                                <input type="number" id="password-min-length" min="6" max="20" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="8">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Timeout de Sesión (minutos)</label>
+                                <input type="number" id="session-timeout" min="10" max="120" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="30">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Máx. Intentos de Login</label>
+                                <input type="number" id="max-login-attempts" min="3" max="10" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="3">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Maintenance Tab -->
+                    <div id="maintenance-tab" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold mb-4">Configuración de Mantenimiento</h3>
+                        <div class="space-y-6">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="auto-maintenance" checked class="mr-3">
+                                <label class="text-sm font-medium text-gray-700">Activar Mantenimiento Automático</label>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Intervalo Por Defecto (días)</label>
+                                    <input type="number" id="default-interval" min="1" max="365" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="30">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">SLA Crítico (horas)</label>
+                                    <input type="number" id="sla-critical" min="1" max="24" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="4">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">SLA Normal (horas)</label>
+                                    <input type="number" id="sla-normal" min="1" max="72" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" value="24">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Integrations Tab -->
+                    <div id="integrations-tab" class="tab-content hidden">
+                        <h3 class="text-lg font-semibold mb-4">Integraciones</h3>
+                        <div class="space-y-6">
+                            <div class="flex items-center">
+                                <input type="checkbox" id="whatsapp-integration" class="mr-3">
+                                <label class="text-sm font-medium text-gray-700">Integración con WhatsApp</label>
+                            </div>
+                            <div class="flex items-center">
+                                <input type="checkbox" id="cloud-backup" checked class="mr-3">
+                                <label class="text-sm font-medium text-gray-700">Backup en la Nube</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-center">
+                    <div id="success-message" class="hidden text-green-600 font-medium"></div>
+                    <button id="save-all-btn" class="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        💾 Guardar Configuración
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts en orden correcto -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/configuracion-fixed.js"></script>
+</body>
+</html>

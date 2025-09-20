@@ -2,6 +2,33 @@
 
 Este es un sistema ERP profesional de gestión de mantenimiento de equipos de gimnasio con operaciones CRUD avanzadas, autenticación empresarial, reportes ejecutivos, y **sistema de referencia @bitacora**.
 
+## 🚀 GUÍA RÁPIDA PARA AGENTES AI
+
+### Stack Tecnológico Principal
+- **Backend**: Express.js (`backend/src/server-clean.js`) + MySQL2 + JWT Auth → Puerto 3000
+- **Frontend**: Vanilla JavaScript + Tailwind CSS (NO frameworks) → Puerto 8080  
+- **BD**: MySQL 8.0+ con 37+ tablas relacionadas
+- **Desarrollo**: `start-servers.bat` → Inicia ambos servidores automáticamente
+
+### Comandos Esenciales
+```bash
+start-servers.bat              # Comando principal - inicia todo
+cd backend && npm start        # Solo backend con server-clean.js
+cd frontend && python -m http.server 8080  # Solo frontend estático
+```
+
+### Patrones de Código Críticos
+1. **Frontend Auth**: SIEMPRE usar `AuthManager.isAuthenticated()` antes que nada
+2. **API Calls**: SIEMPRE usar `authenticatedFetch()` en lugar de `fetch()`
+3. **DB Queries**: SIEMPRE usar adaptador con callbacks: `db.all(sql, params, callback)`
+4. **Module Pattern**: `state` + `api` + `ui` + `init()` en `DOMContentLoaded`
+
+### Sistema @bitacora
+- `@bitacora` → Contexto completo desde `docs/BITACORA_PROYECTO.md`
+- `@bitacora api` → Patrones de endpoints
+- `@bitacora database` → Esquema de 37+ tablas
+- `@bitacora authentication` → Sistema JWT + AuthManager
+
 ## 🎯 SISTEMA @BITACORA - REFERENCIA AUTOMÁTICA COMPLETA
 
 **CRÍTICO**: Cuando los usuarios mencionen `@bitacora`, automáticamente referenciar el contexto completo del proyecto desde `docs/BITACORA_PROYECTO.md` y documentación relacionada. Esto elimina la necesidad de revisión constante de código.
@@ -22,14 +49,15 @@ Este es un sistema ERP profesional de gestión de mantenimiento de equipos de gi
 
 **Stack Principal**: Node.js + Express.js + MySQL2 + Vanilla JavaScript (SIN frameworks frontend)
 
-- **Backend**: Express.js REST API (`backend/src/server-clean.js` - servidor optimizado) con autenticación JWT en puerto 3000
-- **Frontend**: HTML/CSS/JavaScript modular con framework Tailwind CSS en puerto 8080  
+- **Backend**: Express.js REST API (`backend/src/server-clean.js` - servidor principal optimizado) con autenticación JWT en puerto 3000
+- **Frontend**: HTML/CSS/JavaScript modular con Tailwind CSS en puerto 8080 (NO frameworks como React/Vue)
 - **Base de Datos**: MySQL 8.0+ con 37+ tablas, restricciones FK comprehensivas, y tipos ENUM
 - **Gestión Archivos**: Middleware Multer para uploads, codificación Base64 para almacenamiento BD
 - **Sistema Debug**: Logging avanzado con Winston, monitoreo performance, integración VS Code
 - **Documentación**: Carpeta protegida /docs/ con sistema referencia @bitacora
-- **Flujo Desarrollo**: Automatización start-servers.bat con verificación dependencias
+- **Flujo Desarrollo**: Automatización `start-servers.bat` con verificación dependencias MySQL
 - **Adaptador BD**: `backend/src/db-adapter.js` - abstracción SQLite→MySQL con compatibilidad callbacks
+- **Configuración Auto**: `frontend/js/config.js` - detección automática de entorno (localhost/Codespaces)
 
 ### Arquitectura Crítica de Flujo de Datos
 1. **Environment Detection**: Frontend auto-detects via `frontend/js/config.js` (localhost/Codespaces)
@@ -151,34 +179,75 @@ const requireRole = (roles) => {
 app.get('/api/protected-endpoint', authenticateToken, requireRole(['admin', 'manager']), handler);
 ```
 
-## 🚀 Comandos de Desarrollo Profesional (Mejorados)
+## 🚀 Comandos de Desarrollo Críticos (2025 Update)
 
-```batch
-# Flujo de desarrollo principal - RECOMENDADO
-start-servers.bat  # Verifica conexión MySQL, inicia backend:3000 + frontend:8080
+### FLUJO PRINCIPAL DE DESARROLLO
+```bash
+# ✅ COMANDO PRINCIPAL - Inicia todo automáticamente
+start-servers.bat  # Verifica MySQL, inicia backend:3000 + frontend:8080
 
-# Modo debug (NUEVO)
-npm run debug      # Iniciar con debug habilitado
-npm run debug:watch # Debug con auto-reload
-
-# Gestión individual de servicios
-cd backend && npm start    # Servidor Node.js Express con hot reload
-cd frontend && python -m http.server 8080  # Servidor archivos estáticos con CORS
-
-# Gestión base de datos
-cd backend && npm run setup-mysql  # Configuración inicial de esquema
-cd backend && npm run dev          # Desarrollo con nodemon auto-restart
-
-# Tareas específicas disponibles en VS Code
-# Usar: Ctrl+Shift+P > "Tasks: Run Task"
-🚀 Start Development Servers    # Inicia ambos servidores automáticamente
-🔧 Backend Only               # Solo backend Express en puerto 3000
-🌐 Frontend Only              # Solo frontend estático en puerto 8080
-🗄️ Setup MySQL Database        # Inicializar base de datos con esquema
-🔄 Reset Database             # Resetear y recrear tablas de BD
-🧪 Test API Endpoints         # Probar conexión BD y endpoints API
-📊 Generate Test Data         # Generar clientes, equipos y tickets de prueba
+# ✅ COMANDOS VS CODE TASKS (Ctrl+Shift+P > "Tasks: Run Task")
+🚀 Start Development Servers    # Ejecuta start-servers.bat
+🔧 Backend Only                # Solo backend Express en puerto 3000
+🌐 Frontend Only               # Solo frontend estático en puerto 8080
+🗄️ Setup MySQL Database         # Configurar base de datos inicial
+🔄 Reset Database              # Resetear y recrear todas las tablas
+🧪 Test API Endpoints          # Probar conexión BD y endpoints
+📊 Generate Test Data          # Generar datos de prueba iniciales
 ```
+
+### DESARROLLO INDIVIDUAL (cuando sea necesario)
+```bash
+# Backend solamente
+cd backend && npm start    # Usa server-clean.js en puerto 3000
+cd backend && npm run dev  # Con nodemon para auto-restart
+
+# Frontend solamente  
+cd frontend && python -m http.server 8080  # Servidor estático Python
+
+# Gestión de base de datos
+cd backend && npm run setup-mysql     # Ejecutar setup de BD
+cd backend && node create-admin-user.js  # Crear usuario admin inicial
+```
+
+### PREREQUISITOS CRÍTICOS
+1. **MySQL 8.0+** corriendo en localhost:3306
+2. **Node.js 16+** instalado
+3. **backend/config.env** configurado (copiar de config.env.example)
+4. **Python** instalado para servidor frontend estático
+
+### VERIFICACIÓN DEL ENTORNO
+- `start-servers.bat` verifica automáticamente todos los prerequisitos
+- Backend disponible en: http://localhost:3000
+- Frontend disponible en: http://localhost:8080  
+- Auto-detección de entorno en `frontend/js/config.js`
+
+## 🧪 TESTING Y CALIDAD DE CÓDIGO
+
+### Estado Actual del Testing
+- **Backend**: Configurado con Jest en package.json (pendiente implementación)
+- **Frontend**: Testing manual con herramientas de navegador  
+- **E2E**: Directorio `e2e-tests/` preparado (sin implementación activa)
+- **API Testing**: Archivos `.http` para testing manual de endpoints
+
+### Herramientas de Testing Disponibles
+```bash
+# Backend testing (cuando esté implementado)
+cd backend && npm test
+
+# API testing manual
+# Usar api-tests.http con extensión REST Client de VS Code
+
+# Testing de endpoints específicos
+cd backend && node test-endpoints.js
+cd backend && node test-mysql-connection.js
+```
+
+### Verificación Manual Crítica
+1. **Conectividad BD**: MySQL debe estar corriendo en puerto 3306
+2. **Autenticación**: Probar login con usuario admin creado
+3. **API Endpoints**: Verificar respuestas JSON correctas
+4. **Frontend**: Confirmar carga de módulos sin errores 404
 
 ## 📋 Enterprise Code Patterns & Standards (2025 Edition)
 
@@ -732,40 +801,37 @@ app.get('/api/equipment', (req, res) => {
 });
 ```
 
-## 🎯 ADVANCED DEBUGGING SYSTEM (New)
+## 🎯 DEBUGGING Y DESARROLLO EN VS CODE
 
-### VS Code Debug Configuration
+### Configuración de Debug Actual
 ```json
-// .vscode/launch.json - Professional debugging setup
+// USAR: F5 para debug o Ctrl+Shift+P > "Debug: Start Debugging"
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Debug Backend",
-            "type": "node",
-            "request": "launch",
-            "program": "${workspaceFolder}/backend/src/server.js",
-            "env": {
-                "NODE_ENV": "development",
-                "DEBUG": "gymtec:*",
-                "LOG_LEVEL": "debug"
-            },
-            "console": "integratedTerminal",
-            "restart": true,
-            "runtimeArgs": ["--inspect=9229"],
-            "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
-            "outputCapture": "std"
-        },
-        {
-            "name": "Debug Frontend (Chrome)",
-            "type": "chrome",
-            "request": "launch",
-            "url": "http://localhost:8080",
-            "webRoot": "${workspaceFolder}/frontend"
-        }
-    ]
+    "name": "Debug Backend",
+    "type": "node",
+    "request": "launch", 
+    "program": "${workspaceFolder}/backend/src/server-clean.js",
+    "env": {
+        "NODE_ENV": "development",
+        "DEBUG": "gymtec:*"
+    },
+    "console": "integratedTerminal"
 }
 ```
+
+### Tasks Integradas de VS Code
+- **🚀 Start Development Servers**: Ejecuta `start-servers.bat` completo
+- **🔧 Backend Only**: Solo Express server en puerto 3000
+- **🌐 Frontend Only**: Solo servidor estático Python en puerto 8080
+- **🗄️ Setup MySQL Database**: Inicializar esquema de BD
+- **🔄 Reset Database**: Recrear todas las tablas
+- **🧪 Test API Endpoints**: Probar conectividad
+
+### Estructura de Logs y Debug
+- Backend logs en `backend/logs/`
+- Frontend debug en console del navegador  
+- Sistema @bitacora para documentar problemas
+- Winston logging con niveles configurables
 
 ## 📚 @BITACORA INTEGRATION RULES
 

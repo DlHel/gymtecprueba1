@@ -278,10 +278,13 @@
         // Inicializar la página cuando esté lista
         document.addEventListener('DOMContentLoaded', () => {
             // ✅ CRÍTICO: Protección de autenticación PRIMERO
-            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-                window.location.href = '/login.html';
+            if (!window.authManager || !window.authManager.isAuthenticated()) {
+                console.log('❌ Usuario no autenticado en modelos.html, redirigiendo a login...');
+                window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
                 return;
             }
+            
+            console.log('✅ Usuario autenticado, inicializando página de modelos...');
 
             // El menú se carga automáticamente via nav-loader.js
             // No necesitamos llamar loadNavigation() manualmente

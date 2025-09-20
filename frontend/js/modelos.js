@@ -1,9 +1,12 @@
 // Mantenedor de Modelos de Equipos - Gymtec ERP
 // ✅ CRÍTICO: Verificación de autenticación REACTIVADA
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-    window.location.href = '/login.html';
-    return;
+if (!window.authManager || !window.authManager.isAuthenticated()) {
+    console.log('❌ Usuario no autenticado en modelos, redirigiendo a login...');
+    window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+    throw new Error('Acceso no autorizado - Modelos');
 }
+
+console.log('✅ Usuario autenticado, cargando módulo de modelos...');
 
 class ModelosManager {
     constructor() {

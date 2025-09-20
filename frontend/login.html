@@ -253,9 +253,20 @@
 
                         this.showAlert('success', 'Login exitoso. Redirigiendo...');
                         
-                        // Redireccionar al dashboard
+                        // Obtener página de destino del parámetro return o dashboard por defecto
+                        const urlParams = new URLSearchParams(window.location.search);
+                        const returnUrl = urlParams.get('return');
+                        const targetPage = returnUrl ? decodeURIComponent(returnUrl) : 'index.html';
+                        
+                        console.log('🔄 Redirigiendo después del login a:', targetPage);
+                        
                         setTimeout(() => {
-                            window.location.href = 'index.html';
+                            // Asegurar que no redirija a login.html para evitar bucles
+                            if (targetPage.includes('login.html')) {
+                                window.location.href = 'index.html';
+                            } else {
+                                window.location.href = targetPage;
+                            }
                         }, 1000);
 
                     } else {
@@ -281,8 +292,19 @@
                     })
                     .then(response => {
                         if (response.ok) {
-                            // Token válido, redireccionar al dashboard
-                            window.location.href = 'index.html';
+                            // Token válido, redireccionar a la página solicitada o dashboard
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const returnUrl = urlParams.get('return');
+                            const targetPage = returnUrl ? decodeURIComponent(returnUrl) : 'index.html';
+                            
+                            console.log('🔄 Sesión existente válida, redirigiendo a:', targetPage);
+                            
+                            // Asegurar que no redirija a login.html para evitar bucles
+                            if (targetPage.includes('login.html')) {
+                                window.location.href = 'index.html';
+                            } else {
+                                window.location.href = targetPage;
+                            }
                         } else {
                             // Token inválido, limpiar localStorage
                             localStorage.removeItem('gymtec_token');

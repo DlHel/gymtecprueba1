@@ -164,10 +164,13 @@
     <script>
         document.addEventListener('DOMContentLoaded', async () => {
             // Verificar autenticación
-            if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-                window.location.href = 'login.html';
+            if (!window.authManager || !window.authManager.isAuthenticated()) {
+                console.log('❌ Usuario no autenticado en SLA dashboard, redirigiendo a login...');
+                window.location.href = 'login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
                 return;
             }
+            
+            console.log('✅ Usuario autenticado, cargando dashboard SLA...');
 
             await loadSLADashboard();
             

@@ -1,12 +1,14 @@
 // reportes.js - Sistema completo de reportes y informes técnicos
-// ✅ CRÍTICO: Verificación de autenticación TEMPORALMENTE DESHABILITADA
-console.log('🔧 DEBUG: reportes.js - Verificación de autenticación deshabilitada temporalmente');
-/*
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-    window.location.href = '/login.html';
-    throw new Error('Acceso no autorizado');
+// ✅ CRÍTICO: Verificación de autenticación HABILITADA
+console.log('🔧 Inicializando módulo de reportes con autenticación...');
+
+if (!window.authManager || !window.authManager.isAuthenticated()) {
+    console.log('❌ Usuario no autenticado en reportes, redirigiendo a login...');
+    window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+    throw new Error('Acceso no autorizado - Reportes');
 }
-*/
+
+console.log('✅ Usuario autenticado, cargando módulo de reportes...');
 
 const CONFIG = {
     API_BASE_URL: window.API_URL || 'http://localhost:3000/api'

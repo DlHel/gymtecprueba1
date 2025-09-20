@@ -335,11 +335,20 @@ class DashboardManager {
 }
 
 // Inicializar dashboard cuando se carga la página
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Solo ejecutar en la página del dashboard
     const currentPage = window.location.pathname.split("/").pop();
     if (currentPage === 'index.html' || currentPage === '') {
         console.log('🚀 Inicializando Dashboard Manager...');
+        
+        // CRÍTICO: Protección de autenticación PRIMERO
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
+            console.log('❌ Usuario no autenticado en dashboard, redirigiendo a login...');
+            window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return;
+        }
+        
+        console.log('✅ Usuario autenticado, cargando dashboard...');
         window.dashboardManager = new DashboardManager();
     }
 });

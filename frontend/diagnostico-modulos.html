@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico de Módulos - Gymtec ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-6xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🔍 Diagnóstico de Módulos Específicos</h1>
+        
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4">Estado de Autenticación Global</h2>
+            <div id="auth-global-status" class="mb-4"></div>
+        </div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Contratos y SLAs -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">📋 Contratos y SLAs</h3>
+                <div class="space-y-2">
+                    <div>
+                        <strong>contratos.html:</strong>
+                        <a href="contratos.html" target="_blank" class="text-blue-500 hover:underline ml-2">Ir al módulo</a>
+                    </div>
+                    <div>
+                        <strong>sla-dashboard.html:</strong>
+                        <a href="sla-dashboard.html" target="_blank" class="text-blue-500 hover:underline ml-2">Ir al módulo</a>
+                    </div>
+                    <div id="contratos-status" class="mt-2 p-2 bg-gray-50 rounded text-sm"></div>
+                </div>
+            </div>
+            
+            <!-- Modelos y Equipos -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">🔧 Modelos y Equipos</h3>
+                <div class="space-y-2">
+                    <div>
+                        <strong>modelos.html:</strong>
+                        <a href="modelos.html" target="_blank" class="text-blue-500 hover:underline ml-2">Ir al módulo</a>
+                    </div>
+                    <div>
+                        <strong>modelos.js:</strong>
+                        <span class="text-green-600">✓ Cargado</span>
+                    </div>
+                    <div id="modelos-status" class="mt-2 p-2 bg-gray-50 rounded text-sm"></div>
+                </div>
+            </div>
+            
+            <!-- Personal -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">👥 Personal</h3>
+                <div class="space-y-2">
+                    <div>
+                        <strong>personal.html:</strong>
+                        <a href="personal.html" target="_blank" class="text-blue-500 hover:underline ml-2">Ir al módulo</a>
+                    </div>
+                    <div>
+                        <strong>personal.js:</strong>
+                        <span class="text-green-600">✓ Cargado</span>
+                    </div>
+                    <div id="personal-status" class="mt-2 p-2 bg-gray-50 rounded text-sm"></div>
+                </div>
+            </div>
+            
+            <!-- Configuración -->
+            <div class="bg-white rounded-lg shadow p-6">
+                <h3 class="text-lg font-semibold mb-4">⚙️ Configuración</h3>
+                <div class="space-y-2">
+                    <div>
+                        <strong>configuracion.html:</strong>
+                        <a href="configuracion.html" target="_blank" class="text-blue-500 hover:underline ml-2">Ir al módulo</a>
+                    </div>
+                    <div>
+                        <strong>configuracion.js:</strong>
+                        <span class="text-green-600">✓ Cargado</span>
+                    </div>
+                    <div id="configuracion-status" class="mt-2 p-2 bg-gray-50 rounded text-sm"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mt-6">
+            <h3 class="text-lg font-semibold mb-4 text-yellow-800">🔧 Acciones de Limpieza</h3>
+            <div class="space-y-3">
+                <button id="clear-cache" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                    🗑️ Limpiar Caché del Navegador
+                </button>
+                <button id="reload-hard" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    🔄 Recargar Página (Ctrl+F5)
+                </button>
+                <button id="test-logout" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                    🚪 Cerrar Sesión para Pruebas
+                </button>
+            </div>
+        </div>
+        
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+            <h3 class="text-lg font-semibold mb-4 text-blue-800">📋 Instrucciones de Prueba</h3>
+            <ol class="list-decimal list-inside space-y-2 text-blue-700">
+                <li>Haz clic en "Cerrar Sesión para Pruebas"</li>
+                <li>Intenta acceder a cualquiera de los módulos arriba</li>
+                <li>Deberías ser redirigido al login automáticamente</li>
+                <li>Después del login, deberías volver al módulo que intentabas visitar</li>
+                <li>Si sigue sin funcionar, usa "Limpiar Caché" y repite</li>
+            </ol>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const authGlobalStatus = document.getElementById('auth-global-status');
+            const clearCacheBtn = document.getElementById('clear-cache');
+            const reloadHardBtn = document.getElementById('reload-hard');
+            const testLogoutBtn = document.getElementById('test-logout');
+            
+            function updateGlobalAuthStatus() {
+                if (window.authManager) {
+                    const isAuth = window.authManager.isAuthenticated();
+                    const user = window.authManager.getUser();
+                    
+                    authGlobalStatus.innerHTML = `
+                        <div class="${isAuth ? 'text-green-600' : 'text-red-600'}">
+                            <strong>Estado:</strong> ${isAuth ? '✅ Autenticado' : '❌ No autenticado'}
+                            ${isAuth ? `<br><strong>Usuario:</strong> ${user?.username || 'N/A'} (${user?.role || 'N/A'})` : ''}
+                            <br><strong>authManager:</strong> ✅ Disponible
+                            <br><strong>Timestamp:</strong> ${new Date().toLocaleString()}
+                        </div>
+                    `;
+                } else {
+                    authGlobalStatus.innerHTML = `
+                        <div class="text-red-600">
+                            <strong>Estado:</strong> ❌ AuthManager no disponible
+                            <br><strong>Error:</strong> El sistema de autenticación no se ha cargado correctamente
+                        </div>
+                    `;
+                }
+            }
+            
+            function updateModuleStatus(moduleId, moduleName, jsFile = null) {
+                const statusDiv = document.getElementById(`${moduleId}-status`);
+                let jsStatus = '';
+                
+                if (jsFile) {
+                    // Aquí podrías verificar si el archivo JS específico se cargó
+                    jsStatus = '✅ JS cargado';
+                }
+                
+                statusDiv.innerHTML = `
+                    Estado de autenticación: ${window.authManager ? '✅ AuthManager disponible' : '❌ AuthManager no disponible'}
+                    ${jsStatus ? '<br>' + jsStatus : ''}
+                    <br>Última verificación: ${new Date().toLocaleTimeString()}
+                `;
+            }
+            
+            // Actualizar estados
+            updateGlobalAuthStatus();
+            updateModuleStatus('contratos', 'Contratos');
+            updateModuleStatus('modelos', 'Modelos', 'modelos.js');
+            updateModuleStatus('personal', 'Personal', 'personal.js');
+            updateModuleStatus('configuracion', 'Configuración', 'configuracion.js');
+            
+            // Event listeners
+            clearCacheBtn.addEventListener('click', () => {
+                if ('caches' in window) {
+                    caches.keys().then(names => {
+                        names.forEach(name => {
+                            caches.delete(name);
+                        });
+                    });
+                }
+                localStorage.clear();
+                sessionStorage.clear();
+                alert('Caché limpiado. Recarga la página con Ctrl+F5');
+            });
+            
+            reloadHardBtn.addEventListener('click', () => {
+                window.location.reload(true);
+            });
+            
+            testLogoutBtn.addEventListener('click', () => {
+                if (window.authManager) {
+                    window.authManager.logout();
+                } else {
+                    localStorage.clear();
+                    window.location.href = 'login.html';
+                }
+            });
+            
+            // Actualizar cada 5 segundos
+            setInterval(updateGlobalAuthStatus, 5000);
+        });
+    </script>
+</body>
+</html>

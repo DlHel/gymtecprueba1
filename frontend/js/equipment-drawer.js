@@ -113,7 +113,7 @@ class EquipmentDrawer {
             `;
 
             // Obtener datos del equipo
-            const response = await fetch(`${API_URL}/equipment/${equipmentId}`);
+            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}`);
             if (!response.ok) {
                 throw new Error('Error al cargar el equipo');
             }
@@ -356,7 +356,7 @@ class EquipmentDrawer {
 
     async loadNotes(equipmentId) {
         try {
-            const response = await fetch(`${API_URL}/equipment/${equipmentId}/notes`);
+            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/notes`);
             const notas = await response.json();
             
             const notesList = document.getElementById('notesList-drawer');
@@ -400,7 +400,7 @@ class EquipmentDrawer {
 
     async loadTickets(equipmentId) {
         try {
-            const response = await fetch(`${API_URL}/equipment/${equipmentId}/tickets`);
+            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/tickets`);
             const tickets = await response.json();
             
             const ticketsList = document.getElementById('ticketsList-drawer');
@@ -665,7 +665,7 @@ class EquipmentDrawer {
                 saveBtn.textContent = 'Guardando...';
             }
             
-            const response = await fetch(`${API_URL}/equipment/${this.currentEquipmentId}/notes`, {
+            const response = await authenticatedFetch(`${API_URL}/equipment/${this.currentEquipmentId}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ note: noteText })
@@ -702,7 +702,7 @@ class EquipmentDrawer {
         
         try {
             console.log('Eliminando nota...');
-            const response = await fetch(`${API_URL}/equipment/notes/${noteId}`, {
+            const response = await authenticatedFetch(`${API_URL}/equipment/notes/${noteId}`, {
                 method: 'DELETE'
             });
 
@@ -736,7 +736,7 @@ class EquipmentDrawer {
         }
         
         try {
-            const response = await fetch(`${API_URL}/models/${equipo.model_id}/main-photo`);
+            const response = await authenticatedFetch(`${API_URL}/models/${equipo.model_id}/main-photo`);
             
             if (response.ok) {
                 const photoData = await response.json();
@@ -774,7 +774,7 @@ class EquipmentDrawer {
 
     async loadPhotos(equipmentId) {
         try {
-            const response = await fetch(`${API_URL}/equipment/${equipmentId}/photos`);
+            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/photos`);
             const photos = await response.json();
             
             const photosGallery = document.getElementById('photosGallery-drawer');
@@ -871,7 +871,7 @@ class EquipmentDrawer {
                 const base64 = await this.fileToBase64(file);
                 
                 // Enviar al servidor
-                const response = await fetch(`${API_URL}/equipment/${equipmentId}/photos`, {
+                const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/photos`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -960,7 +960,7 @@ class EquipmentDrawer {
         }
 
         try {
-            const response = await fetch(`${API_URL}/equipment/photos/${photoId}`, {
+            const response = await authenticatedFetch(`${API_URL}/equipment/photos/${photoId}`, {
                 method: 'DELETE'
             });
 

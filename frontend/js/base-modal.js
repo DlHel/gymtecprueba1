@@ -1,11 +1,6 @@
 // base-modal.js - Sistema básico de modales para Gymtec ERP
-// ✅ CRÍTICO: Verificación de autenticación - DESHABILITADA TEMPORALMENTE
-// La verificación de autenticación puede estar causando redirecciones no deseadas
-/*
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
-    console.warn('⚠️ base-modal.js cargado sin autenticación válida');
-}
-*/
+// ✅ Verificación de autenticación eliminada - Los modales no requieren autenticación directa
+// La autenticación se maneja a nivel de página, no de componentes individuales
 
 /**
  * Sistema básico de gestión de modales

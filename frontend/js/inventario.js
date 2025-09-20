@@ -1,4 +1,21 @@
-// Sistema de Inventario Mejorado - Gymtec ERP
+// Sistema de Inventari        // Usar la configuración global de API URL
+        this.apiBaseUrl = window.API_URL || 'http://localhost:3000/api';
+        console.log('📡 Inventario usando API URL:', this.apiBaseUrl);
+        
+        this.init();
+    }
+
+    async init() { ERP
+
+// CRÍTICO: Verificación de autenticación PRIMERO
+if (!window.authManager || !window.authManager.isAuthenticated()) {
+    console.log('❌ Usuario no autenticado en inventario, redirigiendo a login...');
+    window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+    throw new Error('Acceso no autorizado - Inventario');
+}
+
+console.log('✅ Usuario autenticado, cargando módulo de inventario...');
+
 class InventoryManager {
     constructor() {
         this.currentTab = 'central';
@@ -11,24 +28,14 @@ class InventoryManager {
             spareParts: []
         };
         
-        // Configurar la URL base de la API según el puerto actual
-        this.apiBaseUrl = this.getApiBaseUrl();
+        // Usar la configuración global de API URL
+        this.apiBaseUrl = window.API_URL || 'http://localhost:3000/api';
+        console.log('📡 Inventario usando API URL:', this.apiBaseUrl);
         
         this.init();
     }
 
-    getApiBaseUrl() {
-        const hostname = window.location.hostname;
-        const port = window.location.port;
-        
-        if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return `http://${hostname}:3000/api`;
-        } else {
-            return `${window.location.protocol}//${hostname}:3000/api`;
-        }
-    }
-
-    init() {
+    async init() {
         console.log('🚀 Inicializando InventoryManager...');
         this.setupEventListeners();
         this.loadInitialData();
@@ -229,7 +236,7 @@ class InventoryManager {
             console.log('📦 Cargando inventario central...');
             const container = document.getElementById('central-inventory-container');
             
-            const response = await fetch(`${this.apiBaseUrl}/inventory`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
             if (!response.ok) throw new Error('Error al cargar inventario');
             
             const result = await response.json();
@@ -249,7 +256,7 @@ class InventoryManager {
         try {
             console.log('👥 Cargando inventario de técnicos...');
             
-            const response = await fetch(`${this.apiBaseUrl}/inventory/technicians`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/technicians`);
             if (!response.ok) throw new Error('Error al cargar inventario de técnicos');
             
             const result = await response.json();
@@ -269,7 +276,7 @@ class InventoryManager {
         try {
             console.log('🚚 Cargando órdenes de compra...');
             
-            const response = await fetch(`${this.apiBaseUrl}/purchase-orders`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders`);
             if (!response.ok) throw new Error('Error al cargar órdenes de compra');
             
             const result = await response.json();
@@ -289,7 +296,7 @@ class InventoryManager {
         try {
             console.log('📊 Cargando transacciones...');
             
-            const response = await fetch(`${this.apiBaseUrl}/inventory/transactions`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/transactions`);
             if (!response.ok) throw new Error('Error al cargar transacciones');
             
             const result = await response.json();
@@ -307,7 +314,7 @@ class InventoryManager {
 
     async loadTechnicians() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/users?role=technician`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/users?role=technician`);
             if (!response.ok) throw new Error('Error al cargar técnicos');
             
             const result = await response.json();
@@ -322,7 +329,7 @@ class InventoryManager {
 
     async loadSpareParts() {
         try {
-            const response = await fetch(`${this.apiBaseUrl}/inventory`);
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
             if (!response.ok) throw new Error('Error al cargar repuestos');
             
             const result = await response.json();
