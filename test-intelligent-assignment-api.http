@@ -1,0 +1,35 @@
+### Test API - Sistema de Asignación Inteligente
+
+# 1. Obtener análisis de carga de trabajo de técnicos
+GET http://localhost:3000/api/intelligent-assignment/workload-analysis
+Content-Type: application/json
+
+###
+
+# 2. Asignar automáticamente una tarea específica
+POST http://localhost:3000/api/intelligent-assignment/assign-task/4
+Content-Type: application/json
+
+###
+
+# 3. Obtener análisis de técnicos disponibles para una tarea
+GET http://localhost:3000/api/intelligent-assignment/analyze-technicians/4
+Content-Type: application/json
+
+###
+
+# 4. Asignación masiva de tareas pendientes
+POST http://localhost:3000/api/intelligent-assignment/bulk-assign
+Content-Type: application/json
+
+{
+    "taskIds": [4, 5, 6]
+}
+
+###
+
+# 5. Verificar logs de asignación
+GET http://localhost:3000/api/intelligent-assignment/assignment-logs
+Content-Type: application/json
+
+###

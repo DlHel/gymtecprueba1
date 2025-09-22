@@ -167,7 +167,8 @@ class ModelosManager {
                 loadingDiv.style.display = 'block';
             }
             
-            const response = await fetch(`${this.apiBaseUrl}/models`);
+            // ✅ USAR authenticatedFetch en lugar de fetch
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/models`);
             if (!response.ok) {
                 throw new Error('Error al cargar los modelos');
             }
@@ -235,7 +236,7 @@ class ModelosManager {
         let photoCount = 0;
         
         try {
-            const response = await fetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
             if (response.ok) {
                 const photos = await response.json();
                 photoCount = photos.length;
@@ -377,12 +378,14 @@ class ModelosManager {
         }
 
         try {
-            const response = await fetch(`${this.apiBaseUrl}/models/${modelId}`, {
+            // ✅ USAR authenticatedFetch en lugar de fetch
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/models/${modelId}`, {
                 method: 'DELETE'
             });
 
             if (!response.ok) {
-                throw new Error('Error al eliminar el modelo');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al eliminar el modelo');
             }
 
             this.showNotification('Modelo eliminado exitosamente', 'success');
@@ -665,19 +668,13 @@ class ModelosManager {
         submitSpinner.classList.remove('hidden');
         
         try {
-            // Agregar fotos nuevas
-            this.photos.forEach((photo, index) => {
-                if (photo.isNew && photo.file) {
-                    formData.append('photos', photo.file);
+            // Convertir FormData a objeto JSON para envío
+            const modelData = {};
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'id' || value) { // Solo incluir id si tiene valor
+                    modelData[key] = value;
                 }
-            });
-            
-            // Agregar manuales nuevos
-            this.manuals.forEach((manual, index) => {
-                if (manual.isNew && manual.file) {
-                    formData.append('manuals', manual.file);
-                }
-            });
+            }
             
             const isEditing = formData.get('id');
             const url = isEditing ? 
@@ -686,9 +683,13 @@ class ModelosManager {
             
             const method = isEditing ? 'PUT' : 'POST';
             
-            const response = await authenticatedFetch(url, {
+            // ✅ USAR authenticatedFetch con window prefix y JSON
+            const response = await window.authenticatedFetch(url, {
                 method: method,
-                body: formData
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(modelData)
             });
             
             if (!response.ok) {

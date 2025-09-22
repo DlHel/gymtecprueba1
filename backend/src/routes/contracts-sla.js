@@ -20,7 +20,7 @@ const db = require('../db-adapter');
 /**
  * GET /api/contracts - Listar todos los contratos
  */
-router.get('/contracts', async (req, res) => {
+router.get('/contracts', (req, res) => {
     try {
         const { client_id, status, active_only } = req.query;
         
@@ -48,15 +48,23 @@ router.get('/contracts', async (req, res) => {
         
         sql += ' ORDER BY c.created_at DESC';
         
-        const contracts = await db.all(sql, params);
-        
-        res.json({
-            message: 'success',
-            data: contracts,
-            metadata: { 
-                total: contracts.length,
-                timestamp: new Date().toISOString()
+        db.all(sql, params, (err, contracts) => {
+            if (err) {
+                console.error('Error fetching contracts:', err);
+                return res.status(500).json({ 
+                    error: 'Error al obtener contratos',
+                    code: 'CONTRACTS_FETCH_ERROR' 
+                });
             }
+            
+            res.json({
+                message: 'success',
+                data: contracts || [],
+                metadata: { 
+                    total: (contracts || []).length,
+                    timestamp: new Date().toISOString()
+                }
+            });
         });
         
     } catch (error) {
@@ -126,7 +134,17 @@ router.post('/contracts', async (req, res) => {
             currency = 'CLP',
             payment_terms,
             service_description,
-            special_conditions
+            special_conditions,
+            // Nuevos campos
+            contract_value = 0,
+            status = 'borrador',
+            service_type = 'mantenimiento_preventivo',
+            maintenance_frequency = 'mensual',
+            response_time_hours = 24,
+            resolution_time_hours = 72,
+            services_included,
+            equipment_covered,
+            sla_level = 'standard'
         } = req.body;
         
         // Validaciones básicas
@@ -137,12 +155,21 @@ router.post('/contracts', async (req, res) => {
                 required: ['client_id', 'contract_number', 'contract_name', 'start_date', 'end_date']
             });
         }
+
+        // Validaciones de nuevos campos obligatorios
+        if (!service_type || !maintenance_frequency || !sla_level) {
+            return res.status(400).json({
+                error: 'Faltan especificaciones de servicio obligatorias',
+                code: 'MISSING_SERVICE_SPECS',
+                required: ['service_type', 'maintenance_frequency', 'sla_level']
+            });
+        }
         
         // Verificar que el cliente existe
-        const clientExists = await db.get('SELECT id FROM Clients WHERE id = ?', [client_id]);
+        const clientExists = await db.get('SELECT id, name FROM Clients WHERE id = ?', [client_id]);
         if (!clientExists) {
             return res.status(400).json({
-                error: 'Cliente no existe',
+                error: `Cliente con ID ${client_id} no existe. Debe crear el cliente antes de crear el contrato.`,
                 code: 'CLIENT_NOT_FOUND'
             });
         }
@@ -155,33 +182,52 @@ router.post('/contracts', async (req, res) => {
                 code: 'CONTRACT_NUMBER_EXISTS'
             });
         }
+
+        // Validar fechas
+        const startDate = new Date(start_date);
+        const endDate = new Date(end_date);
+        
+        if (startDate >= endDate) {
+            return res.status(400).json({
+                error: 'La fecha de fin debe ser posterior a la fecha de inicio',
+                code: 'INVALID_DATE_RANGE'
+            });
+        }
         
         const sql = `
             INSERT INTO Contracts (
                 client_id, contract_number, contract_name, start_date, end_date,
                 sla_p1_hours, sla_p2_hours, sla_p3_hours, sla_p4_hours,
                 monthly_fee, currency, payment_terms, service_description, special_conditions,
-                created_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                contract_value, status, service_type, maintenance_frequency,
+                response_time_hours, resolution_time_hours, services_included, 
+                equipment_covered, sla_level, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
         
         const result = await db.run(sql, [
             client_id, contract_number, contract_name, start_date, end_date,
             sla_p1_hours, sla_p2_hours, sla_p3_hours, sla_p4_hours,
             monthly_fee, currency, payment_terms, service_description, special_conditions,
-            req.user?.id || null
+            contract_value, status, service_type, maintenance_frequency,
+            response_time_hours, resolution_time_hours, services_included,
+            equipment_covered, sla_level, req.user?.id || null
         ]);
         
-        // Obtener el contrato creado
+        // Obtener el contrato creado con información del cliente
         const newContract = await db.get(`
-            SELECT c.*, cl.name as client_name 
+            SELECT c.*, cl.name as client_name, cl.email as client_email,
+                   cl.company as client_company
             FROM Contracts c
             LEFT JOIN Clients cl ON c.client_id = cl.id
             WHERE c.id = ?
         `, [result.lastID]);
         
+        console.log(`✅ Contrato creado: ${contract_number} para cliente ${clientExists.name}`);
+        console.log(`📋 Servicios: ${service_type}, Frecuencia: ${maintenance_frequency}, SLA: ${sla_level}`);
+        
         res.status(201).json({
-            message: 'Contrato creado exitosamente',
+            message: 'Contrato creado exitosamente con especificaciones de servicios y tiempos',
             data: newContract
         });
         
@@ -189,7 +235,8 @@ router.post('/contracts', async (req, res) => {
         console.error('Error creating contract:', error);
         res.status(500).json({ 
             error: 'Error al crear contrato',
-            code: 'CONTRACT_CREATE_ERROR' 
+            code: 'CONTRACT_CREATE_ERROR',
+            details: error.message
         });
     }
 });
@@ -213,16 +260,38 @@ router.put('/contracts/:id', async (req, res) => {
             currency,
             payment_terms,
             service_description,
-            special_conditions
+            special_conditions,
+            // Nuevos campos
+            contract_value,
+            service_type,
+            maintenance_frequency,
+            response_time_hours,
+            resolution_time_hours,
+            services_included,
+            equipment_covered,
+            sla_level
         } = req.body;
         
         // Verificar que el contrato existe
-        const contract = await db.get('SELECT id FROM Contracts WHERE id = ?', [id]);
+        const contract = await db.get('SELECT id, client_id FROM Contracts WHERE id = ?', [id]);
         if (!contract) {
             return res.status(404).json({
                 error: 'Contrato no encontrado',
                 code: 'CONTRACT_NOT_FOUND'
             });
+        }
+
+        // Validar fechas si se proporcionan
+        if (start_date && end_date) {
+            const startDate = new Date(start_date);
+            const endDate = new Date(end_date);
+            
+            if (startDate >= endDate) {
+                return res.status(400).json({
+                    error: 'La fecha de fin debe ser posterior a la fecha de inicio',
+                    code: 'INVALID_DATE_RANGE'
+                });
+            }
         }
         
         const sql = `
@@ -240,6 +309,14 @@ router.put('/contracts/:id', async (req, res) => {
                 payment_terms = COALESCE(?, payment_terms),
                 service_description = COALESCE(?, service_description),
                 special_conditions = COALESCE(?, special_conditions),
+                contract_value = COALESCE(?, contract_value),
+                service_type = COALESCE(?, service_type),
+                maintenance_frequency = COALESCE(?, maintenance_frequency),
+                response_time_hours = COALESCE(?, response_time_hours),
+                resolution_time_hours = COALESCE(?, resolution_time_hours),
+                services_included = COALESCE(?, services_included),
+                equipment_covered = COALESCE(?, equipment_covered),
+                sla_level = COALESCE(?, sla_level),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         `;
@@ -248,16 +325,22 @@ router.put('/contracts/:id', async (req, res) => {
             contract_name, start_date, end_date, status,
             sla_p1_hours, sla_p2_hours, sla_p3_hours, sla_p4_hours,
             monthly_fee, currency, payment_terms, service_description, special_conditions,
+            contract_value, service_type, maintenance_frequency,
+            response_time_hours, resolution_time_hours, services_included,
+            equipment_covered, sla_level,
             id
         ]);
         
-        // Obtener el contrato actualizado
+        // Obtener el contrato actualizado con información del cliente
         const updatedContract = await db.get(`
-            SELECT c.*, cl.name as client_name 
+            SELECT c.*, cl.name as client_name, cl.email as client_email,
+                   cl.company as client_company
             FROM Contracts c
             LEFT JOIN Clients cl ON c.client_id = cl.id
             WHERE c.id = ?
         `, [id]);
+        
+        console.log(`✅ Contrato actualizado: ${updatedContract.contract_number}`);
         
         res.json({
             message: 'Contrato actualizado exitosamente',
@@ -268,7 +351,8 @@ router.put('/contracts/:id', async (req, res) => {
         console.error('Error updating contract:', error);
         res.status(500).json({ 
             error: 'Error al actualizar contrato',
-            code: 'CONTRACT_UPDATE_ERROR' 
+            code: 'CONTRACT_UPDATE_ERROR',
+            details: error.message
         });
     }
 });

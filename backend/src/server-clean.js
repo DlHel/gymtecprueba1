@@ -1104,12 +1104,24 @@ try {
     const contractsSlaRoutes = require('./routes/contracts-sla');
     const checklistRoutes = require('./routes/checklist');
     const workflowRoutes = require('./routes/workflow');
+    const dashboardCorrelationsRoutes = require('./routes/dashboard-correlations'); // Nueva ruta para correlaciones
+    const taskGeneratorRoutes = require('./routes/task-generator'); // Sistema de generación automática de tareas
+    const intelligentAssignmentRoutes = require('./routes/intelligent-assignment'); // Sistema de asignación inteligente
+    const { router: slaProcessorRoutes, initializeSLAProcessor, startAutomaticMonitoring } = require('./routes/sla-processor'); // Sistema de reglas SLA
     
     app.use('/api', contractsSlaRoutes);
     app.use('/api', checklistRoutes);
     app.use('/api', workflowRoutes);
+    app.use('/api', dashboardCorrelationsRoutes); // Agregar correlaciones inteligentes
+    app.use('/api', taskGeneratorRoutes); // Agregar generador automático de tareas
+    app.use('/api', intelligentAssignmentRoutes); // Agregar asignación inteligente de recursos
+    app.use('/api/sla', slaProcessorRoutes); // Agregar sistema de reglas SLA
     
-    console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow');
+    // Inicializar procesador SLA con monitoreo automático
+    initializeSLAProcessor(db);
+    startAutomaticMonitoring(db, 5); // Monitoreo cada 5 minutos
+    
+    console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow, Dashboard Correlations, Task Generator, Intelligent Assignment, SLA Processor');
 } catch (error) {
     console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
 }
@@ -2295,17 +2307,28 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
 // ENDPOINTS DE MODELOS
 // ===================================================================
 
-// GET /api/models - Obtener todos los modelos
+// GET /api/models - Obtener todos los modelos de EquipmentModels
 app.get('/api/models', async (req, res) => {
     try {
-        console.log('📋 Obteniendo lista de modelos...');
+        console.log('📋 Obteniendo lista de modelos desde EquipmentModels...');
         
         const query = `
-            SELECT DISTINCT modelo 
-            FROM equipment 
-            WHERE modelo IS NOT NULL 
-            AND modelo != '' 
-            ORDER BY modelo ASC
+            SELECT 
+                id,
+                name,
+                brand,
+                category,
+                model_code,
+                description,
+                weight,
+                dimensions,
+                voltage,
+                power,
+                specifications AS technical_specs,
+                created_at,
+                updated_at
+            FROM EquipmentModels 
+            ORDER BY brand ASC, name ASC
         `;
         
         db.all(query, [], (err, rows) => {
@@ -2317,13 +2340,12 @@ app.get('/api/models', async (req, res) => {
                 });
             }
             
-            const models = rows.map(row => row.modelo);
-            console.log(`✅ ${models.length} modelos encontrados`);
+            console.log(`✅ ${rows.length} modelos encontrados desde EquipmentModels`);
             
             res.json({
-                success: true,
-                models: models,
-                count: models.length
+                message: 'success',
+                data: rows,
+                count: rows.length
             });
         });
         
@@ -2339,45 +2361,72 @@ app.get('/api/models', async (req, res) => {
 // POST /api/models - Crear un nuevo modelo
 app.post('/api/models', authenticateToken, async (req, res) => {
     try {
-        const { modelo, marca, categoria } = req.body;
+        const { 
+            name, 
+            brand, 
+            category, 
+            model_code, 
+            description, 
+            weight, 
+            dimensions, 
+            voltage, 
+            power, 
+            technical_specs 
+        } = req.body;
         
-        if (!modelo) {
+        if (!name || !brand || !category) {
             return res.status(400).json({
-                error: 'El nombre del modelo es requerido'
+                error: 'Nombre, marca y categoría son requeridos'
             });
         }
         
-        console.log('📝 Creando nuevo modelo:', modelo);
+        console.log('📝 Creando nuevo modelo:', name);
         
-        // Verificar si el modelo ya existe
-        const checkQuery = `
-            SELECT COUNT(*) as count 
-            FROM equipment 
-            WHERE modelo = ?
-        `;
+        // Verificar si el código del modelo ya existe
+        if (model_code) {
+            const checkQuery = `SELECT COUNT(*) as count FROM EquipmentModels WHERE model_code = ?`;
+            
+            db.get(checkQuery, [model_code], (err, row) => {
+                if (err) {
+                    console.error('❌ Error verificando código del modelo:', err);
+                    return res.status(500).json({
+                        error: 'Error al verificar código del modelo',
+                        details: err.message
+                    });
+                }
+                
+                if (row.count > 0) {
+                    return res.status(409).json({
+                        error: 'El código del modelo ya existe'
+                    });
+                }
+                
+                // Proceder con la inserción
+                insertModel();
+            });
+        } else {
+            insertModel();
+        }
         
-        db.get(checkQuery, [modelo], (err, row) => {
-            if (err) {
-                console.error('❌ Error verificando modelo:', err);
-                return res.status(500).json({
-                    error: 'Error al verificar modelo',
-                    details: err.message
-                });
-            }
-            
-            if (row.count > 0) {
-                return res.status(409).json({
-                    error: 'El modelo ya existe'
-                });
-            }
-            
-            // Crear entrada básica para el modelo
+        function insertModel() {
             const insertQuery = `
-                INSERT INTO equipment (modelo, marca, categoria, estado, ubicacion)
-                VALUES (?, ?, ?, 'Disponible', 'Almacén')
+                INSERT INTO EquipmentModels 
+                (name, brand, category, model_code, description, weight, dimensions, voltage, power, specifications)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `;
             
-            db.run(insertQuery, [modelo, marca || 'Sin especificar', categoria || 'General'], function(err) {
+            db.run(insertQuery, [
+                name, 
+                brand, 
+                category, 
+                model_code || null, 
+                description || null, 
+                weight || null, 
+                dimensions || null, 
+                voltage || null, 
+                power || null, 
+                technical_specs || null
+            ], function(err) {
                 if (err) {
                     console.error('❌ Error creando modelo:', err);
                     return res.status(500).json({
@@ -2389,16 +2438,290 @@ app.post('/api/models', authenticateToken, async (req, res) => {
                 console.log(`✅ Modelo creado con ID: ${this.lastID}`);
                 
                 res.status(201).json({
-                    success: true,
-                    message: 'Modelo creado exitosamente',
-                    modelId: this.lastID,
-                    modelo: modelo
+                    message: 'success',
+                    data: {
+                        id: this.lastID,
+                        name,
+                        brand,
+                        category,
+                        model_code,
+                        description,
+                        weight,
+                        dimensions,
+                        voltage,
+                        power,
+                        technical_specs
+                    }
+                });
+            });
+        }
+        
+    } catch (error) {
+        console.error('💥 Error en creación de modelo:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
+// PUT /api/models/:id - Actualizar un modelo
+app.put('/api/models/:id', authenticateToken, async (req, res) => {
+    try {
+        const modelId = req.params.id;
+        const { 
+            name, 
+            brand, 
+            category, 
+            model_code, 
+            description, 
+            weight, 
+            dimensions, 
+            voltage, 
+            power, 
+            technical_specs 
+        } = req.body;
+        
+        if (!name || !brand || !category) {
+            return res.status(400).json({
+                error: 'Nombre, marca y categoría son requeridos'
+            });
+        }
+        
+        console.log('📝 Actualizando modelo ID:', modelId);
+        
+        // Verificar si el modelo existe
+        const checkQuery = `SELECT * FROM EquipmentModels WHERE id = ?`;
+        
+        db.get(checkQuery, [modelId], (err, row) => {
+            if (err) {
+                console.error('❌ Error verificando modelo:', err);
+                return res.status(500).json({
+                    error: 'Error al verificar modelo',
+                    details: err.message
+                });
+            }
+            
+            if (!row) {
+                return res.status(404).json({
+                    error: 'Modelo no encontrado'
+                });
+            }
+            
+            // Verificar código único si se está cambiando
+            if (model_code && model_code !== row.model_code) {
+                const checkCodeQuery = `SELECT COUNT(*) as count FROM EquipmentModels WHERE model_code = ? AND id != ?`;
+                
+                db.get(checkCodeQuery, [model_code, modelId], (err, codeRow) => {
+                    if (err) {
+                        console.error('❌ Error verificando código del modelo:', err);
+                        return res.status(500).json({
+                            error: 'Error al verificar código del modelo',
+                            details: err.message
+                        });
+                    }
+                    
+                    if (codeRow.count > 0) {
+                        return res.status(409).json({
+                            error: 'El código del modelo ya existe'
+                        });
+                    }
+                    
+                    updateModel();
+                });
+            } else {
+                updateModel();
+            }
+        });
+        
+        function updateModel() {
+            const updateQuery = `
+                UPDATE EquipmentModels SET
+                    name = ?,
+                    brand = ?,
+                    category = ?,
+                    model_code = ?,
+                    description = ?,
+                    weight = ?,
+                    dimensions = ?,
+                    voltage = ?,
+                    power = ?,
+                    specifications = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            `;
+            
+            db.run(updateQuery, [
+                name, 
+                brand, 
+                category, 
+                model_code || null, 
+                description || null, 
+                weight || null, 
+                dimensions || null, 
+                voltage || null, 
+                power || null, 
+                technical_specs || null,
+                modelId
+            ], function(err) {
+                if (err) {
+                    console.error('❌ Error actualizando modelo:', err);
+                    return res.status(500).json({
+                        error: 'Error al actualizar modelo',
+                        details: err.message
+                    });
+                }
+                
+                console.log(`✅ Modelo ${modelId} actualizado exitosamente`);
+                
+                res.json({
+                    message: 'success',
+                    data: {
+                        id: modelId,
+                        name,
+                        brand,
+                        category,
+                        model_code,
+                        description,
+                        weight,
+                        dimensions,
+                        voltage,
+                        power,
+                        technical_specs
+                    }
+                });
+            });
+        }
+        
+    } catch (error) {
+        console.error('💥 Error en actualización de modelo:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
+// DELETE /api/models/:id - Eliminar un modelo
+app.delete('/api/models/:id', authenticateToken, async (req, res) => {
+    try {
+        const modelId = req.params.id;
+        
+        console.log('🗑️ Eliminando modelo ID:', modelId);
+        
+        // Verificar si el modelo existe
+        const checkQuery = `SELECT * FROM EquipmentModels WHERE id = ?`;
+        
+        db.get(checkQuery, [modelId], (err, row) => {
+            if (err) {
+                console.error('❌ Error verificando modelo:', err);
+                return res.status(500).json({
+                    error: 'Error al verificar modelo',
+                    details: err.message
+                });
+            }
+            
+            if (!row) {
+                return res.status(404).json({
+                    error: 'Modelo no encontrado'
+                });
+            }
+            
+            // Verificar si hay equipos usando este modelo
+            const equipmentCheckQuery = `SELECT COUNT(*) as count FROM Equipment WHERE model_id = ?`;
+            
+            db.get(equipmentCheckQuery, [modelId], (err, equipmentRow) => {
+                if (err) {
+                    console.error('❌ Error verificando equipos:', err);
+                    return res.status(500).json({
+                        error: 'Error al verificar equipos',
+                        details: err.message
+                    });
+                }
+                
+                if (equipmentRow.count > 0) {
+                    return res.status(409).json({
+                        error: `No se puede eliminar el modelo. Hay ${equipmentRow.count} equipos usando este modelo.`
+                    });
+                }
+                
+                // Eliminar el modelo
+                const deleteQuery = `DELETE FROM EquipmentModels WHERE id = ?`;
+                
+                db.run(deleteQuery, [modelId], function(err) {
+                    if (err) {
+                        console.error('❌ Error eliminando modelo:', err);
+                        return res.status(500).json({
+                            error: 'Error al eliminar modelo',
+                            details: err.message
+                        });
+                    }
+                    
+                    console.log(`✅ Modelo ${modelId} eliminado exitosamente`);
+                    
+                    res.json({
+                        message: 'success',
+                        data: { deleted: true, id: modelId }
+                    });
                 });
             });
         });
         
     } catch (error) {
-        console.error('💥 Error en creación de modelo:', error);
+        console.error('💥 Error en eliminación de modelo:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
+// GET /api/models/:id/photos - Obtener fotos de un modelo
+app.get('/api/models/:id/photos', async (req, res) => {
+    try {
+        const modelId = req.params.id;
+        
+        console.log('📷 Obteniendo fotos del modelo ID:', modelId);
+        
+        const query = `
+            SELECT 
+                id,
+                photo_data,
+                file_name,
+                mime_type,
+                file_size,
+                is_primary,
+                created_at
+            FROM ModelPhotos 
+            WHERE model_id = ?
+            ORDER BY is_primary DESC, created_at ASC
+        `;
+        
+        db.all(query, [modelId], (err, rows) => {
+            if (err) {
+                console.error('❌ Error obteniendo fotos del modelo:', err);
+                return res.status(500).json({
+                    error: 'Error al obtener fotos del modelo',
+                    details: err.message
+                });
+            }
+            
+            const photos = rows.map(row => ({
+                id: row.id,
+                url: `data:${row.mime_type};base64,${row.photo_data}`,
+                fileName: row.file_name,
+                isPrimary: row.is_primary,
+                size: row.file_size,
+                createdAt: row.created_at
+            }));
+            
+            console.log(`✅ ${photos.length} fotos encontradas para el modelo ${modelId}`);
+            
+            res.json(photos);
+        });
+        
+    } catch (error) {
+        console.error('💥 Error en endpoint de fotos:', error);
         res.status(500).json({
             error: 'Error interno del servidor',
             details: error.message
@@ -3089,6 +3412,676 @@ app.get('/api/expenses/stats', authenticateToken, (req, res) => {
                 details: error.message
             });
         });
+});
+
+// ============================================================================
+// QUOTES CRUD ENDPOINTS (Cotizaciones) - Financial Module
+// ============================================================================
+
+// GET /api/quotes - Obtener todas las cotizaciones
+app.get('/api/quotes', authenticateToken, (req, res) => {
+    console.log('📋 Obteniendo lista de cotizaciones...');
+    
+    const { status, client_id, date_from, date_to, limit = 50, offset = 0 } = req.query;
+    
+    let sql = `
+        SELECT 
+            q.*,
+            c.name as client_name,
+            u.username as created_by_name
+        FROM Quotes q
+        LEFT JOIN Clients c ON q.client_id = c.id
+        LEFT JOIN Users u ON q.created_by = u.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (status) {
+        sql += ` AND q.status = ?`;
+        params.push(status);
+    }
+    
+    if (client_id) {
+        sql += ` AND q.client_id = ?`;
+        params.push(client_id);
+    }
+    
+    if (date_from) {
+        sql += ` AND q.created_date >= ?`;
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ` AND q.created_date <= ?`;
+        params.push(date_to);
+    }
+    
+    sql += ` ORDER BY q.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo cotizaciones:', err);
+            res.status(500).json({ 
+                error: 'Error obteniendo cotizaciones',
+                details: err.message 
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} cotizaciones obtenidas`);
+        res.json({
+            message: 'success',
+            data: rows,
+            total: rows.length,
+            offset: parseInt(offset),
+            limit: parseInt(limit)
+        });
+    });
+});
+
+// POST /api/quotes - Crear nueva cotización
+app.post('/api/quotes', authenticateToken, (req, res) => {
+    const {
+        client_id,
+        quote_number,
+        created_date,
+        valid_until,
+        description,
+        items,
+        subtotal,
+        tax_amount,
+        total,
+        payment_terms,
+        notes
+    } = req.body;
+    
+    // Validaciones básicas
+    if (!client_id || !created_date || !description || !total) {
+        return res.status(400).json({
+            error: 'Cliente, fecha, descripción y total son requeridos'
+        });
+    }
+    
+    if (total <= 0) {
+        return res.status(400).json({
+            error: 'El total debe ser mayor a 0'
+        });
+    }
+    
+    console.log(`📋 Creando nueva cotización para cliente ${client_id}: $${total}`);
+    
+    const sql = `
+        INSERT INTO Quotes (
+            client_id, quote_number, created_date, valid_until, description,
+            items, subtotal, tax_amount, total, payment_terms, notes,
+            created_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Borrador')
+    `;
+    
+    const params = [
+        client_id,
+        quote_number || `Q-${Date.now()}`,
+        created_date,
+        valid_until || null,
+        description,
+        JSON.stringify(items || []),
+        subtotal || 0,
+        tax_amount || 0,
+        total,
+        payment_terms || null,
+        notes || null,
+        req.user.id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error creando cotización:', err);
+            res.status(500).json({ 
+                error: 'Error creando cotización',
+                details: err.message 
+            });
+            return;
+        }
+        
+        console.log(`✅ Cotización creada con ID: ${this.lastID}`);
+        res.status(201).json({
+            message: 'Cotización creada exitosamente',
+            id: this.lastID,
+            quote_number: quote_number || `Q-${Date.now()}`
+        });
+    });
+});
+
+// PUT /api/quotes/:id - Actualizar cotización
+app.put('/api/quotes/:id', authenticateToken, (req, res) => {
+    const quoteId = req.params.id;
+    const {
+        client_id,
+        quote_number,
+        created_date,
+        valid_until,
+        description,
+        items,
+        subtotal,
+        tax_amount,
+        total,
+        payment_terms,
+        notes,
+        status
+    } = req.body;
+    
+    console.log(`📋 Actualizando cotización ID: ${quoteId}`);
+    
+    const sql = `
+        UPDATE Quotes SET
+            client_id = ?,
+            quote_number = ?,
+            created_date = ?,
+            valid_until = ?,
+            description = ?,
+            items = ?,
+            subtotal = ?,
+            tax_amount = ?,
+            total = ?,
+            payment_terms = ?,
+            notes = ?,
+            status = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        client_id,
+        quote_number,
+        created_date,
+        valid_until,
+        description,
+        JSON.stringify(items || []),
+        subtotal || 0,
+        tax_amount || 0,
+        total,
+        payment_terms,
+        notes,
+        status || 'Borrador',
+        quoteId
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error actualizando cotización:', err);
+            res.status(500).json({ 
+                error: 'Error actualizando cotización',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Cotización no encontrada'
+            });
+        }
+        
+        console.log(`✅ Cotización ${quoteId} actualizada`);
+        res.json({
+            message: 'Cotización actualizada exitosamente',
+            changes: this.changes
+        });
+    });
+});
+
+// DELETE /api/quotes/:id - Eliminar cotización
+app.delete('/api/quotes/:id', authenticateToken, (req, res) => {
+    const quoteId = req.params.id;
+    
+    console.log(`📋 Eliminando cotización ID: ${quoteId}`);
+    
+    const sql = 'DELETE FROM Quotes WHERE id = ?';
+    
+    db.run(sql, [quoteId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando cotización:', err);
+            res.status(500).json({ 
+                error: 'Error eliminando cotización',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Cotización no encontrada'
+            });
+        }
+        
+        console.log(`✅ Cotización ${quoteId} eliminada`);
+        res.json({
+            message: 'Cotización eliminada exitosamente',
+            changes: this.changes
+        });
+    });
+});
+
+// GET /api/quotes/:id - Obtener cotización específica
+app.get('/api/quotes/:id', authenticateToken, (req, res) => {
+    const quoteId = req.params.id;
+    
+    console.log(`📋 Obteniendo cotización ID: ${quoteId}`);
+    
+    const sql = `
+        SELECT 
+            q.*,
+            c.name as client_name,
+            c.email as client_email,
+            c.phone as client_phone,
+            u.username as created_by_name
+        FROM Quotes q
+        LEFT JOIN Clients c ON q.client_id = c.id
+        LEFT JOIN Users u ON q.created_by = u.id
+        WHERE q.id = ?
+    `;
+    
+    db.get(sql, [quoteId], (err, row) => {
+        if (err) {
+            console.error('❌ Error obteniendo cotización:', err);
+            res.status(500).json({ 
+                error: 'Error obteniendo cotización',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (!row) {
+            return res.status(404).json({
+                error: 'Cotización no encontrada'
+            });
+        }
+        
+        // Parse items JSON if exists
+        if (row.items) {
+            try {
+                row.items = JSON.parse(row.items);
+            } catch (e) {
+                console.warn('⚠️ Error parsing items JSON:', e);
+                row.items = [];
+            }
+        }
+        
+        console.log(`✅ Cotización ${quoteId} obtenida`);
+        res.json({
+            message: 'success',
+            data: row
+        });
+    });
+});
+
+// ============================================================================
+// INVOICES CRUD ENDPOINTS (Facturas) - Financial Module  
+// ============================================================================
+
+// GET /api/invoices - Obtener todas las facturas
+app.get('/api/invoices', authenticateToken, (req, res) => {
+    console.log('🧾 Obteniendo lista de facturas...');
+    
+    const { status, client_id, date_from, date_to, limit = 50, offset = 0 } = req.query;
+    
+    let sql = `
+        SELECT 
+            i.*,
+            c.name as client_name,
+            u.username as created_by_name
+        FROM Invoices i
+        LEFT JOIN Clients c ON i.client_id = c.id
+        LEFT JOIN Users u ON i.created_by = u.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (status) {
+        sql += ` AND i.status = ?`;
+        params.push(status);
+    }
+    
+    if (client_id) {
+        sql += ` AND i.client_id = ?`;
+        params.push(client_id);
+    }
+    
+    if (date_from) {
+        sql += ` AND i.invoice_date >= ?`;
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ` AND i.invoice_date <= ?`;
+        params.push(date_to);
+    }
+    
+    sql += ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo facturas:', err);
+            res.status(500).json({ 
+                error: 'Error obteniendo facturas',
+                details: err.message 
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} facturas obtenidas`);
+        res.json({
+            message: 'success',
+            data: rows,
+            total: rows.length,
+            offset: parseInt(offset),
+            limit: parseInt(limit)
+        });
+    });
+});
+
+// POST /api/invoices - Crear nueva factura
+app.post('/api/invoices', authenticateToken, (req, res) => {
+    const {
+        client_id,
+        quote_id,
+        invoice_number,
+        invoice_date,
+        due_date,
+        description,
+        items,
+        subtotal,
+        tax_amount,
+        total,
+        payment_terms,
+        notes
+    } = req.body;
+    
+    // Validaciones básicas
+    if (!client_id || !invoice_date || !description || !total) {
+        return res.status(400).json({
+            error: 'Cliente, fecha, descripción y total son requeridos'
+        });
+    }
+    
+    if (total <= 0) {
+        return res.status(400).json({
+            error: 'El total debe ser mayor a 0'
+        });
+    }
+    
+    console.log(`🧾 Creando nueva factura para cliente ${client_id}: $${total}`);
+    
+    const sql = `
+        INSERT INTO Invoices (
+            client_id, quote_id, invoice_number, invoice_date, due_date,
+            description, items, subtotal, tax_amount, total, payment_terms,
+            notes, created_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente')
+    `;
+    
+    const params = [
+        client_id,
+        quote_id || null,
+        invoice_number || `INV-${Date.now()}`,
+        invoice_date,
+        due_date || null,
+        description,
+        JSON.stringify(items || []),
+        subtotal || 0,
+        tax_amount || 0,
+        total,
+        payment_terms || null,
+        notes || null,
+        req.user.id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error creando factura:', err);
+            res.status(500).json({ 
+                error: 'Error creando factura',
+                details: err.message 
+            });
+            return;
+        }
+        
+        console.log(`✅ Factura creada con ID: ${this.lastID}`);
+        res.status(201).json({
+            message: 'Factura creada exitosamente',
+            id: this.lastID,
+            invoice_number: invoice_number || `INV-${Date.now()}`
+        });
+    });
+});
+
+// PUT /api/invoices/:id - Actualizar factura
+app.put('/api/invoices/:id', authenticateToken, (req, res) => {
+    const invoiceId = req.params.id;
+    const {
+        client_id,
+        quote_id,
+        invoice_number,
+        invoice_date,
+        due_date,
+        description,
+        items,
+        subtotal,
+        tax_amount,
+        total,
+        payment_terms,
+        notes,
+        status,
+        paid_date,
+        paid_amount
+    } = req.body;
+    
+    console.log(`🧾 Actualizando factura ID: ${invoiceId}`);
+    
+    const sql = `
+        UPDATE Invoices SET
+            client_id = ?,
+            quote_id = ?,
+            invoice_number = ?,
+            invoice_date = ?,
+            due_date = ?,
+            description = ?,
+            items = ?,
+            subtotal = ?,
+            tax_amount = ?,
+            total = ?,
+            payment_terms = ?,
+            notes = ?,
+            status = ?,
+            paid_date = ?,
+            paid_amount = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        client_id,
+        quote_id,
+        invoice_number,
+        invoice_date,
+        due_date,
+        description,
+        JSON.stringify(items || []),
+        subtotal || 0,
+        tax_amount || 0,
+        total,
+        payment_terms,
+        notes,
+        status || 'Pendiente',
+        paid_date,
+        paid_amount,
+        invoiceId
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error actualizando factura:', err);
+            res.status(500).json({ 
+                error: 'Error actualizando factura',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        console.log(`✅ Factura ${invoiceId} actualizada`);
+        res.json({
+            message: 'Factura actualizada exitosamente',
+            changes: this.changes
+        });
+    });
+});
+
+// DELETE /api/invoices/:id - Eliminar factura
+app.delete('/api/invoices/:id', authenticateToken, (req, res) => {
+    const invoiceId = req.params.id;
+    
+    console.log(`🧾 Eliminando factura ID: ${invoiceId}`);
+    
+    const sql = 'DELETE FROM Invoices WHERE id = ?';
+    
+    db.run(sql, [invoiceId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando factura:', err);
+            res.status(500).json({ 
+                error: 'Error eliminando factura',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        console.log(`✅ Factura ${invoiceId} eliminada`);
+        res.json({
+            message: 'Factura eliminada exitosamente',
+            changes: this.changes
+        });
+    });
+});
+
+// GET /api/invoices/:id - Obtener factura específica
+app.get('/api/invoices/:id', authenticateToken, (req, res) => {
+    const invoiceId = req.params.id;
+    
+    console.log(`🧾 Obteniendo factura ID: ${invoiceId}`);
+    
+    const sql = `
+        SELECT 
+            i.*,
+            c.name as client_name,
+            c.email as client_email,
+            c.phone as client_phone,
+            c.address as client_address,
+            u.username as created_by_name,
+            q.quote_number
+        FROM Invoices i
+        LEFT JOIN Clients c ON i.client_id = c.id
+        LEFT JOIN Users u ON i.created_by = u.id
+        LEFT JOIN Quotes q ON i.quote_id = q.id
+        WHERE i.id = ?
+    `;
+    
+    db.get(sql, [invoiceId], (err, row) => {
+        if (err) {
+            console.error('❌ Error obteniendo factura:', err);
+            res.status(500).json({ 
+                error: 'Error obteniendo factura',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (!row) {
+            return res.status(404).json({
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        // Parse items JSON if exists
+        if (row.items) {
+            try {
+                row.items = JSON.parse(row.items);
+            } catch (e) {
+                console.warn('⚠️ Error parsing items JSON:', e);
+                row.items = [];
+            }
+        }
+        
+        console.log(`✅ Factura ${invoiceId} obtenida`);
+        res.json({
+            message: 'success',
+            data: row
+        });
+    });
+});
+
+// PUT /api/invoices/:id/mark-paid - Marcar factura como pagada
+app.put('/api/invoices/:id/mark-paid', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const invoiceId = req.params.id;
+    const { paid_amount, paid_date, payment_method, notes } = req.body;
+    
+    console.log(`🧾 Marcando factura ${invoiceId} como pagada`);
+    
+    const sql = `
+        UPDATE Invoices SET
+            status = 'Pagada',
+            paid_date = ?,
+            paid_amount = ?,
+            payment_method = ?,
+            payment_notes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        paid_date || new Date().toISOString().split('T')[0],
+        paid_amount,
+        payment_method || 'No especificado',
+        notes || null,
+        invoiceId
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error marcando factura como pagada:', err);
+            res.status(500).json({ 
+                error: 'Error marcando factura como pagada',
+                details: err.message 
+            });
+            return;
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({
+                error: 'Factura no encontrada'
+            });
+        }
+        
+        console.log(`✅ Factura ${invoiceId} marcada como pagada`);
+        res.json({
+            message: 'Factura marcada como pagada exitosamente',
+            changes: this.changes
+        });
+    });
 });
 
 app.use('*', (req, res) => {
