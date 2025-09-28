@@ -11,31 +11,49 @@ let state = {
         search: '',
         status: '',
         priority: '',
-        client: ''
+        client: '',
+        type: ''
+    },
+    // Estado específico para gimnación
+    gimnacion: {
+        selectedEquipment: [],
+        checklistTemplates: [],
+        selectedTemplate: null,
+        contracts: []
     }
 };
-
-// --- DOM Elements ---
-const ticketList = document.getElementById('ticket-list');
-const clientSelect = document.querySelector('[name="client_id"]');
-const locationSelect = document.querySelector('[name="location_id"]');
-const equipmentSelect = document.querySelector('[name="equipment_id"]');
-const ticketModalForm = document.getElementById('ticket-form');
-const addClientModalForm = document.getElementById('add-client-modal-form');
-const addLocationModalForm = document.getElementById('add-location-modal-form');
-const addEquipmentModalForm = document.getElementById('add-equipment-modal-form');
-
-// Nuevos elementos para filtros y búsqueda
-const searchInput = document.getElementById('tickets-search');
-const statusFilter = document.getElementById('tickets-filter-status');
-const priorityFilter = document.getElementById('tickets-filter-priority');
-const clientFilter = document.getElementById('tickets-filter-client');
-const clearFiltersBtn = document.getElementById('tickets-clear-filters');
-const emptyState = document.getElementById('tickets-empty-state');
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🔍 TICKETS: Iniciando verificación de autenticación...');
+    
+    // --- DOM Elements (DESPUÉS de que el DOM esté cargado) ---
+    const ticketList = document.getElementById('ticket-list');
+    const clientSelect = document.querySelector('[name="client_id"]');
+    const locationSelect = document.querySelector('[name="location_id"]');
+    const equipmentSelect = document.querySelector('[name="equipment_id"]');
+    const ticketModalForm = document.getElementById('ticket-form');
+    const addClientModalForm = document.getElementById('add-client-modal-form');
+    const addLocationModalForm = document.getElementById('add-location-modal-form');
+    const addEquipmentModalForm = document.getElementById('add-equipment-modal-form');
+
+    // Elementos para filtros y búsqueda
+    const searchInput = document.getElementById('tickets-search');
+    const statusFilter = document.getElementById('tickets-filter-status');
+    const priorityFilter = document.getElementById('tickets-filter-priority');
+    const clientFilter = document.getElementById('tickets-filter-client');
+    const typeFilter = document.getElementById('tickets-filter-type');
+    const clearFiltersBtn = document.getElementById('tickets-clear-filters');
+    const emptyState = document.getElementById('tickets-empty-state');
+
+    // Elementos DOM específicos para gimnación
+    const addGimnacionBtn = document.getElementById('add-gimnacion-btn');
+    const gimnacionModal = document.getElementById('gimnacion-modal');
+    const gimnacionForm = document.getElementById('gimnacion-form');
+    const equipmentScopeContainer = document.getElementById('equipment-scope-container');
+    const checklistTemplateSelect = document.getElementById('checklist-template-select');
+    const checklistPreviewContainer = document.getElementById('checklist-preview-container');
+    const checklistPreview = document.getElementById('checklist-preview');
     
     // Verificar que estamos en la página correcta
     if (!ticketList) {
@@ -70,6 +88,32 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     console.log('✅ TICKETS: Autenticación verificada, inicializando...');
     
+    // Hacer elementos DOM disponibles globalmente para funciones
+    window.ticketsElements = {
+        ticketList,
+        clientSelect,
+        locationSelect, 
+        equipmentSelect,
+        ticketModalForm,
+        addClientModalForm,
+        addLocationModalForm,
+        addEquipmentModalForm,
+        searchInput,
+        statusFilter,
+        priorityFilter,
+        clientFilter,
+        typeFilter,
+        clearFiltersBtn,
+        emptyState,
+        addGimnacionBtn,
+        gimnacionModal,
+        gimnacionForm,
+        equipmentScopeContainer,
+        checklistTemplateSelect,
+        checklistPreviewContainer,
+        checklistPreview
+    };
+    
     // Inicializar la aplicación
     try {
         await fetchAllInitialData();
@@ -84,6 +128,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     const addTicketBtn = document.getElementById('add-ticket-btn');
     if (addTicketBtn) {
         addTicketBtn.addEventListener('click', () => openModal('ticket-modal'));
+        console.log('✅ TICKETS: Event listener para add-ticket-btn configurado');
+    } else {
+        console.warn('⚠️ TICKETS: add-ticket-btn no encontrado');
+    }
+    
+    // Event listener para botón de gimnación
+    if (addGimnacionBtn) {
+        addGimnacionBtn.addEventListener('click', () => {
+            console.log('🏢 TICKETS: Botón gimnación clickeado');
+            openGimnacionModal();
+        });
+        console.log('✅ TICKETS: Event listener para add-gimnacion-btn configurado');
+    } else {
+        console.warn('⚠️ TICKETS: add-gimnacion-btn no encontrado');
+    }
+    
+    // Event listener para filtro de tipo
+    if (typeFilter) {
+        typeFilter.addEventListener('change', applyFilters);
+        console.log('✅ TICKETS: Event listener para type filter configurado');
+    } else {
+        console.warn('⚠️ TICKETS: type filter no encontrado');
     }
     
     // Listeners para cerrar modales usando el nuevo sistema base-modal
@@ -162,6 +228,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // --- Funciones de filtrado y búsqueda ---
 function setupFilters() {
+    const { searchInput, statusFilter, priorityFilter, clientFilter, typeFilter, clearFiltersBtn } = window.ticketsElements || {};
+    
     // Event listeners para filtros
     if (searchInput) {
         searchInput.addEventListener('input', debounce(handleSearchChange, 300));
@@ -174,6 +242,9 @@ function setupFilters() {
     }
     if (clientFilter) {
         clientFilter.addEventListener('change', handleFilterChange);
+    }
+    if (typeFilter) {
+        typeFilter.addEventListener('change', handleFilterChange);
     }
     if (clearFiltersBtn) {
         clearFiltersBtn.addEventListener('click', clearAllFilters);
@@ -207,17 +278,22 @@ function handleFilterChange(event) {
         state.currentFilters.priority = value;
     } else if (filterId === 'tickets-filter-client') {
         state.currentFilters.client = value;
+    } else if (filterId === 'tickets-filter-type') {
+        state.currentFilters.type = value;
     }
     
     applyFilters();
 }
 
 function clearAllFilters() {
+    const { searchInput, statusFilter, priorityFilter, clientFilter, typeFilter } = window.ticketsElements || {};
+    
     state.currentFilters = {
         search: '',
         status: '',
         priority: '',
-        client: ''
+        client: '',
+        type: ''
     };
     
     // Limpiar los inputs
@@ -225,6 +301,7 @@ function clearAllFilters() {
     if (statusFilter) statusFilter.value = '';
     if (priorityFilter) priorityFilter.value = '';
     if (clientFilter) clientFilter.value = '';
+    if (typeFilter) typeFilter.value = '';
     
     applyFilters();
 }
@@ -259,6 +336,13 @@ function applyFilters() {
     if (state.currentFilters.client) {
         filtered = filtered.filter(ticket => 
             ticket.client_id && ticket.client_id.toString() === state.currentFilters.client
+        );
+    }
+    
+    // Filtro por tipo de ticket
+    if (state.currentFilters.type) {
+        filtered = filtered.filter(ticket => 
+            (ticket.ticket_type || 'individual').toLowerCase() === state.currentFilters.type
         );
     }
     
@@ -356,8 +440,32 @@ function formatSLADate(dueDate) {
     return `${diffDays} días`;
 }
 
+function getTicketTypeClass(ticketType) {
+    const type = (ticketType || 'individual').toLowerCase();
+    switch (type) {
+        case 'gimnacion':
+            return 'bg-emerald-100 text-emerald-800';
+        case 'individual':
+        default:
+            return 'bg-blue-100 text-blue-800';
+    }
+}
+
+function getTicketTypeLabel(ticketType) {
+    const type = (ticketType || 'individual').toLowerCase();
+    switch (type) {
+        case 'gimnacion':
+            return 'Gimnación';
+        case 'individual':
+        default:
+            return 'Individual';
+    }
+}
+
 // --- Render Functions ---
 function renderTickets(tickets) {
+    const { ticketList, emptyState } = window.ticketsElements || {};
+    
     if (!ticketList) return;
     
     ticketList.innerHTML = '';
@@ -398,6 +506,11 @@ function renderTickets(tickets) {
                         <div class="tickets-client-location">${ticket.location_name || 'Sin sede'}</div>
                     </div>
                 </div>
+            </td>
+            <td>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTicketTypeClass(ticket.ticket_type)}">
+                    ${getTicketTypeLabel(ticket.ticket_type)}
+                </span>
             </td>
             <td>
                 <span class="tickets-status-badge ${statusClass}">
@@ -456,6 +569,7 @@ function populateSelect(selectElement, items, { placeholder, valueKey = 'id', na
 }
 
 function populateClientFilter() {
+    const { clientFilter } = window.ticketsElements || {};
     if (!clientFilter) return;
     
     // Limpiar opciones actuales excepto la primera
@@ -511,6 +625,8 @@ async function fetchClients() {
         const result = await response.json();
         state.clients = result.data || [];
         
+        // Usar namespace para elementos DOM
+        const { clientSelect } = window.ticketsElements || {};
         if (clientSelect) {
             populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente' });
         }
@@ -533,6 +649,8 @@ async function fetchLocations(clientId) {
         state.locations = result.data || [];
         console.log('Filtered locations for client', clientId, ':', state.locations);
         
+        // Usar namespace para elementos DOM
+        const { locationSelect } = window.ticketsElements || {};
         if (locationSelect) {
             populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede' });
             locationSelect.disabled = false;
@@ -540,6 +658,9 @@ async function fetchLocations(clientId) {
     } catch (error) {
         console.error('Error fetching locations:', error);
         state.locations = [];
+        
+        // Usar namespace para elementos DOM
+        const { locationSelect } = window.ticketsElements || {};
         if (locationSelect) {
             populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
             locationSelect.disabled = false;
@@ -555,6 +676,8 @@ async function fetchEquipment(locationId) {
         const result = await response.json();
         state.equipment = result.data || [];
         
+        // Usar namespace para elementos DOM
+        const { equipmentSelect } = window.ticketsElements || {};
         if (equipmentSelect) {
             populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo' });
             equipmentSelect.disabled = false;
@@ -562,6 +685,9 @@ async function fetchEquipment(locationId) {
     } catch (error) {
         console.error('Error fetching equipment:', error);
         state.equipment = [];
+        
+        // Usar namespace para elementos DOM
+        const { equipmentSelect } = window.ticketsElements || {};
         if (equipmentSelect) {
             populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
             equipmentSelect.disabled = false;
@@ -590,6 +716,9 @@ async function fetchEquipmentModels() {
 function handleClientChange(e) {
     const clientId = e.target.value;
     
+    // Usar namespace para elementos DOM
+    const { locationSelect, equipmentSelect } = window.ticketsElements || {};
+    
     // Limpiar selects dependientes
     if (locationSelect) {
         locationSelect.disabled = true;
@@ -607,6 +736,9 @@ function handleClientChange(e) {
 
 function handleLocationChange(e) {
     const locationId = e.target.value;
+    
+    // Usar namespace para elementos DOM
+    const { equipmentSelect } = window.ticketsElements || {};
     
     // Limpiar select de equipos
     if (equipmentSelect) {
@@ -925,6 +1057,579 @@ async function checkForUrlParams() {
 
     // Limpiar los parámetros de la URL para evitar que se reutilicen al navegar
     window.history.replaceState({}, document.title, window.location.pathname);
+}
+
+// ===========================================
+// FUNCIONES ESPECÍFICAS PARA GIMNACIÓN 
+// ===========================================
+
+/**
+ * Abrir modal de gimnación y cargar datos iniciales
+ */
+async function openGimnacionModal() {
+    try {
+        console.log('🏢 GIMNACION: Abriendo modal de gimnación...');
+        
+        // Obtener elementos DOM
+        const { gimnacionModal, gimnacionForm } = window.ticketsElements || {};
+        
+        if (!gimnacionModal) {
+            console.error('❌ GIMNACION: Modal no encontrado');
+            alert('Error: Modal de gimnación no disponible');
+            return;
+        }
+        
+        // Limpiar estado previo
+        state.gimnacion.selectedEquipment = [];
+        state.gimnacion.selectedTemplate = null;
+        
+        // Cargar datos necesarios
+        await loadGimnacionData();
+        
+        // Mostrar modal usando el patrón base-modal
+        gimnacionModal.classList.add('is-open');
+        
+        // Activar primera pestaña
+        activateGimnacionTab('gimnacion-general');
+        
+        // Setup event listeners específicos
+        setupGimnacionEventListeners();
+        
+        lucide.createIcons();
+        
+        console.log('✅ GIMNACION: Modal de gimnación abierto correctamente');
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error al abrir modal:', error);
+        alert('Error al abrir el modal de gimnación');
+    }
+}
+
+/**
+ * Cargar datos necesarios para gimnación
+ */
+async function loadGimnacionData() {
+    try {
+        // Cargar templates de checklist si no están cargados
+        if (state.gimnacion.checklistTemplates.length === 0) {
+            await fetchChecklistTemplates();
+        }
+        
+        // Cargar contratos si no están cargados
+        if (state.gimnacion.contracts.length === 0) {
+            await fetchContracts();
+        }
+        
+        // Poblar selectores
+        populateGimnacionSelects();
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando datos:', error);
+        throw error;
+    }
+}
+
+/**
+ * Poblar selectores del modal de gimnación
+ */
+function populateGimnacionSelects() {
+    const { gimnacionForm, checklistTemplateSelect } = window.ticketsElements || {};
+    
+    if (!gimnacionForm) {
+        console.warn('⚠️ GIMNACION: gimnacionForm no disponible');
+        return;
+    }
+    
+    // Poblar selector de clientes
+    const clientSelect = gimnacionForm.querySelector('[name="client_id"]');
+    if (clientSelect && state.clients.length > 0) {
+        clientSelect.innerHTML = '<option value="">Seleccione un cliente</option>';
+        state.clients.forEach(client => {
+            clientSelect.innerHTML += `<option value="${client.id}">${client.name}</option>`;
+        });
+    }
+    
+    // Poblar selector de contratos
+    const contractSelect = gimnacionForm.querySelector('[name="contract_id"]');
+    if (contractSelect && state.gimnacion.contracts.length > 0) {
+        contractSelect.innerHTML = '<option value="">Sin contrato específico</option>';
+        state.gimnacion.contracts.forEach(contract => {
+            contractSelect.innerHTML += `<option value="${contract.id}">${contract.contract_name} (${contract.client_name})</option>`;
+        });
+    }
+    
+    // Poblar selector de templates de checklist
+    if (checklistTemplateSelect && state.gimnacion.checklistTemplates.length > 0) {
+        checklistTemplateSelect.innerHTML = '<option value="">Seleccione un template...</option>';
+        state.gimnacion.checklistTemplates.forEach(template => {
+            checklistTemplateSelect.innerHTML += `<option value="${template.id}">${template.template_name} (${template.item_count} items)</option>`;
+        });
+    }
+}
+
+/**
+ * Configurar event listeners específicos del modal gimnación
+ */
+function setupGimnacionEventListeners() {
+    const { gimnacionModal, gimnacionForm, checklistTemplateSelect } = window.ticketsElements || {};
+    
+    if (!gimnacionModal || !gimnacionForm) {
+        console.warn('⚠️ GIMNACION: Elementos de modal no disponibles para event listeners');
+        return;
+    }
+    
+    // Cerrar modal
+    const closeBtn = gimnacionModal.querySelector('.base-modal-close');
+    const cancelBtn = gimnacionModal.querySelector('.base-btn-cancel');
+    
+    if (closeBtn) closeBtn.addEventListener('click', closeGimnacionModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeGimnacionModal);
+    
+    // Tabs de navegación
+    const tabButtons = gimnacionModal.querySelectorAll('.base-tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+            activateGimnacionTab(tabName);
+        });
+    });
+    
+    // Cambios de cliente y sede
+    const clientSelect = gimnacionForm.querySelector('[name="client_id"]');
+    const locationSelect = gimnacionForm.querySelector('[name="location_id"]');
+    
+    if (clientSelect) {
+        clientSelect.addEventListener('change', onGimnacionClientChange);
+    }
+    
+    if (locationSelect) {
+        locationSelect.addEventListener('change', onGimnacionLocationChange);
+    }
+    
+    // Botones de selección de equipos
+    const selectAllBtn = document.getElementById('select-all-equipment');
+    const deselectAllBtn = document.getElementById('deselect-all-equipment');
+    
+    if (selectAllBtn) selectAllBtn.addEventListener('click', selectAllEquipment);
+    if (deselectAllBtn) deselectAllBtn.addEventListener('click', deselectAllEquipment);
+    
+    // Template de checklist
+    if (checklistTemplateSelect) {
+        checklistTemplateSelect.addEventListener('change', onTemplateChange);
+    }
+    
+    // Submit del formulario
+    if (gimnacionForm) {
+        gimnacionForm.addEventListener('submit', handleGimnacionSubmit);
+    }
+}
+
+/**
+ * Activar pestaña específica en modal gimnación
+ */
+function activateGimnacionTab(tabName) {
+    const { gimnacionModal } = window.ticketsElements || {};
+    
+    if (!gimnacionModal) return;
+    
+    // Desactivar todas las pestañas
+    gimnacionModal.querySelectorAll('.base-tab-button').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.tab === tabName) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Mostrar contenido de pestaña correspondiente
+    gimnacionModal.querySelectorAll('.base-tab-content').forEach(content => {
+        content.classList.remove('active');
+        if (content.id === `tab-${tabName}`) {
+            content.classList.add('active');
+        }
+    });
+}
+
+/**
+ * Manejar cambio de cliente en gimnación
+ */
+async function onGimnacionClientChange(event) {
+    const clientId = event.target.value;
+    const { gimnacionForm, equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!gimnacionForm) return;
+    
+    const locationSelect = gimnacionForm.querySelector('[name="location_id"]');
+    if (!locationSelect) return;
+    
+    // Limpiar selector de sede
+    locationSelect.innerHTML = '<option value="">Seleccione una sede</option>';
+    
+    // Limpiar equipos
+    if (equipmentScopeContainer) {
+        equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Seleccione una sede para ver los equipos</p>';
+    }
+    
+    if (!clientId) return;
+    
+    try {
+        // Cargar sedes del cliente usando la función existente
+        await fetchLocations(clientId);
+        
+        // Las sedes ya están en state.locations, ahora llenar el select
+        state.locations.forEach(location => {
+            locationSelect.innerHTML += `<option value="${location.id}">${location.name}</option>`;
+        });
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando sedes:', error);
+    }
+}
+
+/**
+ * Manejar cambio de sede en gimnación
+ */
+async function onGimnacionLocationChange(event) {
+    const locationId = event.target.value;
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer) return;
+    
+    if (!locationId) {
+        equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Seleccione una sede para ver los equipos</p>';
+        return;
+    }
+    
+    try {
+        // Mostrar loading
+        equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Cargando equipos...</p>';
+        
+        // Cargar equipos de la sede
+        const equipment = await fetchEquipmentByLocation(locationId);
+        
+        // Renderizar equipos con checkboxes
+        renderEquipmentScope(equipment);
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando equipos:', error);
+        equipmentScopeContainer.innerHTML = '<p class="text-red-500 text-center py-4">Error cargando equipos</p>';
+    }
+}
+
+/**
+ * Renderizar lista de equipos con checkboxes
+ */
+function renderEquipmentScope(equipment) {
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer || !equipment.length) {
+        if (equipmentScopeContainer) {
+            equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay equipos disponibles en esta sede</p>';
+        }
+        return;
+    }
+    
+    let html = '';
+    
+    equipment.forEach(equip => {
+        html += `
+            <div class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                <input 
+                    type="checkbox" 
+                    id="equip-${equip.id}" 
+                    value="${equip.id}"
+                    class="equipment-checkbox mr-3 h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
+                    data-equipment='${JSON.stringify(equip)}'
+                >
+                <label for="equip-${equip.id}" class="flex-1 cursor-pointer">
+                    <div class="font-medium text-gray-900">${equip.name}</div>
+                    <div class="text-sm text-gray-500">
+                        ${equip.model_name || 'Sin modelo'} • 
+                        ${equip.category_name || 'Sin categoría'} • 
+                        ${equip.serial_number || 'S/N no disponible'}
+                    </div>
+                </label>
+            </div>
+        `;
+    });
+    
+    equipmentScopeContainer.innerHTML = html;
+    
+    // Agregar event listeners a los checkboxes
+    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedEquipment);
+    });
+}
+
+/**
+ * Actualizar lista de equipos seleccionados
+ */
+function updateSelectedEquipment() {
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer) return;
+    
+    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox:checked');
+    state.gimnacion.selectedEquipment = [];
+    
+    checkboxes.forEach(checkbox => {
+        const equipmentData = JSON.parse(checkbox.dataset.equipment);
+        state.gimnacion.selectedEquipment.push(equipmentData);
+    });
+    
+    console.log('📋 GIMNACION: Equipos seleccionados:', state.gimnacion.selectedEquipment.length);
+}
+
+/**
+ * Seleccionar todos los equipos
+ */
+function selectAllEquipment() {
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer) return;
+    
+    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelectedEquipment();
+}
+
+/**
+ * Deseleccionar todos los equipos
+ */
+function deselectAllEquipment() {
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer) return;
+    
+    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelectedEquipment();
+}
+
+/**
+ * Manejar cambio de template de checklist
+ */
+async function onTemplateChange(event) {
+    const templateId = event.target.value;
+    const { checklistPreviewContainer } = window.ticketsElements || {};
+    
+    if (!checklistPreviewContainer) return;
+    
+    if (!templateId) {
+        checklistPreviewContainer.classList.add('hidden');
+        state.gimnacion.selectedTemplate = null;
+        return;
+    }
+    
+    try {
+        // Cargar items del template
+        const templateItems = await fetchTemplateItems(templateId);
+        
+        // Encontrar el template seleccionado
+        const template = state.gimnacion.checklistTemplates.find(t => t.id == templateId);
+        state.gimnacion.selectedTemplate = template;
+        
+        // Mostrar vista previa
+        renderChecklistPreview(template, templateItems);
+        checklistPreviewContainer.classList.remove('hidden');
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando template:', error);
+    }
+}
+
+/**
+ * Renderizar vista previa del checklist
+ */
+function renderChecklistPreview(template, items) {
+    const { checklistPreview } = window.ticketsElements || {};
+    
+    if (!checklistPreview) return;
+    
+    let html = `<div class="mb-2 font-medium text-blue-600">${template.template_name}</div>`;
+    
+    items.forEach((item, index) => {
+        html += `
+            <div class="flex items-center py-1">
+                <span class="text-sm text-gray-600 w-6">${index + 1}.</span>
+                <span class="text-sm text-gray-900">${item.item_description}</span>
+                ${item.is_required ? '<span class="ml-2 text-xs bg-red-100 text-red-600 px-1 rounded">Obligatorio</span>' : ''}
+            </div>
+        `;
+    });
+    
+    checklistPreview.innerHTML = html;
+}
+
+/**
+ * Cerrar modal de gimnación
+ */
+function closeGimnacionModal() {
+    const { gimnacionModal, gimnacionForm } = window.ticketsElements || {};
+    
+    if (gimnacionModal) {
+        gimnacionModal.classList.remove('is-open');
+        
+        // Limpiar formulario
+        if (gimnacionForm) {
+            gimnacionForm.reset();
+        }
+        
+        // Limpiar estado
+        state.gimnacion.selectedEquipment = [];
+        state.gimnacion.selectedTemplate = null;
+        
+        console.log('✅ GIMNACION: Modal cerrado');
+    }
+}
+
+/**
+ * Manejar envío del formulario de gimnación
+ */
+async function handleGimnacionSubmit(event) {
+    event.preventDefault();
+    
+    const { gimnacionForm, checklistTemplateSelect } = window.ticketsElements || {};
+    
+    if (!gimnacionForm) {
+        alert('Error: Formulario no disponible');
+        return;
+    }
+    
+    try {
+        // Validaciones
+        if (state.gimnacion.selectedEquipment.length === 0) {
+            alert('Debe seleccionar al menos un equipo para el servicio');
+            activateGimnacionTab('gimnacion-scope');
+            return;
+        }
+        
+        // Recopilar datos del formulario
+        const formData = new FormData(gimnacionForm);
+        const ticketData = {
+            title: formData.get('title'),
+            description: formData.get('description'),
+            client_id: parseInt(formData.get('client_id')),
+            location_id: parseInt(formData.get('location_id')),
+            contract_id: formData.get('contract_id') || null,
+            priority: formData.get('priority'),
+            ticket_type: 'gimnacion',
+            equipment_ids: state.gimnacion.selectedEquipment.map(e => e.id),
+            checklist_template_id: checklistTemplateSelect?.value || null
+        };
+        
+        console.log('🚀 GIMNACION: Creando ticket de gimnación...', ticketData);
+        
+        // Crear ticket de gimnación
+        const response = await authenticatedFetch(`${API_URL}/tickets/gimnacion`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ticketData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Error al crear ticket de gimnación');
+        }
+        
+        const result = await response.json();
+        console.log('✅ GIMNACION: Ticket creado exitosamente:', result);
+        
+        // Cerrar modal
+        closeGimnacionModal();
+        
+        // Refrescar lista de tickets
+        await fetchTickets();
+        renderTickets(state.filteredTickets);
+        updateStatistics();
+        
+        alert('Ticket de gimnación creado exitosamente');
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error al crear ticket:', error);
+        alert(`Error al crear el ticket de gimnación: ${error.message}`);
+    }
+}
+
+// ===========================================
+// FUNCIONES API ESPECÍFICAS PARA GIMNACIÓN
+// ===========================================
+
+/**
+ * Obtener templates de checklist desde la API
+ */
+async function fetchChecklistTemplates() {
+    try {
+        const response = await authenticatedFetch(`${API_URL}/gimnacion/checklist-templates`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const result = await response.json();
+        state.gimnacion.checklistTemplates = result.data || [];
+        
+        console.log('✅ GIMNACION: Templates de checklist cargados:', state.gimnacion.checklistTemplates.length);
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando templates:', error);
+        state.gimnacion.checklistTemplates = [];
+        throw error;
+    }
+}
+
+/**
+ * Obtener items de un template de checklist
+ */
+async function fetchTemplateItems(templateId) {
+    try {
+        const response = await authenticatedFetch(`${API_URL}/gimnacion/checklist-templates/${templateId}/items`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const result = await response.json();
+        return result.data || [];
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando items del template:', error);
+        throw error;
+    }
+}
+
+/**
+ * Obtener contratos para selector
+ */
+async function fetchContracts() {
+    try {
+        const response = await authenticatedFetch(`${API_URL}/contracts`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const result = await response.json();
+        state.gimnacion.contracts = result.data || [];
+        
+        console.log('✅ GIMNACION: Contratos cargados:', state.gimnacion.contracts.length);
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando contratos:', error);
+        state.gimnacion.contracts = [];
+    }
+}
+
+/**
+ * Obtener equipos de una ubicación usando el nuevo endpoint
+ */
+async function fetchEquipmentByLocation(locationId) {
+    try {
+        const response = await authenticatedFetch(`${API_URL}/locations/${locationId}/equipment`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const result = await response.json();
+        return result.data || [];
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando equipos de la sede:', error);
+        throw error;
+    }
 }
 
 function closeModal(modalId) {

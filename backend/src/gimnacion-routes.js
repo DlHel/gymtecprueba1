@@ -4,8 +4,7 @@
 // Descripción: Endpoints específicos para tickets de gimnación
 // =====================================================
 
-const express = require('express');
-const router = express.Router();
+// NO ES UN ROUTER - Son endpoints directos para integrar en server-clean.js
 
 // ====================================================
 // GIMNACIÓN - ENDPOINTS PRINCIPALES

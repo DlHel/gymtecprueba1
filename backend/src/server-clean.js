@@ -939,59 +939,6 @@ app.delete("/api/locations/:id", (req, res) => {
     });
 });
 
-// GET equipment for a specific location
-app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) => {
-    const { locationId } = req.params;
-    const sql = `
-        SELECT 
-            e.id,
-            e.custom_id,
-            e.location_id,
-            e.model_id,
-            e.acquisition_date,
-            e.last_maintenance_date,
-            e.notes,
-            e.created_at,
-            e.updated_at,
-            -- Mapear campos correctamente para el frontend
-            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre') as name,
-            CASE 
-                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
-                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
-                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
-                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
-                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
-            END as type,
-            COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
-            COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
-            COALESCE(NULLIF(e.serial_number, ''), 'No asignado') as serial_number,
-            -- Mantener campos originales para referencia
-            em.name as model_name,
-            em.brand as model_brand
-        FROM equipment e
-        LEFT JOIN equipmentmodels em ON e.model_id = em.id
-        WHERE e.location_id = ?
-        ORDER BY 
-            CASE 
-                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
-                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
-                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
-                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
-                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
-            END, 
-            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre')
-    `;
-    db.all(sql, [locationId], (err, rows) => {
-        if (err) {
-            console.error('Error fetching equipment for location:', err);
-            res.status(500).json({ error: err.message });
-            return;
-        }
-        console.log(`✅ Equipment found for location ${locationId}:`, rows.length, 'items');
-        res.json(rows);
-    });
-});
-
 // GET all equipment
 app.get('/api/equipment', authenticateToken, (req, res) => {
     const sql = `
@@ -2141,6 +2088,362 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
             });
         });
     });
+});
+
+// ===================================================================
+// RUTAS DE TICKETS DE GIMNACIÓN - MANTENIMIENTO PREVENTIVO MASIVO
+// ===================================================================
+
+// 1. GET /api/locations/:id/equipment - Obtener equipos de una sede con info de contrato
+app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) => {
+    try {
+        const { locationId } = req.params;
+        const { contractId } = req.query;
+        
+        let sql = `
+            SELECT 
+                e.id,
+                e.name,
+                e.type,
+                e.brand,
+                e.model,
+                e.serial_number,
+                e.custom_id,
+                em.category,
+                CASE 
+                    WHEN ce.equipment_id IS NOT NULL THEN true 
+                    ELSE false 
+                END as is_in_contract
+            FROM Equipment e
+            LEFT JOIN EquipmentModels em ON e.model_id = em.id
+            LEFT JOIN Contract_Equipment ce ON e.id = ce.equipment_id AND ce.contract_id = ?
+            WHERE e.location_id = ?
+            ORDER BY e.name
+        `;
+        
+        const params = contractId ? [contractId, locationId] : [null, locationId];
+        
+        db.all(sql, params, (err, rows) => {
+            if (err) {
+                console.error('Error fetching location equipment:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            res.json({
+                message: 'success',
+                data: rows,
+                metadata: {
+                    locationId: parseInt(locationId),
+                    contractId: contractId ? parseInt(contractId) : null,
+                    totalEquipment: rows.length,
+                    contractEquipment: rows.filter(r => r.is_in_contract).length
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error('Location equipment endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 2. POST /api/tickets/gimnacion - Crear ticket de gimnación
+app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
+    try {
+        const {
+            title,
+            description,
+            priority = 'Media',
+            client_id,
+            location_id,
+            contract_id,
+            equipment_scope, // Array de { equipment_id, is_included, exclusion_reason }
+            technicians,     // Array de { technician_id, role }
+            checklist_template_id,
+            custom_checklist // Array de { item_text, item_order, is_required, category }
+        } = req.body;
+        
+        // Validaciones básicas
+        if (!title || !client_id || !location_id || !equipment_scope || !Array.isArray(equipment_scope)) {
+            return res.status(400).json({ 
+                error: 'Faltan campos requeridos',
+                required: ['title', 'client_id', 'location_id', 'equipment_scope']
+            });
+        }
+        
+        // Usar callback pattern para transacciones
+        const createTicketSql = `
+            INSERT INTO Tickets (
+                title, description, status, priority, ticket_type,
+                client_id, location_id, contract_id, assigned_technician_id,
+                created_at, updated_at
+            ) VALUES (?, ?, 'Abierto', ?, 'gimnacion', ?, ?, ?, ?, datetime('now'), datetime('now'))
+        `;
+        
+        const mainTechnician = technicians && technicians.length > 0 ? technicians[0].technician_id : null;
+        
+        db.run(createTicketSql, [
+            title, description, priority, client_id, location_id, contract_id, mainTechnician
+        ], function(err) {
+            if (err) {
+                console.error('Error creating gimnacion ticket:', err);
+                return res.status(500).json({ error: 'Error creating ticket' });
+            }
+            
+            const ticketId = this.lastID;
+            let completedOperations = 0;
+            let totalOperations = equipment_scope.length + (technicians ? technicians.length : 0);
+            let hasErrors = false;
+            
+            // Función para completar la operación
+            const completeOperation = () => {
+                completedOperations++;
+                if (completedOperations === totalOperations && !hasErrors) {
+                    res.status(201).json({
+                        message: 'Ticket de gimnación creado exitosamente',
+                        data: {
+                            ticket_id: ticketId,
+                            title: title,
+                            equipment_count: equipment_scope.length,
+                            included_equipment: equipment_scope.filter(e => e.is_included).length,
+                            technicians_count: technicians ? technicians.length : 0
+                        }
+                    });
+                }
+            };
+            
+            // Insertar scope de equipos
+            equipment_scope.forEach(scope => {
+                const scopeSql = `
+                    INSERT INTO TicketEquipmentScope (
+                        ticket_id, equipment_id, is_included, exclusion_reason, 
+                        assigned_technician_id, status
+                    ) VALUES (?, ?, ?, ?, ?, 'Pendiente')
+                `;
+                
+                db.run(scopeSql, [
+                    ticketId,
+                    scope.equipment_id,
+                    scope.is_included,
+                    scope.exclusion_reason,
+                    scope.assigned_technician_id || mainTechnician
+                ], (err) => {
+                    if (err && !hasErrors) {
+                        hasErrors = true;
+                        console.error('Error inserting equipment scope:', err);
+                        return res.status(500).json({ error: 'Error creating equipment scope' });
+                    }
+                    if (!hasErrors) completeOperation();
+                });
+            });
+            
+            // Insertar técnicos asignados
+            if (technicians && technicians.length > 0) {
+                technicians.forEach(tech => {
+                    const techSql = `
+                        INSERT INTO TicketTechnicians (
+                            ticket_id, technician_id, role, assigned_by
+                        ) VALUES (?, ?, ?, ?)
+                    `;
+                    
+                    db.run(techSql, [
+                        ticketId, tech.technician_id, tech.role || 'Asistente', req.user.id
+                    ], (err) => {
+                        if (err && !hasErrors) {
+                            hasErrors = true;
+                            console.error('Error inserting technician:', err);
+                            return res.status(500).json({ error: 'Error assigning technicians' });
+                        }
+                        if (!hasErrors) completeOperation();
+                    });
+                });
+            } else {
+                // Si no hay técnicos, ajustar el total de operaciones
+                totalOperations = equipment_scope.length;
+            }
+            
+            // Si no hay operaciones pendientes, responder inmediatamente
+            if (totalOperations === 0) {
+                res.status(201).json({
+                    message: 'Ticket de gimnación creado exitosamente',
+                    data: {
+                        ticket_id: ticketId,
+                        title: title,
+                        equipment_count: 0,
+                        included_equipment: 0,
+                        technicians_count: 0
+                    }
+                });
+            }
+        });
+        
+    } catch (error) {
+        console.error('Gimnacion ticket creation error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 3. GET /api/tickets/:id/gimnacion-details - Obtener detalles completos de ticket de gimnación
+app.get('/api/tickets/:ticketId/gimnacion-details', authenticateToken, (req, res) => {
+    try {
+        const { ticketId } = req.params;
+        
+        // Query principal del ticket
+        const ticketSql = `
+            SELECT t.*, c.name as client_name, l.name as location_name,
+                   contract.id as contract_id,
+                   u.username as assigned_technician
+            FROM Tickets t
+            LEFT JOIN Clients c ON t.client_id = c.id
+            LEFT JOIN Locations l ON t.location_id = l.id
+            LEFT JOIN Contracts contract ON t.contract_id = contract.id
+            LEFT JOIN Users u ON t.assigned_technician_id = u.id
+            WHERE t.id = ? AND t.ticket_type = 'gimnacion'
+        `;
+        
+        db.get(ticketSql, [ticketId], (err, ticket) => {
+            if (err) {
+                console.error('Error fetching gimnacion ticket:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            if (!ticket) {
+                return res.status(404).json({ error: 'Ticket de gimnación no encontrado' });
+            }
+            
+            // Obtener scope de equipos
+            const equipmentSql = `
+                SELECT tes.*, e.name as equipment_name, e.type, e.brand, e.model,
+                       u.username as assigned_technician_name
+                FROM TicketEquipmentScope tes
+                JOIN Equipment e ON tes.equipment_id = e.id
+                LEFT JOIN Users u ON tes.assigned_technician_id = u.id
+                WHERE tes.ticket_id = ?
+                ORDER BY e.name
+            `;
+            
+            db.all(equipmentSql, [ticketId], (err, equipment) => {
+                if (err) {
+                    console.error('Error fetching equipment scope:', err);
+                    return res.status(500).json({ error: 'Database error' });
+                }
+                
+                // Obtener técnicos asignados
+                const techniciansSql = `
+                    SELECT tt.*, u.username, u.email
+                    FROM TicketTechnicians tt
+                    JOIN Users u ON tt.technician_id = u.id
+                    WHERE tt.ticket_id = ?
+                `;
+                
+                db.all(techniciansSql, [ticketId], (err, technicians) => {
+                    if (err) {
+                        console.error('Error fetching technicians:', err);
+                        return res.status(500).json({ error: 'Database error' });
+                    }
+                    
+                    // Obtener checklist
+                    const checklistSql = `
+                        SELECT * FROM TicketGimnacionChecklist
+                        WHERE ticket_id = ?
+                        ORDER BY item_order
+                    `;
+                    
+                    db.all(checklistSql, [ticketId], (err, checklist) => {
+                        if (err) {
+                            console.error('Error fetching checklist:', err);
+                            return res.status(500).json({ error: 'Database error' });
+                        }
+                        
+                        res.json({
+                            message: 'success',
+                            data: {
+                                ticket,
+                                equipment_scope: equipment,
+                                technicians,
+                                checklist,
+                                summary: {
+                                    total_equipment: equipment.length,
+                                    included_equipment: equipment.filter(e => e.is_included).length,
+                                    excluded_equipment: equipment.filter(e => !e.is_included).length,
+                                    completed_equipment: equipment.filter(e => e.status === 'Completado').length,
+                                    total_technicians: technicians.length,
+                                    checklist_progress: checklist.length > 0 
+                                        ? Math.round((checklist.filter(c => c.is_completed).length / checklist.length) * 100)
+                                        : 0
+                                }
+                            }
+                        });
+                    });
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('Gimnacion details endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 4. GET /api/gimnacion/checklist-templates - Obtener templates de checklist
+app.get('/api/gimnacion/checklist-templates', authenticateToken, (req, res) => {
+    try {
+        const sql = `
+            SELECT t.*, 
+                   COUNT(i.id) as items_count,
+                   u.username as created_by_username
+            FROM GimnacionChecklistTemplates t
+            LEFT JOIN GimnacionChecklistItems i ON t.id = i.template_id
+            LEFT JOIN Users u ON t.created_by = u.id
+            GROUP BY t.id
+            ORDER BY t.is_default DESC, t.name
+        `;
+        
+        db.all(sql, [], (err, templates) => {
+            if (err) {
+                console.error('Error fetching checklist templates:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            res.json({
+                message: 'success',
+                data: templates
+            });
+        });
+        
+    } catch (error) {
+        console.error('Checklist templates endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 5. GET /api/gimnacion/checklist-templates/:id/items - Obtener items de un template
+app.get('/api/gimnacion/checklist-templates/:templateId/items', authenticateToken, (req, res) => {
+    try {
+        const { templateId } = req.params;
+        
+        const sql = `
+            SELECT * FROM GimnacionChecklistItems
+            WHERE template_id = ?
+            ORDER BY item_order, id
+        `;
+        
+        db.all(sql, [templateId], (err, items) => {
+            if (err) {
+                console.error('Error fetching template items:', err);
+                return res.status(500).json({ error: 'Database error' });
+            }
+            
+            res.json({
+                message: 'success',
+                data: items
+            });
+        });
+        
+    } catch (error) {
+        console.error('Template items endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // ===================================================================
