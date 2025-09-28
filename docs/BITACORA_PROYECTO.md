@@ -22,7 +22,60 @@
 
 ## 📅 HISTORIAL CRONOLÓGICO DE DESARROLLO
 
+### [2025-09-28 - 21:00] - ✅ CORRECCIÓN CRÍTICA: Sistema de Gimnación 100% Operativo
+
+#### 🐛 Problema Crítico Resuelto
+
+**Error HTTP 500 en Carga de Equipos por Sede**:
+
+- **Root Cause**: Consulta SQL en endpoint `/api/locations/{id}/equipment` intentaba acceder a columna inexistente `em.subcategory` en tabla `EquipmentModels`
+- **Síntoma**: Error `Unknown column 'em.subcategory' in 'field list'` al seleccionar sede en modal de gimnación
+- **Impacto**: Sistema de gimnación completamente no funcional
+
+#### 🔧 Solución Técnica Implementada
+
+**Archivo Corregido**: `backend/src/server-clean.js` (línea ~2113)
+
+**Consulta SQL Corregida**:
+
+```sql
+-- ❌ ANTES (Consulta errónea):
+SELECT e.id, e.name, e.type, e.brand, e.model, e.serial_number, e.custom_id,
+       em.category, em.subcategory,  -- ❌ subcategory NO EXISTE
+       CASE WHEN ce.equipment_id IS NOT NULL THEN true ELSE false END as is_in_contract
+FROM Equipment e
+LEFT JOIN EquipmentModels em ON e.model_id = em.id...
+
+-- ✅ DESPUÉS (Consulta corregida):
+SELECT e.id, e.name, e.type, e.brand, e.model, e.serial_number, e.custom_id,
+       em.category,  -- ✅ Solo category existe
+       CASE WHEN ce.equipment_id IS NOT NULL THEN true ELSE false END as is_in_contract
+FROM Equipment e
+LEFT JOIN EquipmentModels em ON e.model_id = em.id...
+```
+
+#### ✅ Verificación de Base de Datos
+
+**Tabla `EquipmentModels` confirmada con estructura**:
+
+- ✅ `category` (ENUM: 'Cardio','Fuerza','Funcional','Accesorios')
+- ❌ `subcategory` (NO EXISTE)
+
+#### 🎯 Resultados Post-Corrección
+
+- ✅ Sistema de gimnación 100% funcional
+- ✅ Carga de equipos por sede sin errores
+- ✅ Modal de gimnación operativo completamente
+- ✅ Workflow de selección cliente → sede → equipos → checklist funcional
+- ✅ Backend y frontend comunicándose correctamente
+
+**Commit**: `b0505ab` - "🏢 FEAT: Sistema de Gimnación Completamente Funcional"  
+**Files Changed**: 8 files, 1879 insertions(+), 78 deletions(-)
+
+---
+
 ### [2025-09-28] - 🚀 SISTEMA COMPLETO DE TICKETS DE GIMNACIÓN v1.0
+
 #### 🎯 Funcionalidad Implementada
 **Descripción**: Sistema avanzado de tickets de mantenimiento preventivo masivo para todas las máquinas de una sede, a diferencia de tickets individuales. Incluye integración con contratos, múltiples técnicos, checklist personalizable y reportes específicos.
 

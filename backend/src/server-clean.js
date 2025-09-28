@@ -2103,22 +2103,22 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
         let sql = `
             SELECT 
                 e.id,
-                e.name,
-                e.type,
-                e.brand,
-                e.model,
-                e.serial_number,
+                COALESCE(NULLIF(e.name, ''), em.name) as name,
+                COALESCE(NULLIF(e.type, ''), 'Equipment') as type,
+                COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
+                COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
+                COALESCE(NULLIF(e.serial_number, ''), 'S/N no disponible') as serial_number,
                 e.custom_id,
-                em.category,
+                COALESCE(em.category, 'Sin categoría') as category,
                 CASE 
                     WHEN ce.equipment_id IS NOT NULL THEN true 
                     ELSE false 
                 END as is_in_contract
             FROM Equipment e
             LEFT JOIN EquipmentModels em ON e.model_id = em.id
-            LEFT JOIN Contract_Equipment ce ON e.id = ce.equipment_id AND ce.contract_id = ?
+            LEFT JOIN contract_equipment ce ON e.id = ce.equipment_id AND ce.contract_id = ?
             WHERE e.location_id = ?
-            ORDER BY e.name
+            ORDER BY COALESCE(NULLIF(e.name, ''), em.name)
         `;
         
         const params = contractId ? [contractId, locationId] : [null, locationId];
