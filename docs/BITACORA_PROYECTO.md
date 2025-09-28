@@ -22,6 +22,77 @@
 
 ## 📅 HISTORIAL CRONOLÓGICO DE DESARROLLO
 
+### [2025-09-28 - 21:30] - 🔧 FIX CRÍTICO: Sistema de Carga de Equipos Completamente Restaurado
+
+#### 🐛 Problema Crítico Identificado y Resuelto
+
+**Equipos mostraban datos vacíos**: "Sin modelo • Sin categoría • S/N no disponible"
+
+**Diagnóstico Completo Realizado**:
+
+- **Tabla Equipment**: Campos `name`, `type`, `brand`, `model`, `serial_number` como cadenas vacías (`''`) no `NULL`
+- **Tabla EquipmentModels**: Datos correctos disponibles pero no utilizados por consulta SQL deficiente
+- **Error de tabla**: Referencia incorrecta `Contract_Equipment` vs `contract_equipment` real
+- **Consulta SQL**: No manejaba correctamente cadenas vacías vs NULL
+
+#### 🔧 Solución Técnica Completa Implementada
+
+**Archivo Corregido**: `backend/src/server-clean.js` (endpoint `/api/locations/:id/equipment`)
+
+**Nueva Consulta SQL Optimizada**:
+
+```sql
+SELECT 
+    e.id,
+    COALESCE(NULLIF(e.name, ''), em.name) as name,
+    COALESCE(NULLIF(e.type, ''), 'Equipment') as type,
+    COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
+    COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
+    COALESCE(NULLIF(e.serial_number, ''), 'S/N no disponible') as serial_number,
+    e.custom_id,
+    COALESCE(em.category, 'Sin categoría') as category,
+    CASE 
+        WHEN ce.equipment_id IS NOT NULL THEN true 
+        ELSE false 
+    END as is_in_contract
+FROM Equipment e
+LEFT JOIN EquipmentModels em ON e.model_id = em.id
+LEFT JOIN contract_equipment ce ON e.id = ce.equipment_id AND ce.contract_id = ?
+WHERE e.location_id = ?
+ORDER BY COALESCE(NULLIF(e.name, ''), em.name)
+```
+
+**Técnica Clave**: `COALESCE(NULLIF(campo_vacio, ''), campo_fallback)` convierte cadenas vacías en NULL y luego usa el fallback.
+
+#### 🧪 Scripts de Diagnóstico Creados
+
+- **`debug-equipment-data.js`**: Diagnóstico completo de estructura y datos de Equipment/EquipmentModels
+- **`test-corrected-query.js`**: Prueba en vivo de la consulta corregida con datos reales
+- **`check-contract-tables.js`**: Verificación de existencia de tablas relacionadas con contratos
+
+#### ✅ Resultados Post-Corrección Verificados
+
+**Equipos ahora muestran datos reales**:
+
+- ✅ "Bicicleta CXP" (Matrix MTX-CXP, Cardio)
+- ✅ "Adjustable Bench" (Life Fitness LF-AB, Fuerza)  
+- ✅ "Battle Ropes 15m" (Rogue RG-ROPE15, Funcional)
+- ✅ "Banco Press Olímpico" (Rogue RG-BENCH, Fuerza)
+- ✅ "Bosu Ball" (Bosu BOSU-PRO, Funcional)
+
+**Sistema Completamente Operativo**:
+
+- ✅ Sistema de gimnación 100% funcional
+- ✅ Eliminados errores HTTP 500 al cargar equipos por sede
+- ✅ Workflow completo: cliente → sede → equipos → checklist
+- ✅ UX mejorada con nombres descriptivos y categorías correctas
+- ✅ Base técnica sólida para desarrollo futuro
+
+**Commit**: `e582791` - "🔧 FIX CRÍTICO: Corrección completa del sistema de carga de equipos por sede"  
+**Files Changed**: 5 files, 344 insertions(+), 8 deletions(-)
+
+---
+
 ### [2025-09-28 - 21:00] - ✅ CORRECCIÓN CRÍTICA: Sistema de Gimnación 100% Operativo
 
 #### 🐛 Problema Crítico Resuelto
