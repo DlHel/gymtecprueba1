@@ -88,6 +88,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     console.log('✅ TICKETS: Autenticación verificada, inicializando...');
     
+    // Obtener referencias a nuevos elementos del checklist
+    const checklistEditableContainer = document.getElementById('checklist-editable-container');
+    const checklistEditableItems = document.getElementById('checklist-editable-items');
+    
     // Hacer elementos DOM disponibles globalmente para funciones
     window.ticketsElements = {
         ticketList,
@@ -111,7 +115,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         equipmentScopeContainer,
         checklistTemplateSelect,
         checklistPreviewContainer,
-        checklistPreview
+        checklistPreview,
+        checklistEditableContainer,
+        checklistEditableItems
     };
     
     // Inicializar la aplicación
@@ -119,6 +125,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         await fetchAllInitialData();
         checkForUrlParams();
         setupFilters();
+        
+        // Inicializar editor de checklist
+        if (typeof initChecklistEditor === 'function') {
+            initChecklistEditor();
+        }
+        
         console.log('✅ TICKETS: Inicialización completada');
     } catch (error) {
         console.error('❌ TICKETS: Error en inicialización:', error);
@@ -1070,8 +1082,9 @@ async function openGimnacionModal() {
     try {
         console.log('🏢 GIMNACION: Abriendo modal de gimnación...');
         
-        // Obtener elementos DOM
-        const { gimnacionModal, gimnacionForm } = window.ticketsElements || {};
+        // Buscar elementos DOM directamente
+        const gimnacionModal = document.getElementById('gimnacion-modal');
+        const gimnacionForm = document.getElementById('gimnacion-form');
         
         if (!gimnacionModal) {
             console.error('❌ GIMNACION: Modal no encontrado');
@@ -1086,11 +1099,12 @@ async function openGimnacionModal() {
         // Cargar datos necesarios
         await loadGimnacionData();
         
-        // Mostrar modal usando el patrón base-modal
+        // Mostrar modal usando la clase correcta
         gimnacionModal.classList.add('is-open');
+        document.body.classList.add('modal-open');
         
-        // Activar primera pestaña
-        activateGimnacionTab('gimnacion-general');
+        // Configurar event listeners para cerrar modal
+        setupModalCloseListeners(gimnacionModal);
         
         // Setup event listeners específicos
         setupGimnacionEventListeners();
@@ -1102,6 +1116,33 @@ async function openGimnacionModal() {
     } catch (error) {
         console.error('❌ GIMNACION: Error al abrir modal:', error);
         alert('Error al abrir el modal de gimnación');
+    }
+}
+
+/**
+ * Configurar event listeners para cerrar el modal
+ */
+function setupModalCloseListeners(modal) {
+    // Cerrar al hacer clic fuera del modal
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            closeGimnacionModal();
+        }
+    });
+    
+    // Cerrar con tecla ESC
+    const handleEscape = (e) => {
+        if (e.key === 'Escape') {
+            closeGimnacionModal();
+            document.removeEventListener('keydown', handleEscape);
+        }
+    };
+    document.addEventListener('keydown', handleEscape);
+    
+    // Cerrar con botón X
+    const closeButton = modal.querySelector('.base-modal-close');
+    if (closeButton) {
+        closeButton.addEventListener('click', closeGimnacionModal);
     }
 }
 
@@ -1133,10 +1174,11 @@ async function loadGimnacionData() {
  * Poblar selectores del modal de gimnación
  */
 function populateGimnacionSelects() {
-    const { gimnacionForm, checklistTemplateSelect } = window.ticketsElements || {};
+    // Buscar directamente los elementos en lugar de usar window.ticketsElements
+    const gimnacionForm = document.getElementById('gimnacion-form');
     
     if (!gimnacionForm) {
-        console.warn('⚠️ GIMNACION: gimnacionForm no disponible');
+        console.warn('⚠️ GIMNACION: gimnacionForm no encontrado');
         return;
     }
     
@@ -1149,6 +1191,17 @@ function populateGimnacionSelects() {
         });
     }
     
+    // Limpiar contenedor de equipos al inicio
+    const equipmentContainer = document.getElementById('equipment-scope-container');
+    if (equipmentContainer) {
+        equipmentContainer.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+                <i data-lucide="map-pin" class="h-8 w-8 mx-auto mb-2"></i>
+                <p>Seleccione cliente y sede para cargar equipos...</p>
+            </div>
+        `;
+    }
+    
     // Poblar selector de contratos
     const contractSelect = gimnacionForm.querySelector('[name="contract_id"]');
     if (contractSelect && state.gimnacion.contracts.length > 0) {
@@ -1158,12 +1211,9 @@ function populateGimnacionSelects() {
         });
     }
     
-    // Poblar selector de templates de checklist
-    if (checklistTemplateSelect && state.gimnacion.checklistTemplates.length > 0) {
-        checklistTemplateSelect.innerHTML = '<option value="">Seleccione un template...</option>';
-        state.gimnacion.checklistTemplates.forEach(template => {
-            checklistTemplateSelect.innerHTML += `<option value="${template.id}">${template.template_name} (${template.item_count} items)</option>`;
-        });
+    // Poblar selectores de templates por categoría
+    if (state.gimnacion.checklistTemplates.length > 0) {
+        populateTemplateSelectors();
     }
 }
 
@@ -1171,12 +1221,26 @@ function populateGimnacionSelects() {
  * Configurar event listeners específicos del modal gimnación
  */
 function setupGimnacionEventListeners() {
-    const { gimnacionModal, gimnacionForm, checklistTemplateSelect } = window.ticketsElements || {};
+    const gimnacionModal = document.getElementById('gimnacion-modal');
+    const gimnacionForm = document.getElementById('gimnacion-form');
     
     if (!gimnacionModal || !gimnacionForm) {
         console.warn('⚠️ GIMNACION: Elementos de modal no disponibles para event listeners');
         return;
     }
+
+    // ✅ CONFIGURAR LISTENERS PARA PESTAÑAS
+    const tabButtons = gimnacionModal.querySelectorAll('.base-tab-button');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const tabName = button.getAttribute('data-tab');
+            if (tabName) {
+                switchGimnacionTab(tabName);
+                console.log(`🔄 GIMNACION: Cambiando a pestaña: ${tabName}`);
+            }
+        });
+    });
     
     // Cerrar modal
     const closeBtn = gimnacionModal.querySelector('.base-modal-close');
@@ -1185,16 +1249,7 @@ function setupGimnacionEventListeners() {
     if (closeBtn) closeBtn.addEventListener('click', closeGimnacionModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeGimnacionModal);
     
-    // Tabs de navegación
-    const tabButtons = gimnacionModal.querySelectorAll('.base-tab-button');
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabName = button.dataset.tab;
-            activateGimnacionTab(tabName);
-        });
-    });
-    
-    // Cambios de cliente y sede
+    // Event listeners para selectores
     const clientSelect = gimnacionForm.querySelector('[name="client_id"]');
     const locationSelect = gimnacionForm.querySelector('[name="location_id"]');
     
@@ -1206,37 +1261,96 @@ function setupGimnacionEventListeners() {
         locationSelect.addEventListener('change', onGimnacionLocationChange);
     }
     
-    // Botones de selección de equipos
+    // Event listeners para botones de equipos
     const selectAllBtn = document.getElementById('select-all-equipment');
     const deselectAllBtn = document.getElementById('deselect-all-equipment');
     
-    if (selectAllBtn) selectAllBtn.addEventListener('click', selectAllEquipment);
-    if (deselectAllBtn) deselectAllBtn.addEventListener('click', deselectAllEquipment);
-    
-    // Template de checklist
-    if (checklistTemplateSelect) {
-        checklistTemplateSelect.addEventListener('change', onTemplateChange);
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', selectAllEquipment);
     }
     
-    // Submit del formulario
-    if (gimnacionForm) {
-        gimnacionForm.addEventListener('submit', handleGimnacionSubmit);
+    if (deselectAllBtn) {
+        deselectAllBtn.addEventListener('click', deselectAllEquipment);
+    }
+    
+    console.log('✅ GIMNACION: Event listeners configurados correctamente');
+}
+
+/**
+ * Cerrar modal de gimnación
+ */
+function closeGimnacionModal() {
+    const gimnacionModal = document.getElementById('gimnacion-modal');
+    
+    if (gimnacionModal) {
+        gimnacionModal.classList.remove('is-open');
+        document.body.classList.remove('modal-open');
+    }
+    
+    // Limpiar estado
+    state.gimnacion.selectedEquipment = [];
+    state.gimnacion.selectedTemplate = null;
+    
+    console.log('✅ GIMNACION: Modal cerrado');
+}
+
+/**
+ * Manejar cambio de cliente en gimnación
+ */
+async function onGimnacionClientChange(event) {
+    const clientId = event.target.value;
+    const gimnacionForm = document.getElementById('gimnacion-form');
+    
+    if (!gimnacionForm) return;
+    
+    const locationSelect = gimnacionForm.querySelector('[name="location_id"]');
+    const equipmentContainer = document.getElementById('equipment-scope-container');
+    
+    if (!locationSelect || !equipmentContainer) return;
+    
+    // Limpiar ubicaciones
+    locationSelect.innerHTML = '<option value="">Seleccione una sede</option>';
+    
+    // Limpiar equipos
+    equipmentContainer.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-full">Seleccione una sede para ver los equipos</p>';
+    
+    if (!clientId) return;
+    
+    try {
+        // Cargar ubicaciones del cliente
+        const locations = await fetchLocationsByClient(clientId);
+        
+        locations.forEach(location => {
+            const option = document.createElement('option');
+            option.value = location.id;
+            option.textContent = location.name;
+            locationSelect.appendChild(option);
+        });
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando ubicaciones:', error);
     }
 }
 
 /**
- * Activar pestaña específica en modal gimnación
+ * Cambiar pestaña activa en modal gimnación
  */
-function activateGimnacionTab(tabName) {
-    const { gimnacionModal } = window.ticketsElements || {};
+function switchGimnacionTab(tabName) {
+    const gimnacionModal = document.getElementById('gimnacion-modal');
     
-    if (!gimnacionModal) return;
+    if (!gimnacionModal) {
+        console.warn('⚠️ GIMNACION: Modal no encontrado para cambio de pestaña');
+        return;
+    }
+    
+    console.log(`🔄 GIMNACION: Cambiando a pestaña: ${tabName}`);
     
     // Desactivar todas las pestañas
     gimnacionModal.querySelectorAll('.base-tab-button').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.tab === tabName) {
             btn.classList.add('active');
+            console.log(`✅ GIMNACION: Botón activado: ${tabName}`);
         }
     });
     
@@ -1245,8 +1359,16 @@ function activateGimnacionTab(tabName) {
         content.classList.remove('active');
         if (content.id === `tab-${tabName}`) {
             content.classList.add('active');
+            console.log(`✅ GIMNACION: Contenido mostrado: tab-${tabName}`);
         }
     });
+    
+    // Regenerar iconos de Lucide después del cambio
+    setTimeout(() => {
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+    }, 100);
 }
 
 /**
@@ -1290,109 +1412,587 @@ async function onGimnacionClientChange(event) {
  */
 async function onGimnacionLocationChange(event) {
     const locationId = event.target.value;
-    const { equipmentScopeContainer } = window.ticketsElements || {};
+    const equipmentContainer = document.getElementById('equipment-scope-container');
     
-    if (!equipmentScopeContainer) return;
+    if (!equipmentContainer) return;
     
     if (!locationId) {
-        equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Seleccione una sede para ver los equipos</p>';
+        equipmentContainer.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-full">Seleccione una sede para ver los equipos</p>';
         return;
     }
     
     try {
         // Mostrar loading
-        equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">Cargando equipos...</p>';
+        equipmentContainer.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-full">Cargando equipos...</p>';
         
         // Cargar equipos de la sede
         const equipment = await fetchEquipmentByLocation(locationId);
         
-        // Renderizar equipos con checkboxes
+        // Renderizar equipos con cards visuales
         renderEquipmentScope(equipment);
         
     } catch (error) {
         console.error('❌ GIMNACION: Error cargando equipos:', error);
-        equipmentScopeContainer.innerHTML = '<p class="text-red-500 text-center py-4">Error cargando equipos</p>';
+        equipmentContainer.innerHTML = '<p class="text-red-500 text-center py-4 col-span-full">Error cargando equipos</p>';
     }
 }
 
 /**
- * Renderizar lista de equipos con checkboxes
+ * Renderizar lista de equipos con cards visuales
  */
 function renderEquipmentScope(equipment) {
-    const { equipmentScopeContainer } = window.ticketsElements || {};
+    const equipmentContainer = document.getElementById('equipment-scope-container');
     
-    if (!equipmentScopeContainer || !equipment.length) {
-        if (equipmentScopeContainer) {
-            equipmentScopeContainer.innerHTML = '<p class="text-gray-500 text-center py-4">No hay equipos disponibles en esta sede</p>';
+    if (!equipmentContainer || !equipment.length) {
+        if (equipmentContainer) {
+            equipmentContainer.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-full">No hay equipos disponibles en esta sede</p>';
         }
         return;
     }
     
-    let html = '';
+    // Guardar equipos para filtrado
+    state.gimnacion.allEquipment = equipment;
     
-    equipment.forEach(equip => {
+    renderFilteredEquipment(equipment);
+    
+    // Setup event listeners para buscador y filtros
+    setupEquipmentFilters();
+}
+
+/**
+ * Renderizar equipos filtrados en formato tabla agrupada por categorías
+ */
+function renderFilteredEquipment(equipment) {
+    const equipmentContainer = document.getElementById('equipment-scope-container');
+    
+    if (!equipmentContainer) return;
+    
+    if (equipment.length === 0) {
+        equipmentContainer.innerHTML = `
+            <div class="text-center text-gray-500 py-8">
+                <i data-lucide="package" class="h-8 w-8 mx-auto mb-2"></i>
+                <p>No hay equipos disponibles para esta sede</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Agrupar equipos por categoría
+    const groupedEquipment = equipment.reduce((groups, equip) => {
+        const category = equip.category_name || 'Sin categoría';
+        if (!groups[category]) {
+            groups[category] = [];
+        }
+        groups[category].push(equip);
+        return groups;
+    }, {});
+    
+    let html = `
+        <div class="equipment-table-container">
+            <table class="w-full border-collapse text-sm">
+                <thead class="bg-gray-50 sticky top-0">
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left p-2 font-semibold text-gray-700 w-8">
+                            <input type="checkbox" id="select-all-equipment" class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
+                        </th>
+                        <th class="text-left p-2 font-semibold text-gray-700">Equipo</th>
+                        <th class="text-left p-2 font-semibold text-gray-700">Categoría</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    // Renderizar cada categoría
+    Object.keys(groupedEquipment).sort().forEach(category => {
+        const categoryEquipment = groupedEquipment[category];
+        const categoryColor = getCategoryColor(category);
+        const categoryId = category.toLowerCase().replace(/\s+/g, '-');
+        const allCategorySelected = categoryEquipment.every(equip => 
+            state.gimnacion.selectedEquipment.some(selected => selected.id === equip.id)
+        );
+        
+        // Header de categoría
         html += `
-            <div class="flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                <input 
-                    type="checkbox" 
-                    id="equip-${equip.id}" 
-                    value="${equip.id}"
-                    class="equipment-checkbox mr-3 h-4 w-4 text-blue-600 rounded focus:ring-blue-500"
-                    data-equipment='${JSON.stringify(equip)}'
-                >
-                <label for="equip-${equip.id}" class="flex-1 cursor-pointer">
-                    <div class="font-medium text-gray-900">${equip.name}</div>
-                    <div class="text-sm text-gray-500">
-                        ${equip.model_name || 'Sin modelo'} • 
-                        ${equip.category_name || 'Sin categoría'} • 
-                        ${equip.serial_number || 'S/N no disponible'}
+            <tr class="category-header bg-gray-50 border-t-2 border-gray-300">
+                <td class="p-2">
+                    <input type="checkbox" 
+                           id="select-category-${categoryId}" 
+                           class="category-checkbox w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                           data-category="${category}"
+                           ${allCategorySelected ? 'checked' : ''}>
+                </td>
+                <td colspan="2" class="p-2">
+                    <div class="flex items-center">
+                        <span class="font-semibold text-gray-800 mr-3">${category}</span>
+                        <span class="px-2 py-1 text-xs rounded-full ${categoryColor}">
+                            ${categoryEquipment.length} equipo${categoryEquipment.length !== 1 ? 's' : ''}
+                        </span>
                     </div>
-                </label>
+                </td>
+            </tr>
+        `;
+        
+        // Equipos de la categoría
+        categoryEquipment.forEach(equip => {
+            const isSelected = state.gimnacion.selectedEquipment.some(selected => selected.id === equip.id);
+            
+            html += `
+                <tr class="equipment-row border-b border-gray-100 hover:bg-green-50 transition-colors ${
+                    isSelected ? 'bg-green-50' : ''
+                }" data-category="${category}">
+                    <td class="p-2">
+                        <input type="checkbox" 
+                               class="equipment-checkbox w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                               data-equipment-id="${equip.id}"
+                               data-equipment='${JSON.stringify(equip)}'
+                               ${isSelected ? 'checked' : ''}>
+                    </td>
+                    <td class="p-2">
+                        <div class="font-medium text-gray-900 text-sm">${equip.name}</div>
+                        <div class="text-xs text-gray-500">${equip.model_name || 'Sin modelo'} • ${equip.serial_number || 'S/N no disponible'}</div>
+                    </td>
+                    <td class="p-2">
+                        <span class="px-2 py-1 text-xs rounded-full ${categoryColor}">
+                            ${category}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        });
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    equipmentContainer.innerHTML = html;
+    
+    // Setup event listeners
+    setupEquipmentTableEventListeners();
+    
+    // Regenerar iconos
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+
+/**
+ * Configurar event listeners para la tabla de equipos
+ */
+function setupEquipmentTableEventListeners() {
+    const equipmentContainer = document.getElementById('equipment-scope-container');
+    if (!equipmentContainer) return;
+    
+    // Checkbox para seleccionar todos los equipos
+    const selectAllCheckbox = equipmentContainer.querySelector('#select-all-equipment');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const equipmentCheckboxes = equipmentContainer.querySelectorAll('.equipment-checkbox');
+            const categoryCheckboxes = equipmentContainer.querySelectorAll('.category-checkbox');
+            
+            equipmentCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+                const equipmentData = JSON.parse(checkbox.dataset.equipment);
+                
+                if (isChecked) {
+                    // Agregar al estado si no existe
+                    if (!state.gimnacion.selectedEquipment.some(equip => equip.id === equipmentData.id)) {
+                        state.gimnacion.selectedEquipment.push(equipmentData);
+                    }
+                } else {
+                    // Remover del estado
+                    state.gimnacion.selectedEquipment = state.gimnacion.selectedEquipment.filter(
+                        equip => equip.id !== equipmentData.id
+                    );
+                }
+            });
+            
+            // Actualizar checkboxes de categoría
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            
+            updateEquipmentSummary();
+            console.log('🔄 GIMNACION: Selección masiva:', isChecked ? 'todos' : 'ninguno');
+        });
+    }
+    
+    // Checkboxes de categorías
+    const categoryCheckboxes = equipmentContainer.querySelectorAll('.category-checkbox');
+    categoryCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const category = e.target.dataset.category;
+            
+            // Encontrar todos los equipos de esta categoría
+            const categoryEquipmentCheckboxes = equipmentContainer.querySelectorAll(
+                `.equipment-row[data-category="${category}"] .equipment-checkbox`
+            );
+            
+            categoryEquipmentCheckboxes.forEach(equipCheckbox => {
+                equipCheckbox.checked = isChecked;
+                const equipmentData = JSON.parse(equipCheckbox.dataset.equipment);
+                
+                if (isChecked) {
+                    // Agregar al estado si no existe
+                    if (!state.gimnacion.selectedEquipment.some(equip => equip.id === equipmentData.id)) {
+                        state.gimnacion.selectedEquipment.push(equipmentData);
+                    }
+                } else {
+                    // Remover del estado
+                    state.gimnacion.selectedEquipment = state.gimnacion.selectedEquipment.filter(
+                        equip => equip.id !== equipmentData.id
+                    );
+                }
+            });
+            
+            updateSelectAllCheckbox();
+            updateEquipmentSummary();
+            console.log(`🔄 GIMNACION: Categoría ${category}:`, isChecked ? 'seleccionada' : 'deseleccionada');
+        });
+    });
+    
+    // Checkboxes individuales de equipos
+    const equipmentCheckboxes = equipmentContainer.querySelectorAll('.equipment-checkbox');
+    equipmentCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            const equipmentData = JSON.parse(e.target.dataset.equipment);
+            const category = e.target.closest('.equipment-row').dataset.category;
+            
+            if (isChecked) {
+                // Agregar al estado si no existe
+                if (!state.gimnacion.selectedEquipment.some(equip => equip.id === equipmentData.id)) {
+                    state.gimnacion.selectedEquipment.push(equipmentData);
+                }
+            } else {
+                // Remover del estado
+                state.gimnacion.selectedEquipment = state.gimnacion.selectedEquipment.filter(
+                    equip => equip.id !== equipmentData.id
+                );
+            }
+            
+            // Actualizar checkbox de categoría
+            updateCategoryCheckbox(category);
+            updateSelectAllCheckbox();
+            updateEquipmentSummary();
+            
+            console.log(`🔄 GIMNACION: Equipo ${equipmentData.name}:`, isChecked ? 'seleccionado' : 'deseleccionado');
+        });
+    });
+}
+
+/**
+ * Actualizar estado del checkbox de categoría basado en sus equipos
+ */
+function updateCategoryCheckbox(category) {
+    const equipmentContainer = document.getElementById('equipment-scope-container');
+    if (!equipmentContainer) return;
+    
+    const categoryCheckbox = equipmentContainer.querySelector(`[data-category="${category}"]`);
+    const categoryEquipmentCheckboxes = equipmentContainer.querySelectorAll(
+        `.equipment-row[data-category="${category}"] .equipment-checkbox`
+    );
+    
+    if (categoryCheckbox && categoryEquipmentCheckboxes.length > 0) {
+        const checkedCount = Array.from(categoryEquipmentCheckboxes).filter(cb => cb.checked).length;
+        
+        if (checkedCount === 0) {
+            categoryCheckbox.checked = false;
+            categoryCheckbox.indeterminate = false;
+        } else if (checkedCount === categoryEquipmentCheckboxes.length) {
+            categoryCheckbox.checked = true;
+            categoryCheckbox.indeterminate = false;
+        } else {
+            categoryCheckbox.checked = false;
+            categoryCheckbox.indeterminate = true;
+        }
+    }
+}
+
+/**
+ * Actualizar estado del checkbox "seleccionar todo"
+ */
+function updateSelectAllCheckbox() {
+    const equipmentContainer = document.getElementById('equipment-scope-container');
+    if (!equipmentContainer) return;
+    
+    const selectAllCheckbox = equipmentContainer.querySelector('#select-all-equipment');
+    const equipmentCheckboxes = equipmentContainer.querySelectorAll('.equipment-checkbox');
+    
+    if (selectAllCheckbox && equipmentCheckboxes.length > 0) {
+        const checkedCount = Array.from(equipmentCheckboxes).filter(cb => cb.checked).length;
+        
+        if (checkedCount === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCount === equipmentCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    }
+}
+
+/**
+ * Actualizar resumen de equipos seleccionados
+ */
+function updateEquipmentSummary() {
+    const selectedCount = state.gimnacion.selectedEquipment.length;
+    console.log(`📊 GIMNACION: ${selectedCount} equipos seleccionados`);
+    
+    // Actualizar contador en la UI si existe
+    const summaryElement = document.getElementById('selected-equipment-summary');
+    if (summaryElement) {
+        if (selectedCount > 0) {
+            summaryElement.innerHTML = `
+                <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div class="flex items-center text-green-800">
+                        <i data-lucide="check-circle" class="h-4 w-4 mr-2"></i>
+                        <span class="font-medium">${selectedCount} equipo${selectedCount !== 1 ? 's' : ''} seleccionado${selectedCount !== 1 ? 's' : ''}</span>
+                    </div>
+                </div>
+            `;
+            summaryElement.classList.remove('hidden');
+        } else {
+            summaryElement.classList.add('hidden');
+        }
+        
+        // Regenerar iconos
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+    }
+}
+
+/**
+ * Obtener color de categoría
+ */
+function getCategoryColor(category) {
+    const colors = {
+        'Cardio': 'bg-blue-100 text-blue-800',
+        'Fuerza': 'bg-red-100 text-red-800', 
+        'Funcional': 'bg-green-100 text-green-800',
+        'Accesorios': 'bg-yellow-100 text-yellow-800'
+    };
+    return colors[category] || 'bg-gray-100 text-gray-800';
+}
+
+/**
+ * Configurar filtros de equipos
+ */
+function setupEquipmentFilters() {
+    const searchInput = document.getElementById('equipment-search');
+    const categoryFilter = document.getElementById('equipment-category-filter');
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', filterEquipment);
+    }
+    
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterEquipment);
+    }
+}
+
+/**
+ * Filtrar equipos en tiempo real
+ */
+function filterEquipment() {
+    const searchTerm = document.getElementById('equipment-search')?.value.toLowerCase() || '';
+    const selectedCategory = document.getElementById('equipment-category-filter')?.value || '';
+    
+    if (!state.gimnacion.allEquipment) return;
+    
+    let filteredEquipment = state.gimnacion.allEquipment;
+    
+    // Filtrar por búsqueda
+    if (searchTerm) {
+        filteredEquipment = filteredEquipment.filter(equip => 
+            equip.name.toLowerCase().includes(searchTerm) ||
+            (equip.model_name && equip.model_name.toLowerCase().includes(searchTerm)) ||
+            (equip.serial_number && equip.serial_number.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    // Filtrar por categoría
+    if (selectedCategory) {
+        filteredEquipment = filteredEquipment.filter(equip => 
+            equip.category_name === selectedCategory
+        );
+    }
+    
+    renderFilteredEquipment(filteredEquipment);
+}
+
+/**
+ * Manejar clic en card de equipo (FUNCIÓN LEGACY - NO USAR CON NUEVA TABLA)
+ * Esta función se mantiene para compatibilidad pero ya no se usa
+ */
+/* DEPRECATED - USAR setupEquipmentTableEventListeners() EN SU LUGAR
+function toggleEquipmentSelection(event) {
+    const card = event.currentTarget;
+    const equipmentData = JSON.parse(card.dataset.equipment);
+    const equipmentId = parseInt(card.dataset.equipmentId);
+    
+    const isSelected = state.gimnacion.selectedEquipment.some(selected => selected.id === equipmentId);
+    
+    if (isSelected) {
+        // Remover de seleccionados
+        state.gimnacion.selectedEquipment = state.gimnacion.selectedEquipment.filter(
+            selected => selected.id !== equipmentId
+        );
+        card.classList.remove('ring-2', 'ring-green-500', 'bg-green-50');
+        card.classList.add('hover:border-green-300');
+    } else {
+        // Agregar a seleccionados
+        state.gimnacion.selectedEquipment.push(equipmentData);
+        card.classList.add('ring-2', 'ring-green-500', 'bg-green-50');
+        card.classList.remove('hover:border-green-300');
+    }
+    
+    // Actualizar checkbox visual
+    const checkbox = card.querySelector('.w-4.h-4');
+    const checkIcon = card.querySelector('[data-lucide="check"]');
+    
+    if (isSelected) {
+        checkbox.classList.remove('bg-green-500', 'border-green-500');
+        checkbox.classList.add('border-gray-300');
+        if (checkIcon) checkIcon.remove();
+    } else {
+        checkbox.classList.add('bg-green-500', 'border-green-500');
+        checkbox.classList.remove('border-gray-300');
+        checkbox.innerHTML = '<i data-lucide="check" class="w-3 h-3 text-white"></i>';
+    }
+    
+    // Actualizar contadores y vista previa
+    updateEquipmentSummary();
+    updateSelectedEquipmentPreview();
+    
+    // Regenerar iconos
+    if (window.lucide) {
+        lucide.createIcons();
+    }
+}
+
+/**
+ * Actualizar resumen de equipos seleccionados
+ */
+function updateEquipmentSummary() {
+    const selectedCount = document.getElementById('selected-count');
+    
+    if (!selectedCount) return;
+    
+    const count = state.gimnacion.selectedEquipment.length;
+    selectedCount.textContent = count;
+    
+    console.log('📋 GIMNACION: Equipos seleccionados:', count);
+}
+
+/**
+ * Actualizar vista previa de equipos seleccionados
+ */
+function updateSelectedEquipmentPreview() {
+    const preview = document.getElementById('selected-equipment-preview');
+    const list = document.getElementById('selected-equipment-list');
+    
+    if (!preview || !list) return;
+    
+    if (state.gimnacion.selectedEquipment.length === 0) {
+        preview.classList.add('hidden');
+        return;
+    }
+    
+    preview.classList.remove('hidden');
+    
+    let html = '';
+    state.gimnacion.selectedEquipment.forEach(equip => {
+        const categoryColor = getCategoryColor(equip.category_name);
+        html += `
+            <div class="flex items-center bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
+                <span class="font-medium text-green-800 mr-2">${equip.name}</span>
+                <span class="px-2 py-1 text-xs rounded-full ${categoryColor} mr-2">
+                    ${equip.category_name || 'Sin categoría'}
+                </span>
+                <button type="button" class="text-green-600 hover:text-green-800 ml-auto" onclick="removeEquipmentFromSelection(${equip.id})" title="Quitar equipo">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
             </div>
         `;
     });
     
-    equipmentScopeContainer.innerHTML = html;
+    list.innerHTML = html;
     
-    // Agregar event listeners a los checkboxes
-    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedEquipment);
-    });
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 /**
- * Actualizar lista de equipos seleccionados
+ * Remover equipo de la selección desde la vista previa
  */
-function updateSelectedEquipment() {
-    const { equipmentScopeContainer } = window.ticketsElements || {};
+function removeEquipmentFromSelection(equipmentId) {
+    state.gimnacion.selectedEquipment = state.gimnacion.selectedEquipment.filter(
+        selected => selected.id !== equipmentId
+    );
     
-    if (!equipmentScopeContainer) return;
+    // Actualizar la card visual si está visible
+    const card = document.querySelector(`[data-equipment-id="${equipmentId}"]`);
+    if (card) {
+        card.classList.remove('ring-2', 'ring-green-500', 'bg-green-50');
+        card.classList.add('hover:border-green-300');
+        
+        const checkbox = card.querySelector('.w-4.h-4');
+        const checkIcon = card.querySelector('[data-lucide="check"]');
+        
+        checkbox.classList.remove('bg-green-500', 'border-green-500');
+        checkbox.classList.add('border-gray-300');
+        if (checkIcon) checkIcon.remove();
+    }
     
-    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox:checked');
-    state.gimnacion.selectedEquipment = [];
-    
-    checkboxes.forEach(checkbox => {
-        const equipmentData = JSON.parse(checkbox.dataset.equipment);
-        state.gimnacion.selectedEquipment.push(equipmentData);
-    });
-    
-    console.log('📋 GIMNACION: Equipos seleccionados:', state.gimnacion.selectedEquipment.length);
+    updateEquipmentSummary();
+    updateSelectedEquipmentPreview();
 }
 
 /**
- * Seleccionar todos los equipos
+ * Seleccionar todos los equipos visibles
  */
 function selectAllEquipment() {
-    const { equipmentScopeContainer } = window.ticketsElements || {};
+    const equipmentContainer = document.getElementById('equipment-scope-container');
     
-    if (!equipmentScopeContainer) return;
+    if (!equipmentContainer) return;
     
-    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = true;
+    const equipmentCards = equipmentScopeContainer.querySelectorAll('.equipment-card');
+    
+    equipmentCards.forEach(card => {
+        const equipmentData = JSON.parse(card.dataset.equipment);
+        const equipmentId = parseInt(card.dataset.equipmentId);
+        
+        const isAlreadySelected = state.gimnacion.selectedEquipment.some(selected => selected.id === equipmentId);
+        
+        if (!isAlreadySelected) {
+            state.gimnacion.selectedEquipment.push(equipmentData);
+            card.classList.add('ring-2', 'ring-green-500', 'bg-green-50');
+            card.classList.remove('hover:border-green-300');
+            
+            // Actualizar checkbox visual
+            const checkbox = card.querySelector('.w-4.h-4');
+            checkbox.classList.add('bg-green-500', 'border-green-500');
+            checkbox.classList.remove('border-gray-300');
+            checkbox.innerHTML = '<i data-lucide="check" class="w-3 h-3 text-white"></i>';
+        }
     });
-    updateSelectedEquipment();
+    
+    updateEquipmentSummary();
+    updateSelectedEquipmentPreview();
+    
+    if (window.lucide) {
+        lucide.createIcons();
+    }
 }
 
 /**
@@ -1403,27 +2003,71 @@ function deselectAllEquipment() {
     
     if (!equipmentScopeContainer) return;
     
-    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
-    checkboxes.forEach(checkbox => {
-        checkbox.checked = false;
+    const equipmentCards = equipmentScopeContainer.querySelectorAll('.equipment-card');
+    
+    equipmentCards.forEach(card => {
+        card.classList.remove('ring-2', 'ring-green-500', 'bg-green-50');
+        card.classList.add('hover:border-green-300');
+        
+        // Actualizar checkbox visual
+        const checkbox = card.querySelector('.w-4.h-4');
+        const checkIcon = card.querySelector('[data-lucide="check"]');
+        
+        checkbox.classList.remove('bg-green-500', 'border-green-500');
+        checkbox.classList.add('border-gray-300');
+        if (checkIcon) checkIcon.remove();
     });
-    updateSelectedEquipment();
+    
+    state.gimnacion.selectedEquipment = [];
+    updateEquipmentSummary();
+    updateSelectedEquipmentPreview();
 }
 
 /**
- * Manejar cambio de template de checklist
+ * Poblar selectores de templates por categoría
  */
-async function onTemplateChange(event) {
+function populateTemplateSelectors() {
+    const templateSelects = document.querySelectorAll('.template-select');
+    
+    templateSelects.forEach(select => {
+        const category = select.dataset.category;
+        select.innerHTML = '<option value="">Seleccionar...</option>';
+        
+        // Filtrar templates por categoría (simulado - en producción vendría del backend)
+        const filteredTemplates = state.gimnacion.checklistTemplates.filter(template => {
+            if (category === 'basico') {
+                return template.items_count <= 5; // Templates con pocos items
+            } else if (category === 'completo') {
+                return template.items_count > 10; // Templates con muchos items
+            } else if (category === 'tipo') {
+                return template.name && (
+                    template.name.toLowerCase().includes('cardio') || 
+                    template.name.toLowerCase().includes('fuerza') ||
+                    template.name.toLowerCase().includes('funcional')
+                );
+            }
+            return true;
+        });
+        
+        filteredTemplates.forEach(template => {
+            const option = document.createElement('option');
+            option.value = template.id;
+            option.textContent = `${template.name} (${template.items_count} items)`;
+            select.appendChild(option);
+        });
+        
+        // Event listener para selección
+        select.addEventListener('change', onTemplateSelection);
+    });
+}
+
+/**
+ * Manejar selección de template
+ */
+async function onTemplateSelection(event) {
     const templateId = event.target.value;
-    const { checklistPreviewContainer } = window.ticketsElements || {};
     
-    if (!checklistPreviewContainer) return;
-    
-    if (!templateId) {
-        checklistPreviewContainer.classList.add('hidden');
-        state.gimnacion.selectedTemplate = null;
-        return;
-    }
+    if (!templateId) return;
     
     try {
         // Cargar items del template
@@ -1434,8 +2078,15 @@ async function onTemplateChange(event) {
         state.gimnacion.selectedTemplate = template;
         
         // Mostrar vista previa
-        renderChecklistPreview(template, templateItems);
-        checklistPreviewContainer.classList.remove('hidden');
+        showChecklistPreview(template, templateItems);
+        
+        // Limpiar otros selectores
+        const allSelects = document.querySelectorAll('.template-select');
+        allSelects.forEach(select => {
+            if (select !== event.target) {
+                select.value = '';
+            }
+        });
         
     } catch (error) {
         console.error('❌ GIMNACION: Error cargando template:', error);
@@ -1443,26 +2094,270 @@ async function onTemplateChange(event) {
 }
 
 /**
- * Renderizar vista previa del checklist
+ * Mostrar vista previa del checklist
  */
-function renderChecklistPreview(template, items) {
-    const { checklistPreview } = window.ticketsElements || {};
+function showChecklistPreview(template, items) {
+    const preview = document.getElementById('checklist-preview');
+    const templateName = document.getElementById('checklist-template-name');
+    const itemCount = document.getElementById('checklist-item-count');
+    const itemsPreview = document.getElementById('checklist-items-preview');
     
-    if (!checklistPreview) return;
+    if (!preview || !templateName || !itemCount || !itemsPreview) return;
     
-    let html = `<div class="mb-2 font-medium text-blue-600">${template.template_name}</div>`;
+    // Mostrar información del template
+    templateName.textContent = template.template_name;
+    itemCount.textContent = items.length;
     
+    // Renderizar items
+    let html = '';
     items.forEach((item, index) => {
         html += `
-            <div class="flex items-center py-1">
-                <span class="text-sm text-gray-600 w-6">${index + 1}.</span>
-                <span class="text-sm text-gray-900">${item.item_description}</span>
-                ${item.is_required ? '<span class="ml-2 text-xs bg-red-100 text-red-600 px-1 rounded">Obligatorio</span>' : ''}
+            <div class="flex items-start py-2 border-b border-gray-100 last:border-b-0">
+                <span class="text-sm text-purple-600 font-medium w-8 flex-shrink-0">${index + 1}.</span>
+                <div class="flex-1">
+                    <span class="text-sm text-gray-900">${item.item_description}</span>
+                    ${item.is_required ? 
+                        '<span class="ml-2 text-xs bg-red-100 text-red-600 px-2 py-1 rounded-full">Obligatorio</span>' : 
+                        '<span class="ml-2 text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded-full">Opcional</span>'
+                    }
+                </div>
             </div>
         `;
     });
     
-    checklistPreview.innerHTML = html;
+    itemsPreview.innerHTML = html;
+    preview.classList.remove('hidden');
+    
+    // Setup botón de limpiar selección
+    const clearBtn = document.getElementById('clear-checklist-selection');
+    if (clearBtn) {
+        clearBtn.onclick = clearChecklistSelection;
+    }
+}
+
+/**
+ * Limpiar selección de checklist
+ */
+function clearChecklistSelection() {
+    const preview = document.getElementById('checklist-preview');
+    const allSelects = document.querySelectorAll('.template-select');
+    
+    // Ocultar vista previa
+    if (preview) {
+        preview.classList.add('hidden');
+    }
+    
+    // Limpiar selectores
+    allSelects.forEach(select => {
+        select.value = '';
+    });
+    
+    // Limpiar estado
+    state.gimnacion.selectedTemplate = null;
+}
+
+/**
+ * Renderizar checklist editable con checkboxes
+ */
+function renderEditableChecklist(template, items) {
+    const editableContainer = document.getElementById('checklist-editable-container');
+    const editableItems = document.getElementById('checklist-editable-items');
+    const completedCount = document.getElementById('checklist-completed-count');
+    const totalCount = document.getElementById('checklist-total-count');
+    
+    if (!editableContainer || !editableItems) return;
+    
+    // Mostrar contenedor
+    editableContainer.classList.remove('hidden');
+    
+    // Actualizar contadores
+    totalCount.textContent = items.length;
+    completedCount.textContent = '0';
+    
+    let html = '';
+    
+    items.forEach((item, index) => {
+        const itemId = `checklist-item-${item.id || index}`;
+        html += `
+            <div class="checklist-item flex items-start space-x-3 p-3 bg-white rounded border" data-item-id="${item.id || index}">
+                <div class="flex items-center">
+                    <input 
+                        type="checkbox" 
+                        id="${itemId}" 
+                        class="checklist-checkbox w-4 h-4 text-blue-600 border-2 border-gray-300 rounded focus:ring-blue-500" 
+                        data-item-id="${item.id || index}"
+                        onchange="updateChecklistProgress()"
+                    >
+                </div>
+                <div class="flex-1 min-w-0">
+                    <label for="${itemId}" class="block text-sm font-medium text-gray-900 cursor-pointer">
+                        ${item.item_description}
+                        ${item.is_required ? '<span class="ml-2 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">Obligatorio</span>' : '<span class="ml-2 text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">Opcional</span>'}
+                    </label>
+                    
+                    <!-- Campo de notas opcional -->
+                    <div class="mt-2">
+                        <textarea 
+                            placeholder="Notas adicionales (opcional)..."
+                            class="checklist-notes w-full px-3 py-2 text-sm border border-gray-200 rounded-md resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            rows="2"
+                            data-item-id="${item.id || index}"
+                        ></textarea>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    editableItems.innerHTML = html;
+    
+    // Agregar event listeners para checkboxes
+    addChecklistEventListeners();
+}
+
+/**
+ * Actualizar progreso del checklist
+ */
+function updateChecklistProgress() {
+    const checkboxes = document.querySelectorAll('.checklist-checkbox');
+    const completed = document.querySelectorAll('.checklist-checkbox:checked');
+    const completedCount = document.getElementById('checklist-completed-count');
+    
+    if (completedCount) {
+        completedCount.textContent = completed.length;
+    }
+    
+    // Validar elementos obligatorios
+    validateRequiredChecklistItems();
+}
+
+/**
+ * Validar elementos obligatorios del checklist
+ */
+function validateRequiredChecklistItems() {
+    const requiredItems = document.querySelectorAll('.checklist-item:has(.bg-red-100)');
+    const submitButton = document.querySelector('#gimnacion-form button[type="submit"]');
+    
+    if (!submitButton) return;
+    
+    let allRequiredCompleted = true;
+    
+    requiredItems.forEach(item => {
+        const checkbox = item.querySelector('.checklist-checkbox');
+        if (checkbox && !checkbox.checked) {
+            allRequiredCompleted = false;
+        }
+    });
+    
+    // Actualizar estado del botón submit
+    if (allRequiredCompleted) {
+        submitButton.disabled = false;
+        submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        submitButton.disabled = true;
+        submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+    }
+}
+
+/**
+ * Agregar event listeners para elementos del checklist
+ */
+function addChecklistEventListeners() {
+    // Event listeners para checkboxes ya están en onchange del HTML
+    
+    // Event listeners para notas (auto-save)
+    const noteTextareas = document.querySelectorAll('.checklist-notes');
+    noteTextareas.forEach(textarea => {
+        textarea.addEventListener('blur', () => {
+            // Auto-guardar notas cuando el usuario sale del campo
+            console.log('💾 Auto-saving checklist note:', {
+                itemId: textarea.dataset.itemId,
+                note: textarea.value
+            });
+        });
+    });
+}
+
+/**
+ * Obtener datos del checklist completado
+ */
+function getChecklistData() {
+    const checklistItems = [];
+    
+    document.querySelectorAll('.checklist-item').forEach(item => {
+        const itemId = item.dataset.itemId;
+        const checkbox = item.querySelector('.checklist-checkbox');
+        const notes = item.querySelector('.checklist-notes');
+        
+        if (checkbox) {
+            checklistItems.push({
+                item_id: itemId,
+                completed: checkbox.checked,
+                notes: notes ? notes.value.trim() : '',
+                completed_at: checkbox.checked ? new Date().toISOString() : null
+            });
+        }
+    });
+    
+    return checklistItems;
+}
+
+/**
+ * Cerrar modal de gimnación
+ */
+function closeGimnacionModal() {
+    const { gimnacionModal, gimnacionForm, checklistPreviewContainer, checklistEditableContainer } = window.ticketsElements || {};
+    
+    if (gimnacionModal) {
+        gimnacionModal.classList.remove('is-open');
+        
+        // Limpiar formulario
+        if (gimnacionForm) {
+            gimnacionForm.reset();
+        }
+        
+        // Ocultar contenedores de checklist
+        if (checklistPreviewContainer) {
+            checklistPreviewContainer.classList.add('hidden');
+        }
+        if (checklistEditableContainer) {
+            checklistEditableContainer.classList.add('hidden');
+        }
+        
+        // Limpiar editor de checklist
+        if (window.checklistEditor) {
+            window.checklistEditor.cancel();
+        }
+        
+        // Ocultar editor de template
+        const templateEditor = document.getElementById('template-editor');
+        if (templateEditor) {
+            templateEditor.classList.add('hidden');
+        }
+        
+        // Limpiar selector de template
+        const templateSelect = document.getElementById('checklist-template-select');
+        if (templateSelect) {
+            templateSelect.value = '';
+        }
+        
+        // Limpiar estado
+        state.gimnacion.selectedEquipment = [];
+        state.gimnacion.selectedTemplate = null;
+        
+        // Actualizar resumen de equipos seleccionados
+        const selectedSummary = document.getElementById('selected-equipment-summary');
+        const selectedCount = document.getElementById('selected-count');
+        
+        if (selectedSummary) {
+            selectedSummary.classList.add('hidden');
+        }
+        if (selectedCount) {
+            selectedCount.textContent = '0';
+        }
+        
+        console.log('✅ GIMNACION: Modal cerrado y limpiado completamente');
+    }
 }
 
 /**
@@ -1479,17 +2374,24 @@ function closeGimnacionModal() {
             gimnacionForm.reset();
         }
         
+        // Limpiar editor de checklist
+        if (typeof cancelTemplateEdit === 'function') {
+            cancelTemplateEdit();
+        }
+        
         // Limpiar estado
         state.gimnacion.selectedEquipment = [];
         state.gimnacion.selectedTemplate = null;
         
-        console.log('✅ GIMNACION: Modal cerrado');
+        // Ocultar resumen de equipos seleccionados
+        const summary = document.getElementById('selected-equipment-summary');
+        if (summary) {
+            summary.classList.add('hidden');
+        }
+        
+        console.log('✅ GIMNACION: Modal cerrado y estado limpiado');
     }
 }
-
-/**
- * Manejar envío del formulario de gimnación
- */
 async function handleGimnacionSubmit(event) {
     event.preventDefault();
     
@@ -1510,6 +2412,12 @@ async function handleGimnacionSubmit(event) {
         
         // Recopilar datos del formulario
         const formData = new FormData(gimnacionForm);
+        
+        // Obtener datos del checklist del nuevo editor
+        const checklistData = checklistEditorState.isEditing && checklistEditorState.items.length > 0 
+            ? window.checklistEditor.getData() 
+            : [];
+        
         const ticketData = {
             title: formData.get('title'),
             description: formData.get('description'),
@@ -1519,10 +2427,14 @@ async function handleGimnacionSubmit(event) {
             priority: formData.get('priority'),
             ticket_type: 'gimnacion',
             equipment_ids: state.gimnacion.selectedEquipment.map(e => e.id),
-            checklist_template_id: checklistTemplateSelect?.value || null
+            checklist_template_id: checklistTemplateSelect?.value || null,
+            checklist_data: checklistData
         };
         
-        console.log('🚀 GIMNACION: Creando ticket de gimnación...', ticketData);
+        console.log('🚀 GIMNACION: Creando ticket de gimnación...', {
+            ...ticketData,
+            checklist_items: checklistData.length
+        });
         
         // Crear ticket de gimnación
         const response = await authenticatedFetch(`${API_URL}/tickets/gimnacion`, {
@@ -1660,3 +2572,100 @@ async function deleteItem(resource, id, callback) {
         alert(`Error al eliminar: ${error.message}`);
     }
 }
+
+/**
+ * Seleccionar todos los equipos
+ */
+function selectAllEquipment() {
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer) return;
+    
+    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
+    
+    console.log('✅ GIMNACION: Todos los equipos seleccionados');
+}
+
+/**
+ * Deseleccionar todos los equipos
+ */
+function deselectAllEquipment() {
+    const { equipmentScopeContainer } = window.ticketsElements || {};
+    
+    if (!equipmentScopeContainer) return;
+    
+    const checkboxes = equipmentScopeContainer.querySelectorAll('.equipment-checkbox');
+    checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+            checkbox.checked = false;
+            checkbox.dispatchEvent(new Event('change'));
+        }
+    });
+    
+    console.log('✅ GIMNACION: Todos los equipos deseleccionados');
+}
+
+/**
+ * Manejar cambio de template con el nuevo editor
+ */
+async function onTemplateChangeWithEditor(event) {
+    const templateId = event.target.value;
+    
+    if (!templateId) {
+        // Ocultar editor si no hay template seleccionado
+        if (window.checklistEditor) {
+            window.checklistEditor.cancel();
+        }
+        return;
+    }
+    
+    try {
+        console.log(`📋 GIMNACION: Cargando template ${templateId} en editor...`);
+        
+        // Cargar template y sus items
+        const template = state.gimnacion.checklistTemplates.find(t => t.id == templateId);
+        const templateItems = await fetchTemplateItems(templateId);
+        
+        // Cargar en el editor
+        checklistEditorState.currentTemplate = template;
+        checklistEditorState.items = templateItems;
+        checklistEditorState.isEditing = true;
+        checklistEditorState.unsavedChanges = false;
+        
+        // Mostrar editor
+        const templateEditor = document.getElementById('template-editor');
+        const templateNameInput = document.getElementById('template-name-input');
+        
+        if (templateEditor) {
+            templateEditor.classList.remove('hidden');
+        }
+        
+        if (templateNameInput && template) {
+            templateNameInput.value = template.template_name;
+        }
+        
+        // Renderizar items
+        if (typeof renderChecklistItems === 'function') {
+            renderChecklistItems();
+        }
+        
+        if (typeof updateProgress === 'function') {
+            updateProgress();
+        }
+        
+        console.log('✅ GIMNACION: Template cargado en editor exitosamente');
+        
+    } catch (error) {
+        console.error('❌ GIMNACION: Error cargando template en editor:', error);
+        alert('Error al cargar el template seleccionado');
+    }
+}
+
+// --- Global Functions (accessible from HTML) ---
+window.removeEquipmentFromSelection = removeEquipmentFromSelection;

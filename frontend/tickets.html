@@ -455,21 +455,93 @@
                     <!-- Pestaña Checklist -->
                     <div id="tab-gimnacion-checklist" class="base-tab-content">
                         <div class="mb-4">
-                            <div class="flex justify-between items-center">
+                            <div class="flex justify-between items-center mb-3">
                                 <h4 class="font-medium text-gray-900">Template de Checklist</h4>
-                                <select id="checklist-template-select" class="base-form-input w-auto" title="Seleccionar template de checklist">
-                                    <option value="">Seleccione un template...</option>
-                                </select>
+                                <div class="flex space-x-2">
+                                    <select id="checklist-template-select" class="base-form-input w-auto" title="Seleccionar template de checklist">
+                                        <option value="">Seleccione un template...</option>
+                                        <option value="basico">Básico - Inspección General</option>
+                                        <option value="cardio">Cardio - Mantenimiento Especializado</option>
+                                        <option value="fuerza">Fuerza - Revisión Completa</option>
+                                        <option value="funcional">Funcional - Verificación Operativa</option>
+                                    </select>
+                                    <button type="button" id="create-custom-checklist" class="px-3 py-1 bg-purple-600 text-white rounded text-sm hover:bg-purple-700 transition-colors flex items-center">
+                                        <i data-lucide="plus" class="h-3 w-3 mr-1"></i>
+                                        Personalizar
+                                    </button>
+                                </div>
                             </div>
-                            <p class="text-sm text-gray-600 mt-1">Seleccione un template de checklist que se aplicará a todos los equipos del servicio.</p>
+                            <p class="text-sm text-gray-600">Seleccione un template de checklist que se aplicará a todos los equipos del servicio.</p>
+                        </div>
+                        
+                        <!-- Templates Predefinidos -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+                            <div class="border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors template-card" data-template="basico">
+                                <div class="flex items-center mb-2">
+                                    <i data-lucide="zap" class="h-4 w-4 text-blue-600 mr-2"></i>
+                                    <h6 class="font-medium text-gray-900 text-sm">Básico</h6>
+                                </div>
+                                <p class="text-xs text-gray-600">Inspección rápida y limpieza general</p>
+                                <div class="mt-2 text-xs text-gray-500">5 items</div>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-green-300 hover:bg-green-50 transition-colors template-card" data-template="cardio">
+                                <div class="flex items-center mb-2">
+                                    <i data-lucide="heart" class="h-4 w-4 text-green-600 mr-2"></i>
+                                    <h6 class="font-medium text-gray-900 text-sm">Cardio</h6>
+                                </div>
+                                <p class="text-xs text-gray-600">Mantenimiento especializado cardio</p>
+                                <div class="mt-2 text-xs text-gray-500">8 items</div>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-red-300 hover:bg-red-50 transition-colors template-card" data-template="fuerza">
+                                <div class="flex items-center mb-2">
+                                    <i data-lucide="dumbbell" class="h-4 w-4 text-red-600 mr-2"></i>
+                                    <h6 class="font-medium text-gray-900 text-sm">Fuerza</h6>
+                                </div>
+                                <p class="text-xs text-gray-600">Revisión completa de equipos</p>
+                                <div class="mt-2 text-xs text-gray-500">12 items</div>
+                            </div>
+                            
+                            <div class="border border-gray-200 rounded-lg p-3 cursor-pointer hover:border-purple-300 hover:bg-purple-50 transition-colors template-card" data-template="funcional">
+                                <div class="flex items-center mb-2">
+                                    <i data-lucide="activity" class="h-4 w-4 text-purple-600 mr-2"></i>
+                                    <h6 class="font-medium text-gray-900 text-sm">Funcional</h6>
+                                </div>
+                                <p class="text-xs text-gray-600">Verificación operativa completa</p>
+                                <div class="mt-2 text-xs text-gray-500">7 items</div>
+                            </div>
                         </div>
                         
                         <div id="checklist-preview-container" class="hidden">
                             <div class="bg-gray-50 border rounded-lg p-4">
-                                <h5 class="font-medium text-gray-900 mb-3">Vista Previa del Checklist</h5>
+                                <div class="flex justify-between items-center mb-3">
+                                    <h5 class="font-medium text-gray-900">Vista Previa del Checklist</h5>
+                                    <button type="button" id="edit-checklist" class="text-sm text-blue-600 hover:text-blue-800">
+                                        Editar items
+                                    </button>
+                                </div>
                                 <div id="checklist-preview" class="space-y-2">
                                     <!-- Vista previa del checklist se cargará aquí -->
                                 </div>
+                                <div class="mt-3 p-2 bg-blue-50 rounded text-sm text-blue-800">
+                                    <i data-lucide="info" class="h-4 w-4 inline mr-1"></i>
+                                    Este checklist se aplicará automáticamente a todos los equipos seleccionados.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Editor de Checklist Personalizado -->
+                        <div id="custom-checklist-editor" class="hidden mt-4">
+                            <div class="bg-white border rounded-lg p-4">
+                                <h5 class="font-medium text-gray-900 mb-3">Editor de Checklist Personalizado</h5>
+                                <div id="checklist-items" class="space-y-2 mb-3">
+                                    <!-- Items editables del checklist -->
+                                </div>
+                                <button type="button" id="add-checklist-item" class="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center">
+                                    <i data-lucide="plus" class="h-3 w-3 mr-1"></i>
+                                    Agregar Item
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -477,8 +549,9 @@
             </div>
             
             <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel">Cancelar</button>
-                <button type="submit" form="gimnacion-form">
+                <button type="button" class="base-btn-cancel" onclick="closeGimnacionModal()">Cancelar</button>
+                <button type="submit" form="gimnacion-form" class="base-btn-save">
+                    <i data-lucide="save" class="h-4 w-4 mr-2"></i>
                     Crear Servicio de Gimnación
                 </button>
             </div>
