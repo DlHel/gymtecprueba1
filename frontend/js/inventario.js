@@ -1,13 +1,14 @@
 // Sistema de Inventario - Gymtec ERP
 
 // CRÍTICO: Verificación de autenticación PRIMERO
-if (!window.authManager || !window.authManager.isAuthenticated()) {
+if (!window.AuthManager || !AuthManager.isAuthenticated()) {
     console.log('❌ Usuario no autenticado en inventario, redirigiendo a login...');
     window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
     throw new Error('Acceso no autorizado - Inventario');
 }
 
 console.log('✅ Usuario autenticado, cargando módulo de inventario...');
+console.log('👤 Usuario actual:', AuthManager.getUser()?.username);
 
 class InventoryManager {
     constructor() {
@@ -226,22 +227,30 @@ class InventoryManager {
 
     async loadCentralInventory() {
         try {
-            console.log('📦 Cargando inventario central...');
+            console.log('📦 Cargando inventario central desde:', `${this.apiBaseUrl}/inventory`);
             const container = document.getElementById('central-inventory-container');
             
             const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
-            if (!response.ok) throw new Error('Error al cargar inventario');
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('❌ Error HTTP:', response.status, errorData);
+                throw new Error(`HTTP ${response.status}: ${errorData.error || 'Error desconocido'}`);
+            }
             
             const result = await response.json();
+            console.log('✅ Respuesta del servidor:', result);
+            
             this.data.centralInventory = result.data || [];
+            console.log(`📊 Total items cargados: ${this.data.centralInventory.length}`);
             
             this.renderCentralInventory();
             this.updateStats('central', this.data.centralInventory.length);
             
             console.log(`✅ Inventario central cargado: ${this.data.centralInventory.length} items`);
         } catch (error) {
-            console.error('Error loading central inventory:', error);
-            this.showErrorState('central-inventory-container', 'Error al cargar el inventario central');
+            console.error('❌ Error loading central inventory:', error);
+            this.showErrorState('central-inventory-container', `Error al cargar el inventario central: ${error.message}`);
         }
     }
 
