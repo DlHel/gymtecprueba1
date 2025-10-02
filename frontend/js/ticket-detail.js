@@ -1657,21 +1657,13 @@ function setupEventListeners() {
         
         if (e.target.id === 'add-first-spare-part' || e.target.closest('#add-first-spare-part')) {
             e.preventDefault();
-            console.log('🔧 Click en botón primer repuesto');
-            if (typeof showAddSparePartModal === 'function') {
-                showAddSparePartModal();
-            } else {
-                console.error('❌ showAddSparePartModal no está definida');
-            }
-        }
-        
         if (e.target.id === 'request-spare-part-btn' || e.target.closest('#request-spare-part-btn')) {
             e.preventDefault();
-            console.log('🛒 Click en botón solicitar repuesto');
-            if (typeof showRequestSparePartModal === 'function') {
-                showRequestSparePartModal();
+            console.log('� Click en botón solicitar repuesto (modal unificado)');
+            if (typeof showUnifiedSparePartModal === 'function') {
+                showUnifiedSparePartModal();
             } else {
-                console.error('❌ showRequestSparePartModal no está definida');
+                console.error('❌ showUnifiedSparePartModal no está definida');
             }
         }
     });
