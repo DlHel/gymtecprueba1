@@ -39,12 +39,21 @@ class DatabaseAdapter {
     }
 
     // Función para MySQL db.get() - obtener solo el primer resultado
+    // Soporta tanto callback como async/await
     get(sql, params, callback) {
+        // Si no hay callback, retornar promesa (para usar con await)
         if (typeof params === 'function') {
             callback = params;
             params = [];
         }
         
+        if (!callback) {
+            // Modo async/await
+            return this.db.query(sql, params)
+                .then(results => results.length > 0 ? results[0] : null);
+        }
+        
+        // Modo callback
         this.db.query(sql, params)
             .then(results => {
                 const row = results.length > 0 ? results[0] : null;

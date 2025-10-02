@@ -75,13 +75,16 @@ class AuthService {
                     // Generar token
                     const token = generateToken(user);
 
-                    // Actualizar último login
+                    // NOTA: La columna last_login no existe en la tabla Users actual
+                    // Comentado para evitar errores - descomentar cuando se agregue la columna
+                    /*
                     const updateSql = `UPDATE Users SET last_login = CURRENT_TIMESTAMP WHERE id = ?`;
                     db.run(updateSql, [user.id], (updateErr) => {
                         if (updateErr) {
                             console.warn('⚠️ Error actualizando último login:', updateErr.message);
                         }
                     });
+                    */
 
                     // Retornar datos del usuario (sin contraseña) y token
                     resolve({
