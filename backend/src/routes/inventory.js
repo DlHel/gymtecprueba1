@@ -683,4 +683,131 @@ router.get('/spare-parts', (req, res) => {
     });
 });
 
+/**
+ * @route POST /api/inventory/spare-part-requests
+ * @desc Crear solicitud de compra de repuesto no disponible
+ */
+router.post('/spare-part-requests', (req, res) => {
+    console.log('🛒 Creando solicitud de compra de repuesto...');
+    
+    const {
+        ticket_id,
+        spare_part_name,
+        quantity_needed,
+        priority,
+        description,
+        justification,
+        requested_by
+    } = req.body;
+    
+    // Validaciones
+    if (!spare_part_name || !quantity_needed || !priority) {
+        return res.status(400).json({
+            error: 'Nombre de repuesto, cantidad y prioridad son requeridos',
+            code: 'VALIDATION_ERROR'
+        });
+    }
+    
+    if (quantity_needed <= 0) {
+        return res.status(400).json({
+            error: 'La cantidad debe ser mayor a 0',
+            code: 'VALIDATION_ERROR'
+        });
+    }
+    
+    const sql = `
+        INSERT INTO spare_part_requests (
+            ticket_id,
+            spare_part_name,
+            quantity_needed,
+            priority,
+            description,
+            justification,
+            requested_by,
+            status,
+            created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', NOW())
+    `;
+    
+    const params = [
+        ticket_id || null,
+        spare_part_name,
+        quantity_needed,
+        priority,
+        description || null,
+        justification || null,
+        requested_by || 'Sistema'
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error creando solicitud de repuesto:', err.message);
+            res.status(500).json({ 
+                error: 'Error al crear solicitud de repuesto',
+                code: 'REQUEST_CREATE_ERROR',
+                details: err.message
+            });
+            return;
+        }
+        
+        console.log(`✅ Solicitud de repuesto creada con ID: ${this.lastID}`);
+        res.status(201).json({
+            message: 'Solicitud de compra creada exitosamente',
+            data: {
+                id: this.lastID,
+                ticket_id,
+                spare_part_name,
+                quantity_needed,
+                priority,
+                status: 'pendiente'
+            }
+        });
+    });
+});
+
+/**
+ * @route GET /api/inventory/spare-part-requests
+ * @desc Obtener todas las solicitudes de compra de repuestos
+ */
+router.get('/spare-part-requests', (req, res) => {
+    console.log('📋 Obteniendo solicitudes de compra de repuestos...');
+    
+    const { status } = req.query;
+    
+    let sql = `
+        SELECT 
+            spr.*,
+            t.title as ticket_title,
+            t.ticket_number
+        FROM spare_part_requests spr
+        LEFT JOIN Tickets t ON spr.ticket_id = t.id
+    `;
+    
+    const params = [];
+    
+    if (status) {
+        sql += ' WHERE spr.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY spr.created_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo solicitudes:', err.message);
+            res.status(500).json({ 
+                error: 'Error al cargar solicitudes',
+                code: 'REQUESTS_FETCH_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} solicitudes encontradas`);
+        res.json({
+            message: 'success',
+            data: rows || []
+        });
+    });
+});
+
 module.exports = router;

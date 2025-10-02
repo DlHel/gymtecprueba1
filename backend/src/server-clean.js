@@ -2024,9 +2024,9 @@ app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => 
 // POST spare part usage to ticket
 app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => {
     const { ticketId } = req.params;
-    const { spare_part_id, quantity_used, unit_cost, notes } = req.body;
+    const { spare_part_id, quantity_used, unit_cost, notes, bill_to_client } = req.body;
     
-    console.log(`🔧 Agregando repuesto al ticket ${ticketId}:`, { spare_part_id, quantity_used, unit_cost });
+    console.log(`🔧 Registrando uso de repuesto en ticket ${ticketId}:`, { spare_part_id, quantity_used, unit_cost, bill_to_client });
     
     // Validaciones
     if (!spare_part_id || !quantity_used || quantity_used <= 0) {
@@ -2036,8 +2036,16 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
         });
     }
     
+    // Validar que unit_cost esté presente
+    if (unit_cost === undefined || unit_cost === null || unit_cost <= 0) {
+        return res.status(400).json({
+            error: 'unit_cost es requerido y debe ser mayor a 0',
+            code: 'VALIDATION_ERROR'
+        });
+    }
+    
     // Verificar que el ticket existe
-    db.get('SELECT id FROM Tickets WHERE id = ?', [ticketId], (err, ticket) => {
+    db.get('SELECT id, title FROM Tickets WHERE id = ?', [ticketId], (err, ticket) => {
         if (err) {
             console.error('❌ Error verificando ticket:', err.message);
             return res.status(500).json({ 
@@ -2084,7 +2092,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                 VALUES (?, ?, ?, ?, ?, NOW())
             `;
             
-            db.run(insertSql, [ticketId, spare_part_id, quantity_used, unit_cost || null, notes || null], function(err) {
+            db.run(insertSql, [ticketId, spare_part_id, quantity_used, unit_cost, notes || null], function(err) {
                 if (err) {
                     console.error('❌ Error insertando repuesto en ticket:', err.message);
                     return res.status(500).json({ 
@@ -2093,45 +2101,102 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                     });
                 }
                 
+                const sparePartUsageId = this.lastID;
+                
                 // Actualizar stock del repuesto
                 const updateStockSql = 'UPDATE spareparts SET current_stock = current_stock - ? WHERE id = ?';
                 db.run(updateStockSql, [quantity_used, spare_part_id], (err) => {
                     if (err) {
                         console.error('❌ Error actualizando stock:', err.message);
                         // Revertir la inserción
-                        db.run('DELETE FROM ticketspareparts WHERE id = ?', [this.lastID]);
+                        db.run('DELETE FROM ticketspareparts WHERE id = ?', [sparePartUsageId]);
                         return res.status(500).json({ 
                             error: 'Error actualizando stock del repuesto',
                             code: 'STOCK_UPDATE_ERROR'
                         });
                     }
                     
-                    // Obtener el registro completo insertado con datos del repuesto
-                    const selectSql = `
-                        SELECT 
-                            tsp.*,
-                            sp.name as spare_part_name,
-                            sp.sku as spare_part_sku
-                        FROM ticketspareparts tsp
-                        JOIN spareparts sp ON tsp.spare_part_id = sp.id
-                        WHERE tsp.id = ?
-                    `;
+                    console.log(`✅ Stock actualizado: ${sparePart.name} - Stock anterior: ${sparePart.current_stock}, usado: ${quantity_used}`);
                     
-                    db.get(selectSql, [this.lastID], (err, newRecord) => {
-                        if (err) {
-                            console.error('❌ Error obteniendo registro creado:', err.message);
-                            return res.status(500).json({ 
-                                error: 'Error obteniendo registro creado',
-                                code: 'RECORD_FETCH_ERROR'
-                            });
-                        }
+                    // 🆕 CREAR EXPENSE AUTOMÁTICAMENTE si bill_to_client = true
+                    if (bill_to_client && unit_cost && unit_cost > 0) {
+                        const totalCost = quantity_used * unit_cost;
+                        const expenseDescription = `Repuesto: ${sparePart.name} (${quantity_used} ${quantity_used > 1 ? 'unidades' : 'unidad'}) - ${ticket.title}`;
                         
-                        console.log(`✅ Repuesto agregado al ticket ${ticketId}, ID: ${this.lastID}`);
-                        res.status(201).json({
-                            message: "Repuesto agregado exitosamente",
-                            data: newRecord
+                        // Obtener o crear categoría "Repuestos"
+                        db.get('SELECT id FROM ExpenseCategories WHERE name = ? LIMIT 1', ['Repuestos'], (err, category) => {
+                            const categoryId = category ? category.id : null;
+                            
+                            const expenseSql = `
+                                INSERT INTO Expenses (
+                                    category_id, 
+                                    category, 
+                                    description, 
+                                    amount, 
+                                    date, 
+                                    reference_type, 
+                                    reference_id,
+                                    notes,
+                                    created_by, 
+                                    status
+                                ) VALUES (?, 'Repuestos', ?, ?, NOW(), 'ticket', ?, ?, ?, 'Aprobado')
+                            `;
+                            
+                            const expenseNotes = notes ? `Uso registrado en ticket #${ticketId}. ${notes}` : `Uso registrado en ticket #${ticketId}`;
+                            
+                            db.run(expenseSql, [
+                                categoryId,
+                                expenseDescription,
+                                totalCost,
+                                ticketId,
+                                expenseNotes,
+                                req.user.id
+                            ], function(expenseErr) {
+                                if (expenseErr) {
+                                    console.error('⚠️ Error creando gasto automático:', expenseErr.message);
+                                    // No revertimos el uso del repuesto, solo loggeamos el error
+                                } else {
+                                    console.log(`💰 Gasto automático creado - ID: ${this.lastID}, Monto: $${totalCost}`);
+                                }
+                                
+                                // Continuar con la respuesta (con o sin expense)
+                                returnSuccessResponse();
+                            });
                         });
-                    });
+                    } else {
+                        // No crear expense, retornar directamente
+                        returnSuccessResponse();
+                    }
+                    
+                    function returnSuccessResponse() {
+                        // Obtener el registro completo insertado con datos del repuesto
+                        const selectSql = `
+                            SELECT 
+                                tsp.*,
+                                sp.name as spare_part_name,
+                                sp.sku as spare_part_sku
+                            FROM ticketspareparts tsp
+                            JOIN spareparts sp ON tsp.spare_part_id = sp.id
+                            WHERE tsp.id = ?
+                        `;
+                        
+                        db.get(selectSql, [sparePartUsageId], (err, newRecord) => {
+                            if (err) {
+                                console.error('❌ Error obteniendo registro creado:', err.message);
+                                return res.status(500).json({ 
+                                    error: 'Error obteniendo registro creado',
+                                    code: 'RECORD_FETCH_ERROR'
+                                });
+                            }
+                            
+                            console.log(`✅ Uso de repuesto registrado en ticket ${ticketId}, ID: ${sparePartUsageId}`);
+                            res.status(201).json({
+                                message: "Uso de repuesto registrado exitosamente",
+                                data: newRecord,
+                                expense_created: bill_to_client
+                            });
+                        });
+                    }
                 });
             });
         });

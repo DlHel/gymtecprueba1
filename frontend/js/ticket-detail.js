@@ -1297,8 +1297,8 @@ function renderSpareParts() {
                 <h4>No hay repuestos utilizados</h4>
                 <p>Registra los repuestos utilizados en este ticket para mantener un control del inventario</p>
                 <button id="add-first-spare-part" class="ticket-action-btn primary">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    Agregar primer repuesto
+                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                    Registrar primer repuesto
                 </button>
             </div>
         `;
@@ -4598,7 +4598,10 @@ async function showAddSparePartModal() {
         modal.innerHTML = `
             <div class="base-modal-content">
                 <div class="base-modal-header">
-                    <h3 class="base-modal-title">Agregar Repuesto al Ticket</h3>
+                    <h3 class="base-modal-title">
+                        <i data-lucide="check-circle" class="inline w-5 h-5 mr-2"></i>
+                        Registrar Uso de Repuesto
+                    </h3>
                     <button class="base-modal-close" onclick="closeModal(this)">
                         <i data-lucide="x" class="w-5 h-5"></i>
                     </button>
@@ -4616,23 +4619,40 @@ async function showAddSparePartModal() {
                                 `).join('')}
                             </select>
                         </div>
-                        <div class="base-form-group">
-                            <label class="base-form-label">Cantidad Utilizada <span class="required">*</span></label>
-                            <input type="number" name="quantity_used" class="base-form-input" required min="1" placeholder="1">
-                        </div>
-                        <div class="base-form-group">
-                            <label class="base-form-label">Costo Unitario (opcional)</label>
-                            <input type="number" name="unit_cost" class="base-form-input" step="0.01" placeholder="0.00">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="base-form-group">
+                                <label class="base-form-label">Cantidad Utilizada <span class="required">*</span></label>
+                                <input type="number" name="quantity_used" class="base-form-input" required min="1" placeholder="1">
+                            </div>
+                            <div class="base-form-group">
+                                <label class="base-form-label">Costo Unitario <span class="required">*</span></label>
+                                <input type="number" name="unit_cost" class="base-form-input" step="0.01" placeholder="0.00" required>
+                            </div>
                         </div>
                         <div class="base-form-group">
                             <label class="base-form-label">Notas</label>
-                            <textarea name="notes" class="base-form-input" rows="3" placeholder="Descripción del uso del repuesto..."></textarea>
+                            <textarea name="notes" class="base-form-input" rows="2" placeholder="Descripción del uso del repuesto..."></textarea>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="bill_to_client" name="bill_to_client" class="mt-1" checked>
+                                <div class="flex-1">
+                                    <label for="bill_to_client" class="font-medium text-gray-900 cursor-pointer">
+                                        <i data-lucide="dollar-sign" class="w-4 h-4 inline mr-1"></i>
+                                        Facturar al cliente
+                                    </label>
+                                    <p class="text-sm text-gray-600 mt-1">Se creará un gasto automáticamente y se vinculará al ticket para facturación.</p>
+                                </div>
+                            </div>
                         </div>
                     </form>
                 </div>
                 <div class="base-modal-footer">
                     <button type="button" class="base-btn-cancel" onclick="closeModal(this)">Cancelar</button>
-                    <button type="button" class="base-btn-primary" onclick="submitSparePartForm(this)">Agregar Repuesto</button>
+                    <button type="button" class="base-btn-primary" onclick="submitSparePartForm(this)">
+                        <i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i>
+                        Registrar Uso
+                    </button>
                 </div>
             </div>
         `;
@@ -4679,14 +4699,22 @@ async function showRequestSparePartModal() {
     modal.innerHTML = `
         <div class="base-modal-content">
             <div class="base-modal-header">
-                <h3 class="base-modal-title">Solicitar Repuesto</h3>
+                <h3 class="base-modal-title">
+                    <i data-lucide="shopping-cart" class="inline w-5 h-5 mr-2"></i>
+                    Solicitar Compra de Repuesto
+                </h3>
                 <button type="button" class="base-modal-close" onclick="closeModal(this)">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
-                <div class="mb-4">
-                    <p class="text-gray-600">Solicita repuestos que no están disponibles en el inventario actual.</p>
+                <div class="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="info" class="w-5 h-5 text-yellow-600 mt-0.5"></i>
+                        <p class="text-sm text-yellow-800">
+                            Usa esta opción cuando necesites repuestos que <strong>no están disponibles</strong> en el inventario actual.
+                        </p>
+                    </div>
                 </div>
                 <form id="request-spare-part-form" class="space-y-4">
                     <div class="base-form-group">
@@ -4888,13 +4916,14 @@ async function submitSparePartForm(button) {
     const data = {
         spare_part_id: parseInt(formData.get('spare_part_id')),
         quantity_used: parseInt(formData.get('quantity_used')),
-        unit_cost: formData.get('unit_cost') ? parseFloat(formData.get('unit_cost')) : null,
-        notes: formData.get('notes') || null
+        unit_cost: parseFloat(formData.get('unit_cost')) || 0,
+        notes: formData.get('notes') || null,
+        bill_to_client: formData.get('bill_to_client') === 'on'
     };
     
     try {
         button.disabled = true;
-        button.textContent = 'Agregando...';
+        button.innerHTML = '<i data-lucide="loader" class="w-4 h-4 inline mr-1 animate-spin"></i> Registrando...';
         
         const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/spare-parts`, {
             method: 'POST',
@@ -4921,14 +4950,15 @@ async function submitSparePartForm(button) {
         renderSpareParts();
         lucide.createIcons();
         
-        showNotification('Repuesto agregado exitosamente', 'success');
-        console.log('✅ Repuesto agregado:', result.data);
+        const billMsg = data.bill_to_client ? ' y gasto registrado para facturación' : '';
+        showNotification(`Uso de repuesto registrado exitosamente${billMsg}`, 'success');
+        console.log('✅ Repuesto registrado:', result.data);
         
     } catch (error) {
         console.error('❌ Error agregando repuesto:', error);
-        showNotification(error.message || 'Error al agregar el repuesto', 'error');
+        showNotification(error.message || 'Error al registrar el uso del repuesto', 'error');
         button.disabled = false;
-        button.textContent = 'Agregar Repuesto';
+        button.innerHTML = '<i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i> Registrar Uso';
     }
 }
 
