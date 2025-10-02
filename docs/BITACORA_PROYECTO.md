@@ -6,7 +6,7 @@
 **Versión**: 3.0 (Modernización 2025)  
 **Stack**: Node.js + Express.js + MySQL2 + Vanilla JavaScript  
 **Estado**: ✅ PRODUCCIÓN - Con Testing Avanzado y Código Modularizado  
-**Última Actualización**: 10 de enero de 2025  
+**Última Actualización**: 2 de octubre de 2025  
 
 ### 🏗️ Arquitectura Actual
 - **Backend**: Express.js REST API con autenticación JWT (Puerto 3000)
@@ -22,6 +22,80 @@
 ---
 
 ## 📅 HISTORIAL CRONOLÓGICO DE DESARROLLO
+
+### [2025-10-02] - 🧹 LIMPIEZA: Eliminación de Módulo Redundante Inventario-Fase3
+
+#### 🎯 Objetivo de la Limpieza
+
+**Problema Detectado**: Duplicación de funcionalidad de inventario
+- ❌ Existían dos módulos de inventario: `inventario.html` e `inventario-fase3.html`
+- ❌ Funcionalidades duplicadas y código redundante
+- ❌ `inventario-fase3.js` tenía muchas funciones simuladas/hardcoded no productivas
+- ❌ Mantenimiento doble innecesario
+
+**Análisis Realizado**:
+
+**Módulo Principal** - `inventario.html + inventario.js` (849 líneas):
+- ✅ Sistema de pestañas completo: Central, Técnicos, Órdenes, Movimientos
+- ✅ CRUD completo de inventario
+- ✅ Sistema único de asignación a técnicos
+- ✅ Gestión de órdenes de compra
+- ✅ Sistema de transacciones/movimientos
+- ✅ Integración completa con autenticación
+- ✅ API calls productivos con `authenticatedFetch`
+
+**Módulo Redundante** - `inventario-fase3.html + inventario-fase3.js` (598 líneas):
+- ⚠️ Dashboard con métricas (funcionalidad duplicada)
+- ⚠️ Gestión de categorías (parcial, ya en principal)
+- ⚠️ Gestión de proveedores (parcial)
+- ❌ Muchas funciones con placeholder "Por implementar en Fase 3"
+- ❌ Datos simulados/hardcoded (no productivos)
+- ❌ Duplicaba funcionalidad del módulo principal
+
+#### ✅ Solución Implementada
+
+**Archivos Eliminados**:
+1. `frontend/inventario-fase3.html` - Eliminado
+2. `frontend/js/inventario-fase3.js` - Eliminado
+
+**Archivos Actualizados**:
+- `frontend/menu.html` - Removida entrada "Inventario Inteligente" del menú lateral
+
+**Código Actualizado**:
+```html
+<!-- menu.html - ANTES -->
+<a href="inventario.html" ...>Inventario</a>
+<a href="inventario-fase3.html" ...>Inventario Inteligente</a>  <!-- ELIMINADO -->
+<a href="modelos.html" ...>Modelos de Equipos</a>
+
+<!-- menu.html - DESPUÉS -->
+<a href="inventario.html" ...>Inventario</a>
+<a href="modelos.html" ...>Modelos de Equipos</a>
+```
+
+#### 📊 Beneficios de la Limpieza
+
+1. **Reducción de Código**: -862 líneas de código redundante eliminadas
+2. **Mantenimiento Simplificado**: Un solo módulo de inventario para mantener
+3. **Claridad**: No confusión entre "Inventario" e "Inventario Inteligente"
+4. **Performance**: Menor carga de archivos y código más limpio
+5. **Productividad**: El módulo principal `inventario.js` está completo y funcional
+
+#### 🎯 Funcionalidad Preservada
+
+**El módulo único `inventario.html` incluye:**
+- ✅ Vista de inventario central con filtros avanzados
+- ✅ Sistema de asignación de repuestos a técnicos (funcionalidad única)
+- ✅ Gestión completa de órdenes de compra
+- ✅ Seguimiento de movimientos y transacciones
+- ✅ Filtros por categoría, estado, técnico
+- ✅ Búsqueda en tiempo real
+- ✅ Modals profesionales con BaseModal
+- ✅ Sistema de pestañas completo
+
+**Resultado**: ✅ Sistema de inventario unificado, limpio y completamente funcional
+
+---
 
 ### [2025-01-10] - 🔄 REFACTORIZACIÓN MAYOR: Plan de Correcciones Post-Testing (5/6 Completadas)
 

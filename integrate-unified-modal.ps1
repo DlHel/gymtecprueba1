@@ -18,8 +18,8 @@ $insertMarker = "// GESTIÓN DE REPUESTOS MEJORADA"
 $insertPosition = $ticketDetailContent.IndexOf($insertMarker)
 
 if ($insertPosition -eq -1) {
-    Write-Host "❌ No se encontró el marcador de inserción" -ForegroundColor Red
-    exit 1
+  Write-Host "❌ No se encontró el marcador de inserción" -ForegroundColor Red
+  exit 1
 }
 
 # 4. Insertar código del modal

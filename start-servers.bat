@@ -42,17 +42,16 @@ if not exist "node_modules\" (
 echo ✅ Dependencias npm verificadas
 
 echo [4/5] Verificando servidor disponible...
-if exist "src\server-clean.js" (
-    echo ✅ Usando servidor optimizado: server-clean.js
-    set SERVER_FILE=src/server-clean.js
-) else (
-    echo ⚠️  Usando servidor principal: server.js
-    set SERVER_FILE=src/server.js
-)
 cd ..
 
 echo [5/5] Iniciando Backend (Node.js)...
-start "Gymtec Backend" cmd /k "cd backend && echo Iniciando servidor GYMTEC ERP... && echo Backend: http://localhost:3000 && echo Frontend: http://localhost:8080 && echo. && node %SERVER_FILE%"
+if exist "backend\src\server-clean.js" (
+    echo ✅ Usando servidor optimizado: server-clean.js
+    start "Gymtec Backend" cmd /k "cd backend && echo Iniciando servidor GYMTEC ERP... && echo Backend: http://localhost:3000 && echo Frontend: http://localhost:8080 && echo. && node src/server-clean.js"
+) else (
+    echo ⚠️  Usando servidor principal: server.js
+    start "Gymtec Backend" cmd /k "cd backend && echo Iniciando servidor GYMTEC ERP... && echo Backend: http://localhost:3000 && echo Frontend: http://localhost:8080 && echo. && node src/server.js"
+)
 
 echo [6/6] Esperando que el backend inicie y luego iniciando Frontend...
 timeout /t 5 /nobreak >nul
