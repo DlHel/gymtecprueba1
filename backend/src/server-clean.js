@@ -104,7 +104,7 @@ function authenticateToken(req, res, next) {
     jwt.verify(token, AuthService.JWT_SECRET, (err, user) => {
         if (err) {
             console.log('❌ Token inválido:', err.message);
-            return res.status(403).json({
+            return res.status(401).json({
                 error: 'Token inválido o expirado',
                 code: 'INVALID_TOKEN'
             });

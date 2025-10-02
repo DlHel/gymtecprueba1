@@ -4712,10 +4712,22 @@ async function showRequestSparePartModal() {
                     <div class="flex items-start gap-2">
                         <i data-lucide="info" class="w-5 h-5 text-yellow-600 mt-0.5"></i>
                         <p class="text-sm text-yellow-800">
-                            Usa esta opción cuando necesites repuestos que <strong>no están disponibles</strong> en el inventario actual.
+                            Usa esta opción cuando necesites repuestos que <strong>no están disponibles</strong> en el inventario actual. 
+                            La solicitud será enviada al departamento de inventario para su evaluación.
                         </p>
                     </div>
                 </div>
+                
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="shield" class="w-5 h-5 text-blue-600 mt-0.5"></i>
+                        <p class="text-sm text-blue-800">
+                            <strong>Confidencial:</strong> La información de costos y cotizaciones se maneja internamente. 
+                            Esta solicitud no aparecerá en el ticket público.
+                        </p>
+                    </div>
+                </div>
+                
                 <form id="request-spare-part-form" class="space-y-4">
                     <div class="base-form-group">
                         <label class="base-form-label">Nombre del Repuesto <span class="required">*</span></label>
@@ -4746,19 +4758,9 @@ async function showRequestSparePartModal() {
                     </div>
                     
                     <div class="base-form-group">
-                        <label class="base-form-label">Justificación</label>
+                        <label class="base-form-label">Justificación (¿Por qué es necesario?)</label>
                         <textarea name="justification" rows="2" class="base-form-input" 
                                   placeholder="¿Por qué es necesario este repuesto para resolver el ticket?"></textarea>
-                    </div>
-                    
-                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div class="flex items-start gap-2">
-                            <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5"></i>
-                            <div class="text-sm text-blue-800">
-                                <p class="font-medium">¿Qué pasa después?</p>
-                                <p>Tu solicitud se enviará al departamento de inventario para su evaluación y compra si es necesario.</p>
-                            </div>
-                        </div>
                     </div>
                 </form>
             </div>
@@ -4819,11 +4821,19 @@ async function submitSparePartRequest(form, modal) {
         // Cerrar modal
         closeModal(modal);
         
-        // Mostrar confirmación
-        showNotification('Solicitud de repuesto enviada exitosamente', 'success');
+        // Mostrar confirmación (SIN información interna en el ticket)
+        showNotification('✅ Solicitud de compra enviada al departamento de inventario', 'success');
         
-        // Agregar nota al ticket sobre la solicitud
-        await addSparePartRequestNote(requestData);
+        console.log('📦 Solicitud de repuesto enviada (INTERNA - no visible en ticket):', {
+            id: result.id,
+            spare_part: requestData.spare_part_name,
+            quantity: requestData.quantity_needed,
+            priority: requestData.priority,
+            ticket_id: state.currentTicket.id
+        });
+        
+        // NO agregar notas al ticket - la solicitud es completamente interna
+        // Los técnicos no verán información de costos ni solicitudes en el ticket
         
     } catch (error) {
         console.error('❌ Error al enviar solicitud:', error);
@@ -4831,9 +4841,13 @@ async function submitSparePartRequest(form, modal) {
     }
 }
 
-// Agregar nota sobre solicitud de repuesto al ticket
-async function addSparePartRequestNote(requestData) {
-    const noteText = `📦 **Solicitud de Repuesto**\n\n` +
+// NOTA: Esta función ha sido removida intencionalmente
+// Las solicitudes de repuestos son completamente internas (inventario/finanzas)
+// y NO deben aparecer como notas visibles en el ticket público
+async function addSparePartRequestNote_REMOVED_FOR_PRIVACY(requestData) {
+    // Esta función ya NO se usa - las solicitudes son internas
+    // Ver módulos de inventario y finanzas para gestión de cotizaciones
+    const noteText = `📦 **Solicitud de Repuesto INTERNA**\n\n` +
                     `**Repuesto:** ${requestData.spare_part_name}\n` +
                     `**Cantidad:** ${requestData.quantity_needed} unidades\n` +
                     `**Prioridad:** ${requestData.priority}\n` +

@@ -1,6 +1,19 @@
 /**
  * Sistema de AutenticaciÃ³n Frontend - Gymtec ERP
- * Maneja tokens JWT, verificaciÃ³n de sesiones y redirecciones
+ * Maneja tokens        const response = await fetch(url, {
+            ...options,
+            headers
+        });
+
+        // Si recibimos 401 o 403, el token expiró o es inválido
+        if (response.status === 401 || response.status === 403) {
+            console.warn(`🔒 Token expirado o inválido (${response.status}), haciendo logout automático...`);
+            this.logout();
+            window.location.href = '/login.html';
+            throw new Error('Sesión expirada');
+        }
+
+        return response;ciÃ³n de sesiones y redirecciones
  */
 
 class AuthManager {
