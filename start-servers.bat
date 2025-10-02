@@ -75,7 +75,7 @@ echo 🚀 Backend API:     http://localhost:3000
 echo 🌐 Frontend:        http://localhost:8080
 echo 👥 Clientes:        http://localhost:8080/clientes.html
 echo 🎫 Tickets:         http://localhost:8080/tickets.html
-echo 📦 Inventario:      http://localhost:8080/inventario-fase3.html
+echo 📦 Inventario:      http://localhost:8080/inventario.html
 echo 🔧 Equipos:         http://localhost:8080/equipo.html
 echo.
 echo [CARACTERISTICAS DISPONIBLES]

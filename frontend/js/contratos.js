@@ -6,15 +6,14 @@
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Iniciando módulo de contratos...');
 
-    // ✅ VERIFICACIÓN DE AUTENTICACIÓN SIMPLE (según @bitacora)
-    const token = localStorage.getItem('authToken') || localStorage.getItem('gymtec_token');
-    if (!token) {
-        console.log('❌ No hay token de autenticación, redirigiendo...');
-        window.location.href = 'login.html';
+    // ✅ VERIFICACIÓN DE AUTENTICACIÓN usando AuthManager
+    if (!AuthManager.isAuthenticated()) {
+        console.log('❌ Usuario no autenticado, redirigiendo...');
+        window.location.href = '/login.html';
         return;
     }
     
-    console.log('✅ Token encontrado, continuando con la aplicación...');
+    console.log('✅ Usuario autenticado, continuando con la aplicación...');
 
     // ================================
     // CONFIGURACIÓN Y ESTADO GLOBAL
@@ -85,21 +84,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     // ================================
     
     const api = {
-        // Obtener token de autenticación
-        getAuthHeaders() {
-            const token = localStorage.getItem('authToken') || localStorage.getItem('gymtec_token');
-            return {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            };
-        },
-
         // Obtener todos los contratos
         async getContracts() {
             console.log('📡 Obteniendo contratos...');
-            const response = await fetch(`${API_URL}/contracts`, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await authenticatedFetch(`${API_URL}/contracts`);
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -113,9 +101,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Obtener clientes para el selector
         async getClients() {
             console.log('📡 Obteniendo clientes...');
-            const response = await fetch(`${API_URL}/clients`, {
-                headers: this.getAuthHeaders()
-            });
+            const response = await authenticatedFetch(`${API_URL}/clients`);
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -129,9 +115,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Crear nuevo contrato
         async createContract(contractData) {
             console.log('📡 Creando contrato:', contractData);
-            const response = await fetch(`${API_URL}/contracts`, {
+            const response = await authenticatedFetch(`${API_URL}/contracts`, {
                 method: 'POST',
-                headers: this.getAuthHeaders(),
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contractData)
             });
             
@@ -148,9 +134,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Actualizar contrato existente
         async updateContract(id, contractData) {
             console.log('📡 Actualizando contrato:', id, contractData);
-            const response = await fetch(`${API_URL}/contracts/${id}`, {
+            const response = await authenticatedFetch(`${API_URL}/contracts/${id}`, {
                 method: 'PUT',
-                headers: this.getAuthHeaders(),
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contractData)
             });
             
@@ -167,9 +153,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Eliminar contrato
         async deleteContract(id) {
             console.log('📡 Eliminando contrato:', id);
-            const response = await fetch(`${API_URL}/contracts/${id}`, {
-                method: 'DELETE',
-                headers: this.getAuthHeaders()
+            const response = await authenticatedFetch(`${API_URL}/contracts/${id}`, {
+                method: 'DELETE'
             });
             
             if (!response.ok) {

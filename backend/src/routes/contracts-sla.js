@@ -13,14 +13,42 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
 
+// Middleware de autenticación simple (reutiliza la lógica de server-clean.js)
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+
+function authenticateToken(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({
+            error: 'Token de acceso requerido',
+            code: 'MISSING_TOKEN'
+        });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(401).json({
+                error: 'Token inválido o expirado',
+                code: 'INVALID_TOKEN'
+            });
+        }
+        req.user = user;
+        next();
+    });
+}
+
 // =====================================================
 // 1. GESTIÓN DE CONTRATOS
 // =====================================================
 
 /**
  * GET /api/contracts - Listar todos los contratos
+ * @requires authenticateToken
  */
-router.get('/contracts', (req, res) => {
+router.get('/contracts', authenticateToken, (req, res) => {
     try {
         const { client_id, status, active_only } = req.query;
         
@@ -78,8 +106,9 @@ router.get('/contracts', (req, res) => {
 
 /**
  * GET /api/contracts/:id - Obtener un contrato específico
+ * @requires authenticateToken
  */
-router.get('/contracts/:id', async (req, res) => {
+router.get('/contracts/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -117,8 +146,9 @@ router.get('/contracts/:id', async (req, res) => {
 
 /**
  * POST /api/contracts - Crear nuevo contrato
+ * @requires authenticateToken
  */
-router.post('/contracts', async (req, res) => {
+router.post('/contracts', authenticateToken, async (req, res) => {
     try {
         const {
             client_id,
@@ -243,8 +273,9 @@ router.post('/contracts', async (req, res) => {
 
 /**
  * PUT /api/contracts/:id - Actualizar contrato
+ * @requires authenticateToken
  */
-router.put('/contracts/:id', async (req, res) => {
+router.put('/contracts/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -363,8 +394,9 @@ router.put('/contracts/:id', async (req, res) => {
 
 /**
  * POST /api/tickets/:ticketId/calculate-sla - Calcular SLA automático para ticket
+ * @requires authenticateToken
  */
-router.post('/tickets/:ticketId/calculate-sla', async (req, res) => {
+router.post('/tickets/:ticketId/calculate-sla', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         
@@ -451,8 +483,9 @@ router.post('/tickets/:ticketId/calculate-sla', async (req, res) => {
 
 /**
  * GET /api/sla/dashboard - Dashboard de SLA
+ * @requires authenticateToken
  */
-router.get('/sla/dashboard', async (req, res) => {
+router.get('/sla/dashboard', authenticateToken, async (req, res) => {
     try {
         // Tickets por estado SLA
         const slaStats = await db.all(`
