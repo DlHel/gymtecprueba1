@@ -1,11 +1,4 @@
-// Sistema de Inventari        // Usar la configuración global de API URL
-        this.apiBaseUrl = window.API_URL || 'http://localhost:3000/api';
-        console.log('📡 Inventario usando API URL:', this.apiBaseUrl);
-        
-        this.init();
-    }
-
-    async init() { ERP
+// Sistema de Inventario - Gymtec ERP
 
 // CRÍTICO: Verificación de autenticación PRIMERO
 if (!window.authManager || !window.authManager.isAuthenticated()) {
@@ -294,10 +287,11 @@ class InventoryManager {
 
     async loadTransactions() {
         try {
-            console.log('📊 Cargando transacciones...');
+            console.log('📊 Cargando movimientos de inventario...');
             
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/transactions`);
-            if (!response.ok) throw new Error('Error al cargar transacciones');
+            // CORRECCIÓN: Backend usa /movements no /transactions
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/movements`);
+            if (!response.ok) throw new Error('Error al cargar movimientos');
             
             const result = await response.json();
             this.data.transactions = result.data || [];
