@@ -15,7 +15,7 @@ const db = require('../db-adapter');
 
 // Middleware de autenticación simple (reutiliza la lógica de server-clean.js)
 const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || 'gymtec_secret_key_2024';
 
 function authenticateToken(req, res, next) {
     const authHeader = req.headers['authorization'];
