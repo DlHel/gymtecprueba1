@@ -5,11 +5,14 @@ const db = require('../db-adapter');
 /**
  * GYMTEC ERP - APIs SISTEMA DE INVENTARIO INTELIGENTE
  * 
+ * 🔐 NOTA: Todos los endpoints requieren autenticación JWT
+ * 
  * Endpoints implementados:
  * ✅ GET /api/inventory - Listar inventario con filtros
  * ✅ POST /api/inventory - Crear nuevo item
  * ✅ PUT /api/inventory/:id - Actualizar item
- * ✅ DELETE /api/inventory/:id - Eliminar item
+ * ✅ DELETE /api/inventory/:id - Eliminar item (soft delete)
+ * ✅ GET /api/inventory/:id - Obtener item individual
  * ✅ GET /api/inventory/:id/movements - Movimientos de un item
  * ✅ POST /api/inventory/:id/adjust - Ajustar stock
  * ✅ GET /api/inventory/low-stock - Items con stock bajo
@@ -18,6 +21,34 @@ const db = require('../db-adapter');
  * ✅ POST /api/inventory/categories - Crear categoría
  */
 
+// Importar middleware de autenticación desde server-clean.js
+// El middleware authenticateToken ya está disponible globalmente
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({
+            error: 'Token de acceso requerido',
+            code: 'MISSING_TOKEN'
+        });
+    }
+
+    const jwt = require('jsonwebtoken');
+    const JWT_SECRET = process.env.JWT_SECRET || 'gymtec-erp-secret-key-2024';
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(401).json({
+                error: 'Token inválido o expirado',
+                code: 'INVALID_TOKEN'
+            });
+        }
+        req.user = user;
+        next();
+    });
+};
+
 // ===================================================================
 // GESTIÓN DE INVENTARIO
 // ===================================================================
@@ -25,8 +56,9 @@ const db = require('../db-adapter');
 /**
  * @route GET /api/inventory
  * @desc Obtener lista de inventario con filtros
+ * @access Protegido - Requiere autenticación
  */
-router.get('/', async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
     try {
         const { 
             category_id, 
@@ -167,8 +199,9 @@ router.get('/', async (req, res) => {
 /**
  * @route POST /api/inventory
  * @desc Crear nuevo item de inventario
+ * @access Protegido - Requiere autenticación
  */
-router.post('/', async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
     try {
         const {
             item_code,
@@ -262,8 +295,9 @@ router.post('/', async (req, res) => {
 /**
  * @route PUT /api/inventory/:id
  * @desc Actualizar item de inventario
+ * @access Protegido - Requiere autenticación
  */
-router.put('/:id', async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -334,10 +368,112 @@ router.put('/:id', async (req, res) => {
 });
 
 /**
+ * @route GET /api/inventory/:id
+ * @desc Obtener un item específico por ID
+ * @access Protegido - Requiere autenticación
+ */
+router.get('/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const sql = `
+        SELECT 
+            i.*,
+            ic.name as category_name,
+            l.name as location_name,
+            ps.company_name as primary_supplier_name,
+            as_sup.company_name as alternative_supplier_name
+        FROM Inventory i
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
+        LEFT JOIN Locations l ON i.location_id = l.id
+        LEFT JOIN Suppliers ps ON i.primary_supplier_id = ps.id
+        LEFT JOIN Suppliers as_sup ON i.alternative_supplier_id = as_sup.id
+        WHERE i.id = ? AND i.is_active = 1`;
+        
+        const item = await db.get(sql, [id]);
+        
+        if (!item) {
+            return res.status(404).json({
+                error: 'Item no encontrado',
+                code: 'NOT_FOUND'
+            });
+        }
+        
+        res.json({
+            message: 'success',
+            data: item
+        });
+        
+    } catch (error) {
+        console.error('Error obteniendo item:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor',
+            details: error.message 
+        });
+    }
+});
+
+/**
+ * @route DELETE /api/inventory/:id
+ * @desc Eliminar (soft delete) un item de inventario
+ * @access Protegido - Requiere autenticación
+ */
+router.delete('/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar que el item existe
+        const checkSQL = 'SELECT id, item_name FROM Inventory WHERE id = ? AND is_active = 1';
+        const exists = await db.get(checkSQL, [id]);
+        
+        if (!exists) {
+            return res.status(404).json({
+                error: 'Item no encontrado',
+                code: 'NOT_FOUND'
+            });
+        }
+        
+        // Soft delete (marcar como inactivo)
+        const deleteSQL = 'UPDATE Inventory SET is_active = 0, updated_at = NOW() WHERE id = ?';
+        await db.run(deleteSQL, [id]);
+        
+        // Registrar movimiento
+        const movementSQL = `
+        INSERT INTO InventoryMovements (
+            inventory_id, 
+            movement_type, 
+            quantity, 
+            notes, 
+            performed_by
+        ) VALUES (?, 'deletion', 0, ?, ?)`;
+        
+        await db.run(movementSQL, [
+            id, 
+            `Item "${exists.item_name}" eliminado del inventario`,
+            req.user.id
+        ]);
+        
+        res.json({
+            message: 'Item eliminado exitosamente',
+            data: { id, item_name: exists.item_name }
+        });
+        
+    } catch (error) {
+        console.error('Error eliminando item:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor',
+            details: error.message 
+        });
+    }
+});
+
+/**
  * @route POST /api/inventory/:id/adjust
  * @desc Ajustar stock de un item
+ * @access Protegido - Requiere autenticación
+ * @access Protegido - Requiere autenticación
  */
-router.post('/:id/adjust', async (req, res) => {
+router.post('/:id/adjust', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { adjustment_quantity, reason, notes } = req.body;
@@ -410,8 +546,9 @@ router.post('/:id/adjust', async (req, res) => {
 /**
  * @route GET /api/inventory/movements
  * @desc Obtener historial general de movimientos de inventario
+ * @access Protegido - Requiere autenticación
  */
-router.get('/movements', async (req, res) => {
+router.get('/movements', authenticateToken, async (req, res) => {
     try {
         const { 
             inventory_id, 
@@ -502,8 +639,9 @@ router.get('/movements', async (req, res) => {
 /**
  * @route GET /api/inventory/low-stock
  * @desc Obtener items con stock bajo
+ * @access Protegido - Requiere autenticación
  */
-router.get('/low-stock', (req, res) => {
+router.get('/low-stock', authenticateToken, (req, res) => {
     try {
         const sql = `
         SELECT 
@@ -570,8 +708,9 @@ router.get('/low-stock', (req, res) => {
 /**
  * @route GET /api/inventory/categories
  * @desc Obtener categorías de inventario
+ * @access Protegido - Requiere autenticación
  */
-router.get('/categories', async (req, res) => {
+router.get('/categories', authenticateToken, async (req, res) => {
     try {
         const sql = `
         SELECT 
@@ -604,8 +743,9 @@ router.get('/categories', async (req, res) => {
 /**
  * @route POST /api/inventory/categories
  * @desc Crear nueva categoría
+ * @access Protegido - Requiere autenticación
  */
-router.post('/categories', async (req, res) => {
+router.post('/categories', authenticateToken, async (req, res) => {
     try {
         const { name, description, parent_category_id } = req.body;
         
@@ -647,8 +787,9 @@ router.post('/categories', async (req, res) => {
 /**
  * @route GET /api/inventory/spare-parts
  * @desc Obtener lista de repuestos disponibles para tickets
+ * @access Protegido - Requiere autenticación
  */
-router.get('/spare-parts', (req, res) => {
+router.get('/spare-parts', authenticateToken, (req, res) => {
     console.log('🔧 Obteniendo lista de repuestos disponibles...');
     
     const sql = `
@@ -686,8 +827,9 @@ router.get('/spare-parts', (req, res) => {
 /**
  * @route POST /api/inventory/spare-part-requests
  * @desc Crear solicitud de compra de repuesto no disponible
+ * @access Protegido - Requiere autenticación
  */
-router.post('/spare-part-requests', (req, res) => {
+router.post('/spare-part-requests', authenticateToken, (req, res) => {
     console.log('🛒 Creando solicitud de compra de repuesto...');
     
     const {
@@ -768,8 +910,9 @@ router.post('/spare-part-requests', (req, res) => {
 /**
  * @route GET /api/inventory/spare-part-requests
  * @desc Obtener todas las solicitudes de compra de repuestos
+ * @access Protegido - Requiere autenticación
  */
-router.get('/spare-part-requests', (req, res) => {
+router.get('/spare-part-requests', authenticateToken, (req, res) => {
     console.log('📋 Obteniendo solicitudes de compra de repuestos...');
     
     const { status } = req.query;

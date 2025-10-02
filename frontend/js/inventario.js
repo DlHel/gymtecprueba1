@@ -748,46 +748,149 @@ class InventoryManager {
     // Placeholder methods for API calls (to be implemented)
     async saveInventoryItem() {
         console.log('💾 Guardando repuesto...');
-        this.showNotification('Funcionalidad en desarrollo', 'info');
+        
+        const form = document.getElementById('inventory-form');
+        const formData = new FormData(form);
+        
+        const itemId = form.dataset.itemId; // Si es edición
+        const method = itemId ? 'PUT' : 'POST';
+        const url = itemId 
+            ? `${this.apiBaseUrl}/inventory/${itemId}` 
+            : `${this.apiBaseUrl}/inventory`;
+        
+        const data = {
+            item_name: formData.get('name'),
+            item_code: formData.get('sku'),
+            category_id: parseInt(formData.get('category')) || null,
+            current_stock: parseInt(formData.get('current_stock')) || 0,
+            minimum_stock: parseInt(formData.get('min_stock')) || 0,
+            unit_cost: parseFloat(formData.get('unit_price')) || 0,
+            location_id: parseInt(formData.get('location')) || null,
+            description: formData.get('description') || null,
+            unit_of_measure: formData.get('unit_of_measure') || 'unit',
+            is_critical: formData.get('is_critical') === 'on' ? 1 : 0
+        };
+        
+        try {
+            const response = await authenticatedFetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al guardar');
+            }
+            
+            const result = await response.json();
+            
+            this.showNotification(
+                itemId ? 'Repuesto actualizado exitosamente' : 'Repuesto creado exitosamente', 
+                'success'
+            );
+            
+            this.closeModal(document.getElementById('inventory-modal'));
+            form.removeAttribute('data-item-id'); // Limpiar flag de edición
+            await this.loadCentralInventory(); // Recargar lista
+            
+        } catch (error) {
+            console.error('Error guardando repuesto:', error);
+            this.showNotification('Error al guardar repuesto: ' + error.message, 'error');
+        }
     }
 
     async savePurchaseOrder() {
         console.log('💾 Guardando orden de compra...');
-        this.showNotification('Funcionalidad en desarrollo', 'info');
+        this.showNotification('Sistema de órdenes de compra en desarrollo. Próximamente disponible.', 'info');
     }
 
     async assignToTechnician() {
         console.log('💾 Asignando a técnico...');
-        this.showNotification('Funcionalidad en desarrollo', 'info');
+        this.showNotification('Sistema de asignación a técnicos en desarrollo. Próximamente disponible.', 'info');
     }
 
     async editInventoryItem(id) {
         console.log(`✏️ Editando repuesto ${id}...`);
-        this.showNotification('Funcionalidad en desarrollo', 'info');
+        
+        try {
+            // Cargar datos del item
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/${id}`);
+            
+            if (!response.ok) {
+                throw new Error('Error al cargar datos del repuesto');
+            }
+            
+            const result = await response.json();
+            const item = result.data;
+            
+            // Abrir modal en modo edición
+            const modal = document.getElementById('inventory-modal');
+            const form = document.getElementById('inventory-form');
+            const title = document.getElementById('inventory-modal-title');
+            
+            title.textContent = 'Editar Repuesto';
+            form.dataset.itemId = id; // Guardar ID para saveInventoryItem()
+            
+            // Pre-llenar formulario
+            if (form.elements['name']) form.elements['name'].value = item.item_name || '';
+            if (form.elements['sku']) form.elements['sku'].value = item.item_code || '';
+            if (form.elements['category']) form.elements['category'].value = item.category_id || '';
+            if (form.elements['current_stock']) form.elements['current_stock'].value = item.current_stock || 0;
+            if (form.elements['min_stock']) form.elements['min_stock'].value = item.minimum_stock || 0;
+            if (form.elements['unit_price']) form.elements['unit_price'].value = item.unit_cost || 0;
+            if (form.elements['location']) form.elements['location'].value = item.location_id || '';
+            if (form.elements['description']) form.elements['description'].value = item.description || '';
+            
+            this.showModal(modal);
+            
+        } catch (error) {
+            console.error('Error al editar repuesto:', error);
+            this.showNotification('Error al cargar datos: ' + error.message, 'error');
+        }
     }
 
     async deleteInventoryItem(id) {
-        if (confirm('¿Estás seguro de que quieres eliminar este repuesto?')) {
-            console.log(`🗑️ Eliminando repuesto ${id}...`);
-            this.showNotification('Funcionalidad en desarrollo', 'info');
+        if (!confirm('¿Estás seguro de que quieres eliminar este repuesto? Esta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        console.log(`🗑️ Eliminando repuesto ${id}...`);
+        
+        try {
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al eliminar');
+            }
+            
+            this.showNotification('Repuesto eliminado exitosamente', 'success');
+            await this.loadCentralInventory(); // Recargar lista
+            
+        } catch (error) {
+            console.error('Error eliminando repuesto:', error);
+            this.showNotification('Error al eliminar repuesto: ' + error.message, 'error');
         }
     }
 
     async receiveOrder(id) {
         console.log(`📦 Marcando orden ${id} como recibida...`);
-        this.showNotification('Funcionalidad en desarrollo', 'info');
+        this.showNotification('Sistema de órdenes de compra en desarrollo. Próximamente disponible.', 'info');
     }
 
     async cancelOrder(id) {
         if (confirm('¿Estás seguro de que quieres cancelar esta orden?')) {
             console.log(`❌ Cancelando orden ${id}...`);
-            this.showNotification('Funcionalidad en desarrollo', 'info');
+            this.showNotification('Sistema de órdenes de compra en desarrollo. Próximamente disponible.', 'info');
         }
     }
 
     async returnFromTechnician(technicianId, itemId) {
         console.log(`↩️ Devolviendo repuesto ${itemId} del técnico ${technicianId}...`);
-        this.showNotification('Funcionalidad en desarrollo', 'info');
+        this.showNotification('Sistema de asignación a técnicos en desarrollo. Próximamente disponible.', 'info');
     }
 
     addOrderItem() {
