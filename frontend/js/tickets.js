@@ -618,6 +618,15 @@ async function fetchTickets() {
         state.tickets = result.data || [];
         state.filteredTickets = [...state.tickets];
         
+        // 🔍 DEBUG: Verificar tipos de tickets
+        console.log('📊 TICKETS: Tickets cargados:', state.tickets.length);
+        const ticketTypes = state.tickets.reduce((acc, t) => {
+            const type = t.ticket_type || 'sin tipo';
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+        }, {});
+        console.log('📊 TICKETS: Distribución por tipo:', ticketTypes);
+        
         populateClientFilter();
         renderTickets(state.filteredTickets);
         updateStatistics();
@@ -852,13 +861,18 @@ async function handleNewLocationSubmit(e) {
         if (!response.ok) throw new Error('Failed to create location');
         const newLocation = await response.json();
 
+        // Obtener referencia desde window.ticketsElements
+        const locationSelect = window.ticketsElements?.locationSelect;
+        
         // 1. Añadir a estado y repoblar desplegable de sedes
         state.locations.push(newLocation);
-        populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
-        locationSelect.value = newLocation.id;
-        
-        // 2. Disparar evento para actualizar la UI dependiente (equipos)
-        locationSelect.dispatchEvent(new Event('change'));
+        if (locationSelect) {
+            populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede...' });
+            locationSelect.value = newLocation.id;
+            
+            // 2. Disparar evento para actualizar la UI dependiente (equipos)
+            locationSelect.dispatchEvent(new Event('change'));
+        }
 
         // 3. Cerrar modal
         closeModal('add-location-modal');
@@ -887,10 +901,15 @@ async function handleNewEquipmentSubmit(e) {
         if (!response.ok) throw new Error('Failed to create equipment');
         const newEquipment = await response.json();
 
+        // Obtener referencia desde window.ticketsElements
+        const equipmentSelect = window.ticketsElements?.equipmentSelect;
+        
         // 1. Añadir a estado y repoblar desplegable de equipos
         state.equipment.push(newEquipment);
-        populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo (opcional)...' });
-        equipmentSelect.value = newEquipment.id;
+        if (equipmentSelect) {
+            populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo (opcional)...' });
+            equipmentSelect.value = newEquipment.id;
+        }
 
         // 2. Cerrar modal
         closeModal('add-equipment-modal');
@@ -924,11 +943,19 @@ async function openModal(modalId, data = {}) {
             statusWrapper.classList.add('hidden');
         }
 
-        // Reset and disable dependent dropdowns
-        locationSelect.innerHTML = '<option value="">Seleccione un cliente primero...</option>';
-        locationSelect.disabled = true;
-        equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero...</option>';
-        equipmentSelect.disabled = true;
+        // Reset and disable dependent dropdowns - USAR window.ticketsElements
+        const locationSelect = window.ticketsElements?.locationSelect;
+        const equipmentSelect = window.ticketsElements?.equipmentSelect;
+        
+        if (locationSelect) {
+            locationSelect.innerHTML = '<option value="">Seleccione un cliente primero...</option>';
+            locationSelect.disabled = true;
+        }
+        
+        if (equipmentSelect) {
+            equipmentSelect.innerHTML = '<option value="">Seleccione una sede primero...</option>';
+            equipmentSelect.disabled = true;
+        }
 
         let effectiveData = { ...data };
 
@@ -1260,6 +1287,10 @@ function setupGimnacionEventListeners() {
     if (locationSelect) {
         locationSelect.addEventListener('change', onGimnacionLocationChange);
     }
+    
+    // ✅ CRÍTICO: Event listener para submit del formulario de gimnación
+    gimnacionForm.addEventListener('submit', handleGimnacionSubmit);
+    console.log('✅ GIMNACION: Event listener de submit configurado');
     
     // Event listeners para botones de equipos
     const selectAllBtn = document.getElementById('select-all-equipment');
@@ -2441,6 +2472,14 @@ async function handleGimnacionSubmit(event) {
             ? window.checklistEditor.getData() 
             : [];
         
+        // Transformar equipment_ids a equipment_scope que espera el backend
+        const equipment_scope = state.gimnacion.selectedEquipment.map(equip => ({
+            equipment_id: equip.id,
+            is_included: true,  // Todos los seleccionados están incluidos
+            exclusion_reason: null,
+            assigned_technician_id: null
+        }));
+        
         const ticketData = {
             title: formData.get('title'),
             description: formData.get('description'),
@@ -2449,13 +2488,15 @@ async function handleGimnacionSubmit(event) {
             contract_id: formData.get('contract_id') || null,
             priority: formData.get('priority'),
             ticket_type: 'gimnacion',
-            equipment_ids: state.gimnacion.selectedEquipment.map(e => e.id),
+            equipment_scope: equipment_scope,  // Formato correcto para el backend
+            technicians: [],  // Array vacío si no hay técnicos asignados
             checklist_template_id: checklistTemplateSelect?.value || null,
-            checklist_data: checklistData
+            custom_checklist: checklistData  // Renombrado de checklist_data a custom_checklist
         };
         
         console.log('🚀 GIMNACION: Creando ticket de gimnación...', {
             ...ticketData,
+            equipment_count: equipment_scope.length,
             checklist_items: checklistData.length
         });
         

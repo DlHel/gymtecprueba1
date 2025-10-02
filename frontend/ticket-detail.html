@@ -57,8 +57,8 @@
             </header>
             
             <!-- Contenido principal -->
-            <main class="flex-1 bg-gray-50">
-                <div class="ticket-detail-container">
+            <main class="flex-1 bg-gray-50 overflow-auto">
+                <div class="ticket-detail-container w-full h-full">
                     <!-- Estado de carga -->
                     <div id="loading-state" class="flex items-center justify-center h-full">
                         <div class="text-center">
@@ -68,14 +68,14 @@
                     </div>
 
                     <!-- Contenido del ticket -->
-                    <div id="ticket-content" class="hidden h-full flex flex-col">
+                    <div id="ticket-content" class="hidden h-full flex flex-col w-full">
                         <!-- Header del ticket con información principal -->
                         <div class="ticket-detail-header-improved" id="ticket-header">
                             <!-- Se cargará dinámicamente -->
                         </div>
 
                         <!-- Contenido unificado -->
-                        <div class="ticket-tabs-container-improved flex-1 flex flex-col">
+                        <div class="ticket-tabs-container-improved flex-1 flex flex-col w-full">
                             <!-- Título simple -->
                             <div class="ticket-simple-header">
                                 <h3 class="ticket-simple-title">
@@ -85,10 +85,10 @@
                             </div>
 
                             <!-- Contenido unificado -->
-                            <div class="ticket-content-wrapper flex-1">
-                                <div class="ticket-unified-layout">
+                            <div class="ticket-content-wrapper flex-1 w-full">
+                                <div class="ticket-unified-layout w-full max-w-full">
                                     <!-- Información principal -->
-                                    <div class="ticket-main-content">
+                                    <div class="ticket-main-content w-full">
                                         <div class="ticket-section-card">
                                             <div class="ticket-section-header">
                                                 <h3 class="ticket-section-title">

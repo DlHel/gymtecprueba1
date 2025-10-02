@@ -1229,7 +1229,7 @@ app.get('/api/tickets', authenticateToken, (req, res) => {
             l.name as location_name,
             e.name as equipment_name,
             e.custom_id as equipment_custom_id,
-            COALESCE(t.ticket_type, 'normal') as ticket_type
+            COALESCE(t.ticket_type, 'individual') as ticket_type
         FROM Tickets t
         LEFT JOIN Clients c ON t.client_id = c.id
         LEFT JOIN Equipment e ON t.equipment_id = e.id
@@ -1246,13 +1246,21 @@ app.get('/api/tickets', authenticateToken, (req, res) => {
     
     sql += ` ORDER BY t.created_at DESC`;
     
+    console.log('📊 GET /api/tickets - Ejecutando query...');
+    
     db.all(sql, params, (err, rows) => {
         if (err) {
             console.error('❌ Error en consulta de tickets:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
+        
         console.log(`✅ Tickets encontrados: ${rows.length}`);
+        console.log('📊 Tipos de tickets:', rows.reduce((acc, t) => {
+            acc[t.ticket_type] = (acc[t.ticket_type] || 0) + 1;
+            return acc;
+        }, {}));
+        
         res.json({
             message: "success",
             data: rows
@@ -1297,7 +1305,7 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
     const ticketId = req.params.id;
     console.log(`🔍 Obteniendo detalle completo del ticket ID: ${ticketId}`);
     
-    // Query principal del ticket con información completa (corregido para lowercase)
+    // Query principal del ticket con información completa (UPPERCASE para MySQL)
     const ticketSql = `
         SELECT 
             t.*,
@@ -1317,12 +1325,12 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
             em.category as equipment_category,
             em.brand as equipment_brand,
             u.username as assigned_to_name
-        FROM tickets t
-        LEFT JOIN clients c ON t.client_id = c.id
-        LEFT JOIN locations l ON t.location_id = l.id
-        LEFT JOIN equipment e ON t.equipment_id = e.id
-        LEFT JOIN equipmentmodels em ON e.model_id = em.id
-        LEFT JOIN users u ON t.assigned_technician_id = u.id
+        FROM Tickets t
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Locations l ON t.location_id = l.id
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        LEFT JOIN Users u ON t.assigned_technician_id = u.id
         WHERE t.id = ?
     `;
     
@@ -1345,8 +1353,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
         
         console.log(`✅ Ticket ${ticketId} encontrado: ${ticket.title}`);
         
-        // Obtener fotos del ticket (corregido para usar nombre de tabla lowercase)
-        const photosSql = `SELECT * FROM ticketphotos WHERE ticket_id = ? ORDER BY created_at DESC`;
+        // Obtener fotos del ticket (UPPERCASE para MySQL)
+        const photosSql = `SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC`;
         
         db.all(photosSql, [ticketId], (photoErr, photos) => {
             if (photoErr) {
@@ -1356,8 +1364,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
             
             console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
             
-            // Obtener notas del ticket (CORRIGIENDO EL PROBLEMA PRINCIPAL)
-            const notesSql = `SELECT * FROM ticketnotes WHERE ticket_id = ? ORDER BY created_at DESC`;
+            // Obtener notas del ticket (UPPERCASE para MySQL)
+            const notesSql = `SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC`;
             
             db.all(notesSql, [ticketId], (notesErr, notes) => {
                 if (notesErr) {
@@ -1367,8 +1375,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                 
                 console.log(`📝 Encontradas ${notes ? notes.length : 0} notas para ticket ${ticketId}`);
                 
-                // Obtener checklist del ticket (CORRIGIENDO EL PROBLEMA PRINCIPAL)
-                const checklistSql = `SELECT * FROM ticketchecklists WHERE ticket_id = ? ORDER BY created_at DESC`;
+                // Obtener checklist del ticket (UPPERCASE para MySQL)
+                const checklistSql = `SELECT * FROM TicketChecklist WHERE ticket_id = ? ORDER BY created_at DESC`;
                 
                 db.all(checklistSql, [ticketId], (checklistErr, checklist) => {
                     if (checklistErr) {
@@ -1438,6 +1446,45 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
         res.status(201).json({
             message: "success",
             data: { id: this.lastID, ...req.body, status: 'Abierto' }
+        });
+    });
+});
+
+// GET equipment scope for a gimnación ticket (organized by category)
+app.get('/api/tickets/:id/equipment-scope', authenticateToken, (req, res) => {
+    const ticketId = req.params.id;
+    
+    console.log(`📋 Fetching equipment scope for ticket ${ticketId}`);
+    
+    const sql = `
+        SELECT 
+            tes.id,
+            tes.equipment_id,
+            e.name as equipment_name,
+            e.custom_id,
+            em.name as model_name,
+            em.category,
+            em.brand,
+            tes.is_included,
+            tes.exclusion_reason
+        FROM TicketEquipmentScope tes
+        INNER JOIN Equipment e ON tes.equipment_id = e.id
+        INNER JOIN EquipmentModels em ON e.model_id = em.id
+        WHERE tes.ticket_id = ?
+        ORDER BY em.category, em.name, em.brand
+    `;
+    
+    db.all(sql, [ticketId], (err, rows) => {
+        if (err) {
+            console.error('❌ Error fetching equipment scope:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        
+        console.log(`✅ Found ${rows.length} equipment items for ticket ${ticketId}`);
+        
+        res.json({
+            message: "success",
+            data: rows || []
         });
     });
 });
@@ -2178,7 +2225,7 @@ app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
                 title, description, status, priority, ticket_type,
                 client_id, location_id, contract_id, assigned_technician_id,
                 created_at, updated_at
-            ) VALUES (?, ?, 'Abierto', ?, 'gimnacion', ?, ?, ?, ?, datetime('now'), datetime('now'))
+            ) VALUES (?, ?, 'Abierto', ?, 'gimnacion', ?, ?, ?, ?, NOW(), NOW())
         `;
         
         const mainTechnician = technicians && technicians.length > 0 ? technicians[0].technician_id : null;

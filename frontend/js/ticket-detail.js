@@ -166,6 +166,7 @@ async function loadTicketDetail(ticketId) {
             description: data.description,
             status: data.status,
             priority: data.priority,
+            ticket_type: data.ticket_type || 'individual', // ✅ NUEVO: Tipo de ticket
             client_id: data.client_id,
             location_id: data.location_id,
             equipment_id: data.equipment_id,
@@ -237,6 +238,12 @@ function renderTicketDetail() {
     // Renderizar secciones principales
     renderTicketHeader(state.currentTicket);
     renderTicketDescription(state.currentTicket);
+    
+    // ✅ NUEVO: Renderizar equipos si es gimnación (ANTES de stats para mantener orden)
+    if (state.currentTicket.ticket_type === 'gimnacion') {
+        renderGimnacionEquipment();
+    }
+    
     renderTicketStats();
     renderStatusControls(state.currentTicket);  // ✅ Agregar controles de estado
     renderStatusActions(state.currentTicket);
@@ -4987,3 +4994,296 @@ window.requestSparePartOrder = requestSparePartOrder;
 window.editSparePartUsage = editSparePartUsage;
 window.submitSparePartForm = submitSparePartForm;
 window.closeModal = closeModal;
+
+// ===========================================
+// FUNCIONES ESPECÍFICAS PARA GIMNACIÓN
+// ===========================================
+
+/**
+ * Renderizar lista de equipos para tickets de gimnación
+ * Muestra equipos organizados por categoría de forma compacta
+ */
+async function renderGimnacionEquipment() {
+    console.log('🏋️ Renderizando equipos de gimnación en formato compacto...');
+    
+    // Buscar o crear contenedor después de la descripción
+    const descriptionSection = document.getElementById('ticket-description');
+    if (!descriptionSection) {
+        console.warn('⚠️ No se encontró sección de descripción');
+        return;
+    }
+    
+    // Verificar si ya existe el contenedor
+    let equipmentSection = document.getElementById('gimnacion-equipment-section');
+    
+    if (!equipmentSection) {
+        // Crear nuevo contenedor
+        equipmentSection = document.createElement('div');
+        equipmentSection.id = 'gimnacion-equipment-section';
+        equipmentSection.className = 'ticket-section';
+        
+        // Insertar después de la descripción
+        descriptionSection.parentNode.insertBefore(equipmentSection, descriptionSection.nextSibling);
+    }
+    
+    // Mostrar loading
+    equipmentSection.innerHTML = `
+        <div class="flex items-center justify-center py-4">
+            <i data-lucide="loader" class="w-5 h-5 animate-spin text-blue-500"></i>
+            <span class="ml-2 text-gray-600">Cargando equipos...</span>
+        </div>
+    `;
+    
+    if (window.lucide) lucide.createIcons();
+    
+    try {
+        // Obtener equipos del ticket de gimnación desde el backend
+        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/equipment-scope`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        const equipment = result.data || [];
+        
+        console.log('📦 Equipos obtenidos:', equipment.length);
+        
+        if (equipment.length === 0) {
+            equipmentSection.innerHTML = `
+                <div class="section-header">
+                    <h3>
+                        <i data-lucide="cpu" class="w-5 h-5"></i>
+                        Equipos del Servicio
+                    </h3>
+                </div>
+                <div class="section-content">
+                    <p class="text-gray-500 text-sm">No hay equipos asociados a este ticket</p>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+            return;
+        }
+        
+        // Agrupar por modelo (model_name + brand) y contar cantidades
+        const modelCounts = equipment.reduce((acc, equip) => {
+            const modelName = equip.model_name || 'Sin modelo';
+            const brand = equip.brand || '';
+            const category = equip.category || 'Sin categoría';
+            const isIncluded = equip.is_included;
+            
+            // Clave única: modelo + marca + categoría + estado
+            const key = `${modelName}|${brand}|${category}|${isIncluded}`;
+            
+            if (!acc[key]) {
+                acc[key] = {
+                    model: modelName,
+                    brand: brand,
+                    category: category,
+                    count: 0,
+                    isIncluded: isIncluded,
+                    items: []
+                };
+            }
+            
+            acc[key].count++;
+            acc[key].items.push(equip);
+            return acc;
+        }, {});
+        
+        // Convertir a array y ordenar por categoría, luego por cantidad (mayor a menor)
+        const modelGroups = Object.values(modelCounts).sort((a, b) => {
+            // Primero por categoría
+            if (a.category !== b.category) {
+                return a.category.localeCompare(b.category);
+            }
+            // Dentro de la misma categoría, por cantidad (mayor primero)
+            if (a.count !== b.count) {
+                return b.count - a.count;
+            }
+            // Finalmente por nombre de modelo
+            return a.model.localeCompare(b.model);
+        });
+        
+        // Agrupar modelos por categoría para visualización
+        const categorizedGroups = modelGroups.reduce((acc, group) => {
+            if (!acc[group.category]) {
+                acc[group.category] = [];
+            }
+            acc[group.category].push(group);
+            return acc;
+        }, {});
+        
+        // Contar totales incluidos/excluidos
+        const totalIncluded = equipment.filter(e => e.is_included).length;
+        const totalExcluded = equipment.filter(e => !e.is_included).length;
+        
+        // Renderizar en formato compacto ejecutivo con agrupación por categorías
+        let equipmentHTML = `
+            <div class="section-header cursor-pointer bg-gradient-to-r from-gray-50 to-white hover:from-gray-100 transition-all" onclick="toggleGimnacionEquipment()">
+                <div class="flex items-center justify-between w-full">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <i data-lucide="package" class="w-4 h-4 text-blue-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-gray-900 text-base">Equipos del Servicio</h3>
+                            <p class="text-xs text-gray-500">
+                                ${totalIncluded} en alcance${totalExcluded > 0 ? ` • ${totalExcluded} excluidos` : ''}
+                            </p>
+                        </div>
+                    </div>
+                    <i data-lucide="chevron-down" id="gimnacion-chevron" class="w-5 h-5 text-gray-400 transition-transform duration-200"></i>
+                </div>
+            </div>
+            <div id="gimnacion-equipment-content" class="section-content p-3">
+        `;
+        
+        // Renderizar por categorías de forma compacta
+        Object.keys(categorizedGroups).sort().forEach(category => {
+            const categoryItems = categorizedGroups[category];
+            const categoryColor = getCategoryColorClass(category);
+            const categoryTotal = categoryItems.reduce((sum, item) => sum + item.count, 0);
+            const categoryId = `category-${category.replace(/\s+/g, '-').toLowerCase()}`;
+            
+            equipmentHTML += `
+                <div class="mb-3 bg-white rounded-lg border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                    <div class="px-3 py-2 ${categoryColor} cursor-pointer flex items-center justify-between" onclick="toggleCategory('${categoryId}')">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="grid-3x3" class="w-3.5 h-3.5"></i>
+                            <h4 class="font-semibold text-sm">${category}</h4>
+                            <span class="text-xs px-2 py-0.5 bg-white bg-opacity-60 rounded-full font-medium">
+                                ${categoryTotal}
+                            </span>
+                        </div>
+                        <i data-lucide="chevron-down" id="${categoryId}-chevron" class="w-4 h-4 transition-transform duration-200"></i>
+                    </div>
+                    <div id="${categoryId}" class="p-2">
+                        <div class="flex flex-wrap gap-1.5">
+            `;
+            
+            // Renderizar badges compactos de cada modelo en la categoría
+            categoryItems.forEach(group => {
+                const statusIcon = group.isIncluded ? '✓' : '✗';
+                const statusColorBg = group.isIncluded 
+                    ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100' 
+                    : 'bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100';
+                
+                // Marca más discreta
+                const brandText = group.brand ? `<span class="text-[10px] opacity-50">${group.brand}</span>` : '';
+                
+                equipmentHTML += `
+                    <div 
+                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-medium border ${statusColorBg} transition-all"
+                        title="IDs: ${group.items.map(i => i.custom_id || 'Sin ID').join(', ')}"
+                    >
+                        <span class="flex items-center justify-center min-w-[18px] h-[18px] bg-white bg-opacity-60 rounded text-[10px] font-bold">
+                            ${group.count}
+                        </span>
+                        <span class="leading-tight">
+                            ${group.model} ${brandText}
+                        </span>
+                        <span class="text-xs">${statusIcon}</span>
+                    </div>
+                `;
+            });
+            
+            equipmentHTML += `
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Leyenda compacta
+        equipmentHTML += `
+                <div class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div class="flex flex-wrap items-center gap-3 text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-5 h-5 bg-emerald-50 border border-emerald-300 rounded flex items-center justify-center">
+                                <span class="text-emerald-700 text-xs font-bold">✓</span>
+                            </div>
+                            <span class="text-gray-700">Incluido</span>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <div class="w-5 h-5 bg-rose-50 border border-rose-300 rounded flex items-center justify-center">
+                                <span class="text-rose-700 text-xs font-bold">✗</span>
+                            </div>
+                            <span class="text-gray-700">Excluido</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        equipmentSection.innerHTML = equipmentHTML;
+        
+        // Crear iconos de Lucide
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+        
+        console.log('✅ Equipos de gimnación renderizados en formato compacto');
+        
+    } catch (error) {
+        console.error('❌ Error cargando equipos de gimnación:', error);
+        equipmentSection.innerHTML = `
+            <div class="section-header">
+                <h3>
+                    <i data-lucide="cpu" class="w-5 h-5"></i>
+                    Equipos del Servicio
+                </h3>
+            </div>
+            <div class="section-content">
+                <p class="text-red-500 text-sm">Error al cargar equipos: ${error.message}</p>
+            </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+    }
+}
+
+/**
+ * Toggle para colapsar/expandir sección de equipos
+ */
+function toggleGimnacionEquipment() {
+    const content = document.getElementById('gimnacion-equipment-content');
+    const chevron = document.getElementById('gimnacion-chevron');
+    
+    if (content && chevron) {
+        const isHidden = content.style.display === 'none';
+        content.style.display = isHidden ? 'block' : 'none';
+        chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
+}
+
+/**
+ * Toggle para colapsar/expandir categorías individuales
+ */
+function toggleCategory(categoryId) {
+    const content = document.getElementById(categoryId);
+    const chevron = document.getElementById(`${categoryId}-chevron`);
+    
+    if (content && chevron) {
+        const isHidden = content.style.display === 'none';
+        content.style.display = isHidden ? 'block' : 'none';
+        chevron.style.transform = isHidden ? 'rotate(0deg)' : 'rotate(-90deg)';
+    }
+}
+
+// Hacer disponibles globalmente
+window.toggleGimnacionEquipment = toggleGimnacionEquipment;
+window.toggleCategory = toggleCategory;
+
+/**
+ * Obtener clase de color para categoría
+ */
+function getCategoryColorClass(category) {
+    const colorMap = {
+        'Cardio': 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-800 border-blue-200',
+        'Fuerza': 'bg-gradient-to-r from-orange-50 to-orange-100 text-orange-800 border-orange-200',
+        'Funcional': 'bg-gradient-to-r from-teal-50 to-teal-100 text-teal-800 border-teal-200',
+        'Accesorios': 'bg-gradient-to-r from-purple-50 to-purple-100 text-purple-800 border-purple-200',
+        'Sin categoría': 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-800 border-gray-200'
+    };
+    return colorMap[category] || 'bg-gradient-to-r from-gray-50 to-gray-100 text-gray-800 border-gray-200';
+}
