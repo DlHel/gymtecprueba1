@@ -24,7 +24,7 @@ let state = {
 };
 
 // --- Initialization ---
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     console.log('🔍 TICKETS: Iniciando verificación de autenticación...');
     
     // --- DOM Elements (DESPUÉS de que el DOM esté cargado) ---
@@ -61,32 +61,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
     
-    // USAR protectPage en lugar de verificación manual
-    if (typeof window.protectPage === 'function') {
-        console.log('✅ TICKETS: Usando protectPage para verificar autenticación...');
-        const hasAccess = await window.protectPage();
-        if (!hasAccess) {
-            console.warn('❌ TICKETS: Acceso denegado por protectPage');
-            return; // protectPage ya maneja la redirección
-        }
-    } else {
-        // Fallback a verificación manual (menos robusta)
-        console.warn('⚠️ TICKETS: protectPage no disponible, usando verificación manual...');
-        
-        if (!window.authManager) {
-            console.error('❌ TICKETS: authManager no disponible');
-            window.location.href = 'login.html';
-            return;
-        }
-        
-        if (!window.authManager.isAuthenticated()) {
-            console.error('❌ TICKETS: Usuario no autenticado');
-            window.location.href = 'login.html';
-            return;
-        }
-    }
-    
-    console.log('✅ TICKETS: Autenticación verificada, inicializando...');
+    // ============================================
+    // PROTECCIÓN DE AUTENTICACIÓN (CRÍTICO)
+    // Verificación local simple (patrón @bitacora)
+    // ============================================
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.error('❌ TICKETS: Usuario no autenticado, redirigiendo a login...');
+        window.location.href = 'login.html';
+        return;
+    }    console.log('✅ TICKETS: Autenticación verificada, inicializando...');
     
     // Obtener referencias a nuevos elementos del checklist
     const checklistEditableContainer = document.getElementById('checklist-editable-container');
@@ -120,21 +103,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         checklistEditableItems
     };
     
-    // Inicializar la aplicación
-    try {
-        await fetchAllInitialData();
-        checkForUrlParams();
-        setupFilters();
-        
-        // Inicializar editor de checklist
-        if (typeof initChecklistEditor === 'function') {
-            initChecklistEditor();
+    // Inicializar la aplicación con función async
+    async function initializeTickets() {
+        try {
+            await fetchAllInitialData();
+            checkForUrlParams();
+            setupFilters();
+            
+            // Inicializar editor de checklist
+            if (typeof initChecklistEditor === 'function') {
+                initChecklistEditor();
+            }
+            
+            console.log('✅ TICKETS: Inicialización completada');
+        } catch (error) {
+            console.error('❌ TICKETS: Error en inicialización:', error);
         }
-        
-        console.log('✅ TICKETS: Inicialización completada');
-    } catch (error) {
-        console.error('❌ TICKETS: Error en inicialización:', error);
     }
+    
+    // Ejecutar inicialización
+    initializeTickets();
     
     // --- Event Listeners ---
     const addTicketBtn = document.getElementById('add-ticket-btn');
