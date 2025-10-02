@@ -42,5 +42,10 @@
   "bugs": {
     "url": "https://github.com/DlHel/gymtecprueba1/issues"
   },
-  "homepage": "https://github.com/DlHel/gymtecprueba1#readme"
+  "homepage": "https://github.com/DlHel/gymtecprueba1#readme",
+  "description": "Este es un Sistema de Gestión (ERP) para Gymtec, diseñado para centralizar y automatizar las operaciones de mantenimiento de equipos de gimnasio.",
+  "main": "FRONTEND_BACKEND_MAPPING.js",
+  "directories": {
+    "doc": "docs"
+  }
 }

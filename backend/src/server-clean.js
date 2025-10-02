@@ -1228,7 +1228,8 @@ app.get('/api/tickets', authenticateToken, (req, res) => {
             c.name as client_name,
             l.name as location_name,
             e.name as equipment_name,
-            e.custom_id as equipment_custom_id
+            e.custom_id as equipment_custom_id,
+            COALESCE(t.ticket_type, 'normal') as ticket_type
         FROM Tickets t
         LEFT JOIN Clients c ON t.client_id = c.id
         LEFT JOIN Equipment e ON t.equipment_id = e.id
@@ -1416,9 +1417,9 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
         return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
     }
 
-    const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, created_at, updated_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
-    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto'];
+    const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, ticket_type, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto', 'individual'];
     
     db.run(sql, params, function(err) {
         if (err) {
@@ -2423,7 +2424,15 @@ app.get('/api/gimnacion/checklist-templates/:templateId/items', authenticateToke
         const { templateId } = req.params;
         
         const sql = `
-            SELECT * FROM GimnacionChecklistItems
+            SELECT 
+                id,
+                template_id,
+                item_text as item_description,
+                item_order as sort_order,
+                is_required,
+                category,
+                created_at
+            FROM GimnacionChecklistItems
             WHERE template_id = ?
             ORDER BY item_order, id
         `;
@@ -2442,6 +2451,243 @@ app.get('/api/gimnacion/checklist-templates/:templateId/items', authenticateToke
         
     } catch (error) {
         console.error('Template items endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 6. POST /api/gimnacion/checklist-templates - Crear nuevo template de checklist
+app.post('/api/gimnacion/checklist-templates', authenticateToken, (req, res) => {
+    try {
+        const { template_name, items = [] } = req.body;
+        
+        if (!template_name || template_name.trim() === '') {
+            return res.status(400).json({ error: 'El nombre del template es requerido' });
+        }
+        
+        // Insertar template
+        const insertTemplateSql = `
+            INSERT INTO GimnacionChecklistTemplates (name, description, created_by, created_at)
+            VALUES (?, '', ?, NOW())
+        `;
+        
+        db.run(insertTemplateSql, [template_name.trim(), req.user.id], function(err) {
+            if (err) {
+                console.error('Error creating checklist template:', err);
+                return res.status(500).json({ error: 'Error al crear template' });
+            }
+            
+            const templateId = this.lastID;
+            
+            // Si hay items, insertarlos
+            if (items.length > 0) {
+                const insertItemsSql = `
+                    INSERT INTO GimnacionChecklistItems (template_id, item_text, item_order, is_required, category)
+                    VALUES (?, ?, ?, ?, ?)
+                `;
+                
+                const stmt = db.prepare(insertItemsSql);
+                let itemsInserted = 0;
+                let errors = [];
+                
+                items.forEach((item, index) => {
+                    stmt.run([
+                        templateId,
+                        item.item_description || item.item_text || '',
+                        item.sort_order || item.item_order || index + 1,
+                        item.is_required ? 1 : 0,
+                        item.category || 'general'
+                    ], function(err) {
+                        if (err) {
+                            errors.push(`Error inserting item ${index}: ${err.message}`);
+                        }
+                        itemsInserted++;
+                        
+                        // Cuando todos los items se han procesado
+                        if (itemsInserted === items.length) {
+                            stmt.finalize();
+                            
+                            if (errors.length > 0) {
+                                console.error('Errors inserting items:', errors);
+                                return res.status(500).json({ 
+                                    error: 'Template creado pero hubo errores con algunos items',
+                                    template_id: templateId,
+                                    errors: errors
+                                });
+                            }
+                            
+                            res.json({
+                                message: 'Template creado exitosamente',
+                                data: {
+                                    id: templateId,
+                                    name: template_name.trim(),
+                                    items_count: items.length
+                                }
+                            });
+                        }
+                    });
+                });
+            } else {
+                // No hay items, responder directamente
+                res.json({
+                    message: 'Template creado exitosamente',
+                    data: {
+                        id: templateId,
+                        name: template_name.trim(),
+                        items_count: 0
+                    }
+                });
+            }
+        });
+        
+    } catch (error) {
+        console.error('Create checklist template endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 7. PUT /api/gimnacion/checklist-templates/:id - Actualizar template de checklist
+app.put('/api/gimnacion/checklist-templates/:id', authenticateToken, (req, res) => {
+    try {
+        const templateId = req.params.id;
+        const { template_name, items = [] } = req.body;
+        
+        if (!template_name || template_name.trim() === '') {
+            return res.status(400).json({ error: 'El nombre del template es requerido' });
+        }
+        
+        // Actualizar template
+        const updateTemplateSql = `
+            UPDATE GimnacionChecklistTemplates 
+            SET name = ?, updated_at = NOW()
+            WHERE id = ?
+        `;
+        
+        db.run(updateTemplateSql, [template_name.trim(), templateId], function(err) {
+            if (err) {
+                console.error('Error updating checklist template:', err);
+                return res.status(500).json({ error: 'Error al actualizar template' });
+            }
+            
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Template no encontrado' });
+            }
+            
+            // Eliminar items existentes
+            const deleteItemsSql = `DELETE FROM GimnacionChecklistItems WHERE template_id = ?`;
+            
+            db.run(deleteItemsSql, [templateId], (err) => {
+                if (err) {
+                    console.error('Error deleting existing items:', err);
+                    return res.status(500).json({ error: 'Error al actualizar items' });
+                }
+                
+                // Insertar nuevos items
+                if (items.length > 0) {
+                    const insertItemsSql = `
+                        INSERT INTO GimnacionChecklistItems (template_id, item_text, item_order, is_required, category)
+                        VALUES (?, ?, ?, ?, ?)
+                    `;
+                    
+                    const stmt = db.prepare(insertItemsSql);
+                    let itemsInserted = 0;
+                    let errors = [];
+                    
+                    items.forEach((item, index) => {
+                        stmt.run([
+                            templateId,
+                            item.item_description || item.item_text || '',
+                            item.sort_order || item.item_order || index + 1,
+                            item.is_required ? 1 : 0,
+                            item.category || 'general'
+                        ], function(err) {
+                            if (err) {
+                                errors.push(`Error inserting item ${index}: ${err.message}`);
+                            }
+                            itemsInserted++;
+                            
+                            // Cuando todos los items se han procesado
+                            if (itemsInserted === items.length) {
+                                stmt.finalize();
+                                
+                                if (errors.length > 0) {
+                                    console.error('Errors inserting items:', errors);
+                                    return res.status(500).json({ 
+                                        error: 'Template actualizado pero hubo errores con algunos items',
+                                        errors: errors
+                                    });
+                                }
+                                
+                                res.json({
+                                    message: 'Template actualizado exitosamente',
+                                    data: {
+                                        id: templateId,
+                                        name: template_name.trim(),
+                                        items_count: items.length
+                                    }
+                                });
+                            }
+                        });
+                    });
+                } else {
+                    // No hay items nuevos
+                    res.json({
+                        message: 'Template actualizado exitosamente',
+                        data: {
+                            id: templateId,
+                            name: template_name.trim(),
+                            items_count: 0
+                        }
+                    });
+                }
+            });
+        });
+        
+    } catch (error) {
+        console.error('Update checklist template endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// 8. DELETE /api/gimnacion/checklist-templates/:id - Eliminar template de checklist
+app.delete('/api/gimnacion/checklist-templates/:id', authenticateToken, (req, res) => {
+    try {
+        const templateId = req.params.id;
+        
+        // Verificar que el template existe
+        const checkSql = `SELECT id, is_default FROM GimnacionChecklistTemplates WHERE id = ?`;
+        
+        db.get(checkSql, [templateId], (err, template) => {
+            if (err) {
+                console.error('Error checking template:', err);
+                return res.status(500).json({ error: 'Error al verificar template' });
+            }
+            
+            if (!template) {
+                return res.status(404).json({ error: 'Template no encontrado' });
+            }
+            
+            if (template.is_default) {
+                return res.status(400).json({ error: 'No se puede eliminar un template por defecto' });
+            }
+            
+            // Eliminar template (los items se eliminan automáticamente por CASCADE)
+            const deleteSql = `DELETE FROM GimnacionChecklistTemplates WHERE id = ?`;
+            
+            db.run(deleteSql, [templateId], function(err) {
+                if (err) {
+                    console.error('Error deleting template:', err);
+                    return res.status(500).json({ error: 'Error al eliminar template' });
+                }
+                
+                res.json({
+                    message: 'Template eliminado exitosamente',
+                    data: { id: templateId }
+                });
+            });
+        });
+        
+    } catch (error) {
+        console.error('Delete checklist template endpoint error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

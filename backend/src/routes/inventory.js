@@ -408,6 +408,98 @@ router.post('/:id/adjust', async (req, res) => {
 });
 
 /**
+ * @route GET /api/inventory/movements
+ * @desc Obtener historial general de movimientos de inventario
+ */
+router.get('/movements', async (req, res) => {
+    try {
+        const { 
+            inventory_id, 
+            movement_type, 
+            start_date, 
+            end_date,
+            limit = 100 
+        } = req.query;
+        
+        let sql = `
+        SELECT 
+            im.*,
+            i.item_code,
+            i.item_name,
+            ic.name as category_name,
+            u.username as performed_by_name
+        FROM InventoryMovements im
+        LEFT JOIN Inventory i ON im.inventory_id = i.id
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
+        LEFT JOIN Users u ON im.performed_by = u.id
+        WHERE 1=1`;
+        
+        const params = [];
+        
+        if (inventory_id) {
+            sql += ' AND im.inventory_id = ?';
+            params.push(inventory_id);
+        }
+        
+        if (movement_type) {
+            sql += ' AND im.movement_type = ?';
+            params.push(movement_type);
+        }
+        
+        if (start_date) {
+            sql += ' AND DATE(im.movement_date) >= ?';
+            params.push(start_date);
+        }
+        
+        if (end_date) {
+            sql += ' AND DATE(im.movement_date) <= ?';
+            params.push(end_date);
+        }
+        
+        sql += ' ORDER BY im.movement_date DESC LIMIT ?';
+        params.push(parseInt(limit));
+        
+        const movements = await db.all(sql, params);
+        
+        // Calcular estadísticas
+        const statsSQL = `
+        SELECT 
+            COUNT(*) as total_movements,
+            SUM(CASE WHEN movement_type = 'in' THEN quantity ELSE 0 END) as total_in,
+            SUM(CASE WHEN movement_type = 'out' THEN quantity ELSE 0 END) as total_out,
+            COUNT(DISTINCT inventory_id) as items_affected
+        FROM InventoryMovements
+        WHERE 1=1
+        ${start_date ? 'AND DATE(movement_date) >= ?' : ''}
+        ${end_date ? 'AND DATE(movement_date) <= ?' : ''}`;
+        
+        const statsParams = [];
+        if (start_date) statsParams.push(start_date);
+        if (end_date) statsParams.push(end_date);
+        
+        const stats = await db.get(statsSQL, statsParams);
+        
+        res.json({
+            message: 'success',
+            data: movements || [],
+            stats: stats || {
+                total_movements: 0,
+                total_in: 0,
+                total_out: 0,
+                items_affected: 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error obteniendo movimientos de inventario:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor',
+            details: error.message 
+        });
+    }
+});
+
+/**
  * @route GET /api/inventory/low-stock
  * @desc Obtener items con stock bajo
  */

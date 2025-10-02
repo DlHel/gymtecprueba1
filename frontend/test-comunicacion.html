@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Test Comunicación Frontend-Backend - Gymtec</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .test-success { @apply text-green-600 bg-green-50 border-green-200; }
+        .test-error { @apply text-red-600 bg-red-50 border-red-200; }
+        .test-warning { @apply text-yellow-600 bg-yellow-50 border-yellow-200; }
+        .test-info { @apply text-blue-600 bg-blue-50 border-blue-200; }
+        .log-entry { @apply p-2 mb-2 border-l-4 rounded-r; }
+        pre { @apply bg-gray-100 p-4 rounded overflow-x-auto text-sm; }
+        .endpoint-card { @apply border rounded-lg p-4 mb-4 shadow-sm; }
+        .endpoint-success { @apply border-green-300 bg-green-50; }
+        .endpoint-error { @apply border-red-300 bg-red-50; }
+        .endpoint-pending { @apply border-yellow-300 bg-yellow-50; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">
+                🔍 Test Comunicación Frontend-Backend
+            </h1>
+            
+            <!-- Panel de Control -->
+            <div class="grid md:grid-cols-3 gap-4 mb-8">
+                <div class="bg-blue-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-blue-800 mb-2">🔧 Configuración</h3>
+                    <div id="config-status" class="text-sm"></div>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-green-800 mb-2">🔐 Autenticación</h3>
+                    <div id="auth-status" class="text-sm"></div>
+                </div>
+                <div class="bg-purple-50 p-4 rounded-lg">
+                    <h3 class="font-semibold text-purple-800 mb-2">📊 Estado</h3>
+                    <div id="overall-status" class="text-sm"></div>
+                </div>
+            </div>
+
+            <!-- Botones de Control -->
+            <div class="flex flex-wrap gap-3 mb-6">
+                <button onclick="runAllTests()" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    🧪 Ejecutar Todos los Tests
+                </button>
+                <button onclick="testAuthentication()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                    🔐 Test Autenticación
+                </button>
+                <button onclick="testTicketsAPI()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    🎫 Test API Tickets
+                </button>
+                <button onclick="testCascadeFlow()" class="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700">
+                    🔄 Test Flujo Cascada
+                </button>
+                <button onclick="clearLogs()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    🗑️ Limpiar Logs
+                </button>
+            </div>
+
+            <!-- Resultados de Tests -->
+            <div class="grid lg:grid-cols-2 gap-6">
+                <!-- Log de Operaciones -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">📋 Log de Operaciones</h3>
+                    <div id="operation-log" class="max-h-96 overflow-y-auto space-y-2">
+                        <!-- Los logs aparecerán aquí -->
+                    </div>
+                </div>
+
+                <!-- Estado de Endpoints -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">🌐 Estado de Endpoints</h3>
+                    <div id="endpoints-status" class="max-h-96 overflow-y-auto space-y-2">
+                        <!-- El estado de endpoints aparecerá aquí -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Datos de Respuesta -->
+            <div class="mt-6">
+                <h3 class="text-lg font-semibold mb-4">📊 Datos de Respuesta</h3>
+                <div id="response-data" class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-gray-500">Los datos de respuesta aparecerán aquí...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    
+    <script>
+        // Estado global del test
+        const testState = {
+            endpoints: {},
+            logs: [],
+            startTime: null,
+            authenticated: false
+        };
+
+        // Utilidades de logging
+        function logOperation(message, type = 'info', data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = { message, type, data, timestamp };
+            testState.logs.push(entry);
+            
+            const logContainer = document.getElementById('operation-log');
+            const logElement = document.createElement('div');
+            logElement.className = `log-entry test-${type}`;
+            
+            let content = `<span class="font-mono text-xs">${timestamp}</span> ${message}`;
+            if (data) {
+                content += `<pre class="mt-2">${JSON.stringify(data, null, 2)}</pre>`;
+            }
+            
+            logElement.innerHTML = content;
+            logContainer.appendChild(logElement);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function updateEndpointStatus(endpoint, status, response = null, error = null) {
+            testState.endpoints[endpoint] = { status, response, error, timestamp: Date.now() };
+            renderEndpointsStatus();
+        }
+
+        function renderEndpointsStatus() {
+            const container = document.getElementById('endpoints-status');
+            container.innerHTML = '';
+            
+            Object.entries(testState.endpoints).forEach(([endpoint, data]) => {
+                const card = document.createElement('div');
+                card.className = `endpoint-card endpoint-${data.status}`;
+                
+                const statusIcon = {
+                    'success': '✅',
+                    'error': '❌', 
+                    'pending': '⏳'
+                }[data.status] || '❓';
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="font-mono text-sm font-semibold">${endpoint}</span>
+                        <span class="text-lg">${statusIcon}</span>
+                    </div>
+                    ${data.error ? `<div class="text-red-600 text-xs mb-2">${data.error}</div>` : ''}
+                    ${data.response ? `<div class="text-xs text-gray-600">Respuesta: ${JSON.stringify(data.response).substring(0, 100)}...</div>` : ''}
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        function updateOverallStatus() {
+            const total = Object.keys(testState.endpoints).length;
+            const success = Object.values(testState.endpoints).filter(e => e.status === 'success').length;
+            const errors = Object.values(testState.endpoints).filter(e => e.status === 'error').length;
+            const pending = Object.values(testState.endpoints).filter(e => e.status === 'pending').length;
+            
+            const statusElement = document.getElementById('overall-status');
+            statusElement.innerHTML = `
+                <div class="text-xs space-y-1">
+                    <div>Total: ${total}</div>
+                    <div class="text-green-600">✅ Éxito: ${success}</div>
+                    <div class="text-red-600">❌ Errores: ${errors}</div>
+                    <div class="text-yellow-600">⏳ Pendientes: ${pending}</div>
+                </div>
+            `;
+        }
+
+        // Tests específicos
+        async function testAuthentication() {
+            logOperation('🔐 Iniciando test de autenticación...', 'info');
+            
+            // Verificar scripts cargados
+            if (typeof window.authManager === 'undefined') {
+                logOperation('❌ AuthManager no está disponible', 'error');
+                return false;
+            }
+            
+            if (typeof API_URL === 'undefined') {
+                logOperation('❌ API_URL no está definida', 'error');
+                return false;
+            }
+            
+            logOperation(`✅ API_URL configurada: ${API_URL}`, 'success');
+            
+            // Verificar token
+            const token = localStorage.getItem('gymtec_token');
+            if (!token) {
+                logOperation('⚠️ No hay token en localStorage - necesario login', 'warning');
+                testState.authenticated = false;
+                
+                // Intentar login automático para tests
+                await attemptTestLogin();
+                return testState.authenticated;
+            }
+            
+            logOperation('✅ Token encontrado en localStorage', 'success');
+            
+            // Verificar token con servidor
+            try {
+                updateEndpointStatus('GET /api/auth/verify', 'pending');
+                const response = await authenticatedFetch(`${API_URL}/auth/verify`);
+                
+                if (response.ok) {
+                    const userData = await response.json();
+                    logOperation('✅ Token válido - usuario autenticado', 'success', userData);
+                    updateEndpointStatus('GET /api/auth/verify', 'success', userData);
+                    testState.authenticated = true;
+                } else {
+                    logOperation('❌ Token inválido o expirado', 'error');
+                    updateEndpointStatus('GET /api/auth/verify', 'error', null, 'Token inválido');
+                    testState.authenticated = false;
+                }
+            } catch (error) {
+                logOperation(`❌ Error verificando token: ${error.message}`, 'error');
+                updateEndpointStatus('GET /api/auth/verify', 'error', null, error.message);
+                testState.authenticated = false;
+            }
+            
+            updateOverallStatus();
+            return testState.authenticated;
+        }
+
+        async function attemptTestLogin() {
+            logOperation('🔑 Intentando login automático para tests...', 'info');
+            
+            try {
+                const response = await fetch(`${API_URL}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: 'admin',
+                        password: 'admin123'
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('gymtec_token', data.token);
+                    localStorage.setItem('gymtec_user', JSON.stringify(data.user));
+                    
+                    logOperation('✅ Login automático exitoso', 'success');
+                    testState.authenticated = true;
+                } else {
+                    logOperation('❌ Login automático falló', 'error');
+                }
+            } catch (error) {
+                logOperation(`❌ Error en login automático: ${error.message}`, 'error');
+            }
+        }
+
+        async function testTicketsAPI() {
+            logOperation('🎫 Iniciando test de API de tickets...', 'info');
+            
+            if (!testState.authenticated) {
+                logOperation('⚠️ No autenticado - ejecutando test de autenticación primero...', 'warning');
+                const authSuccess = await testAuthentication();
+                if (!authSuccess) {
+                    logOperation('❌ No se pudo autenticar - cancelando test de tickets', 'error');
+                    return;
+                }
+            }
+            
+            // Test GET /api/tickets
+            try {
+                logOperation('📋 Probando GET /api/tickets...', 'info');
+                updateEndpointStatus('GET /api/tickets', 'pending');
+                
+                const response = await authenticatedFetch(`${API_URL}/tickets`);
+                if (response.ok) {
+                    const data = await response.json();
+                    logOperation(`✅ Tickets obtenidos: ${data.data.length} registros`, 'success');
+                    updateEndpointStatus('GET /api/tickets', 'success', { count: data.data.length });
+                    
+                    // Mostrar algunos tickets en los datos de respuesta
+                    document.getElementById('response-data').innerHTML = `
+                        <h4 class="font-semibold mb-2">Últimos Tickets (primeros 3):</h4>
+                        <pre>${JSON.stringify(data.data.slice(0, 3), null, 2)}</pre>
+                    `;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                logOperation(`❌ Error en GET /api/tickets: ${error.message}`, 'error');
+                updateEndpointStatus('GET /api/tickets', 'error', null, error.message);
+            }
+            
+            // Test POST /api/tickets
+            try {
+                logOperation('🆕 Probando POST /api/tickets...', 'info');
+                updateEndpointStatus('POST /api/tickets', 'pending');
+                
+                const testTicket = {
+                    title: `Test Ticket ${Date.now()}`,
+                    description: 'Ticket creado por el sistema de testing automático',
+                    priority: 'Media',
+                    client_id: 1,
+                    location_id: 1,
+                    equipment_id: 1
+                };
+                
+                const response = await authenticatedFetch(`${API_URL}/tickets`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testTicket)
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    logOperation(`✅ Ticket creado con ID: ${data.data.id}`, 'success');
+                    updateEndpointStatus('POST /api/tickets', 'success', { id: data.data.id });
+                } else {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+            } catch (error) {
+                logOperation(`❌ Error en POST /api/tickets: ${error.message}`, 'error');
+                updateEndpointStatus('POST /api/tickets', 'error', null, error.message);
+            }
+            
+            updateOverallStatus();
+        }
+
+        async function testCascadeFlow() {
+            logOperation('🔄 Iniciando test de flujo en cascada...', 'info');
+            
+            if (!testState.authenticated) {
+                const authSuccess = await testAuthentication();
+                if (!authSuccess) return;
+            }
+            
+            // Test 1: GET /api/clients
+            try {
+                logOperation('👥 Probando GET /api/clients...', 'info');
+                updateEndpointStatus('GET /api/clients', 'pending');
+                
+                const response = await authenticatedFetch(`${API_URL}/clients`);
+                if (response.ok) {
+                    const data = await response.json();
+                    logOperation(`✅ Clientes obtenidos: ${data.data.length} registros`, 'success');
+                    updateEndpointStatus('GET /api/clients', 'success', { count: data.data.length });
+                    
+                    // Si hay clientes, probar locations
+                    if (data.data.length > 0) {
+                        const firstClient = data.data[0];
+                        await testLocationsForClient(firstClient.id);
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                logOperation(`❌ Error en GET /api/clients: ${error.message}`, 'error');
+                updateEndpointStatus('GET /api/clients', 'error', null, error.message);
+            }
+            
+            updateOverallStatus();
+        }
+
+        async function testLocationsForClient(clientId) {
+            try {
+                logOperation(`🏢 Probando GET /api/locations?client_id=${clientId}...`, 'info');
+                updateEndpointStatus('GET /api/locations', 'pending');
+                
+                const response = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    logOperation(`✅ Ubicaciones obtenidas: ${data.data.length} registros para cliente ${clientId}`, 'success');
+                    updateEndpointStatus('GET /api/locations', 'success', { count: data.data.length, clientId });
+                    
+                    // Si hay ubicaciones, probar equipment
+                    if (data.data.length > 0) {
+                        const firstLocation = data.data[0];
+                        await testEquipmentForLocation(firstLocation.id);
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                logOperation(`❌ Error en GET /api/locations: ${error.message}`, 'error');
+                updateEndpointStatus('GET /api/locations', 'error', null, error.message);
+            }
+        }
+
+        async function testEquipmentForLocation(locationId) {
+            try {
+                logOperation(`🔧 Probando GET /api/equipment?location_id=${locationId}...`, 'info');
+                updateEndpointStatus('GET /api/equipment', 'pending');
+                
+                const response = await authenticatedFetch(`${API_URL}/equipment?location_id=${locationId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    logOperation(`✅ Equipos obtenidos: ${data.data.length} registros para ubicación ${locationId}`, 'success');
+                    updateEndpointStatus('GET /api/equipment', 'success', { count: data.data.length, locationId });
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                logOperation(`❌ Error en GET /api/equipment: ${error.message}`, 'error');
+                updateEndpointStatus('GET /api/equipment', 'error', null, error.message);
+            }
+        }
+
+        async function runAllTests() {
+            logOperation('🚀 Iniciando batería completa de tests...', 'info');
+            testState.startTime = Date.now();
+            
+            // Limpiar estado anterior
+            testState.endpoints = {};
+            
+            await testAuthentication();
+            if (testState.authenticated) {
+                await testTicketsAPI();
+                await testCascadeFlow();
+            }
+            
+            const duration = ((Date.now() - testState.startTime) / 1000).toFixed(2);
+            logOperation(`🏁 Tests completados en ${duration} segundos`, 'info');
+            
+            updateOverallStatus();
+        }
+
+        function clearLogs() {
+            testState.logs = [];
+            document.getElementById('operation-log').innerHTML = '';
+            document.getElementById('response-data').innerHTML = '<p class="text-gray-500">Los datos de respuesta aparecerán aquí...</p>';
+        }
+
+        // Verificación inicial al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            logOperation('🔍 Sistema de testing iniciado', 'info');
+            
+            // Verificar configuración
+            const configStatus = document.getElementById('config-status');
+            if (typeof API_URL !== 'undefined') {
+                configStatus.innerHTML = `<div class="text-green-600">✅ API_URL: ${API_URL}</div>`;
+            } else {
+                configStatus.innerHTML = '<div class="text-red-600">❌ API_URL no definida</div>';
+            }
+            
+            // Verificar autenticación
+            const authStatus = document.getElementById('auth-status');
+            const token = localStorage.getItem('gymtec_token');
+            if (token) {
+                authStatus.innerHTML = '<div class="text-green-600">✅ Token presente</div>';
+            } else {
+                authStatus.innerHTML = '<div class="text-yellow-600">⚠️ Sin token</div>';
+            }
+            
+            logOperation('✅ Sistema listo para testing', 'success');
+        });
+    </script>
+</body>
+</html>

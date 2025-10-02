@@ -40,22 +40,22 @@
     <div class="min-h-screen">
         <!-- Header -->
         <header class="bg-blue-600 text-white shadow-lg">
-            <div class="container mx-auto px-4 py-6">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center space-x-4">
-                        <div class="w-10 h-10 bg-white rounded-lg flex items-center justify-center">
-                            <span class="text-blue-600 font-bold text-lg">📦</span>
+            <div class="container mx-auto px-2 sm:px-4 py-4 sm:py-6">
+                <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0">
+                    <div class="flex items-center space-x-2 sm:space-x-4">
+                        <div class="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-lg flex items-center justify-center">
+                            <span class="text-blue-600 font-bold text-base sm:text-lg">📦</span>
                         </div>
                         <div>
-                            <h1 class="text-2xl font-bold">Sistema de Inventario Inteligente</h1>
-                            <p class="text-blue-200">Fase 3 - Gestión Avanzada de Inventario y Reportes</p>
+                            <h1 class="text-lg sm:text-2xl font-bold">Sistema de Inventario Inteligente</h1>
+                            <p class="text-xs sm:text-sm text-blue-200">Fase 3 - Gestión Avanzada de Inventario y Reportes</p>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-4">
-                        <button onclick="refreshDashboard()" class="bg-blue-500 hover:bg-blue-400 px-4 py-2 rounded-lg transition-colors duration-200">
+                    <div class="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
+                        <button id="refreshButton" class="bg-blue-500 hover:bg-blue-400 px-3 py-2 sm:px-4 rounded-lg transition-colors duration-200 text-sm sm:text-base">
                             🔄 Actualizar
                         </button>
-                        <div class="text-sm text-blue-200">
+                        <div class="text-xs sm:text-sm text-blue-200">
                             <div id="currentTime"></div>
                         </div>
                     </div>
@@ -64,9 +64,9 @@
         </header>
 
         <!-- Main Content -->
-        <main class="container mx-auto px-4 py-8">
+        <main class="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
             <!-- Dashboard Overview -->
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
                 <div class="bg-white rounded-xl shadow-md p-6 card-hover transition-all duration-200">
                     <div class="flex items-center justify-between">
                         <div>
@@ -121,19 +121,19 @@
                 <div class="border-b border-gray-200">
                     <nav class="flex space-x-8 px-6" role="tablist">
                         <button class="tab-button active py-4 px-2 border-b-2 border-blue-500 font-medium text-blue-600" 
-                                onclick="showTab('inventory')" id="tab-inventory" role="tab" aria-selected="true" aria-controls="content-inventory">
+                                data-tab="inventory" id="tab-inventory" role="tab" aria-selected="true" aria-controls="content-inventory">
                             📦 Inventario
                         </button>
                         <button class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700" 
-                                onclick="showTab('categories')" id="tab-categories" role="tab" aria-selected="false" aria-controls="content-categories">
+                                data-tab="categories" id="tab-categories" role="tab" aria-selected="false" aria-controls="content-categories">
                             🏷️ Categorías
                         </button>
                         <button class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700" 
-                                onclick="showTab('suppliers')" id="tab-suppliers" role="tab" aria-selected="false" aria-controls="content-suppliers">
+                                data-tab="suppliers" id="tab-suppliers" role="tab" aria-selected="false" aria-controls="content-suppliers">
                             🏢 Proveedores
                         </button>
                         <button class="tab-button py-4 px-2 border-b-2 border-transparent font-medium text-gray-500 hover:text-gray-700" 
-                                onclick="showTab('analytics')" id="tab-analytics" role="tab" aria-selected="false" aria-controls="content-analytics">
+                                data-tab="analytics" id="tab-analytics" role="tab" aria-selected="false" aria-controls="content-analytics">
                             📊 Análisis
                         </button>
                     </nav>
@@ -142,14 +142,14 @@
                 <!-- Tab Content -->
                 <div class="p-6">
                     <!-- Inventario Tab -->
-                    <div id="content-inventory" class="tab-content" role="tabpanel" aria-labelledby="tab-inventory">
+                    <div id="content-inventory" class="tab-content" data-content="inventory" role="tabpanel" aria-labelledby="tab-inventory">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Gestión de Inventario</h2>
                             <div class="flex space-x-3">
                                 <input type="text" placeholder="Buscar productos..." 
                                        class="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                        id="searchInventory">
-                                <button onclick="addInventoryItem()" 
+                                <button onclick="window.inventoryModule.addItem()" 
                                         class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200">
                                     ➕ Agregar Producto
                                 </button>
@@ -182,10 +182,10 @@
                     </div>
 
                     <!-- Categorías Tab -->
-                    <div id="content-categories" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-categories">
+                    <div id="content-categories" class="tab-content hidden" data-content="categories" role="tabpanel" aria-labelledby="tab-categories">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Categorías de Inventario</h2>
-                            <button onclick="addCategory()" 
+                            <button onclick="window.inventoryModule.addCategory()" 
                                     class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors duration-200">
                                 ➕ Nueva Categoría
                             </button>
@@ -200,10 +200,10 @@
                     </div>
 
                     <!-- Proveedores Tab -->
-                    <div id="content-suppliers" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-suppliers">
+                    <div id="content-suppliers" class="tab-content hidden" data-content="suppliers" role="tabpanel" aria-labelledby="tab-suppliers">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Gestión de Proveedores</h2>
-                            <button onclick="addSupplier()" 
+                            <button onclick="window.inventoryModule.addSupplier()" 
                                     class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200">
                                 ➕ Nuevo Proveedor
                             </button>
@@ -218,10 +218,10 @@
                     </div>
 
                     <!-- Análisis Tab -->
-                    <div id="content-analytics" class="tab-content hidden" role="tabpanel" aria-labelledby="tab-analytics">
+                    <div id="content-analytics" class="tab-content hidden" data-content="analytics" role="tabpanel" aria-labelledby="tab-analytics">
                         <div class="flex justify-between items-center mb-6">
                             <h2 class="text-xl font-semibold text-gray-900">Análisis de Inventario</h2>
-                            <button onclick="exportReport()" 
+                            <button onclick="window.inventoryModule.exportReport()" 
                                     class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors duration-200">
                                 📊 Exportar Reporte
                             </button>
@@ -254,470 +254,10 @@
         </main>
     </div>
 
-    <!-- JavaScript -->
-    <script>
-        let currentTab = 'inventory';
-
-        // API Base URL - Configuración dinámica
-        const API_BASE = window.API_URL || 'http://localhost:3000/api';
-
-        // Update current time
-        function updateTime() {
-            const now = new Date();
-            document.getElementById('currentTime').textContent = now.toLocaleTimeString('es-ES');
-        }
-
-        // Tab management
-        function showTab(tabName) {
-            // Hide all tab contents
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.add('hidden');
-            });
-
-            // Remove active state from all tabs
-            document.querySelectorAll('.tab-button').forEach(button => {
-                button.classList.remove('active', 'border-blue-500', 'text-blue-600');
-                button.classList.add('border-transparent', 'text-gray-500');
-            });
-
-            // Show selected tab content
-            document.getElementById(`content-${tabName}`).classList.remove('hidden');
-
-            // Add active state to selected tab
-            const activeTab = document.getElementById(`tab-${tabName}`);
-            activeTab.classList.add('active', 'border-blue-500', 'text-blue-600');
-            activeTab.classList.remove('border-transparent', 'text-gray-500');
-
-            currentTab = tabName;
-
-            // Load tab content
-            switch(tabName) {
-                case 'inventory':
-                    loadInventory();
-                    break;
-                case 'categories':
-                    loadCategories();
-                    break;
-                case 'suppliers':
-                    loadSuppliers();
-                    break;
-                case 'analytics':
-                    loadAnalytics();
-                    break;
-            }
-        }
-
-        // API calls con autenticación
-        async function apiCall(endpoint, options = {}) {
-            try {
-                const response = await AuthManager.authenticatedFetch(`${API_BASE}${endpoint}`, {
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...options.headers
-                    },
-                    ...options
-                });
-
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                return await response.json();
-            } catch (error) {
-                console.error('❌ API call error:', error);
-                showError(`Error en API: ${error.message}`);
-                return null;
-            }
-        }
-
-        // Load dashboard overview
-        async function loadDashboard() {
-            try {
-                // Simulate loading inventory stats
-                // In real implementation, these would be separate API calls
-                document.getElementById('totalItems').textContent = '127';
-                document.getElementById('lowStockItems').textContent = '8';
-                document.getElementById('totalCategories').textContent = '7';
-                document.getElementById('totalSuppliers').textContent = '3';
-            } catch (error) {
-                console.error('Error loading dashboard:', error);
-            }
-        }
-
-        // Load inventory
-        async function loadInventory() {
-            const tbody = document.getElementById('inventoryTableBody');
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="7" class="px-6 py-4 text-center text-gray-500">
-                        <div class="loading"></div>
-                        <span class="ml-2">Cargando inventario...</span>
-                    </td>
-                </tr>
-            `;
-
-            try {
-                // Simulate inventory data
-                const inventoryData = [
-                    {
-                        id: 1,
-                        name: 'Correa de transmisión TR-500',
-                        sku: 'BT-TR500-001',
-                        category: 'Repuestos Cardiovascular',
-                        current_stock: 15,
-                        min_stock: 5,
-                        max_stock: 50,
-                        status: 'normal'
-                    },
-                    {
-                        id: 2,
-                        name: 'Cable de acero 2mm',
-                        sku: 'CB-AC2MM-100',
-                        category: 'Repuestos Fuerza',
-                        current_stock: 3,
-                        min_stock: 5,
-                        max_stock: 25,
-                        status: 'low'
-                    },
-                    {
-                        id: 3,
-                        name: 'Lubricante multiuso',
-                        sku: 'LUB-MULT-500',
-                        category: 'Mantenimiento',
-                        current_stock: 28,
-                        min_stock: 10,
-                        max_stock: 40,
-                        status: 'normal'
-                    }
-                ];
-
-                tbody.innerHTML = inventoryData.map(item => `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${item.name}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-500">${item.sku}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
-                                ${item.category}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">${item.current_stock}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm text-gray-500">${item.min_stock} / ${item.max_stock}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                item.status === 'low' 
-                                    ? 'bg-red-100 text-red-800' 
-                                    : 'bg-green-100 text-green-800'
-                            }">
-                                ${item.status === 'low' ? '⚠️ Stock Bajo' : '✅ Normal'}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex space-x-2">
-                                <button onclick="editInventoryItem(${item.id})" 
-                                        class="text-blue-600 hover:text-blue-900">✏️</button>
-                                <button onclick="adjustStock(${item.id})" 
-                                        class="text-green-600 hover:text-green-900">📦</button>
-                                <button onclick="deleteInventoryItem(${item.id})" 
-                                        class="text-red-600 hover:text-red-900">🗑️</button>
-                            </div>
-                        </td>
-                    </tr>
-                `).join('');
-
-            } catch (error) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="7" class="px-6 py-4 text-center text-red-500">
-                            Error cargando inventario: ${error.message}
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-
-        // Load categories
-        async function loadCategories() {
-            const grid = document.getElementById('categoriesGrid');
-            grid.innerHTML = `
-                <div class="text-center text-gray-500 col-span-full">
-                    <div class="loading"></div>
-                    <span class="ml-2">Cargando categorías...</span>
-                </div>
-            `;
-
-            try {
-                // Simulate categories data
-                const categoriesData = [
-                    { id: 1, name: 'Repuestos Cardiovascular', description: 'Componentes para equipos cardiovasculares', item_count: 45 },
-                    { id: 2, name: 'Repuestos Fuerza', description: 'Componentes para equipos de fuerza', item_count: 38 },
-                    { id: 3, name: 'Mantenimiento', description: 'Productos para mantenimiento general', item_count: 22 },
-                    { id: 4, name: 'Herramientas', description: 'Herramientas especializadas', item_count: 15 },
-                    { id: 5, name: 'Electrónica', description: 'Componentes electrónicos', item_count: 12 },
-                    { id: 6, name: 'Consumibles', description: 'Productos de uso frecuente', item_count: 8 },
-                    { id: 7, name: 'Seguridad', description: 'Equipos de protección personal', item_count: 5 }
-                ];
-
-                grid.innerHTML = categoriesData.map(category => `
-                    <div class="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-gray-900">${category.name}</h3>
-                            <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-sm font-medium">
-                                ${category.item_count} items
-                            </span>
-                        </div>
-                        <p class="text-gray-600 text-sm mb-4">${category.description}</p>
-                        <div class="flex space-x-2">
-                            <button onclick="editCategory(${category.id})" 
-                                    class="text-blue-600 hover:text-blue-900 text-sm">✏️ Editar</button>
-                            <button onclick="viewCategoryItems(${category.id})" 
-                                    class="text-green-600 hover:text-green-900 text-sm">👁️ Ver Items</button>
-                        </div>
-                    </div>
-                `).join('');
-
-            } catch (error) {
-                grid.innerHTML = `
-                    <div class="text-center text-red-500 col-span-full">
-                        Error cargando categorías: ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        // Load suppliers
-        async function loadSuppliers() {
-            const grid = document.getElementById('suppliersGrid');
-            grid.innerHTML = `
-                <div class="text-center text-gray-500 col-span-full">
-                    <div class="loading"></div>
-                    <span class="ml-2">Cargando proveedores...</span>
-                </div>
-            `;
-
-            try {
-                // Simulate suppliers data
-                const suppliersData = [
-                    { 
-                        id: 1, 
-                        name: 'TechnoGym Chile', 
-                        contact_email: 'ventas@technogym.cl',
-                        phone: '+56 2 2345 6789',
-                        status: 'Activo'
-                    },
-                    { 
-                        id: 2, 
-                        name: 'Life Fitness Corp', 
-                        contact_email: 'info@lifefitness.com',
-                        phone: '+56 2 2876 5432',
-                        status: 'Activo'
-                    },
-                    { 
-                        id: 3, 
-                        name: 'Matrix Fitness', 
-                        contact_email: 'soporte@matrixfitness.cl',
-                        phone: '+56 2 2654 3210',
-                        status: 'Activo'
-                    }
-                ];
-
-                grid.innerHTML = suppliersData.map(supplier => `
-                    <div class="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-gray-900">${supplier.name}</h3>
-                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded-full text-sm font-medium">
-                                ${supplier.status}
-                            </span>
-                        </div>
-                        <div class="space-y-2 text-sm text-gray-600">
-                            <div class="flex items-center">
-                                <span class="w-4 h-4 mr-2">📧</span>
-                                ${supplier.contact_email}
-                            </div>
-                            <div class="flex items-center">
-                                <span class="w-4 h-4 mr-2">📞</span>
-                                ${supplier.phone}
-                            </div>
-                        </div>
-                        <div class="flex space-x-2 mt-4">
-                            <button onclick="editSupplier(${supplier.id})" 
-                                    class="text-blue-600 hover:text-blue-900 text-sm">✏️ Editar</button>
-                            <button onclick="viewSupplierOrders(${supplier.id})" 
-                                    class="text-green-600 hover:text-green-900 text-sm">📋 Órdenes</button>
-                        </div>
-                    </div>
-                `).join('');
-
-            } catch (error) {
-                grid.innerHTML = `
-                    <div class="text-center text-red-500 col-span-full">
-                        Error cargando proveedores: ${error.message}
-                    </div>
-                `;
-            }
-        }
-
-        // Load analytics
-        async function loadAnalytics() {
-            const movementsDiv = document.getElementById('recentMovements');
-            const alertsDiv = document.getElementById('stockAlerts');
-
-            try {
-                // Recent movements
-                const recentMovements = [
-                    { date: '2024-01-15', type: 'Entrada', item: 'Correa TR-500', quantity: 10, user: 'Admin' },
-                    { date: '2024-01-14', type: 'Salida', item: 'Cable 2mm', quantity: 2, user: 'Técnico1' },
-                    { date: '2024-01-13', type: 'Entrada', item: 'Lubricante', quantity: 5, user: 'Admin' }
-                ];
-
-                movementsDiv.innerHTML = recentMovements.map(movement => `
-                    <div class="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-gray-900">${movement.item}</div>
-                            <div class="text-xs text-gray-500">${movement.date} - ${movement.user}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                movement.type === 'Entrada' 
-                                    ? 'bg-green-100 text-green-800' 
-                                    : 'bg-red-100 text-red-800'
-                            }">
-                                ${movement.type === 'Entrada' ? '+' : '-'}${movement.quantity}
-                            </span>
-                        </div>
-                    </div>
-                `).join('');
-
-                // Stock alerts
-                const stockAlerts = [
-                    { item: 'Cable de acero 2mm', current: 3, min: 5, level: 'critical' },
-                    { item: 'Rodamiento 6201', current: 7, min: 10, level: 'warning' },
-                    { item: 'Sensor HR', current: 2, min: 5, level: 'critical' }
-                ];
-
-                alertsDiv.innerHTML = stockAlerts.map(alert => `
-                    <div class="flex justify-between items-center py-2 border-b border-gray-200 last:border-b-0">
-                        <div class="flex-1">
-                            <div class="text-sm font-medium text-gray-900">${alert.item}</div>
-                            <div class="text-xs text-gray-500">Stock actual: ${alert.current} / Mínimo: ${alert.min}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                alert.level === 'critical' 
-                                    ? 'bg-red-100 text-red-800' 
-                                    : 'bg-yellow-100 text-yellow-800'
-                            }">
-                                ${alert.level === 'critical' ? '🚨 Crítico' : '⚠️ Bajo'}
-                            </span>
-                        </div>
-                    </div>
-                `).join('');
-
-            } catch (error) {
-                movementsDiv.innerHTML = `<div class="text-center text-red-500">Error: ${error.message}</div>`;
-                alertsDiv.innerHTML = `<div class="text-center text-red-500">Error: ${error.message}</div>`;
-            }
-        }
-
-        // Action functions (placeholders)
-        function addInventoryItem() {
-            alert('🚀 Función de agregar producto - Por implementar en Fase 3');
-        }
-
-        function editInventoryItem(id) {
-            alert(`✏️ Editar producto ID: ${id} - Por implementar en Fase 3`);
-        }
-
-        function adjustStock(id) {
-            alert(`📦 Ajustar stock ID: ${id} - Por implementar en Fase 3`);
-        }
-
-        function deleteInventoryItem(id) {
-            if (confirm('¿Está seguro de eliminar este producto?')) {
-                alert(`🗑️ Eliminar producto ID: ${id} - Por implementar en Fase 3`);
-            }
-        }
-
-        function addCategory() {
-            alert('🏷️ Agregar nueva categoría - Por implementar en Fase 3');
-        }
-
-        function editCategory(id) {
-            alert(`✏️ Editar categoría ID: ${id} - Por implementar en Fase 3`);
-        }
-
-        function viewCategoryItems(id) {
-            alert(`👁️ Ver items de categoría ID: ${id} - Por implementar en Fase 3`);
-        }
-
-        function addSupplier() {
-            alert('🏢 Agregar nuevo proveedor - Por implementar en Fase 3');
-        }
-
-        function editSupplier(id) {
-            alert(`✏️ Editar proveedor ID: ${id} - Por implementar en Fase 3`);
-        }
-
-        function viewSupplierOrders(id) {
-            alert(`📋 Ver órdenes de proveedor ID: ${id} - Por implementar en Fase 3`);
-        }
-
-        function exportReport() {
-            alert('📊 Exportar reporte - Por implementar en Fase 3');
-        }
-
-        function refreshDashboard() {
-            console.log('🔄 Actualizando dashboard...');
-            loadDashboard();
-            if (currentTab) {
-                showTab(currentTab);
-            }
-        }
-
-        function showError(message) {
-            console.error(message);
-            // Create a simple toast notification
-            const toast = document.createElement('div');
-            toast.className = 'fixed top-4 right-4 bg-red-500 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            setTimeout(() => {
-                document.body.removeChild(toast);
-            }, 5000);
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            // ✅ CRÍTICO: Protección de autenticación PRIMERO
-            if (!window.authManager || !window.authManager.isAuthenticated()) {
-                console.log('❌ Usuario no autenticado en inventario-fase3, redirigiendo a login...');
-                window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
-                return;
-            }
-            
-            console.log('✅ Usuario autenticado, inicializando inventario fase 3...');
-
-            updateTime();
-            setInterval(updateTime, 1000);
-            
-            loadDashboard();
-            showTab('inventory');
-            
-            console.log('🚀 Sistema de Inventario Inteligente - Fase 3 Inicializado');
-        });
-    </script>
-
-    <!-- ✅ Scripts requeridos para autenticación -->
+    <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/base-modal.js"></script>
+    <script src="js/inventario-fase3.js"></script>
 </body>
 </html>

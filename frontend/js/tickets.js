@@ -2027,9 +2027,32 @@ function deselectAllEquipment() {
  * Poblar selectores de templates por categoría
  */
 function populateTemplateSelectors() {
+    console.log('🔧 TICKETS: Poblando selectores de templates...');
+    console.log('📊 TICKETS: Templates disponibles:', state.gimnacion.checklistTemplates);
+    
+    // Poblar selector principal de checklist
+    const checklistTemplateSelect = document.getElementById('checklist-template-select');
+    if (checklistTemplateSelect) {
+        checklistTemplateSelect.innerHTML = '<option value="">Seleccionar template...</option>';
+        
+        state.gimnacion.checklistTemplates.forEach(template => {
+            const option = document.createElement('option');
+            option.value = template.id;
+            option.textContent = `${template.name} (${template.items_count || 0} items)`;
+            checklistTemplateSelect.appendChild(option);
+        });
+        
+        console.log('✅ TICKETS: Selector checklist-template-select poblado con', state.gimnacion.checklistTemplates.length, 'templates');
+    } else {
+        console.warn('⚠️ TICKETS: Selector checklist-template-select no encontrado');
+    }
+    
+    // Poblar otros selectores con clase template-select
     const templateSelects = document.querySelectorAll('.template-select');
     
     templateSelects.forEach(select => {
+        if (select.id === 'checklist-template-select') return; // Ya lo procesamos arriba
+        
         const category = select.dataset.category;
         select.innerHTML = '<option value="">Seleccionar...</option>';
         
@@ -2507,6 +2530,11 @@ async function fetchTemplateItems(templateId) {
         throw error;
     }
 }
+
+// Hacer funciones disponibles globalmente para checklist-editor.js
+window.fetchChecklistTemplates = fetchChecklistTemplates;
+window.fetchTemplateItems = fetchTemplateItems;
+window.ticketsState = state;
 
 /**
  * Obtener contratos para selector
