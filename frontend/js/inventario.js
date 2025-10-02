@@ -929,16 +929,31 @@ class InventoryManager {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🔍 INVENTARIO: Iniciando verificación de autenticación...');
+    
     // ============================================
     // 1. PROTECCIÓN DE AUTENTICACIÓN (CRÍTICO)
+    // Usar protectPage() como tickets.js (método más robusto)
     // ============================================
-    if (!window.authManager || !window.authManager.isAuthenticated()) {
-        console.log('❌ Usuario no autenticado, redirigiendo...');
-        window.location.href = '/login.html';
-        return;
+    if (typeof window.protectPage === 'function') {
+        console.log('✅ INVENTARIO: Usando protectPage para verificar autenticación...');
+        const hasAccess = await window.protectPage();
+        if (!hasAccess) {
+            console.warn('❌ INVENTARIO: Acceso denegado por protectPage');
+            return; // protectPage ya maneja la redirección
+        }
+    } else {
+        // Fallback a verificación manual (menos robusta)
+        console.warn('⚠️ INVENTARIO: protectPage no disponible, usando verificación manual...');
+        
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
+            console.error('❌ INVENTARIO: Usuario no autenticado');
+            window.location.href = '/login.html';
+            return;
+        }
     }
 
-    console.log('✅ Usuario autenticado, cargando módulo de inventario...');
+    console.log('✅ INVENTARIO: Usuario autenticado, cargando módulo de inventario...');
     console.log('👤 Usuario actual:', window.authManager.getUser()?.username);
 
     // Inicializar los iconos de Lucide
