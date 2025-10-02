@@ -1,15 +1,5 @@
 // Sistema de Inventario - Gymtec ERP
 
-// CRÍTICO: Verificación de autenticación PRIMERO
-if (!window.authManager || !window.authManager.isAuthenticated()) {
-    console.log('❌ Usuario no autenticado en inventario, redirigiendo a login...');
-    window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
-    throw new Error('Acceso no autorizado - Inventario');
-}
-
-console.log('✅ Usuario autenticado, cargando módulo de inventario...');
-console.log('👤 Usuario actual:', window.authManager.getUser()?.username);
-
 class InventoryManager {
     constructor() {
         this.currentTab = 'central';
@@ -939,10 +929,22 @@ class InventoryManager {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
+    // ============================================
+    // 1. PROTECCIÓN DE AUTENTICACIÓN (CRÍTICO)
+    // ============================================
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.log('❌ Usuario no autenticado en inventario, redirigiendo...');
+        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+        return;
+    }
+
+    console.log('✅ Usuario autenticado, cargando módulo de inventario...');
+    console.log('👤 Usuario actual:', window.authManager.getUser()?.username);
+
     // Inicializar los iconos de Lucide
     lucide.createIcons();
     
-    // Inicializar el manager de inventario después de que el DOM esté listo
+    // Inicializar el manager de inventario
     setTimeout(() => {
         if (typeof InventoryManager !== 'undefined') {
             window.inventoryManager = new InventoryManager();
