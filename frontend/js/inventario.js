@@ -929,29 +929,41 @@ class InventoryManager {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    // ============================================
-    // 1. PROTECCIÓN DE AUTENTICACIÓN (CRÍTICO)
-    // ============================================
-    if (!window.authManager || !window.authManager.isAuthenticated()) {
-        console.log('❌ Usuario no autenticado en inventario, redirigiendo...');
-        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
-        return;
-    }
+    // Esperar a que auth.js se inicialice completamente
+    const checkAuthAndInit = () => {
+        // ============================================
+        // 1. PROTECCIÓN DE AUTENTICACIÓN (CRÍTICO)
+        // ============================================
+        if (!window.authManager) {
+            console.log('⏳ Esperando inicialización de authManager...');
+            setTimeout(checkAuthAndInit, 50);
+            return;
+        }
 
-    console.log('✅ Usuario autenticado, cargando módulo de inventario...');
-    console.log('👤 Usuario actual:', window.authManager.getUser()?.username);
+        if (!window.authManager.isAuthenticated()) {
+            console.log('❌ Usuario no autenticado en inventario, redirigiendo...');
+            window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+            return;
+        }
 
-    // Inicializar los iconos de Lucide
-    lucide.createIcons();
-    
-    // Inicializar el manager de inventario
-    setTimeout(() => {
+        console.log('✅ Usuario autenticado, cargando módulo de inventario...');
+        console.log('👤 Usuario actual:', window.authManager.getUser()?.username);
+
+        // Inicializar los iconos de Lucide
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+        
+        // Inicializar el manager de inventario
         if (typeof InventoryManager !== 'undefined') {
             window.inventoryManager = new InventoryManager();
         } else {
             console.error('❌ InventoryManager no está disponible');
         }
-    }, 100);
+    };
+
+    // Iniciar la verificación
+    checkAuthAndInit();
 });
 
  
