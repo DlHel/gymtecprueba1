@@ -1,14 +1,14 @@
 // Sistema de Inventario - Gymtec ERP
 
 // CRÍTICO: Verificación de autenticación PRIMERO
-if (!window.AuthManager || !AuthManager.isAuthenticated()) {
+if (!window.authManager || !window.authManager.isAuthenticated()) {
     console.log('❌ Usuario no autenticado en inventario, redirigiendo a login...');
     window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
     throw new Error('Acceso no autorizado - Inventario');
 }
 
 console.log('✅ Usuario autenticado, cargando módulo de inventario...');
-console.log('👤 Usuario actual:', AuthManager.getUser()?.username);
+console.log('👤 Usuario actual:', window.authManager.getUser()?.username);
 
 class InventoryManager {
     constructor() {
