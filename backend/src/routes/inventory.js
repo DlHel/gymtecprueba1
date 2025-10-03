@@ -469,7 +469,8 @@ router.get('/movements', authenticateToken, async (req, res) => {
             t.title as related_ticket_title,
             spr.id as request_id,
             spr.status as request_status,
-            1 as is_pending_request
+            1 as is_pending_request,
+            spr.priority as request_priority
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
         WHERE spr.status = 'pendiente'
@@ -478,8 +479,47 @@ router.get('/movements', authenticateToken, async (req, res) => {
         
         const pendingRequests = await db.all(pendingRequestsSql, []);
         
-        // 3. Combinar ambos resultados
-        const allData = [...pendingRequests, ...movements];
+        // 2b. Obtener solicitudes rechazadas recientes (últimas 10)
+        const rejectedRequestsSql = `
+        SELECT 
+            NULL as id,
+            NULL as inventory_id,
+            'rejected_request' as movement_type,
+            spr.quantity_needed as quantity,
+            NULL as unit_cost,
+            NULL as total_cost,
+            NULL as stock_before,
+            NULL as stock_after,
+            NULL as reference_type,
+            spr.id as reference_id,
+            NULL as location_from_id,
+            NULL as location_to_id,
+            NULL as batch_number,
+            NULL as expiry_date,
+            spr.notes as notes,
+            NULL as performed_by,
+            spr.approved_at as performed_at,
+            NULL as item_code,
+            spr.spare_part_name as item_name,
+            NULL as category_name,
+            spr.approved_by as performed_by_name,
+            t.id as related_ticket_id,
+            t.title as related_ticket_title,
+            spr.id as request_id,
+            spr.status as request_status,
+            0 as is_pending_request,
+            spr.priority as request_priority
+        FROM spare_part_requests spr
+        LEFT JOIN Tickets t ON spr.ticket_id = t.id
+        WHERE spr.status = 'rechazada'
+        ORDER BY spr.approved_at DESC
+        LIMIT 10
+        `;
+        
+        const rejectedRequests = await db.all(rejectedRequestsSql, []);
+        
+        // 3. Combinar todos los resultados
+        const allData = [...pendingRequests, ...rejectedRequests, ...movements];
         
         // 4. Ordenar por fecha y limitar
         allData.sort((a, b) => {
@@ -496,7 +536,8 @@ router.get('/movements', authenticateToken, async (req, res) => {
             count: limitedData.length,
             summary: {
                 totalMovements: movements.length,
-                pendingRequests: pendingRequests.length
+                pendingRequests: pendingRequests.length,
+                rejectedRequests: rejectedRequests.length
             }
         });
         

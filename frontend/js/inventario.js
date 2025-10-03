@@ -540,23 +540,25 @@ class InventoryManager {
         const transactionsHtml = this.data.transactions.map(transaction => {
             const movementType = transaction.movement_type || 'unknown';
             const isPendingRequest = transaction.is_pending_request === 1 || transaction.movement_type === 'pending_request';
+            const isRejectedRequest = transaction.movement_type === 'rejected_request';
             
             return `
-                <div class="transaction-card ${isPendingRequest ? 'pending-approval' : ''}">
+                <div class="transaction-card ${isPendingRequest ? 'pending-approval' : ''} ${isRejectedRequest ? 'rejected-request' : ''}">
                     <div class="transaction-header">
                         <div class="transaction-type ${movementType}">
                             <i data-lucide="${this.getTransactionIcon(movementType)}" class="w-4 h-4"></i>
-                            ${isPendingRequest ? '🔔 SOLICITUD PENDIENTE' : this.getTransactionTypeText(movementType)}
+                            ${isPendingRequest ? '🔔 SOLICITUD PENDIENTE' : isRejectedRequest ? '❌ SOLICITUD RECHAZADA' : this.getTransactionTypeText(movementType)}
                         </div>
                         <div class="transaction-date">${this.formatDateTime(transaction.performed_at)}</div>
                     </div>
                     <div class="transaction-details">
                         <strong>${transaction.item_name || transaction.spare_part_name || 'Item desconocido'}</strong>
-                        ${transaction.notes ? `<br>${transaction.notes}` : ''}
-                        ${transaction.quantity ? `<br>📦 Cantidad solicitada: ${transaction.quantity} unidades` : ''}
-                        ${!isPendingRequest && transaction.stock_before !== undefined && transaction.stock_after !== undefined ? 
+                        ${transaction.notes ? `<br>📝 ${transaction.notes}` : ''}
+                        ${transaction.quantity ? `<br>📦 Cantidad ${isPendingRequest ? 'solicitada' : isRejectedRequest ? 'rechazada' : ''}: ${transaction.quantity} unidades` : ''}
+                        ${!isPendingRequest && !isRejectedRequest && transaction.stock_before !== undefined && transaction.stock_after !== undefined ? 
                             `<br>📊 Stock: ${transaction.stock_before} → ${transaction.stock_after}` : ''}
-                        ${transaction.performed_by_name ? `<br>👤 Solicitado por: ${transaction.performed_by_name}` : ''}
+                        ${transaction.performed_by_name ? `<br>👤 ${isPendingRequest ? 'Solicitado' : isRejectedRequest ? 'Rechazado' : 'Realizado'} por: ${transaction.performed_by_name}` : ''}
+                        ${transaction.request_priority ? `<br>⚠️ Prioridad: <span class="priority-badge ${transaction.request_priority}">${transaction.request_priority.toUpperCase()}</span>` : ''}
                         ${transaction.related_ticket_id ? 
                             `<br>🎫 <a href="tickets.html?id=${transaction.related_ticket_id}" target="_blank" class="ticket-link">
                                 Ticket #${transaction.related_ticket_id}${transaction.related_ticket_title ? ': ' + transaction.related_ticket_title : ''}
@@ -790,7 +792,8 @@ class InventoryManager {
             'transfer': 'Transferencia',
             'return': 'Devolución',
             'migration': 'Migración Inicial',
-            'pending_request': 'SOLICITUD PENDIENTE'
+            'pending_request': 'SOLICITUD PENDIENTE',
+            'rejected_request': 'SOLICITUD RECHAZADA'
         };
         return typeMap[type] || type.toUpperCase();
     }
@@ -809,7 +812,8 @@ class InventoryManager {
             'transfer': 'arrow-right-left',
             'return': 'corner-up-left',
             'migration': 'database',
-            'pending_request': 'clock'
+            'pending_request': 'clock',
+            'rejected_request': 'x-octagon'
         };
         return iconMap[type] || 'circle';
     }
@@ -1078,6 +1082,9 @@ class InventoryManager {
             return;
         }
         
+        // Mostrar loading durante el proceso
+        this.showNotification('⏳ Procesando rechazo...', 'info');
+        
         try {
             const response = await authenticatedFetch(
                 `${this.apiBaseUrl}/inventory/requests/${requestId}/reject`,
@@ -1099,18 +1106,23 @@ class InventoryManager {
             
             const result = await response.json();
             
+            console.log('✅ Respuesta del servidor:', result);
+            
             this.showNotification(
-                `❌ Solicitud rechazada correctamente. ${result.message || ''}`,
+                `✅ Solicitud rechazada correctamente. Motivo registrado: "${reason.trim()}"`,
                 'success'
             );
             
             // Recargar movimientos para reflejar cambios
-            console.log('🔄 Recargando movimientos...');
-            await this.loadTransactions();
+            console.log('🔄 Recargando movimientos después de rechazar...');
+            setTimeout(async () => {
+                await this.loadTransactions();
+                console.log('✅ Movimientos recargados, solicitud rechazada debe aparecer');
+            }, 500);
             
         } catch (error) {
-            console.error('Error rechazando solicitud:', error);
-            this.showNotification(`Error: ${error.message}`, 'error');
+            console.error('❌ Error rechazando solicitud:', error);
+            this.showNotification(`Error al rechazar: ${error.message}`, 'error');
         }
     }
 }

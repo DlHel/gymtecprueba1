@@ -754,6 +754,41 @@
     background-color: #fffbeb;
 }
 
+.transaction-card.rejected-request {
+    border-left: 4px solid #ef4444;
+    background-color: #fef2f2;
+    opacity: 0.85;
+}
+
+.priority-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.priority-badge.urgente {
+    background-color: #fee2e2;
+    color: #dc2626;
+}
+
+.priority-badge.alta {
+    background-color: #fed7aa;
+    color: #ea580c;
+}
+
+.priority-badge.media {
+    background-color: #fef3c7;
+    color: #d97706;
+}
+
+.priority-badge.baja {
+    background-color: #dbeafe;
+    color: #2563eb;
+}
+
 .request-actions {
     display: flex;
     gap: 0.5rem;
