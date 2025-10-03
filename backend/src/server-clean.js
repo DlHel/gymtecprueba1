@@ -1100,10 +1100,14 @@ try {
 // FASE 3 ENHANCEMENTS - Sistema de Inventario Inteligente y Reportes
 try {
     const inventoryRoutes = require('./routes/inventory');
+    const purchaseOrdersRoutes = require('./routes/purchase-orders');
     
     app.use('/api/inventory', inventoryRoutes);
+    app.use('/api/purchase-orders', purchaseOrdersRoutes);
     
     console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
+    console.log('   📦 /api/inventory/* (Gestión de Inventario)');
+    console.log('   🛒 /api/purchase-orders/* (Órdenes de Compra)');
 } catch (error) {
     console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
 }

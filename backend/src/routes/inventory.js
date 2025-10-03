@@ -367,6 +367,152 @@ router.put('/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// ===================================================================
+// RUTAS ESPECÍFICAS (DEBEN IR ANTES DE /:id)
+// ===================================================================
+
+/**
+ * @route GET /api/inventory/movements
+ * @desc Obtener historial general de movimientos de inventario
+ * @access Protegido - Requiere autenticación
+ */
+router.get('/movements', authenticateToken, async (req, res) => {
+    try {
+        const { 
+            inventory_id, 
+            movement_type, 
+            start_date, 
+            end_date,
+            limit = 100 
+        } = req.query;
+        
+        let sql = `
+        SELECT 
+            im.*,
+            i.item_code,
+            i.item_name,
+            ic.name as category_name,
+            u.username as performed_by_name
+        FROM InventoryMovements im
+        LEFT JOIN Inventory i ON im.inventory_id = i.id
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
+        LEFT JOIN Users u ON im.performed_by = u.id
+        WHERE 1=1`;
+        
+        const params = [];
+        
+        if (inventory_id) {
+            sql += ' AND im.inventory_id = ?';
+            params.push(inventory_id);
+        }
+        
+        if (movement_type) {
+            sql += ' AND im.movement_type = ?';
+            params.push(movement_type);
+        }
+        
+        if (start_date) {
+            sql += ' AND im.performed_at >= ?';
+            params.push(start_date);
+        }
+        
+        if (end_date) {
+            sql += ' AND im.performed_at <= ?';
+            params.push(end_date);
+        }
+        
+        sql += ' ORDER BY im.performed_at DESC LIMIT ?';
+        params.push(parseInt(limit));
+        
+        const movements = await db.all(sql, params);
+        
+        res.json({
+            message: 'success',
+            data: movements || [],
+            count: movements ? movements.length : 0
+        });
+        
+    } catch (error) {
+        console.error('Error al obtener movimientos:', error);
+        res.status(500).json({
+            error: 'Error al obtener movimientos de inventario',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route GET /api/inventory/technicians
+ * @desc Obtener inventario asignado a técnicos
+ * @access Protegido - Requiere autenticación
+ */
+router.get('/technicians', authenticateToken, async (req, res) => {
+    try {
+        const { technician_id, status } = req.query;
+        
+        let sql = `
+        SELECT 
+            ti.*,
+            i.item_code,
+            i.item_name,
+            i.description,
+            ic.name as category_name,
+            u.username as technician_name,
+            u.email as technician_email,
+            assigned_by_user.username as assigned_by_name
+        FROM TechnicianInventory ti
+        LEFT JOIN Inventory i ON ti.spare_part_id = i.id
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
+        LEFT JOIN Users u ON ti.technician_id = u.id
+        LEFT JOIN Users assigned_by_user ON ti.assigned_by = assigned_by_user.id
+        WHERE 1=1`;
+        
+        const params = [];
+        
+        if (technician_id) {
+            sql += ' AND ti.technician_id = ?';
+            params.push(technician_id);
+        }
+        
+        if (status) {
+            sql += ' AND ti.status = ?';
+            params.push(status);
+        }
+        
+        sql += ' ORDER BY ti.assigned_at DESC';
+        
+        const assignments = await db.all(sql, params);
+        
+        // Agrupar por técnico
+        const groupedByTechnician = {};
+        (assignments || []).forEach(item => {
+            const techId = item.technician_id;
+            if (!groupedByTechnician[techId]) {
+                groupedByTechnician[techId] = {
+                    technician_id: techId,
+                    technician_name: item.technician_name,
+                    technician_email: item.technician_email,
+                    items: []
+                };
+            }
+            groupedByTechnician[techId].items.push(item);
+        });
+        
+        res.json({
+            message: 'success',
+            data: Object.values(groupedByTechnician),
+            total_assignments: assignments ? assignments.length : 0
+        });
+        
+    } catch (error) {
+        console.error('Error al obtener inventario de técnicos:', error);
+        res.status(500).json({
+            error: 'Error al obtener inventario de técnicos',
+            details: error.message
+        });
+    }
+});
+
 /**
  * @route GET /api/inventory/:id
  * @desc Obtener un item específico por ID
@@ -536,99 +682,6 @@ router.post('/:id/adjust', authenticateToken, async (req, res) => {
         
     } catch (error) {
         console.error('Error ajustando stock:', error);
-        res.status(500).json({ 
-            error: 'Error interno del servidor',
-            details: error.message 
-        });
-    }
-});
-
-/**
- * @route GET /api/inventory/movements
- * @desc Obtener historial general de movimientos de inventario
- * @access Protegido - Requiere autenticación
- */
-router.get('/movements', authenticateToken, async (req, res) => {
-    try {
-        const { 
-            inventory_id, 
-            movement_type, 
-            start_date, 
-            end_date,
-            limit = 100 
-        } = req.query;
-        
-        let sql = `
-        SELECT 
-            im.*,
-            i.item_code,
-            i.item_name,
-            ic.name as category_name,
-            u.username as performed_by_name
-        FROM InventoryMovements im
-        LEFT JOIN Inventory i ON im.inventory_id = i.id
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
-        LEFT JOIN Users u ON im.performed_by = u.id
-        WHERE 1=1`;
-        
-        const params = [];
-        
-        if (inventory_id) {
-            sql += ' AND im.inventory_id = ?';
-            params.push(inventory_id);
-        }
-        
-        if (movement_type) {
-            sql += ' AND im.movement_type = ?';
-            params.push(movement_type);
-        }
-        
-        if (start_date) {
-            sql += ' AND DATE(im.movement_date) >= ?';
-            params.push(start_date);
-        }
-        
-        if (end_date) {
-            sql += ' AND DATE(im.movement_date) <= ?';
-            params.push(end_date);
-        }
-        
-        sql += ' ORDER BY im.movement_date DESC LIMIT ?';
-        params.push(parseInt(limit));
-        
-        const movements = await db.all(sql, params);
-        
-        // Calcular estadísticas
-        const statsSQL = `
-        SELECT 
-            COUNT(*) as total_movements,
-            SUM(CASE WHEN movement_type = 'in' THEN quantity ELSE 0 END) as total_in,
-            SUM(CASE WHEN movement_type = 'out' THEN quantity ELSE 0 END) as total_out,
-            COUNT(DISTINCT inventory_id) as items_affected
-        FROM InventoryMovements
-        WHERE 1=1
-        ${start_date ? 'AND DATE(movement_date) >= ?' : ''}
-        ${end_date ? 'AND DATE(movement_date) <= ?' : ''}`;
-        
-        const statsParams = [];
-        if (start_date) statsParams.push(start_date);
-        if (end_date) statsParams.push(end_date);
-        
-        const stats = await db.get(statsSQL, statsParams);
-        
-        res.json({
-            message: 'success',
-            data: movements || [],
-            stats: stats || {
-                total_movements: 0,
-                total_in: 0,
-                total_out: 0,
-                items_affected: 0
-            }
-        });
-        
-    } catch (error) {
-        console.error('Error obteniendo movimientos de inventario:', error);
         res.status(500).json({ 
             error: 'Error interno del servidor',
             details: error.message 
