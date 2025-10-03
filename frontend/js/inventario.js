@@ -538,18 +538,34 @@ class InventoryManager {
         }
 
         const transactionsHtml = this.data.transactions.map(transaction => {
+            const movementType = transaction.movement_type || 'unknown';
+            const isPendingRequest = transaction.request_status === 'pendiente';
+            
             return `
-                <div class="transaction-card">
+                <div class="transaction-card ${isPendingRequest ? 'pending-approval' : ''}">
                     <div class="transaction-header">
-                        <div class="transaction-type ${transaction.type}">
-                            <i data-lucide="${this.getTransactionIcon(transaction.type)}" class="w-4 h-4"></i>
-                            ${this.getTransactionTypeText(transaction.type)}
+                        <div class="transaction-type ${movementType}">
+                            <i data-lucide="${this.getTransactionIcon(movementType)}" class="w-4 h-4"></i>
+                            ${this.getTransactionTypeText(movementType)}
                         </div>
-                        <div class="transaction-date">${this.formatDateTime(transaction.created_at)}</div>
+                        <div class="transaction-date">${this.formatDateTime(transaction.performed_at)}</div>
                     </div>
                     <div class="transaction-details">
-                        ${transaction.description}
-                        ${transaction.quantity ? ` - Cantidad: ${transaction.quantity}` : ''}
+                        <strong>${transaction.item_name || transaction.item_code || 'Item desconocido'}</strong>
+                        ${transaction.notes ? `<br>${transaction.notes}` : ''}
+                        ${transaction.quantity ? `<br>📦 Cantidad: ${transaction.quantity} unidades` : ''}
+                        ${transaction.stock_before !== undefined && transaction.stock_after !== undefined ? 
+                            `<br>📊 Stock: ${transaction.stock_before} → ${transaction.stock_after}` : ''}
+                        ${transaction.performed_by_name ? `<br>👤 Por: ${transaction.performed_by_name}` : ''}
+                        ${transaction.related_ticket_id ? 
+                            `<br>🎫 <a href="tickets.html?id=${transaction.related_ticket_id}" target="_blank" class="ticket-link">
+                                Ticket #${transaction.related_ticket_id}${transaction.related_ticket_title ? ': ' + transaction.related_ticket_title : ''}
+                            </a>` : ''}
+                        ${isPendingRequest && transaction.request_id ? 
+                            `<br><button class="btn-approve-request" data-request-id="${transaction.request_id}" data-item-name="${transaction.item_name || ''}">
+                                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                Aprobar Solicitud
+                            </button>` : ''}
                     </div>
                 </div>
             `;
@@ -557,6 +573,15 @@ class InventoryManager {
 
         container.innerHTML = transactionsHtml;
         lucide.createIcons();
+        
+        // Agregar event listeners para botones de aprobar
+        document.querySelectorAll('.btn-approve-request').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const requestId = e.currentTarget.dataset.requestId;
+                const itemName = e.currentTarget.dataset.itemName;
+                this.approveRequest(requestId, itemName);
+            });
+        });
     }
 
     // Modal handlers
@@ -738,20 +763,36 @@ class InventoryManager {
 
     getTransactionTypeText(type) {
         const typeMap = {
+            // Tipos en español (legacy)
             'entrada': 'Entrada',
             'salida': 'Salida',
             'asignacion': 'Asignación',
-            'devolucion': 'Devolución'
+            'devolucion': 'Devolución',
+            // Tipos en inglés (base de datos)
+            'in': 'Entrada',
+            'out': 'Salida',
+            'adjustment': 'Ajuste',
+            'transfer': 'Transferencia',
+            'return': 'Devolución',
+            'migration': 'Migración Inicial'
         };
-        return typeMap[type] || type;
+        return typeMap[type] || type.toUpperCase();
     }
 
     getTransactionIcon(type) {
         const iconMap = {
+            // Tipos en español (legacy)
             'entrada': 'plus-circle',
             'salida': 'minus-circle',
             'asignacion': 'user-plus',
-            'devolucion': 'corner-up-left'
+            'devolucion': 'corner-up-left',
+            // Tipos en inglés (base de datos)
+            'in': 'plus-circle',
+            'out': 'minus-circle',
+            'adjustment': 'sliders',
+            'transfer': 'arrow-right-left',
+            'return': 'corner-up-left',
+            'migration': 'database'
         };
         return iconMap[type] || 'circle';
     }
@@ -952,6 +993,61 @@ class InventoryManager {
     handleFilter(filterType, value) {
         console.log(`🔽 Filtro ${filterType}: ${value}`);
         // Implementar lógica de filtrado
+    }
+
+    async approveRequest(requestId, itemName) {
+        console.log(`✅ Aprobando solicitud #${requestId}...`);
+        
+        const confirmMessage = `¿Aprobar solicitud de "${itemName}"?\n\n` +
+            `El sistema verificará:\n` +
+            `• Si hay stock: Se descontará automáticamente\n` +
+            `• Si NO hay stock: Se creará una orden de compra`;
+        
+        if (!confirm(confirmMessage)) {
+            return;
+        }
+        
+        try {
+            const response = await authenticatedFetch(
+                `${this.apiBaseUrl}/inventory/requests/${requestId}/approve`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        notes: `Aprobado desde módulo de inventario`
+                    })
+                }
+            );
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al aprobar solicitud');
+            }
+            
+            const result = await response.json();
+            
+            // Mostrar resultado
+            if (result.data.action === 'stock_deducted') {
+                this.showNotification(
+                    `✅ Solicitud aprobada. Stock descontado. Nuevo stock: ${result.data.new_stock}`,
+                    'success'
+                );
+            } else if (result.data.action === 'purchase_order_created') {
+                this.showNotification(
+                    `✅ Solicitud aprobada. Orden de compra creada: ${result.data.purchase_order_number}`,
+                    'success'
+                );
+            }
+            
+            // Recargar movimientos
+            await this.loadTransactions();
+            
+        } catch (error) {
+            console.error('Error aprobando solicitud:', error);
+            this.showNotification(`Error: ${error.message}`, 'error');
+        }
     }
 }
 

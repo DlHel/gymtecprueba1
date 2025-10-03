@@ -746,4 +746,48 @@
     .md\:col-span-2 {
         grid-column: span 2 / span 2;
     }
+}
+
+/* === ESTILOS PARA SOLICITUDES PENDIENTES === */
+.transaction-card.pending-approval {
+    border-left: 4px solid #f59e0b;
+    background-color: #fffbeb;
+}
+
+.btn-approve-request {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.5rem 1rem;
+    background-color: #10b981;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-approve-request:hover {
+    background-color: #059669;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.btn-approve-request:active {
+    transform: translateY(0);
+}
+
+.ticket-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.ticket-link:hover {
+    color: #1d4ed8;
+    text-decoration: underline;
 } 

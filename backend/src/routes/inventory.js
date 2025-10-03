@@ -392,11 +392,25 @@ router.get('/movements', authenticateToken, async (req, res) => {
             i.item_code,
             i.item_name,
             ic.name as category_name,
-            u.username as performed_by_name
+            u.username as performed_by_name,
+            CASE 
+                WHEN im.reference_type = 'ticket' THEN t.id
+                WHEN im.reference_type = 'spare_part_request' THEN spr.ticket_id
+                ELSE NULL
+            END as related_ticket_id,
+            CASE 
+                WHEN im.reference_type = 'ticket' THEN t.title
+                WHEN im.reference_type = 'spare_part_request' THEN CONCAT('Solicitud #', spr.id)
+                ELSE NULL
+            END as related_ticket_title,
+            spr.id as request_id,
+            spr.status as request_status
         FROM InventoryMovements im
         LEFT JOIN Inventory i ON im.inventory_id = i.id
         LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         LEFT JOIN Users u ON im.performed_by = u.id
+        LEFT JOIN Tickets t ON im.reference_type = 'ticket' AND im.reference_id = t.id
+        LEFT JOIN spare_part_requests spr ON im.reference_type = 'spare_part_request' AND im.reference_id = spr.id
         WHERE 1=1`;
         
         const params = [];
@@ -1004,6 +1018,283 @@ router.get('/spare-part-requests', authenticateToken, (req, res) => {
             data: rows || []
         });
     });
+});
+
+/**
+ * @route POST /api/inventory/requests/:id/approve
+ * @desc Aprobar solicitud de repuesto (con stock o genera orden de compra)
+ * @access Protegido - Requiere autenticación
+ */
+router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
+    const requestId = req.params.id;
+    const { notes } = req.body;
+    
+    try {
+        console.log(`🔍 Aprobando solicitud #${requestId}...`);
+        
+        // 1. Obtener información de la solicitud
+        const request = await new Promise((resolve, reject) => {
+            db.get(
+                'SELECT * FROM spare_part_requests WHERE id = ?',
+                [requestId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+        
+        if (!request) {
+            return res.status(404).json({
+                error: 'Solicitud no encontrada',
+                code: 'REQUEST_NOT_FOUND'
+            });
+        }
+        
+        if (request.status !== 'pendiente') {
+            return res.status(400).json({
+                error: `La solicitud ya fue ${request.status}`,
+                code: 'REQUEST_ALREADY_PROCESSED'
+            });
+        }
+        
+        // 2. Buscar el repuesto en inventario por nombre
+        const inventoryItem = await new Promise((resolve, reject) => {
+            db.get(
+                `SELECT * FROM Inventory 
+                 WHERE LOWER(item_name) LIKE LOWER(?) 
+                 OR LOWER(item_code) LIKE LOWER(?)
+                 AND is_active = 1
+                 LIMIT 1`,
+                [`%${request.spare_part_name}%`, `%${request.spare_part_name}%`],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+        
+        const hasStock = inventoryItem && parseFloat(inventoryItem.current_stock) >= request.quantity_needed;
+        
+        // 3. Actualizar estado de la solicitud
+        await new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE spare_part_requests 
+                 SET status = 'aprobada',
+                     approved_by = ?,
+                     approved_at = NOW(),
+                     notes = ?
+                 WHERE id = ?`,
+                [req.user.id, notes || 'Solicitud aprobada', requestId],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+        
+        let result = {
+            request_id: requestId,
+            has_stock: hasStock,
+            action: null,
+            movement_id: null,
+            purchase_order_id: null
+        };
+        
+        if (hasStock) {
+            // 4A. HAY STOCK: Crear movimiento de salida
+            console.log(`✅ Stock disponible: ${inventoryItem.current_stock} unidades`);
+            
+            const newStock = parseFloat(inventoryItem.current_stock) - request.quantity_needed;
+            
+            // Actualizar stock en Inventory
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `UPDATE Inventory 
+                     SET current_stock = ?,
+                         updated_at = NOW()
+                     WHERE id = ?`,
+                    [newStock, inventoryItem.id],
+                    (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+            
+            // Crear movimiento
+            const movement = await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO InventoryMovements (
+                        inventory_id,
+                        movement_type,
+                        quantity,
+                        stock_before,
+                        stock_after,
+                        reference_type,
+                        reference_id,
+                        notes,
+                        performed_by,
+                        performed_at
+                    ) VALUES (?, 'out', ?, ?, ?, 'spare_part_request', ?, ?, ?, NOW())`,
+                    [
+                        inventoryItem.id,
+                        request.quantity_needed,
+                        inventoryItem.current_stock,
+                        newStock,
+                        requestId,
+                        `Aprobación de solicitud #${requestId}: ${request.spare_part_name}`,
+                        req.user.id
+                    ],
+                    function(err) {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    }
+                );
+            });
+            
+            // Si hay ticket asociado, actualizar ticketspareparts
+            if (request.ticket_id) {
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        `INSERT INTO ticketspareparts (
+                            ticket_id,
+                            inventory_id,
+                            quantity_used,
+                            unit_cost,
+                            notes,
+                            used_at
+                        ) VALUES (?, ?, ?, ?, ?, NOW())`,
+                        [
+                            request.ticket_id,
+                            inventoryItem.id,
+                            request.quantity_needed,
+                            inventoryItem.unit_cost || 0,
+                            `Solicitud #${requestId} aprobada`
+                        ],
+                        (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        }
+                    );
+                });
+            }
+            
+            result.action = 'stock_deducted';
+            result.movement_id = movement;
+            result.new_stock = newStock;
+            
+        } else {
+            // 4B. NO HAY STOCK: Crear orden de compra automática
+            console.log(`⚠️ Sin stock suficiente. Creando orden de compra...`);
+            
+            const orderNumber = `PO-AUTO-${Date.now()}`;
+            
+            // Crear orden de compra
+            const purchaseOrder = await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO PurchaseOrders (
+                        order_number,
+                        supplier_id,
+                        status,
+                        order_date,
+                        expected_date,
+                        total_amount,
+                        notes,
+                        created_by,
+                        created_at
+                    ) VALUES (?, ?, 'pending', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 0, ?, ?, NOW())`,
+                    [
+                        orderNumber,
+                        inventoryItem?.primary_supplier_id || null,
+                        `Orden automática para solicitud #${requestId}: ${request.spare_part_name}`,
+                        req.user.id
+                    ],
+                    function(err) {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    }
+                );
+            });
+            
+            // Agregar item a la orden
+            const estimatedCost = inventoryItem?.unit_cost || 0;
+            const lineTotal = estimatedCost * request.quantity_needed;
+            
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO PurchaseOrderItems (
+                        purchase_order_id,
+                        inventory_id,
+                        item_description,
+                        quantity_ordered,
+                        quantity_received,
+                        unit_cost,
+                        total_cost
+                    ) VALUES (?, ?, ?, ?, 0, ?, ?)`,
+                    [
+                        purchaseOrder,
+                        inventoryItem?.id || null,
+                        request.spare_part_name,
+                        request.quantity_needed,
+                        estimatedCost,
+                        lineTotal
+                    ],
+                    (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+            
+            // Actualizar total de la orden
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `UPDATE PurchaseOrders 
+                     SET total_amount = ?
+                     WHERE id = ?`,
+                    [lineTotal, purchaseOrder],
+                    (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+            
+            // Vincular orden de compra con la solicitud
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `UPDATE spare_part_requests 
+                     SET purchase_order_id = ?,
+                         status = 'aprobada'
+                     WHERE id = ?`,
+                    [purchaseOrder, requestId],
+                    (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    }
+                );
+            });
+            
+            result.action = 'purchase_order_created';
+            result.purchase_order_id = purchaseOrder;
+            result.purchase_order_number = orderNumber;
+        }
+        
+        console.log(`✅ Solicitud #${requestId} aprobada: ${result.action}`);
+        
+        res.json({
+            message: 'Solicitud aprobada exitosamente',
+            data: result
+        });
+        
+    } catch (error) {
+        console.error('❌ Error aprobando solicitud:', error);
+        res.status(500).json({
+            error: 'Error al aprobar solicitud',
+            details: error.message
+        });
+    }
 });
 
 module.exports = router;
