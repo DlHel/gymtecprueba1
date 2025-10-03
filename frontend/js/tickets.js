@@ -67,7 +67,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================
     if (!window.authManager || !window.authManager.isAuthenticated()) {
         console.error('❌ TICKETS: Usuario no autenticado, redirigiendo a login...');
-        window.location.href = 'login.html';
+        // Usar redirectToLogin() para preservar returnUrl
+        if (window.authManager && typeof window.authManager.redirectToLogin === 'function') {
+            window.authManager.redirectToLogin();
+        } else {
+            // Fallback: construir returnUrl manualmente
+            const currentPage = window.location.pathname;
+            const returnUrl = encodeURIComponent(currentPage + window.location.search);
+            window.location.href = `login.html?return=${returnUrl}`;
+        }
         return;
     }    console.log('✅ TICKETS: Autenticación verificada, inicializando...');
     
