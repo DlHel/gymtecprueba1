@@ -18,18 +18,25 @@ class DatabaseAdapter {
     }
 
     // Función para MySQL db.all() - convertir callback a promesa
+    // Soporta tanto callback como async/await
     all(sql, params, callback) {
         if (typeof params === 'function') {
             callback = params;
             params = [];
         }
         
+        // ✅ Si no hay callback, retornar promesa (para usar con await)
+        if (!callback) {
+            return this.db.query(sql, params);
+        }
+        
+        // Modo callback
         this.db.query(sql, params)
             .then(results => {
-                if (callback) callback(null, results);
+                callback(null, results);
             })
             .catch(error => {
-                if (callback) callback(error);
+                callback(error);
             });
     }
 

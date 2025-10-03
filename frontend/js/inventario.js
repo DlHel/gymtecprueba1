@@ -2,6 +2,26 @@
 
 class InventoryManager {
     constructor() {
+        // ============================================
+        // PROTECCIÓN DE AUTENTICACIÓN (CRÍTICO)
+        // Verificación ANTES de inicializar (patrón @bitacora)
+        // ============================================
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
+            console.error('❌ INVENTARIO: Usuario no autenticado, redirigiendo a login...');
+            // Usar redirectToLogin() para preservar returnUrl
+            if (window.authManager && typeof window.authManager.redirectToLogin === 'function') {
+                window.authManager.redirectToLogin();
+            } else {
+                // Fallback: construir returnUrl manualmente
+                const currentPage = window.location.pathname;
+                const returnUrl = encodeURIComponent(currentPage + window.location.search);
+                window.location.href = `login.html?return=${returnUrl}`;
+            }
+            return; // Detener la inicialización
+        }
+        
+        console.log('✅ INVENTARIO: Usuario autenticado, inicializando módulo...');
+        
         this.currentTab = 'central';
         this.data = {
             centralInventory: [],
