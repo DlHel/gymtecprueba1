@@ -518,8 +518,48 @@ router.get('/movements', authenticateToken, async (req, res) => {
         
         const rejectedRequests = await db.all(rejectedRequestsSql, []);
         
+        // 2c. Obtener solicitudes aprobadas recientes (últimas 10)
+        const approvedRequestsSql = `
+        SELECT 
+            NULL as id,
+            NULL as inventory_id,
+            'approved_request' as movement_type,
+            spr.quantity_needed as quantity,
+            NULL as unit_cost,
+            NULL as total_cost,
+            NULL as stock_before,
+            NULL as stock_after,
+            NULL as reference_type,
+            spr.id as reference_id,
+            NULL as location_from_id,
+            NULL as location_to_id,
+            NULL as batch_number,
+            NULL as expiry_date,
+            spr.notes as notes,
+            NULL as performed_by,
+            spr.approved_at as performed_at,
+            NULL as item_code,
+            spr.spare_part_name as item_name,
+            NULL as category_name,
+            spr.approved_by as performed_by_name,
+            t.id as related_ticket_id,
+            t.title as related_ticket_title,
+            spr.id as request_id,
+            spr.status as request_status,
+            0 as is_pending_request,
+            spr.priority as request_priority,
+            spr.purchase_order_id
+        FROM spare_part_requests spr
+        LEFT JOIN Tickets t ON spr.ticket_id = t.id
+        WHERE spr.status = 'aprobada'
+        ORDER BY spr.approved_at DESC
+        LIMIT 10
+        `;
+        
+        const approvedRequests = await db.all(approvedRequestsSql, []);
+        
         // 3. Combinar todos los resultados
-        const allData = [...pendingRequests, ...rejectedRequests, ...movements];
+        const allData = [...pendingRequests, ...rejectedRequests, ...approvedRequests, ...movements];
         
         // 4. Ordenar por fecha y limitar
         allData.sort((a, b) => {
@@ -537,7 +577,8 @@ router.get('/movements', authenticateToken, async (req, res) => {
             summary: {
                 totalMovements: movements.length,
                 pendingRequests: pendingRequests.length,
-                rejectedRequests: rejectedRequests.length
+                rejectedRequests: rejectedRequests.length,
+                approvedRequests: approvedRequests.length
             }
         });
         

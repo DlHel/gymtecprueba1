@@ -760,6 +760,12 @@
     opacity: 0.85;
 }
 
+.transaction-card.approved-request {
+    border-left: 4px solid #10b981;
+    background-color: #f0fdf4;
+    opacity: 0.95;
+}
+
 .priority-badge {
     display: inline-block;
     padding: 0.125rem 0.5rem;
