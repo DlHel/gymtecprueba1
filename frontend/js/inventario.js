@@ -369,8 +369,8 @@ class InventoryManager {
                 <div class="inventory-item-card">
                     <div class="inventory-item-header">
                         <div>
-                            <h4 class="inventory-item-name">${item.name}</h4>
-                            <div class="inventory-item-sku">SKU: ${item.sku || 'N/A'}</div>
+                            <h4 class="inventory-item-name">${item.item_name || 'Sin nombre'}</h4>
+                            <div class="inventory-item-sku">SKU: ${item.item_code || 'N/A'}</div>
                         </div>
                         <div class="inventory-item-status ${status.class}">${status.text}</div>
                     </div>
@@ -378,7 +378,7 @@ class InventoryManager {
                     <div class="inventory-item-details">
                         <div class="inventory-item-detail">
                             <div class="inventory-item-detail-label">Categoría</div>
-                            <div class="inventory-item-detail-value">${item.category || 'N/A'}</div>
+                            <div class="inventory-item-detail-value">${item.category_name || 'N/A'}</div>
                         </div>
                         <div class="inventory-item-detail">
                             <div class="inventory-item-detail-label">Stock Actual</div>
@@ -386,15 +386,15 @@ class InventoryManager {
                         </div>
                         <div class="inventory-item-detail">
                             <div class="inventory-item-detail-label">Stock Mínimo</div>
-                            <div class="inventory-item-detail-value">${item.min_stock || 0}</div>
+                            <div class="inventory-item-detail-value">${item.minimum_stock || 0}</div>
                         </div>
                         <div class="inventory-item-detail">
                             <div class="inventory-item-detail-label">Precio</div>
-                            <div class="inventory-item-detail-value">$${item.unit_price || '0.00'}</div>
+                            <div class="inventory-item-detail-value">${this.formatCurrency(item.unit_cost || 0)}</div>
                         </div>
                         <div class="inventory-item-detail">
                             <div class="inventory-item-detail-label">Ubicación</div>
-                            <div class="inventory-item-detail-value">${item.location || 'N/A'}</div>
+                            <div class="inventory-item-detail-value">${item.location_name || 'N/A'}</div>
                         </div>
                     </div>
                     
@@ -601,14 +601,22 @@ class InventoryManager {
     // Utility methods
     getItemStatus(item) {
         if (item.current_stock <= 0) {
-            return { class: 'agotado', text: 'Agotado' };
-        } else if (item.current_stock <= item.min_stock) {
-            return { class: 'bajo-stock', text: 'Bajo Stock' };
-        } else if (item.status === 'en-pedido') {
-            return { class: 'en-pedido', text: 'En Pedido' };
+            return { class: 'agotado', text: 'AGOTADO' };
+        } else if (item.current_stock <= item.minimum_stock) {
+            return { class: 'bajo-stock', text: 'BAJO STOCK' };
+        } else if (item.stock_status === 'overstock') {
+            return { class: 'en-pedido', text: 'SOBRESTOCK' };
         } else {
-            return { class: 'disponible', text: 'Disponible' };
+            return { class: 'disponible', text: 'DISPONIBLE' };
         }
+    }
+
+    formatCurrency(value) {
+        return new Intl.NumberFormat('es-CL', {
+            style: 'currency',
+            currency: 'CLP',
+            minimumFractionDigits: 0
+        }).format(value || 0);
     }
 
     getEmptyState(type, icon) {
