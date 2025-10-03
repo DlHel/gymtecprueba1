@@ -539,33 +539,39 @@ class InventoryManager {
 
         const transactionsHtml = this.data.transactions.map(transaction => {
             const movementType = transaction.movement_type || 'unknown';
-            const isPendingRequest = transaction.request_status === 'pendiente';
+            const isPendingRequest = transaction.is_pending_request === 1 || transaction.movement_type === 'pending_request';
             
             return `
                 <div class="transaction-card ${isPendingRequest ? 'pending-approval' : ''}">
                     <div class="transaction-header">
                         <div class="transaction-type ${movementType}">
                             <i data-lucide="${this.getTransactionIcon(movementType)}" class="w-4 h-4"></i>
-                            ${this.getTransactionTypeText(movementType)}
+                            ${isPendingRequest ? '🔔 SOLICITUD PENDIENTE' : this.getTransactionTypeText(movementType)}
                         </div>
                         <div class="transaction-date">${this.formatDateTime(transaction.performed_at)}</div>
                     </div>
                     <div class="transaction-details">
-                        <strong>${transaction.item_name || transaction.item_code || 'Item desconocido'}</strong>
+                        <strong>${transaction.item_name || transaction.spare_part_name || 'Item desconocido'}</strong>
                         ${transaction.notes ? `<br>${transaction.notes}` : ''}
-                        ${transaction.quantity ? `<br>📦 Cantidad: ${transaction.quantity} unidades` : ''}
-                        ${transaction.stock_before !== undefined && transaction.stock_after !== undefined ? 
+                        ${transaction.quantity ? `<br>📦 Cantidad solicitada: ${transaction.quantity} unidades` : ''}
+                        ${!isPendingRequest && transaction.stock_before !== undefined && transaction.stock_after !== undefined ? 
                             `<br>📊 Stock: ${transaction.stock_before} → ${transaction.stock_after}` : ''}
-                        ${transaction.performed_by_name ? `<br>👤 Por: ${transaction.performed_by_name}` : ''}
+                        ${transaction.performed_by_name ? `<br>👤 Solicitado por: ${transaction.performed_by_name}` : ''}
                         ${transaction.related_ticket_id ? 
                             `<br>🎫 <a href="tickets.html?id=${transaction.related_ticket_id}" target="_blank" class="ticket-link">
                                 Ticket #${transaction.related_ticket_id}${transaction.related_ticket_title ? ': ' + transaction.related_ticket_title : ''}
                             </a>` : ''}
                         ${isPendingRequest && transaction.request_id ? 
-                            `<br><button class="btn-approve-request" data-request-id="${transaction.request_id}" data-item-name="${transaction.item_name || ''}">
-                                <i data-lucide="check-circle" class="w-4 h-4"></i>
-                                Aprobar Solicitud
-                            </button>` : ''}
+                            `<br><div class="request-actions">
+                                <button class="btn-approve-request" data-request-id="${transaction.request_id}" data-item-name="${transaction.item_name || transaction.spare_part_name || ''}">
+                                    <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                    Aprobar
+                                </button>
+                                <button class="btn-reject-request" data-request-id="${transaction.request_id}" data-item-name="${transaction.item_name || transaction.spare_part_name || ''}">
+                                    <i data-lucide="x-circle" class="w-4 h-4"></i>
+                                    Rechazar
+                                </button>
+                            </div>` : ''}
                     </div>
                 </div>
             `;
@@ -580,6 +586,15 @@ class InventoryManager {
                 const requestId = e.currentTarget.dataset.requestId;
                 const itemName = e.currentTarget.dataset.itemName;
                 this.approveRequest(requestId, itemName);
+            });
+        });
+        
+        // Agregar event listeners para botones de rechazar
+        document.querySelectorAll('.btn-reject-request').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const requestId = e.currentTarget.dataset.requestId;
+                const itemName = e.currentTarget.dataset.itemName;
+                this.rejectRequest(requestId, itemName);
             });
         });
     }
@@ -774,7 +789,8 @@ class InventoryManager {
             'adjustment': 'Ajuste',
             'transfer': 'Transferencia',
             'return': 'Devolución',
-            'migration': 'Migración Inicial'
+            'migration': 'Migración Inicial',
+            'pending_request': 'SOLICITUD PENDIENTE'
         };
         return typeMap[type] || type.toUpperCase();
     }
@@ -792,7 +808,8 @@ class InventoryManager {
             'adjustment': 'sliders',
             'transfer': 'arrow-right-left',
             'return': 'corner-up-left',
-            'migration': 'database'
+            'migration': 'database',
+            'pending_request': 'clock'
         };
         return iconMap[type] || 'circle';
     }
@@ -1041,11 +1058,58 @@ class InventoryManager {
                 );
             }
             
-            // Recargar movimientos
+            // Recargar movimientos para reflejar cambios
+            console.log('🔄 Recargando movimientos...');
             await this.loadTransactions();
             
         } catch (error) {
             console.error('Error aprobando solicitud:', error);
+            this.showNotification(`Error: ${error.message}`, 'error');
+        }
+    }
+    
+    async rejectRequest(requestId, itemName) {
+        console.log(`❌ Rechazando solicitud #${requestId}...`);
+        
+        const reason = prompt(`¿Por qué rechazas la solicitud de "${itemName}"?\n\nEscribe el motivo del rechazo:`);
+        
+        if (!reason || reason.trim() === '') {
+            this.showNotification('Rechazo cancelado. Debes proporcionar un motivo.', 'info');
+            return;
+        }
+        
+        try {
+            const response = await authenticatedFetch(
+                `${this.apiBaseUrl}/inventory/requests/${requestId}/reject`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        rejection_reason: reason.trim()
+                    })
+                }
+            );
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al rechazar solicitud');
+            }
+            
+            const result = await response.json();
+            
+            this.showNotification(
+                `❌ Solicitud rechazada correctamente. ${result.message || ''}`,
+                'success'
+            );
+            
+            // Recargar movimientos para reflejar cambios
+            console.log('🔄 Recargando movimientos...');
+            await this.loadTransactions();
+            
+        } catch (error) {
+            console.error('Error rechazando solicitud:', error);
             this.showNotification(`Error: ${error.message}`, 'error');
         }
     }

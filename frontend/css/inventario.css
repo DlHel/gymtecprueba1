@@ -754,11 +754,17 @@
     background-color: #fffbeb;
 }
 
+.request-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
 .btn-approve-request {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 0.75rem;
     padding: 0.5rem 1rem;
     background-color: #10b981;
     color: white;
@@ -777,6 +783,31 @@
 }
 
 .btn-approve-request:active {
+    transform: translateY(0);
+}
+
+.btn-reject-request {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: #ef4444;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-reject-request:hover {
+    background-color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.btn-reject-request:active {
     transform: translateY(0);
 }
 

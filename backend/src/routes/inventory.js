@@ -373,7 +373,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
 
 /**
  * @route GET /api/inventory/movements
- * @desc Obtener historial general de movimientos de inventario
+ * @desc Obtener historial general de movimientos de inventario + solicitudes pendientes
  * @access Protegido - Requiere autenticación
  */
 router.get('/movements', authenticateToken, async (req, res) => {
@@ -386,7 +386,8 @@ router.get('/movements', authenticateToken, async (req, res) => {
             limit = 100 
         } = req.query;
         
-        let sql = `
+        // 1. Obtener movimientos completados
+        let movementsSql = `
         SELECT 
             im.*,
             i.item_code,
@@ -404,7 +405,8 @@ router.get('/movements', authenticateToken, async (req, res) => {
                 ELSE NULL
             END as related_ticket_title,
             spr.id as request_id,
-            spr.status as request_status
+            spr.status as request_status,
+            NULL as is_pending_request
         FROM InventoryMovements im
         LEFT JOIN Inventory i ON im.inventory_id = i.id
         LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
@@ -413,37 +415,89 @@ router.get('/movements', authenticateToken, async (req, res) => {
         LEFT JOIN spare_part_requests spr ON im.reference_type = 'spare_part_request' AND im.reference_id = spr.id
         WHERE 1=1`;
         
-        const params = [];
+        const movementsParams = [];
         
         if (inventory_id) {
-            sql += ' AND im.inventory_id = ?';
-            params.push(inventory_id);
+            movementsSql += ' AND im.inventory_id = ?';
+            movementsParams.push(inventory_id);
         }
         
         if (movement_type) {
-            sql += ' AND im.movement_type = ?';
-            params.push(movement_type);
+            movementsSql += ' AND im.movement_type = ?';
+            movementsParams.push(movement_type);
         }
         
         if (start_date) {
-            sql += ' AND im.performed_at >= ?';
-            params.push(start_date);
+            movementsSql += ' AND im.performed_at >= ?';
+            movementsParams.push(start_date);
         }
         
         if (end_date) {
-            sql += ' AND im.performed_at <= ?';
-            params.push(end_date);
+            movementsSql += ' AND im.performed_at <= ?';
+            movementsParams.push(end_date);
         }
         
-        sql += ' ORDER BY im.performed_at DESC LIMIT ?';
-        params.push(parseInt(limit));
+        movementsSql += ' ORDER BY im.performed_at DESC';
         
-        const movements = await db.all(sql, params);
+        const movements = await db.all(movementsSql, movementsParams);
+        
+        // 2. Obtener solicitudes pendientes (que aún no tienen movimiento)
+        const pendingRequestsSql = `
+        SELECT 
+            NULL as id,
+            NULL as inventory_id,
+            'pending_request' as movement_type,
+            spr.quantity_needed as quantity,
+            NULL as unit_cost,
+            NULL as total_cost,
+            NULL as stock_before,
+            NULL as stock_after,
+            NULL as reference_type,
+            spr.id as reference_id,
+            NULL as location_from_id,
+            NULL as location_to_id,
+            NULL as batch_number,
+            NULL as expiry_date,
+            CONCAT('SOLICITUD PENDIENTE: ', spr.description) as notes,
+            NULL as performed_by,
+            spr.created_at as performed_at,
+            NULL as item_code,
+            spr.spare_part_name as item_name,
+            NULL as category_name,
+            spr.requested_by as performed_by_name,
+            t.id as related_ticket_id,
+            t.title as related_ticket_title,
+            spr.id as request_id,
+            spr.status as request_status,
+            1 as is_pending_request
+        FROM spare_part_requests spr
+        LEFT JOIN Tickets t ON spr.ticket_id = t.id
+        WHERE spr.status = 'pendiente'
+        ORDER BY spr.created_at DESC
+        `;
+        
+        const pendingRequests = await db.all(pendingRequestsSql, []);
+        
+        // 3. Combinar ambos resultados
+        const allData = [...pendingRequests, ...movements];
+        
+        // 4. Ordenar por fecha y limitar
+        allData.sort((a, b) => {
+            const dateA = new Date(a.performed_at);
+            const dateB = new Date(b.performed_at);
+            return dateB - dateA;
+        });
+        
+        const limitedData = allData.slice(0, parseInt(limit));
         
         res.json({
             message: 'success',
-            data: movements || [],
-            count: movements ? movements.length : 0
+            data: limitedData || [],
+            count: limitedData.length,
+            summary: {
+                totalMovements: movements.length,
+                pendingRequests: pendingRequests.length
+            }
         });
         
     } catch (error) {
@@ -1292,6 +1346,94 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         console.error('❌ Error aprobando solicitud:', error);
         res.status(500).json({
             error: 'Error al aprobar solicitud',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/inventory/requests/:id/reject
+ * @desc Rechazar una solicitud de repuesto
+ * @access Protegido - Requiere autenticación
+ */
+router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
+    const requestId = req.params.id;
+    const { rejection_reason } = req.body;
+    
+    console.log(`❌ Procesando rechazo de solicitud #${requestId}...`);
+    
+    try {
+        // 1. Validar que la solicitud existe y está pendiente
+        const request = await new Promise((resolve, reject) => {
+            db.get(
+                `SELECT * FROM spare_part_requests WHERE id = ?`,
+                [requestId],
+                (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                }
+            );
+        });
+        
+        if (!request) {
+            return res.status(404).json({
+                error: 'Solicitud no encontrada',
+                code: 'REQUEST_NOT_FOUND'
+            });
+        }
+        
+        if (request.status !== 'pendiente') {
+            return res.status(400).json({
+                error: `La solicitud ya fue ${request.status}`,
+                code: 'REQUEST_ALREADY_PROCESSED'
+            });
+        }
+        
+        if (!rejection_reason || rejection_reason.trim() === '') {
+            return res.status(400).json({
+                error: 'Se requiere un motivo de rechazo',
+                code: 'REJECTION_REASON_REQUIRED'
+            });
+        }
+        
+        // 2. Actualizar estado de la solicitud a rechazada
+        await new Promise((resolve, reject) => {
+            db.run(
+                `UPDATE spare_part_requests 
+                 SET status = 'rechazada',
+                     notes = ?,
+                     approved_by = ?,
+                     approved_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`,
+                [
+                    `RECHAZADA: ${rejection_reason.trim()}`,
+                    req.user.username || req.user.id,
+                    requestId
+                ],
+                (err) => {
+                    if (err) reject(err);
+                    else resolve();
+                }
+            );
+        });
+        
+        console.log(`✅ Solicitud #${requestId} rechazada por: ${req.user.username || req.user.id}`);
+        
+        res.json({
+            message: 'Solicitud rechazada exitosamente',
+            data: {
+                request_id: requestId,
+                status: 'rechazada',
+                rejection_reason: rejection_reason.trim(),
+                rejected_by: req.user.username || req.user.id,
+                rejected_at: new Date().toISOString()
+            }
+        });
+        
+    } catch (error) {
+        console.error('❌ Error rechazando solicitud:', error);
+        res.status(500).json({
+            error: 'Error al rechazar solicitud',
             details: error.message
         });
     }
