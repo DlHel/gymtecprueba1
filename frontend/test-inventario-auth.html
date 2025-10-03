@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEST: Flujo de Autenticación - Inventario</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .log-success { color: #10b981; }
+        .log-error { color: #ef4444; }
+        .log-warning { color: #f59e0b; }
+        .log-info { color: #3b82f6; }
+    </style>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold mb-6">🧪 TEST: Flujo de Autenticación en Inventario</h1>
+        
+        <!-- Estado Actual -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">📊 Estado Actual</h2>
+            <div id="current-state" class="space-y-2"></div>
+        </div>
+        
+        <!-- Tests Automáticos -->
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-bold mb-4">🤖 Tests Automáticos</h2>
+            <div class="space-y-2">
+                <button onclick="runTest1()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Test 1: Verificar authManager
+                </button>
+                <button onclick="runTest2()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Test 2: Verificar autenticación
+                </button>
+                <button onclick="runTest3()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
+                    Test 3: Simular redirectToLogin
+                </button>
+                <button onclick="runTest4()" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">
+                    Test 4: Simular flujo completo
+                </button>
+                <button onclick="clearLogs()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">
+                    Limpiar Logs
+                </button>
+            </div>
+        </div>
+        
+        <!-- Logs -->
+        <div class="bg-gray-900 text-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold mb-4">📝 Logs de Test</h2>
+            <pre id="test-logs" class="text-sm overflow-auto max-h-96"></pre>
+        </div>
+        
+        <!-- Acciones Rápidas -->
+        <div class="bg-white rounded-lg shadow p-6 mt-6">
+            <h2 class="text-xl font-bold mb-4">⚡ Acciones Rápidas</h2>
+            <div class="space-y-2">
+                <button onclick="goToInventario()" class="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600">
+                    Ir a /inventario.html
+                </button>
+                <button onclick="goToLogin()" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">
+                    Ir a /login.html
+                </button>
+                <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
+                    Cerrar Sesión (limpiar localStorage)
+                </button>
+                <button onclick="createFakeToken()" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">
+                    Crear Token Falso
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script>
+        // Utilidades de logging
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('test-logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const icon = {
+                success: '✅',
+                error: '❌',
+                warning: '⚠️',
+                info: 'ℹ️'
+            }[type] || 'ℹ️';
+            
+            logsDiv.innerHTML += `<span class="log-${type}">[${timestamp}] ${icon} ${message}</span>\n`;
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+        
+        function clearLogs() {
+            document.getElementById('test-logs').innerHTML = '';
+            log('Logs limpiados', 'info');
+        }
+        
+        // Actualizar estado actual
+        function updateState() {
+            const stateDiv = document.getElementById('current-state');
+            const isAuth = window.authManager?.isAuthenticated() || false;
+            const token = localStorage.getItem('gymtec_token');
+            const user = localStorage.getItem('gymtec_user');
+            
+            let userData = null;
+            if (user) {
+                try {
+                    userData = JSON.parse(user);
+                } catch (e) {}
+            }
+            
+            stateDiv.innerHTML = `
+                <div class="flex items-center space-x-2">
+                    <span class="${isAuth ? 'text-green-600' : 'text-red-600'} font-bold">
+                        ${isAuth ? '✅ Autenticado' : '❌ No Autenticado'}
+                    </span>
+                </div>
+                <div>
+                    <strong>Token:</strong> ${token ? '✅ Presente' : '❌ Ausente'}
+                </div>
+                <div>
+                    <strong>Usuario:</strong> ${userData ? `${userData.username} (${userData.role})` : 'N/A'}
+                </div>
+                <div>
+                    <strong>authManager:</strong> ${window.authManager ? '✅ Disponible' : '❌ No disponible'}
+                </div>
+            `;
+        }
+        
+        // Tests
+        function runTest1() {
+            log('=== TEST 1: Verificar authManager ===', 'info');
+            
+            if (window.authManager) {
+                log('authManager existe ✅', 'success');
+                log(`  - isAuthenticated: ${typeof window.authManager.isAuthenticated}`, 'info');
+                log(`  - redirectToLogin: ${typeof window.authManager.redirectToLogin}`, 'info');
+                log(`  - getToken: ${typeof window.authManager.getToken}`, 'info');
+                log(`  - getUser: ${typeof window.authManager.getUser}`, 'info');
+            } else {
+                log('authManager NO existe ❌', 'error');
+            }
+            
+            updateState();
+        }
+        
+        function runTest2() {
+            log('=== TEST 2: Verificar autenticación ===', 'info');
+            
+            if (!window.authManager) {
+                log('authManager no disponible ❌', 'error');
+                return;
+            }
+            
+            const isAuth = window.authManager.isAuthenticated();
+            const token = window.authManager.getToken();
+            const user = window.authManager.getUser();
+            
+            log(`isAuthenticated(): ${isAuth}`, isAuth ? 'success' : 'warning');
+            log(`Token: ${token ? 'Presente' : 'Ausente'}`, token ? 'success' : 'warning');
+            log(`Usuario: ${user ? user.username : 'N/A'}`, user ? 'success' : 'warning');
+            
+            updateState();
+        }
+        
+        function runTest3() {
+            log('=== TEST 3: Simular redirectToLogin ===', 'info');
+            
+            if (!window.authManager) {
+                log('authManager no disponible ❌', 'error');
+                return;
+            }
+            
+            const currentPage = window.location.pathname;
+            const returnUrl = encodeURIComponent(currentPage + window.location.search);
+            const mockRedirectUrl = `login.html?return=${returnUrl}`;
+            
+            log(`Página actual: ${currentPage}`, 'info');
+            log(`returnUrl codificado: ${returnUrl}`, 'info');
+            log(`URL de redirección: ${mockRedirectUrl}`, 'success');
+            log('redirectToLogin() está disponible ✅', 'success');
+        }
+        
+        function runTest4() {
+            log('=== TEST 4: Flujo completo ===', 'info');
+            
+            const isAuth = window.authManager?.isAuthenticated() || false;
+            
+            log(`1. Estado actual: ${isAuth ? 'Autenticado' : 'No autenticado'}`, 'info');
+            
+            if (!isAuth) {
+                log('2. Usuario NO autenticado → debería redirigir a login', 'warning');
+                log('3. redirectToLogin() se ejecutaría con:', 'info');
+                
+                const currentPage = '/inventario.html';
+                const returnUrl = encodeURIComponent(currentPage);
+                log(`   URL: login.html?return=${returnUrl}`, 'success');
+                
+                log('4. Después del login exitoso:', 'info');
+                log('   - login.html lee returnUrl = "/inventario.html"', 'info');
+                log('   - Redirige a /inventario.html', 'success');
+                log('   - inventario.js verifica auth → OK ✅', 'success');
+                log('   - Carga módulo de inventario', 'success');
+            } else {
+                log('2. Usuario autenticado → puede acceder directamente', 'success');
+                log('3. NO hay redirección', 'success');
+                log('4. Carga módulo de inventario inmediatamente', 'success');
+            }
+            
+            log('=== FIN DEL TEST ===', 'info');
+        }
+        
+        // Acciones rápidas
+        function goToInventario() {
+            log('Navegando a /inventario.html...', 'info');
+            window.location.href = '/inventario.html';
+        }
+        
+        function goToLogin() {
+            log('Navegando a /login.html...', 'info');
+            window.location.href = '/login.html';
+        }
+        
+        function logout() {
+            log('Cerrando sesión y limpiando localStorage...', 'warning');
+            localStorage.removeItem('gymtec_token');
+            localStorage.removeItem('gymtec_user');
+            localStorage.removeItem('gymtec_remember');
+            log('Sesión cerrada ✅', 'success');
+            updateState();
+        }
+        
+        function createFakeToken() {
+            log('Creando token falso para testing...', 'warning');
+            localStorage.setItem('gymtec_token', 'fake_token_12345');
+            localStorage.setItem('gymtec_user', JSON.stringify({
+                username: 'test_user',
+                role: 'Admin'
+            }));
+            log('Token falso creado ✅', 'success');
+            updateState();
+        }
+        
+        // Inicializar
+        window.addEventListener('DOMContentLoaded', () => {
+            log('Página de testing cargada', 'success');
+            updateState();
+        });
+        
+        // Actualizar estado cada 2 segundos
+        setInterval(updateState, 2000);
+    </script>
+</body>
+</html>

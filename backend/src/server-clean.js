@@ -5,6 +5,9 @@ const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+// CRÍTICO: Cargar variables de entorno DESPUÉS de require('path')
+require('dotenv').config({ path: path.join(__dirname, '../config.env') });
+
 // Base de datos - usando adaptador configurable
 const dbAdapter = require('./db-adapter');
 const db = dbAdapter;
