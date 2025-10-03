@@ -32,7 +32,7 @@ router.post('/login',
           email: user.email, 
           role: user.role 
         },
-        process.env.JWT_SECRET || 'your-secret-key',
+        process.env.JWT_SECRET || 'gymtec_secret_key_2024',
         { expiresIn: '24h' }
       );
       
