@@ -1695,11 +1695,20 @@ app.get('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
 });
 
 // POST new photo for ticket
-app.post('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
+app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) => {
     const { ticketId } = req.params;
     const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
     
+    console.log(`📸 Solicitud de subir foto al ticket ${ticketId}:`, {
+        file_name,
+        mime_type,
+        photo_data_length: photo_data?.length || 0,
+        file_size,
+        photo_type
+    });
+    
     if (!photo_data || !mime_type) {
+        console.warn('⚠️ Falta photo_data o mime_type');
         return res.status(400).json({ 
             error: "photo_data y mime_type son requeridos",
             code: 'PHOTO_DATA_REQUIRED'
@@ -1709,53 +1718,66 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
     // Validar tamaño del archivo (límite 10MB en base64)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (photo_data.length > maxSize) {
+        console.warn(`⚠️ Archivo demasiado grande: ${photo_data.length} bytes`);
         return res.status(400).json({
             error: "La imagen es demasiado grande (máximo 10MB)",
             code: 'FILE_TOO_LARGE'
         });
     }
     
-    const sql = `INSERT INTO TicketPhotos 
-                 (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
-    const params = [
-        parseInt(ticketId), 
-        photo_data, 
-        file_name || 'foto.jpg', 
-        mime_type, 
-        file_size || 0, 
-        description || null, 
-        photo_type || 'Otros'
-    ];
-    
-    db.run(sql, params, function(err) {
-        if (err) {
-            console.error('❌ Error agregando foto de ticket:', err.message);
-            res.status(500).json({ 
-                error: 'Error al agregar foto al ticket',
-                code: 'PHOTO_INSERT_ERROR'
-            });
-            return;
-        }
+    try {
+        const sql = `INSERT INTO TicketPhotos 
+                     (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
+        const params = [
+            parseInt(ticketId), 
+            photo_data, 
+            file_name || 'foto.jpg', 
+            mime_type, 
+            file_size || 0, 
+            description || null, 
+            photo_type || 'Otros'
+        ];
         
-        console.log(`✅ Foto agregada al ticket ${ticketId}, ID: ${this.lastID}`);
+        console.log(`💾 Insertando foto en base de datos...`);
+        const insertResult = await db.runAsync(sql, params);
+        const photoId = insertResult.lastID;
+        
+        console.log(`✅ Foto agregada al ticket ${ticketId}, ID: ${photoId}`);
         
         // Obtener la foto recién creada (sin el photo_data para evitar respuesta grande)
-        db.get('SELECT id, ticket_id, file_name, mime_type, file_size, description, photo_type, created_at FROM TicketPhotos WHERE id = ?', [this.lastID], (err, newPhoto) => {
-            if (err) {
-                console.error('❌ Error obteniendo foto creada:', err.message);
-                return res.status(500).json({ 
-                    error: 'Error al obtener foto creada',
-                    code: 'PHOTO_RETRIEVE_ERROR'
-                });
-            }
-            
-            res.status(201).json({
-                message: "Foto agregada exitosamente",
-                data: newPhoto
+        console.log(`🔍 Obteniendo foto recién creada (ID: ${photoId})...`);
+        const newPhoto = await db.getAsync(
+            'SELECT id, ticket_id, file_name, mime_type, file_size, description, photo_type, created_at FROM TicketPhotos WHERE id = ?', 
+            [photoId]
+        );
+        
+        if (!newPhoto) {
+            console.error(`❌ No se encontró la foto recién creada (ID: ${photoId})`);
+            return res.status(500).json({ 
+                error: 'Error al obtener foto creada',
+                code: 'PHOTO_RETRIEVE_ERROR'
             });
+        }
+        
+        console.log(`✅ Foto obtenida exitosamente:`, newPhoto);
+        res.status(201).json({
+            message: "Foto agregada exitosamente",
+            data: newPhoto
         });
-    });
+        
+    } catch (err) {
+        console.error('❌ Error completo al procesar foto:', {
+            error: err.message,
+            stack: err.stack,
+            ticketId,
+            file_name
+        });
+        res.status(500).json({ 
+            error: 'Error al procesar la foto: ' + err.message,
+            code: 'PHOTO_PROCESSING_ERROR'
+        });
+    }
 });
 
 // DELETE a ticket photo
@@ -2085,21 +2107,82 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                 });
             }
             
-            if (sparePart.current_stock < quantity_used) {
-                return res.status(400).json({
-                    error: `Stock insuficiente. Disponible: ${sparePart.current_stock}, solicitado: ${quantity_used}`,
-                    code: 'INSUFFICIENT_STOCK'
+            // 🆕 NUEVA LÓGICA: Si no hay stock suficiente, usar lo disponible y solicitar lo faltante
+            const availableStock = parseFloat(sparePart.current_stock);
+            const requestedQty = parseFloat(quantity_used);
+            const shortageQty = requestedQty - availableStock;
+            const actualUsedQty = Math.min(availableStock, requestedQty);
+            
+            console.log(`📊 Stock analysis:`, {
+                available: availableStock,
+                requested: requestedQty,
+                shortage: shortageQty > 0 ? shortageQty : 0,
+                willUse: actualUsedQty
+            });
+            
+            // Si no hay NADA de stock, solo crear solicitud
+            if (availableStock <= 0) {
+                console.log('⚠️ Sin stock disponible, creando solo solicitud de compra...');
+                
+                // Crear solicitud de compra por la cantidad total
+                const requestSql = `
+                    INSERT INTO spare_part_requests (
+                        ticket_id,
+                        spare_part_name,
+                        quantity_needed,
+                        priority,
+                        justification,
+                        requested_by,
+                        status
+                    ) VALUES (?, ?, ?, 'alta', ?, ?, 'pendiente')
+                `;
+                
+                const justification = notes ? 
+                    `Repuesto solicitado para ticket #${ticketId}. ${notes}` : 
+                    `Repuesto solicitado para ticket #${ticketId}`;
+                
+                db.run(requestSql, [
+                    ticketId,
+                    sparePart.name,
+                    requestedQty,
+                    justification,
+                    req.user.username || req.user.id
+                ], function(err) {
+                    if (err) {
+                        console.error('❌ Error creando solicitud:', err.message);
+                        return res.status(500).json({ 
+                            error: 'Error al crear solicitud de compra',
+                            code: 'REQUEST_CREATE_ERROR'
+                        });
+                    }
+                    
+                    console.log(`✅ Solicitud de compra creada - ID: ${this.lastID}, Cantidad: ${requestedQty}`);
+                    
+                    res.status(201).json({
+                        message: 'Sin stock disponible. Se ha creado una solicitud de compra',
+                        data: {
+                            action: 'request_created',
+                            request_id: this.lastID,
+                            requested_quantity: requestedQty
+                        }
+                    });
                 });
+                
+                return; // Terminar aquí
             }
             
-            // Insertar en ticketspareparts
+            // Insertar en ticketspareparts (solo la cantidad que SÍ hay en stock)
             const insertSql = `
                 INSERT INTO ticketspareparts 
                 (ticket_id, spare_part_id, quantity_used, unit_cost, notes, used_at) 
                 VALUES (?, ?, ?, ?, ?, NOW())
             `;
             
-            db.run(insertSql, [ticketId, spare_part_id, quantity_used, unit_cost, notes || null], function(err) {
+            const usageNotes = shortageQty > 0 ? 
+                `${notes || 'Uso de repuesto'} - Stock disponible: ${actualUsedQty}. Faltante: ${shortageQty} (solicitado)` :
+                notes || 'Uso de repuesto';
+            
+            db.run(insertSql, [ticketId, spare_part_id, actualUsedQty, unit_cost, usageNotes], function(err) {
                 if (err) {
                     console.error('❌ Error insertando repuesto en ticket:', err.message);
                     return res.status(500).json({ 
@@ -2110,9 +2193,9 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                 
                 const sparePartUsageId = this.lastID;
                 
-                // Actualizar stock del repuesto
+                // Actualizar stock del repuesto (restar solo lo que SE USARÁ)
                 const updateStockSql = 'UPDATE spareparts SET current_stock = current_stock - ? WHERE id = ?';
-                db.run(updateStockSql, [quantity_used, spare_part_id], (err) => {
+                db.run(updateStockSql, [actualUsedQty, spare_part_id], (err) => {
                     if (err) {
                         console.error('❌ Error actualizando stock:', err.message);
                         // Revertir la inserción
@@ -2123,56 +2206,149 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                         });
                     }
                     
-                    console.log(`✅ Stock actualizado: ${sparePart.name} - Stock anterior: ${sparePart.current_stock}, usado: ${quantity_used}`);
+                    console.log(`✅ Stock actualizado: ${sparePart.name} - usado: ${actualUsedQty}, nuevo stock: ${availableStock - actualUsedQty}`);
                     
-                    // 🆕 CREAR EXPENSE AUTOMÁTICAMENTE si bill_to_client = true
-                    if (bill_to_client && unit_cost && unit_cost > 0) {
-                        const totalCost = quantity_used * unit_cost;
-                        const expenseDescription = `Repuesto: ${sparePart.name} (${quantity_used} ${quantity_used > 1 ? 'unidades' : 'unidad'}) - ${ticket.title}`;
+                    // 🆕 Si hay faltante, crear solicitud de compra automáticamente
+                    if (shortageQty > 0) {
+                        console.log(`📋 Creando solicitud de compra por ${shortageQty} unidades faltantes...`);
                         
-                        // Obtener o crear categoría "Repuestos"
-                        db.get('SELECT id FROM ExpenseCategories WHERE name = ? LIMIT 1', ['Repuestos'], (err, category) => {
-                            const categoryId = category ? category.id : null;
+                        const requestSql = `
+                            INSERT INTO spare_part_requests (
+                                ticket_id,
+                                spare_part_name,
+                                quantity_needed,
+                                priority,
+                                justification,
+                                requested_by,
+                                status
+                            ) VALUES (?, ?, ?, 'alta', ?, ?, 'pendiente')
+                        `;
+                        
+                        const justification = notes ? 
+                            `Stock insuficiente para ticket #${ticketId}. Usado: ${actualUsedQty}, Faltante: ${shortageQty}. ${notes}` : 
+                            `Stock insuficiente para ticket #${ticketId}. Usado: ${actualUsedQty}, Faltante: ${shortageQty}`;
+                        
+                        db.run(requestSql, [
+                            ticketId,
+                            sparePart.name,
+                            shortageQty,
+                            justification,
+                            req.user.username || req.user.id
+                        ], function(requestErr) {
+                            if (requestErr) {
+                                console.error('⚠️ Error creando solicitud automática:', requestErr.message);
+                                // No revertimos el uso, solo loggeamos
+                            } else {
+                                console.log(`✅ Solicitud de compra automática creada - ID: ${this.lastID}, Cantidad: ${shortageQty}`);
+                            }
                             
-                            const expenseSql = `
-                                INSERT INTO Expenses (
-                                    category_id, 
-                                    category, 
-                                    description, 
-                                    amount, 
-                                    date, 
-                                    reference_type, 
-                                    reference_id,
-                                    notes,
-                                    created_by, 
-                                    status
-                                ) VALUES (?, 'Repuestos', ?, ?, NOW(), 'ticket', ?, ?, ?, 'Aprobado')
-                            `;
-                            
-                            const expenseNotes = notes ? `Uso registrado en ticket #${ticketId}. ${notes}` : `Uso registrado en ticket #${ticketId}`;
-                            
-                            db.run(expenseSql, [
-                                categoryId,
-                                expenseDescription,
-                                totalCost,
-                                ticketId,
-                                expenseNotes,
-                                req.user.id
-                            ], function(expenseErr) {
-                                if (expenseErr) {
-                                    console.error('⚠️ Error creando gasto automático:', expenseErr.message);
-                                    // No revertimos el uso del repuesto, solo loggeamos el error
-                                } else {
-                                    console.log(`💰 Gasto automático creado - ID: ${this.lastID}, Monto: $${totalCost}`);
-                                }
-                                
-                                // Continuar con la respuesta (con o sin expense)
-                                returnSuccessResponse();
-                            });
+                            // Continuar con expense y respuesta
+                            handleExpenseAndResponse();
                         });
                     } else {
-                        // No crear expense, retornar directamente
-                        returnSuccessResponse();
+                        // No hay faltante, continuar directo
+                        handleExpenseAndResponse();
+                    }
+                    
+                    function handleExpenseAndResponse() {
+                        // 🆕 CREAR SOLICITUD APROBADA AUTOMÁTICAMENTE (registro de uso)
+                        console.log(`📋 Creando registro de solicitud aprobada para ${actualUsedQty} unidades usadas...`);
+                        
+                        const approvedRequestSql = `
+                            INSERT INTO spare_part_requests (
+                                ticket_id,
+                                spare_part_name,
+                                inventory_id,
+                                quantity_needed,
+                                priority,
+                                description,
+                                justification,
+                                requested_by,
+                                status,
+                                approved_at,
+                                approved_by,
+                                created_at
+                            ) VALUES (?, ?, ?, ?, 'media', ?, ?, ?, 'aprobada', NOW(), ?, NOW())
+                        `;
+                        
+                        const justificationText = notes ? 
+                            `Repuesto usado en ticket #${ticketId}. ${notes}` : 
+                            `Repuesto usado en ticket #${ticketId}`;
+                        
+                        const descriptionText = `Stock disponible: ${actualUsedQty} unidades`;
+                        
+                        db.run(approvedRequestSql, [
+                            ticketId,
+                            sparePart.name,
+                            spare_part_id,
+                            actualUsedQty,
+                            descriptionText,
+                            justificationText,
+                            req.user.username || req.user.id,
+                            req.user.id
+                        ], function(requestErr) {
+                            if (requestErr) {
+                                console.error('⚠️ Error creando solicitud aprobada:', requestErr.message);
+                                // No revertimos el uso, solo loggeamos
+                            } else {
+                                console.log(`✅ Solicitud aprobada registrada - ID: ${this.lastID}, Cantidad: ${actualUsedQty}`);
+                            }
+                            
+                            // Continuar con expense
+                            createExpenseIfNeeded();
+                        });
+                        
+                        function createExpenseIfNeeded() {
+                            // CREAR EXPENSE AUTOMÁTICAMENTE si bill_to_client = true
+                            if (bill_to_client && unit_cost && unit_cost > 0) {
+                                const totalCost = actualUsedQty * unit_cost;
+                                const expenseDescription = `Repuesto: ${sparePart.name} (${actualUsedQty} ${actualUsedQty > 1 ? 'unidades' : 'unidad'}) - ${ticket.title}`;
+                                
+                                // Obtener o crear categoría "Repuestos"
+                                db.get('SELECT id FROM ExpenseCategories WHERE name = ? LIMIT 1', ['Repuestos'], (err, category) => {
+                                    const categoryId = category ? category.id : null;
+                                    
+                                    const expenseSql = `
+                                        INSERT INTO Expenses (
+                                            category_id, 
+                                            category, 
+                                            description, 
+                                            amount, 
+                                            date, 
+                                            reference_type, 
+                                            reference_id,
+                                            notes,
+                                            created_by, 
+                                            status
+                                        ) VALUES (?, 'Repuestos', ?, ?, NOW(), 'ticket', ?, ?, ?, 'Aprobado')
+                                    `;
+                                    
+                                    const expenseNotes = notes ? `Uso registrado en ticket #${ticketId}. ${notes}` : `Uso registrado en ticket #${ticketId}`;
+                                    
+                                    db.run(expenseSql, [
+                                        categoryId,
+                                        expenseDescription,
+                                        totalCost,
+                                        ticketId,
+                                        expenseNotes,
+                                        req.user.id
+                                    ], function(expenseErr) {
+                                        if (expenseErr) {
+                                            console.error('⚠️ Error creando gasto automático:', expenseErr.message);
+                                            // No revertimos el uso del repuesto, solo loggeamos el error
+                                        } else {
+                                            console.log(`💰 Gasto automático creado - ID: ${this.lastID}, Monto: $${totalCost}`);
+                                        }
+                                        
+                                        // Continuar con la respuesta (con o sin expense)
+                                        returnSuccessResponse();
+                                    });
+                                });
+                            } else {
+                                // No crear expense, retornar directamente
+                                returnSuccessResponse();
+                            }
+                        }
                     }
                     
                     function returnSuccessResponse() {
@@ -2197,14 +2373,100 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                             }
                             
                             console.log(`✅ Uso de repuesto registrado en ticket ${ticketId}, ID: ${sparePartUsageId}`);
-                            res.status(201).json({
-                                message: "Uso de repuesto registrado exitosamente",
+                            
+                            // Respuesta mejorada con información de stock parcial
+                            const responseData = {
+                                message: shortageQty > 0 ? 
+                                    `Stock parcial usado. Se creó solicitud de compra por ${shortageQty} unidades faltantes.` :
+                                    "Uso de repuesto registrado exitosamente",
                                 data: newRecord,
-                                expense_created: bill_to_client
-                            });
+                                expense_created: bill_to_client,
+                                stock_info: {
+                                    requested: requestedQty,
+                                    used: actualUsedQty,
+                                    shortage: shortageQty,
+                                    request_created: shortageQty > 0
+                                }
+                            };
+                            
+                            res.status(201).json(responseData);
                         });
                     }
                 });
+            });
+        });
+    });
+});
+
+/**
+ * @route GET /api/tickets/:ticketId/spare-parts/requests
+ * @desc Obtener todas las solicitudes de repuestos de un ticket (usados + pendientes)
+ * @access Protegido - Requiere autenticación
+ */
+app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, res) => {
+    const { ticketId } = req.params;
+    
+    console.log(`📋 Obteniendo repuestos y solicitudes del ticket ${ticketId}...`);
+    
+    // 1. Obtener repuestos ya USADOS (ticketspareparts)
+    const usedPartsSql = `
+        SELECT 
+            tsp.*,
+            sp.name as spare_part_name,
+            sp.sku as spare_part_sku,
+            'used' as status_type
+        FROM ticketspareparts tsp
+        LEFT JOIN spareparts sp ON tsp.spare_part_id = sp.id
+        WHERE tsp.ticket_id = ?
+        ORDER BY tsp.used_at DESC
+    `;
+    
+    db.all(usedPartsSql, [ticketId], (err, usedParts) => {
+        if (err) {
+            console.error('❌ Error obteniendo repuestos usados:', err.message);
+            return res.status(500).json({
+                error: 'Error al obtener repuestos usados',
+                code: 'USED_PARTS_ERROR'
+            });
+        }
+        
+        // 2. Obtener SOLICITUDES pendientes/aprobadas/rechazadas (spare_part_requests)
+        const requestsSql = `
+            SELECT 
+                spr.*,
+                'request' as status_type,
+                u.username as requested_by_name,
+                approver.username as approved_by_name
+            FROM spare_part_requests spr
+            LEFT JOIN Users u ON spr.requested_by = u.username
+            LEFT JOIN Users approver ON spr.approved_by = approver.id
+            WHERE spr.ticket_id = ?
+            ORDER BY spr.created_at DESC
+        `;
+        
+        db.all(requestsSql, [ticketId], (err, requests) => {
+            if (err) {
+                console.error('❌ Error obteniendo solicitudes:', err.message);
+                return res.status(500).json({
+                    error: 'Error al obtener solicitudes de repuestos',
+                    code: 'REQUESTS_ERROR'
+                });
+            }
+            
+            console.log(`✅ Repuestos encontrados: ${usedParts.length} usados, ${requests.length} solicitudes`);
+            
+            res.json({
+                message: 'success',
+                data: {
+                    used_parts: usedParts || [],
+                    requests: requests || []
+                },
+                summary: {
+                    used_count: usedParts.length,
+                    pending_count: requests.filter(r => r.status === 'pendiente').length,
+                    approved_count: requests.filter(r => r.status === 'aprobada').length,
+                    rejected_count: requests.filter(r => r.status === 'rechazada').length
+                }
             });
         });
     });

@@ -663,6 +663,175 @@ router.get('/technicians', authenticateToken, async (req, res) => {
     }
 });
 
+// ===================================================================
+// RUTAS ESPECÍFICAS - DEBEN IR ANTES DE /:id
+// ===================================================================
+
+/**
+ * @route GET /api/inventory/low-stock
+ * @desc Obtener items con stock bajo
+ * @access Protegido - Requiere autenticación
+ */
+router.get('/low-stock', authenticateToken, (req, res) => {
+    console.log('📊 Obteniendo items con stock bajo...');
+    
+    try {
+        const sql = `
+        SELECT 
+            i.*,
+            ic.name as category_name,
+            l.name as location_name,
+            ps.company_name as primary_supplier_name,
+            (i.minimum_stock - i.current_stock) as reorder_needed,
+            CASE 
+                WHEN i.current_stock = 0 THEN 'out_of_stock'
+                WHEN i.current_stock <= (i.minimum_stock * 0.5) THEN 'critical'
+                ELSE 'low'
+            END as urgency_level
+        FROM Inventory i
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
+        LEFT JOIN Locations l ON i.location_id = l.id
+        LEFT JOIN Suppliers ps ON i.primary_supplier_id = ps.id
+        WHERE i.is_active = 1 AND i.current_stock <= i.minimum_stock
+        ORDER BY 
+            CASE 
+                WHEN i.current_stock = 0 THEN 1
+                WHEN i.current_stock <= (i.minimum_stock * 0.5) THEN 2
+                ELSE 3
+            END ASC,
+            i.current_stock ASC`;
+        
+        db.all(sql, [], (err, lowStockItems) => {
+            if (err) {
+                console.error('❌ Error obteniendo items con stock bajo:', err);
+                return res.status(500).json({ 
+                    error: 'Error interno del servidor',
+                    code: 'DB_ERROR'
+                });
+            }
+            
+            // Estadísticas
+            const stats = {
+                total_low_stock: lowStockItems ? lowStockItems.length : 0,
+                out_of_stock: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'out_of_stock').length : 0,
+                critical: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'critical').length : 0,
+                low: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'low').length : 0
+            };
+            
+            console.log(`✅ ${lowStockItems.length} items con stock bajo encontrados`);
+            res.json({
+                message: 'success',
+                data: lowStockItems || [],
+                stats: stats
+            });
+        });
+        
+    } catch (error) {
+        console.error('❌ Error obteniendo items con stock bajo:', error);
+        res.status(500).json({ 
+            error: 'Error interno del servidor',
+            code: 'UNEXPECTED_ERROR'
+        });
+    }
+});
+
+/**
+ * @route GET /api/inventory/spare-parts
+ * @desc Obtener lista de repuestos disponibles para tickets
+ * @access Protegido - Requiere autenticación
+ */
+router.get('/spare-parts', authenticateToken, (req, res) => {
+    console.log('🔧 Obteniendo lista de repuestos disponibles...');
+    
+    const sql = `
+        SELECT 
+            id,
+            item_code as sku,
+            item_name as name,
+            current_stock,
+            minimum_stock,
+            unit_cost,
+            created_at,
+            updated_at
+        FROM Inventory
+        WHERE is_active = 1 AND current_stock > 0
+        ORDER BY item_name ASC
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo repuestos:', err.message);
+            return res.status(500).json({ 
+                error: 'Error al cargar repuestos disponibles',
+                code: 'SPARE_PARTS_ERROR',
+                details: err.message
+            });
+        }
+        
+        console.log(`✅ ${rows ? rows.length : 0} repuestos disponibles encontrados`);
+        res.json({
+            message: "success",
+            data: rows || []
+        });
+    });
+});
+
+/**
+ * @route GET /api/inventory/spare-part-requests
+ * @desc Obtener solicitudes de compra de repuestos con filtros opcionales
+ * @access Protegido - Requiere autenticación
+ */
+router.get('/spare-part-requests', authenticateToken, (req, res) => {
+    console.log('📋 Obteniendo solicitudes de compra de repuestos...');
+    
+    const { status, purchase_order_id } = req.query;
+    
+    let sql = `
+        SELECT 
+            spr.*,
+            t.title as ticket_title,
+            t.id as ticket_id_ref
+        FROM spare_part_requests spr
+        LEFT JOIN Tickets t ON spr.ticket_id = t.id
+    `;
+    
+    const params = [];
+    const conditions = [];
+    
+    if (status) {
+        conditions.push('spr.status = ?');
+        params.push(status);
+    }
+    
+    if (purchase_order_id) {
+        conditions.push('spr.purchase_order_id = ?');
+        params.push(purchase_order_id);
+    }
+    
+    if (conditions.length > 0) {
+        sql += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    sql += ' ORDER BY spr.created_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('❌ Error obteniendo solicitudes:', err.message);
+            res.status(500).json({ 
+                error: 'Error al cargar solicitudes',
+                code: 'REQUESTS_FETCH_ERROR'
+            });
+            return;
+        }
+        
+        console.log(`✅ ${rows.length} solicitudes encontradas`);
+        res.json({
+            message: 'success',
+            data: rows || []
+        });
+    });
+});
+
 /**
  * @route GET /api/inventory/:id
  * @desc Obtener un item específico por ID
@@ -839,71 +1008,6 @@ router.post('/:id/adjust', authenticateToken, async (req, res) => {
     }
 });
 
-/**
- * @route GET /api/inventory/low-stock
- * @desc Obtener items con stock bajo
- * @access Protegido - Requiere autenticación
- */
-router.get('/low-stock', authenticateToken, (req, res) => {
-    try {
-        const sql = `
-        SELECT 
-            i.*,
-            ic.name as category_name,
-            l.name as location_name,
-            ps.company_name as primary_supplier_name,
-            (i.minimum_stock - i.current_stock) as reorder_needed,
-            CASE 
-                WHEN i.current_stock = 0 THEN 'out_of_stock'
-                WHEN i.current_stock <= (i.minimum_stock * 0.5) THEN 'critical'
-                ELSE 'low'
-            END as urgency_level
-        FROM Inventory i
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
-        LEFT JOIN Locations l ON i.location_id = l.id
-        LEFT JOIN Suppliers ps ON i.primary_supplier_id = ps.id
-        WHERE i.is_active = 1 AND i.current_stock <= i.minimum_stock
-        ORDER BY 
-            CASE 
-                WHEN i.current_stock = 0 THEN 1
-                WHEN i.current_stock <= (i.minimum_stock * 0.5) THEN 2
-                ELSE 3
-            END ASC,
-            i.current_stock ASC`;
-        
-        db.all(sql, [], (err, lowStockItems) => {
-            if (err) {
-                console.error('Error obteniendo items con stock bajo:', err);
-                return res.status(500).json({ 
-                    error: 'Error interno del servidor',
-                    code: 'DB_ERROR'
-                });
-            }
-            
-            // Estadísticas
-            const stats = {
-                total_low_stock: lowStockItems ? lowStockItems.length : 0,
-                out_of_stock: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'out_of_stock').length : 0,
-                critical: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'critical').length : 0,
-                low: lowStockItems ? lowStockItems.filter(item => item.urgency_level === 'low').length : 0
-            };
-            
-            res.json({
-                message: 'success',
-                data: lowStockItems || [],
-                stats: stats
-            });
-        });
-        
-    } catch (error) {
-        console.error('Error obteniendo items con stock bajo:', error);
-        res.status(500).json({ 
-            error: 'Error interno del servidor',
-            code: 'UNEXPECTED_ERROR'
-        });
-    }
-});
-
 // ===================================================================
 // CATEGORÍAS DE INVENTARIO
 // ===================================================================
@@ -988,52 +1092,13 @@ router.post('/categories', authenticateToken, async (req, res) => {
 // ===================================================================
 
 /**
- * @route GET /api/inventory/spare-parts
- * @desc Obtener lista de repuestos disponibles para tickets
- * @access Protegido - Requiere autenticación
- */
-router.get('/spare-parts', authenticateToken, (req, res) => {
-    console.log('🔧 Obteniendo lista de repuestos disponibles...');
-    
-    const sql = `
-        SELECT 
-            id,
-            name,
-            sku,
-            current_stock,
-            minimum_stock,
-            created_at,
-            updated_at
-        FROM spareparts 
-        WHERE current_stock > 0
-        ORDER BY name ASC
-    `;
-    
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            console.error('❌ Error obteniendo repuestos:', err.message);
-            res.status(500).json({ 
-                error: 'Error al cargar repuestos disponibles',
-                code: 'SPARE_PARTS_ERROR'
-            });
-            return;
-        }
-        
-        console.log(`✅ ${rows.length} repuestos disponibles encontrados`);
-        res.json({
-            message: "success",
-            data: rows
-        });
-    });
-});
-
-/**
  * @route POST /api/inventory/spare-part-requests
  * @desc Crear solicitud de compra de repuesto no disponible
  * @access Protegido - Requiere autenticación
  */
 router.post('/spare-part-requests', authenticateToken, (req, res) => {
     console.log('🛒 Creando solicitud de compra de repuesto...');
+    console.log('📋 Datos recibidos:', req.body);
     
     const {
         ticket_id,
@@ -1047,6 +1112,7 @@ router.post('/spare-part-requests', authenticateToken, (req, res) => {
     
     // Validaciones
     if (!spare_part_name || !quantity_needed || !priority) {
+        console.log('❌ Validación fallida - campos requeridos faltantes');
         return res.status(400).json({
             error: 'Nombre de repuesto, cantidad y prioridad son requeridos',
             code: 'VALIDATION_ERROR'
@@ -1054,6 +1120,7 @@ router.post('/spare-part-requests', authenticateToken, (req, res) => {
     }
     
     if (quantity_needed <= 0) {
+        console.log('❌ Validación fallida - cantidad inválida');
         return res.status(400).json({
             error: 'La cantidad debe ser mayor a 0',
             code: 'VALIDATION_ERROR'
@@ -1084,6 +1151,8 @@ router.post('/spare-part-requests', authenticateToken, (req, res) => {
         requested_by || 'Sistema'
     ];
     
+    console.log('📝 Ejecutando SQL con parámetros:', params);
+    
     db.run(sql, params, function(err) {
         if (err) {
             console.error('❌ Error creando solicitud de repuesto:', err.message);
@@ -1106,52 +1175,6 @@ router.post('/spare-part-requests', authenticateToken, (req, res) => {
                 priority,
                 status: 'pendiente'
             }
-        });
-    });
-});
-
-/**
- * @route GET /api/inventory/spare-part-requests
- * @desc Obtener todas las solicitudes de compra de repuestos
- * @access Protegido - Requiere autenticación
- */
-router.get('/spare-part-requests', authenticateToken, (req, res) => {
-    console.log('📋 Obteniendo solicitudes de compra de repuestos...');
-    
-    const { status } = req.query;
-    
-    let sql = `
-        SELECT 
-            spr.*,
-            t.title as ticket_title,
-            t.ticket_number
-        FROM spare_part_requests spr
-        LEFT JOIN Tickets t ON spr.ticket_id = t.id
-    `;
-    
-    const params = [];
-    
-    if (status) {
-        sql += ' WHERE spr.status = ?';
-        params.push(status);
-    }
-    
-    sql += ' ORDER BY spr.created_at DESC';
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('❌ Error obteniendo solicitudes:', err.message);
-            res.status(500).json({ 
-                error: 'Error al cargar solicitudes',
-                code: 'REQUESTS_FETCH_ERROR'
-            });
-            return;
-        }
-        
-        console.log(`✅ ${rows.length} solicitudes encontradas`);
-        res.json({
-            message: 'success',
-            data: rows || []
         });
     });
 });
@@ -1198,14 +1221,19 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         const inventoryItem = await new Promise((resolve, reject) => {
             db.get(
                 `SELECT * FROM Inventory 
-                 WHERE LOWER(item_name) LIKE LOWER(?) 
-                 OR LOWER(item_code) LIKE LOWER(?)
+                 WHERE (LOWER(item_name) LIKE LOWER(?) 
+                 OR LOWER(item_code) LIKE LOWER(?))
                  AND is_active = 1
                  LIMIT 1`,
                 [`%${request.spare_part_name}%`, `%${request.spare_part_name}%`],
                 (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
+                    if (err) {
+                        console.error('❌ Error buscando item en inventario:', err);
+                        reject(err);
+                    } else {
+                        console.log('🔍 Item encontrado:', row ? `ID ${row.id}, Stock: ${row.current_stock}` : 'No encontrado');
+                        resolve(row);
+                    }
                 }
             );
         });
@@ -1213,18 +1241,24 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
         const hasStock = inventoryItem && parseFloat(inventoryItem.current_stock) >= request.quantity_needed;
         
         // 3. Actualizar estado de la solicitud
+        console.log('🔄 Actualizando estado a aprobada...');
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE spare_part_requests 
-                 SET status = 'aprobada',
+                 SET status = ?,
                      approved_by = ?,
-                     approved_at = NOW(),
+                     approved_at = CURRENT_TIMESTAMP,
                      notes = ?
                  WHERE id = ?`,
-                [req.user.id, notes || 'Solicitud aprobada', requestId],
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
+                ['aprobada', req.user.id, notes || 'Solicitud aprobada', requestId],
+                function(err) {
+                    if (err) {
+                        console.error('❌ Error actualizando solicitud:', err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ Solicitud actualizada. Rows changed: ${this.changes}`);
+                        resolve();
+                    }
                 }
             );
         });
@@ -1244,21 +1278,28 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
             const newStock = parseFloat(inventoryItem.current_stock) - request.quantity_needed;
             
             // Actualizar stock en Inventory
+            console.log('🔄 Actualizando stock del inventario...');
             await new Promise((resolve, reject) => {
                 db.run(
                     `UPDATE Inventory 
                      SET current_stock = ?,
-                         updated_at = NOW()
+                         updated_at = CURRENT_TIMESTAMP
                      WHERE id = ?`,
                     [newStock, inventoryItem.id],
-                    (err) => {
-                        if (err) reject(err);
-                        else resolve();
+                    function(err) {
+                        if (err) {
+                            console.error('❌ Error actualizando stock:', err);
+                            reject(err);
+                        } else {
+                            console.log(`✅ Stock actualizado. Nuevo stock: ${newStock}`);
+                            resolve();
+                        }
                     }
                 );
             });
             
             // Crear movimiento
+            console.log('📝 Creando movimiento de inventario...');
             const movement = await new Promise((resolve, reject) => {
                 db.run(
                     `INSERT INTO InventoryMovements (
@@ -1272,7 +1313,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
                         notes,
                         performed_by,
                         performed_at
-                    ) VALUES (?, 'out', ?, ?, ?, 'spare_part_request', ?, ?, ?, NOW())`,
+                    ) VALUES (?, 'out', ?, ?, ?, 'spare_part_request', ?, ?, ?, CURRENT_TIMESTAMP)`,
                     [
                         inventoryItem.id,
                         request.quantity_needed,
@@ -1283,14 +1324,20 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
                         req.user.id
                     ],
                     function(err) {
-                        if (err) reject(err);
-                        else resolve(this.lastID);
+                        if (err) {
+                            console.error('❌ Error creando movimiento:', err);
+                            reject(err);
+                        } else {
+                            console.log(`✅ Movimiento creado con ID: ${this.lastID}`);
+                            resolve(this.lastID);
+                        }
                     }
                 );
             });
             
             // Si hay ticket asociado, actualizar ticketspareparts
             if (request.ticket_id) {
+                console.log('🎫 Vinculando con ticket #', request.ticket_id);
                 await new Promise((resolve, reject) => {
                     db.run(
                         `INSERT INTO ticketspareparts (
@@ -1300,7 +1347,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
                             unit_cost,
                             notes,
                             used_at
-                        ) VALUES (?, ?, ?, ?, ?, NOW())`,
+                        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
                         [
                             request.ticket_id,
                             inventoryItem.id,
@@ -1308,9 +1355,14 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
                             inventoryItem.unit_cost || 0,
                             `Solicitud #${requestId} aprobada`
                         ],
-                        (err) => {
-                            if (err) reject(err);
-                            else resolve();
+                        function(err) {
+                            if (err) {
+                                console.error('❌ Error vinculando con ticket:', err);
+                                reject(err);
+                            } else {
+                                console.log('✅ Repuesto vinculado al ticket');
+                                resolve();
+                            }
                         }
                     );
                 });
@@ -1327,75 +1379,85 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
             const orderNumber = `PO-AUTO-${Date.now()}`;
             
             // Crear orden de compra
+            console.log('📦 Creando orden de compra automática...');
             const purchaseOrder = await new Promise((resolve, reject) => {
                 db.run(
                     `INSERT INTO PurchaseOrders (
                         order_number,
-                        supplier_id,
+                        supplier,
                         status,
                         order_date,
-                        expected_date,
+                        expected_delivery,
                         total_amount,
                         notes,
-                        created_by,
-                        created_at
-                    ) VALUES (?, ?, 'pending', NOW(), DATE_ADD(NOW(), INTERVAL 7 DAY), 0, ?, ?, NOW())`,
+                        created_by
+                    ) VALUES (?, ?, 'Pendiente', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 0, ?, ?)`,
                     [
                         orderNumber,
-                        inventoryItem?.primary_supplier_id || null,
+                        inventoryItem?.primary_supplier || 'Proveedor pendiente',
                         `Orden automática para solicitud #${requestId}: ${request.spare_part_name}`,
                         req.user.id
                     ],
                     function(err) {
-                        if (err) reject(err);
-                        else resolve(this.lastID);
+                        if (err) {
+                            console.error('❌ Error creando orden de compra:', err);
+                            reject(err);
+                        } else {
+                            console.log(`✅ Orden de compra creada con ID: ${this.lastID}`);
+                            resolve(this.lastID);
+                        }
                     }
                 );
             });
             
-            // Agregar item a la orden
-            const estimatedCost = inventoryItem?.unit_cost || 0;
-            const lineTotal = estimatedCost * request.quantity_needed;
-            
-            await new Promise((resolve, reject) => {
-                db.run(
-                    `INSERT INTO PurchaseOrderItems (
-                        purchase_order_id,
-                        inventory_id,
-                        item_description,
-                        quantity_ordered,
-                        quantity_received,
-                        unit_cost,
-                        total_cost
-                    ) VALUES (?, ?, ?, ?, 0, ?, ?)`,
-                    [
-                        purchaseOrder,
-                        inventoryItem?.id || null,
-                        request.spare_part_name,
-                        request.quantity_needed,
-                        estimatedCost,
-                        lineTotal
-                    ],
-                    (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    }
-                );
-            });
-            
-            // Actualizar total de la orden
-            await new Promise((resolve, reject) => {
-                db.run(
-                    `UPDATE PurchaseOrders 
-                     SET total_amount = ?
-                     WHERE id = ?`,
-                    [lineTotal, purchaseOrder],
-                    (err) => {
-                        if (err) reject(err);
-                        else resolve();
-                    }
-                );
-            });
+            // Agregar item a la orden SOLO si existe en inventario
+            if (inventoryItem && inventoryItem.id) {
+                const estimatedCost = inventoryItem.unit_cost || 0;
+                const lineTotal = estimatedCost * request.quantity_needed;
+                
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        `INSERT INTO PurchaseOrderItems (
+                            purchase_order_id,
+                            spare_part_id,
+                            quantity_ordered,
+                            quantity_received,
+                            unit_cost
+                        ) VALUES (?, ?, ?, 0, ?)`,
+                        [
+                            purchaseOrder,
+                            inventoryItem.id,
+                            request.quantity_needed,
+                            estimatedCost
+                        ],
+                        (err) => {
+                            if (err) {
+                                console.error('❌ Error creando item de orden:', err);
+                                reject(err);
+                            } else {
+                                console.log('✅ Item de orden creado');
+                                resolve();
+                            }
+                        }
+                    );
+                });
+                
+                // Actualizar total de la orden
+                await new Promise((resolve, reject) => {
+                    db.run(
+                        `UPDATE PurchaseOrders 
+                         SET total_amount = ?
+                         WHERE id = ?`,
+                        [lineTotal, purchaseOrder],
+                        (err) => {
+                            if (err) reject(err);
+                            else resolve();
+                        }
+                    );
+                });
+            } else {
+                console.log('⚠️ Repuesto no existe en inventario, orden creada sin items (requiere configuración manual)');
+            }
             
             // Vincular orden de compra con la solicitud
             await new Promise((resolve, reject) => {
@@ -1443,16 +1505,32 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
     const { rejection_reason } = req.body;
     
     console.log(`❌ Procesando rechazo de solicitud #${requestId}...`);
+    console.log(`📝 Motivo: "${rejection_reason}"`);
+    console.log(`👤 Usuario: ${req.user?.username || req.user?.id}`);
     
     try {
+        // Validaciones básicas
+        if (!rejection_reason || rejection_reason.trim() === '') {
+            console.log('⚠️  Motivo de rechazo vacío');
+            return res.status(400).json({
+                error: 'Se requiere un motivo de rechazo',
+                code: 'REJECTION_REASON_REQUIRED'
+            });
+        }
+        
         // 1. Validar que la solicitud existe y está pendiente
         const request = await new Promise((resolve, reject) => {
             db.get(
                 `SELECT * FROM spare_part_requests WHERE id = ?`,
                 [requestId],
                 (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
+                    if (err) {
+                        console.error('❌ Error en db.get:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ Solicitud encontrada:', row ? `ID ${row.id}, Status: ${row.status}` : 'No encontrada');
+                        resolve(row);
+                    }
                 }
             );
         });
@@ -1471,52 +1549,54 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
             });
         }
         
-        if (!rejection_reason || rejection_reason.trim() === '') {
-            return res.status(400).json({
-                error: 'Se requiere un motivo de rechazo',
-                code: 'REJECTION_REASON_REQUIRED'
-            });
-        }
-        
         // 2. Actualizar estado de la solicitud a rechazada
+        console.log('🔄 Ejecutando UPDATE...');
         await new Promise((resolve, reject) => {
             db.run(
                 `UPDATE spare_part_requests 
-                 SET status = 'rechazada',
+                 SET status = ?,
                      notes = ?,
                      approved_by = ?,
                      approved_at = CURRENT_TIMESTAMP
                  WHERE id = ?`,
                 [
+                    'rechazada',
                     `RECHAZADA: ${rejection_reason.trim()}`,
-                    req.user.username || req.user.id,
+                    req.user?.id || null,  // CORREGIDO: usar ID numérico, no username
                     requestId
                 ],
-                (err) => {
-                    if (err) reject(err);
-                    else resolve();
+                function(err) {
+                    if (err) {
+                        console.error('❌ Error en db.run:', err);
+                        reject(err);
+                    } else {
+                        console.log(`✅ UPDATE exitoso. Rows changed: ${this.changes}`);
+                        resolve();
+                    }
                 }
             );
         });
         
-        console.log(`✅ Solicitud #${requestId} rechazada por: ${req.user.username || req.user.id}`);
+        console.log(`✅ Solicitud #${requestId} rechazada por usuario ID: ${req.user?.id}`);
         
         res.json({
             message: 'Solicitud rechazada exitosamente',
             data: {
-                request_id: requestId,
+                request_id: parseInt(requestId),
                 status: 'rechazada',
                 rejection_reason: rejection_reason.trim(),
-                rejected_by: req.user.username || req.user.id,
+                rejected_by: req.user?.username || `User #${req.user?.id}`,
                 rejected_at: new Date().toISOString()
             }
         });
         
     } catch (error) {
         console.error('❌ Error rechazando solicitud:', error);
+        console.error('Stack trace:', error.stack);
         res.status(500).json({
             error: 'Error al rechazar solicitud',
-            details: error.message
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 });

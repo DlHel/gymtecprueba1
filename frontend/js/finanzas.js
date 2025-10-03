@@ -4,8 +4,15 @@
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
-    // ✅ CRÍTICO: Protección de autenticación PRIMERO
-    if (!AuthManager.isAuthenticated()) {
+    // ✅ CRÍTICO: Verificar que AuthManager está disponible
+    console.log('🔍 Debug - AuthManager disponible:', typeof window.AuthManager);
+    console.log('🔍 Debug - authManager disponible:', typeof window.authManager);
+    console.log('🔍 Debug - AuthManager.isAuthenticated:', typeof window.AuthManager?.isAuthenticated);
+    console.log('🔍 Debug - authManager.isAuthenticated:', typeof window.authManager?.isAuthenticated);
+    
+    // Usar authManager (minúscula) que es la instancia correcta
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.warn('❌ No autenticado, redirigiendo a login...');
         window.location.href = '/login.html';
         return;
     }

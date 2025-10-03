@@ -4442,6 +4442,138 @@
     color: white;
 }
 
+/* =============================================================================
+   SOLICITUDES DE REPUESTOS (PENDIENTES/APROBADAS/RECHAZADAS)
+   ============================================================================= */
+
+.spare-parts-section {
+    margin-bottom: 2rem;
+}
+
+.spare-parts-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.spare-parts-section-title i {
+    width: 16px;
+    height: 16px;
+}
+
+/* Estilos de items según tipo */
+.spare-part-item.request-item.pending {
+    background: #fffbeb;
+    border-color: #fbbf24;
+}
+
+.spare-part-item.request-item.approved {
+    background: #f0fdf4;
+    border-color: #86efac;
+}
+
+.spare-part-item.request-item.rejected {
+    background: #fef2f2;
+    border-color: #fecaca;
+    opacity: 0.85;
+}
+
+.spare-part-item.used-item {
+    background: #f9fafb;
+}
+
+/* Notas y justificaciones */
+.spare-part-notes {
+    grid-column: span 2;
+    font-size: 0.875rem;
+    color: #6b7280;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: #f3f4f6;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}
+
+.spare-part-notes i {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.spare-part-notes.rejection-reason {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Iconos de estado de solicitud */
+.request-status-icon {
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+}
+
+/* Badges de prioridad */
+.badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+}
+
+.priority-baja {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.priority-media {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.priority-alta {
+    background: #fed7aa;
+    color: #9a3412;
+}
+
+.priority-urgente {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-warning {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.badge-success {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.badge-danger {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.badge-info {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
 /* Sección de acciones */
 .ticket-section-actions {
     display: flex;

@@ -7,6 +7,7 @@ window.state = {
     notes: [],
     checklist: [],
     spareParts: [],
+    sparePartRequests: [], // 🆕 Solicitudes de repuestos (pendientes/aprobadas/rechazadas)
     photos: [],
     history: [],
     isTimerRunning: false,
@@ -195,6 +196,9 @@ async function loadTicketDetail(ticketId) {
         state.spareParts = data.spare_parts || [];
         state.photos = data.photos || [];
         state.history = data.history || [];
+        
+        // 🆕 Cargar solicitudes de repuestos (pendientes, aprobadas, rechazadas)
+        await loadSparePartsRequests(ticketId);
         
         // Log para debug
         console.log('📊 Datos del ticket procesados:', {
@@ -1289,8 +1293,12 @@ function renderSpareParts() {
         return;
     }
     
-    // Renderizar lista de repuestos
-    if (state.spareParts.length === 0) {
+    const usedParts = state.spareParts || [];
+    const requests = state.sparePartRequests || [];
+    const totalItems = usedParts.length + requests.length;
+    
+    // Si no hay nada, mostrar estado vacío
+    if (totalItems === 0) {
         sparePartsList.innerHTML = `
             <div class="spare-parts-empty">
                 <i data-lucide="wrench" class="mx-auto"></i>
@@ -1303,41 +1311,191 @@ function renderSpareParts() {
             </div>
         `;
     } else {
-        const sparePartsHtml = state.spareParts.map(part => {
-            const totalCost = part.quantity_used * (part.unit_cost || 0);
-            const usedDate = new Date(part.used_at).toLocaleDateString('es-CL');
-            
-            return `
-                <div class="spare-part-item" data-part-id="${part.id}">
-                    <div class="spare-part-info">
-                        <div class="spare-part-name">
-                            <i data-lucide="wrench"></i>
-                            ${part.spare_part_name || part.name || 'Repuesto sin nombre'}
-                        </div>
-                        <div class="spare-part-quantity">
-                            <i data-lucide="package"></i>
-                            ${part.quantity_used} unidades
-                        </div>
-                        <div class="spare-part-cost">
-                            ${part.unit_cost ? `$${totalCost.toLocaleString('es-CL')}` : 'Sin costo'}
-                        </div>
-                        <div class="spare-part-date">
-                            Usado el ${usedDate}
-                        </div>
-                    </div>
-                    <div class="spare-part-actions">
-                        <button class="spare-part-edit-btn" onclick="editSparePartUsage(${part.id})" title="Editar repuesto">
-                            <i data-lucide="edit-2"></i>
-                        </button>
-                        <button class="spare-part-delete-btn" onclick="deleteSparePartUsage(${part.id})" title="Eliminar repuesto">
-                            <i data-lucide="trash-2"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('');
+        let html = '';
         
-        sparePartsList.innerHTML = sparePartsHtml;
+        // 1. SOLICITUDES (pendientes primero, luego aprobadas, luego rechazadas)
+        if (requests.length > 0) {
+            const pendingRequests = requests.filter(r => r.status === 'pendiente');
+            const approvedRequests = requests.filter(r => r.status === 'aprobada');
+            const rejectedRequests = requests.filter(r => r.status === 'rechazada');
+            
+            // Solicitudes pendientes (destacadas en amarillo)
+            if (pendingRequests.length > 0) {
+                html += `<div class="spare-parts-section">
+                    <h4 class="spare-parts-section-title">
+                        <i data-lucide="clock"></i>
+                        Solicitudes Pendientes (${pendingRequests.length})
+                    </h4>`;
+                
+                pendingRequests.forEach(request => {
+                    const createdDate = new Date(request.created_at).toLocaleDateString('es-CL');
+                    const priorityClass = `priority-${request.priority || 'media'}`;
+                    
+                    html += `
+                        <div class="spare-part-item request-item pending" data-request-id="${request.id}">
+                            <div class="spare-part-info">
+                                <div class="spare-part-name">
+                                    <i data-lucide="package"></i>
+                                    ${request.spare_part_name}
+                                    <span class="badge ${priorityClass}">${request.priority || 'media'}</span>
+                                    <span class="badge badge-warning">Pendiente</span>
+                                </div>
+                                <div class="spare-part-quantity">
+                                    <i data-lucide="hash"></i>
+                                    Cantidad solicitada: ${request.quantity_needed} unidades
+                                </div>
+                                ${request.justification ? `
+                                    <div class="spare-part-notes">
+                                        <i data-lucide="file-text"></i>
+                                        ${request.justification}
+                                    </div>
+                                ` : ''}
+                                <div class="spare-part-date">
+                                    <i data-lucide="calendar"></i>
+                                    Solicitado el ${createdDate} por ${request.requested_by || 'N/A'}
+                                </div>
+                            </div>
+                            <div class="spare-part-actions">
+                                <span class="request-status-icon" title="Esperando aprobación en Inventario">⏳</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            }
+            
+            // Solicitudes aprobadas
+            if (approvedRequests.length > 0) {
+                html += `<div class="spare-parts-section">
+                    <h4 class="spare-parts-section-title">
+                        <i data-lucide="check-circle"></i>
+                        Solicitudes Aprobadas (${approvedRequests.length})
+                    </h4>`;
+                
+                approvedRequests.forEach(request => {
+                    const approvedDate = new Date(request.approved_at).toLocaleDateString('es-CL');
+                    
+                    html += `
+                        <div class="spare-part-item request-item approved" data-request-id="${request.id}">
+                            <div class="spare-part-info">
+                                <div class="spare-part-name">
+                                    <i data-lucide="package"></i>
+                                    ${request.spare_part_name}
+                                    <span class="badge badge-success">Aprobada</span>
+                                </div>
+                                <div class="spare-part-quantity">
+                                    <i data-lucide="hash"></i>
+                                    ${request.quantity_needed} unidades
+                                </div>
+                                <div class="spare-part-date">
+                                    <i data-lucide="check"></i>
+                                    Aprobado el ${approvedDate}
+                                </div>
+                            </div>
+                            <div class="spare-part-actions">
+                                <span class="request-status-icon" title="Aprobada">✅</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            }
+            
+            // Solicitudes rechazadas
+            if (rejectedRequests.length > 0) {
+                html += `<div class="spare-parts-section">
+                    <h4 class="spare-parts-section-title">
+                        <i data-lucide="x-circle"></i>
+                        Solicitudes Rechazadas (${rejectedRequests.length})
+                    </h4>`;
+                
+                rejectedRequests.forEach(request => {
+                    const rejectedDate = new Date(request.approved_at).toLocaleDateString('es-CL');
+                    
+                    html += `
+                        <div class="spare-part-item request-item rejected" data-request-id="${request.id}">
+                            <div class="spare-part-info">
+                                <div class="spare-part-name">
+                                    <i data-lucide="package"></i>
+                                    ${request.spare_part_name}
+                                    <span class="badge badge-danger">Rechazada</span>
+                                </div>
+                                <div class="spare-part-quantity">
+                                    <i data-lucide="hash"></i>
+                                    ${request.quantity_needed} unidades
+                                </div>
+                                ${request.notes ? `
+                                    <div class="spare-part-notes rejection-reason">
+                                        <i data-lucide="alert-circle"></i>
+                                        <strong>Motivo:</strong> ${request.notes}
+                                    </div>
+                                ` : ''}
+                                <div class="spare-part-date">
+                                    <i data-lucide="x"></i>
+                                    Rechazado el ${rejectedDate}
+                                </div>
+                            </div>
+                            <div class="spare-part-actions">
+                                <span class="request-status-icon" title="Rechazada">❌</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `</div>`;
+            }
+        }
+        
+        // 2. REPUESTOS USADOS (ya descontados del inventario)
+        if (usedParts.length > 0) {
+            html += `<div class="spare-parts-section">
+                <h4 class="spare-parts-section-title">
+                    <i data-lucide="check-square"></i>
+                    Repuestos Utilizados (${usedParts.length})
+                </h4>`;
+            
+            usedParts.forEach(part => {
+                const totalCost = part.quantity_used * (part.unit_cost || 0);
+                const usedDate = new Date(part.used_at).toLocaleDateString('es-CL');
+                
+                html += `
+                    <div class="spare-part-item used-item" data-part-id="${part.id}">
+                        <div class="spare-part-info">
+                            <div class="spare-part-name">
+                                <i data-lucide="wrench"></i>
+                                ${part.spare_part_name || part.name || 'Repuesto sin nombre'}
+                                <span class="badge badge-info">Usado</span>
+                            </div>
+                            <div class="spare-part-quantity">
+                                <i data-lucide="package"></i>
+                                ${part.quantity_used} unidades
+                            </div>
+                            <div class="spare-part-cost">
+                                ${part.unit_cost ? `$${totalCost.toLocaleString('es-CL')}` : 'Sin costo'}
+                            </div>
+                            <div class="spare-part-date">
+                                <i data-lucide="calendar"></i>
+                                Usado el ${usedDate}
+                            </div>
+                        </div>
+                        <div class="spare-part-actions">
+                            <button class="spare-part-edit-btn" onclick="editSparePartUsage(${part.id})" title="Editar repuesto">
+                                <i data-lucide="edit-2"></i>
+                            </button>
+                            <button class="spare-part-delete-btn" onclick="deleteSparePartUsage(${part.id})" title="Eliminar repuesto">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+        }
+        
+        sparePartsList.innerHTML = html;
     }
     
     // Verificar alertas de stock bajo
@@ -1345,6 +1503,40 @@ function renderSpareParts() {
     
     setTimeout(() => lucide.createIcons(), 10);
     console.log('✅ Repuestos renderizados');
+}
+
+/**
+ * Cargar solicitudes de repuestos del ticket (pendientes, aprobadas, rechazadas)
+ */
+async function loadSparePartsRequests(ticketId) {
+    try {
+        console.log(`📋 Cargando solicitudes de repuestos para ticket ${ticketId}...`);
+        
+        const response = await authenticatedFetch(`${API_URL}/tickets/${ticketId}/spare-parts/requests`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+        
+        if (result.data) {
+            // Agregar solicitudes al estado (separadas de los repuestos usados)
+            state.sparePartRequests = result.data.requests || [];
+            // Los repuestos usados ya vienen en state.spareParts desde loadTicketDetail
+            
+            console.log(`✅ Solicitudes cargadas:`, {
+                requests: state.sparePartRequests.length,
+                pending: result.summary.pending_count,
+                approved: result.summary.approved_count,
+                rejected: result.summary.rejected_count
+            });
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando solicitudes:', error);
+        state.sparePartRequests = [];
+    }
 }
 
 // Nueva función para mostrar alertas de stock

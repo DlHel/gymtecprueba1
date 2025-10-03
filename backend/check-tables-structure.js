@@ -1,14 +1,21 @@
-const DatabaseAdapter = require('./src/db-adapter');
+// Verificar estructura de tablas Quotes e Invoices
+const mysql = require('mysql2');
 
-// Crear instancia del adaptador
-const db = new DatabaseAdapter();
+const db = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: '',
+    database: 'gymtec_erp'
+});
 
 console.log('🔍 VERIFICANDO ESTRUCTURA DE TABLAS');
 console.log('=====================================');
 
+db.connect();
+
 // Verificar tabla Quotes
 console.log('\n📋 Estructura de tabla Quotes:');
-db.all("DESCRIBE Quotes", [], (err, quotesColumns) => {
+db.query("DESCRIBE Quotes", (err, quotesColumns) => {
     if (err) {
         console.error('❌ Error consultando Quotes:', err.message);
     } else if (quotesColumns.length === 0) {
@@ -22,7 +29,7 @@ db.all("DESCRIBE Quotes", [], (err, quotesColumns) => {
     
     // Verificar tabla Invoices
     console.log('\n🧾 Estructura de tabla Invoices:');
-    db.all("DESCRIBE Invoices", [], (err, invoicesColumns) => {
+    db.query("DESCRIBE Invoices", (err, invoicesColumns) => {
         if (err) {
             console.error('❌ Error consultando Invoices:', err.message);
         } else if (invoicesColumns.length === 0) {

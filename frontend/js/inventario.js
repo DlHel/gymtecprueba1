@@ -108,6 +108,7 @@ class InventoryManager {
         
         purchaseOrderForm.addEventListener('submit', (e) => {
             e.preventDefault();
+            console.log('🎯 Submit de orden de compra detectado');
             this.savePurchaseOrder();
         });
 
@@ -158,7 +159,10 @@ class InventoryManager {
             this.deleteInventoryItem(id);
         }
         // Botones de órdenes de compra
-        else if (target.classList.contains('receive-order-btn')) {
+        else if (target.classList.contains('edit-order-btn')) {
+            const id = target.dataset.id;
+            this.editPurchaseOrder(id);
+        } else if (target.classList.contains('receive-order-btn')) {
             const id = target.dataset.id;
             this.receiveOrder(id);
         } else if (target.classList.contains('cancel-order-btn')) {
@@ -487,39 +491,157 @@ class InventoryManager {
         }
 
         const ordersHtml = this.data.purchaseOrders.map(order => {
-            const itemsHtml = (order.items || []).map(item => `
-                <div class="purchase-order-item">
-                    <div class="purchase-order-item-name">${item.name}</div>
-                    <div class="purchase-order-item-quantity">${item.quantity} unidades</div>
-                </div>
-            `).join('');
+            // Formatear fechas
+            const orderDate = order.order_date ? this.formatDate(order.order_date) : this.formatDate(new Date());
+            const expectedDate = order.expected_delivery 
+                ? this.formatDate(order.expected_delivery)
+                : '<span class="text-amber-600">Por definir</span>';
+            
+            // Obtener información de repuestos solicitados
+            const sparePartsList = order.spare_parts_list || null;
+            const ticketIds = order.ticket_ids || null;
+            
+            // Crear tabla de items como una orden de compra profesional
+            let itemsTableHtml = '';
+            
+            if (sparePartsList) {
+                // Tiene repuestos desde solicitudes
+                const parts = sparePartsList.split(', ');
+                const itemRows = parts.map((part, index) => {
+                    // Extraer nombre y cantidad del formato: "nombre (cantidad unidades)"
+                    const match = part.match(/^(.+?)\s*\((\d+)\s*unidades\)$/);
+                    const itemName = match ? match[1] : part;
+                    const quantity = match ? match[2] : '?';
+                    
+                    return `
+                        <tr class="border-b border-gray-200">
+                            <td class="py-2 px-3 text-sm text-gray-600">${index + 1}</td>
+                            <td class="py-2 px-3 text-sm text-gray-800">${itemName}</td>
+                            <td class="py-2 px-3 text-sm text-center text-gray-700">${quantity}</td>
+                            <td class="py-2 px-3 text-sm text-right text-gray-500">-</td>
+                            <td class="py-2 px-3 text-sm text-right font-semibold text-gray-500">Por cotizar</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                itemsTableHtml = `
+                    <div class="bg-white rounded border border-gray-200 overflow-hidden mb-3">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 border-b border-gray-200">
+                                <tr>
+                                    <th class="py-2 px-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                                    <th class="py-2 px-3 text-left text-xs font-semibold text-gray-600 uppercase">Descripción</th>
+                                    <th class="py-2 px-3 text-center text-xs font-semibold text-gray-600 uppercase">Cantidad</th>
+                                    <th class="py-2 px-3 text-right text-xs font-semibold text-gray-600 uppercase">Precio Unit.</th>
+                                    <th class="py-2 px-3 text-right text-xs font-semibold text-gray-600 uppercase">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemRows}
+                            </tbody>
+                        </table>
+                    </div>
+                    ${ticketIds ? `
+                        <div class="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                            <i data-lucide="file-text" class="w-3 h-3"></i>
+                            <span>Referencia: Ticket(s) #${ticketIds}</span>
+                        </div>
+                    ` : ''}
+                `;
+            } else {
+                // Sin items configurados
+                itemsTableHtml = `
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
+                        <i data-lucide="alert-triangle" class="w-8 h-8 text-amber-600 mx-auto mb-2"></i>
+                        <p class="text-sm font-semibold text-amber-800 mb-1">Orden sin items configurados</p>
+                        <p class="text-xs text-amber-600">Esta orden requiere que se agreguen los productos manualmente</p>
+                    </div>
+                `;
+            }
 
             return `
-                <div class="purchase-order-card">
-                    <div class="purchase-order-header">
-                        <div>
-                            <h4 class="purchase-order-number">Orden #${order.id}</h4>
-                            <div class="purchase-order-supplier">Proveedor: ${order.supplier}</div>
-                            <div class="text-sm text-gray-500">Fecha esperada: ${this.formatDate(order.expected_date)}</div>
+                <div class="purchase-order-document bg-white border border-gray-300 rounded-lg shadow-sm mb-4 overflow-hidden">
+                    <!-- Header de la orden -->
+                    <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="text-2xl font-bold mb-1">ORDEN DE COMPRA</h3>
+                                <p class="text-blue-100 text-sm">Nº ${String(order.id).padStart(6, '0')}</p>
+                            </div>
+                            <div class="text-right">
+                                <div class="inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                                    order.status === 'Pendiente' ? 'bg-yellow-400 text-yellow-900' :
+                                    order.status === 'Aprobado' ? 'bg-green-400 text-green-900' :
+                                    order.status === 'Recibido' ? 'bg-blue-400 text-blue-900' :
+                                    'bg-gray-400 text-gray-900'
+                                }">
+                                    ${this.getOrderStatusText(order.status)}
+                                </div>
+                            </div>
                         </div>
-                        <div class="purchase-order-status ${order.status}">${this.getOrderStatusText(order.status)}</div>
                     </div>
-                    
-                    <div class="purchase-order-items">
-                        ${itemsHtml}
+
+                    <!-- Información de la orden -->
+                    <div class="grid grid-cols-2 gap-6 px-6 py-4 bg-gray-50 border-b border-gray-200">
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Proveedor</h4>
+                            <div class="text-sm font-semibold text-gray-900 mb-1">${order.supplier || '⚠️ Por definir'}</div>
+                            ${order.supplier === 'Proveedor pendiente' || !order.supplier ? 
+                                '<p class="text-xs text-amber-600">⚠️ Debe configurar el proveedor</p>' : 
+                                '<p class="text-xs text-gray-600">Contacto: Por definir</p>'
+                            }
+                        </div>
+                        <div>
+                            <h4 class="text-xs font-semibold text-gray-500 uppercase mb-2">Fechas</h4>
+                            <div class="text-sm text-gray-700 mb-1">
+                                <span class="font-semibold">Emisión:</span> ${orderDate}
+                            </div>
+                            <div class="text-sm text-gray-700">
+                                <span class="font-semibold">Entrega estimada:</span> ${expectedDate}
+                            </div>
+                        </div>
                     </div>
-                    
-                    <div class="purchase-order-actions">
-                        ${order.status === 'pendiente' ? `
-                            <button class="inventory-action-btn primary receive-order-btn" data-id="${order.id}">
-                                <i data-lucide="check" class="w-3 h-3"></i>
-                                Marcar como Recibida
+
+                    <!-- Items de la orden -->
+                    <div class="px-6 py-4">
+                        <h4 class="text-sm font-semibold text-gray-700 mb-3 uppercase">Detalle de productos</h4>
+                        ${itemsTableHtml}
+                    </div>
+
+                    <!-- Total y notas -->
+                    <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-semibold text-gray-600">Total estimado:</span>
+                            <span class="text-lg font-bold text-gray-900">${order.total_amount ? '$' + order.total_amount.toLocaleString() : 'Por cotizar'}</span>
+                        </div>
+                        ${order.notes ? `
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <p class="text-xs text-gray-500 mb-1">Notas:</p>
+                                <p class="text-sm text-gray-700">${order.notes}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Acciones -->
+                    <div class="px-6 py-3 bg-white border-t border-gray-200 flex gap-2">
+                        ${(order.status === 'Pendiente' || order.status === 'pendiente') ? `
+                            <button class="inventory-action-btn secondary edit-order-btn flex-1" data-id="${order.id}">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                                Editar y Completar
+                            </button>
+                            <button class="inventory-action-btn primary receive-order-btn flex-1" data-id="${order.id}" ${!sparePartsList ? 'disabled' : ''}>
+                                <i data-lucide="check" class="w-4 h-4"></i>
+                                Marcar Recibida
                             </button>
                             <button class="inventory-action-btn danger cancel-order-btn" data-id="${order.id}">
-                                <i data-lucide="x" class="w-3 h-3"></i>
-                                Cancelar
+                                <i data-lucide="x" class="w-4 h-4"></i>
                             </button>
-                        ` : ''}
+                        ` : `
+                            <button class="inventory-action-btn secondary" data-id="${order.id}">
+                                <i data-lucide="printer" class="w-4 h-4"></i>
+                                Imprimir
+                            </button>
+                        `}
                     </div>
                 </div>
             `;
@@ -622,12 +744,86 @@ class InventoryManager {
         this.showModal(modal);
     }
 
-    openPurchaseOrderModal() {
+    openPurchaseOrderModal(order = null) {
         const modal = document.getElementById('purchase-order-modal');
         const form = document.getElementById('purchase-order-form');
         
         form.reset();
         document.getElementById('order-items-container').innerHTML = '';
+        
+        // Si hay datos de orden (modo edición)
+        if (order) {
+            form.dataset.orderId = order.id;
+            
+            // Llenar formulario con datos existentes
+            if (form.elements.supplier) form.elements.supplier.value = order.supplier || '';
+            if (form.elements.expected_delivery) {
+                const date = order.expected_delivery ? order.expected_delivery.split('T')[0] : '';
+                form.elements.expected_delivery.value = date;
+            }
+            if (form.elements.notes) form.elements.notes.value = order.notes || '';
+            if (form.elements.total_amount) form.elements.total_amount.value = order.total_amount || '';
+            
+            // PRIMERO: Cargar los repuestos solicitados originalmente (de las solicitudes)
+            if (order.requestedParts && order.requestedParts.length > 0) {
+                console.log('🔍 Cargando repuestos solicitados originalmente:', order.requestedParts);
+                console.log('📦 Repuestos disponibles en inventario:', this.data.spareParts);
+                
+                order.requestedParts.forEach(request => {
+                    console.log('➡️ Procesando solicitud:', request);
+                    
+                    // Si tiene inventory_id, usarlo directamente
+                    if (request.inventory_id) {
+                        console.log('✅ Usando inventory_id:', request.inventory_id);
+                        this.addOrderItemWithData({
+                            spare_part_id: request.inventory_id,
+                            quantity_ordered: request.quantity_needed,
+                            unit_price: 0
+                        });
+                    } else {
+                        // Si no tiene inventory_id, buscar por nombre
+                        console.log('⚠️ No tiene inventory_id, buscando por nombre:', request.spare_part_name);
+                        const sparePartMatch = this.data.spareParts.find(sp => 
+                            sp.item_name === request.spare_part_name ||
+                            sp.name === request.spare_part_name
+                        );
+                        
+                        if (sparePartMatch) {
+                            console.log('✅ Encontrado por nombre:', sparePartMatch);
+                            this.addOrderItemWithData({
+                                spare_part_id: sparePartMatch.id,
+                                quantity_ordered: request.quantity_needed,
+                                unit_price: 0
+                            });
+                        } else {
+                            console.log('❌ Repuesto no encontrado en inventario:', request.spare_part_name);
+                        }
+                    }
+                });
+            }
+            
+            // SEGUNDO: Si tiene items adicionales en PurchaseOrderItems, agregarlos también
+            if (order.items && order.items.length > 0) {
+                order.items.forEach(item => {
+                    // Solo agregar si no está ya en la lista (evitar duplicados)
+                    const existing = Array.from(document.querySelectorAll('#order-items-container .order-item select[name="spare_part_id"]'))
+                        .some(select => parseInt(select.value) === item.spare_part_id);
+                    
+                    if (!existing) {
+                        this.addOrderItemWithData(item);
+                    }
+                });
+            }
+            
+            // Cambiar título del modal
+            const title = modal.querySelector('.base-modal-title');
+            if (title) title.textContent = `Editar Orden de Compra #${order.id}`;
+        } else {
+            // Modo creación
+            delete form.dataset.orderId;
+            const title = modal.querySelector('.base-modal-title');
+            if (title) title.textContent = 'Nueva Orden de Compra';
+        }
         
         this.showModal(modal);
     }
@@ -773,12 +969,19 @@ class InventoryManager {
 
     getOrderStatusText(status) {
         const statusMap = {
+            'Pendiente': 'Pendiente',
             'pendiente': 'Pendiente',
+            'Aprobado': 'Aprobado',
+            'aprobado': 'Aprobado',
             'en-transito': 'En Tránsito',
             'recibida': 'Recibida',
-            'cancelada': 'Cancelada'
+            'Recibido': 'Recibido',
+            'recibido': 'Recibido',
+            'cancelada': 'Cancelada',
+            'Cancelado': 'Cancelado',
+            'cancelado': 'Cancelado'
         };
-        return statusMap[status] || status;
+        return statusMap[status] || status || 'Pendiente';
     }
 
     getTransactionTypeText(type) {
@@ -896,7 +1099,73 @@ class InventoryManager {
 
     async savePurchaseOrder() {
         console.log('💾 Guardando orden de compra...');
-        this.showNotification('Sistema de órdenes de compra en desarrollo. Próximamente disponible.', 'info');
+        console.log('📋 Formulario encontrado:', document.getElementById('purchase-order-form'));
+        
+        const form = document.getElementById('purchase-order-form');
+        const formData = new FormData(form);
+        
+        const orderId = form.dataset.orderId; // Si existe, es edición
+        const method = orderId ? 'PUT' : 'POST';
+        const url = orderId 
+            ? `${this.apiBaseUrl}/purchase-orders/${orderId}` 
+            : `${this.apiBaseUrl}/purchase-orders`;
+        
+        // Recopilar items
+        const items = [];
+        document.querySelectorAll('#order-items-container .order-item').forEach(itemDiv => {
+            const sparePartId = itemDiv.querySelector('[name="spare_part_id"]').value;
+            const quantity = itemDiv.querySelector('[name="quantity"]').value;
+            const unitPrice = itemDiv.querySelector('[name="unit_price"]').value;
+            
+            if (sparePartId && quantity) {
+                items.push({
+                    spare_part_id: parseInt(sparePartId),
+                    quantity: parseInt(quantity),
+                    unit_price: parseFloat(unitPrice) || 0
+                });
+            }
+        });
+        
+        // Validar que haya al menos un item
+        if (items.length === 0) {
+            this.showNotification('⚠️ Debes agregar al menos un repuesto a la orden', 'error');
+            return;
+        }
+        
+        const data = {
+            supplier: formData.get('supplier') || 'Proveedor pendiente',
+            expected_delivery: formData.get('expected_delivery') || null,
+            notes: formData.get('notes') || null,
+            total_amount: parseFloat(formData.get('total_amount')) || 0,
+            items: items
+        };
+        
+        try {
+            const response = await authenticatedFetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al guardar orden de compra');
+            }
+            
+            this.showNotification(
+                orderId ? '✅ Orden actualizada correctamente' : '✅ Orden creada correctamente', 
+                'success'
+            );
+            
+            const modal = document.getElementById('purchase-order-modal');
+            this.closeModal(modal);
+            
+            await this.loadPurchaseOrders();
+            
+        } catch (error) {
+            console.error('Error guardando orden:', error);
+            this.showNotification('Error: ' + error.message, 'error');
+        }
     }
 
     async assignToTechnician() {
@@ -970,15 +1239,89 @@ class InventoryManager {
         }
     }
 
+    async editPurchaseOrder(id) {
+        console.log(`� Editando orden de compra #${id}...`);
+        
+        try {
+            // Obtener datos de la orden
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}`);
+            if (!response.ok) throw new Error('Error al cargar orden de compra');
+            
+            const result = await response.json();
+            const order = result.data;
+            
+            // Cargar las solicitudes de repuestos asociadas a esta orden
+            console.log('Cargando solicitudes asociadas a la orden:', id);
+            const requestsResponse = await authenticatedFetch(`${this.apiBaseUrl}/inventory/spare-part-requests?purchase_order_id=${id}`);
+            
+            if (requestsResponse.ok) {
+                const requestsResult = await requestsResponse.json();
+                order.requestedParts = requestsResult.data || [];
+                console.log('Solicitudes cargadas:', order.requestedParts.length, 'items');
+            } else {
+                console.log('No se encontraron solicitudes o error al cargarlas');
+                order.requestedParts = [];
+            }
+            
+            // Abrir modal con todos los datos
+            this.openPurchaseOrderModal(order);
+            
+        } catch (error) {
+            console.error('Error cargando orden:', error);
+            this.showNotification('Error al cargar orden de compra: ' + error.message, 'error');
+        }
+    }
+
     async receiveOrder(id) {
         console.log(`📦 Marcando orden ${id} como recibida...`);
-        this.showNotification('Sistema de órdenes de compra en desarrollo. Próximamente disponible.', 'info');
+        
+        if (!confirm('¿Confirmar que esta orden ha sido recibida?\n\nEsto actualizará el inventario con los productos recibidos.')) {
+            return;
+        }
+        
+        try {
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}/receive`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al marcar orden como recibida');
+            }
+            
+            this.showNotification('✅ Orden marcada como recibida', 'success');
+            await this.loadPurchaseOrders(); // Recargar lista
+            
+        } catch (error) {
+            console.error('Error marcando orden como recibida:', error);
+            this.showNotification('Error: ' + error.message, 'error');
+        }
     }
 
     async cancelOrder(id) {
-        if (confirm('¿Estás seguro de que quieres cancelar esta orden?')) {
-            console.log(`❌ Cancelando orden ${id}...`);
-            this.showNotification('Sistema de órdenes de compra en desarrollo. Próximamente disponible.', 'info');
+        if (!confirm('¿Estás seguro de que quieres cancelar esta orden?\n\nEsta acción no se puede deshacer.')) {
+            return;
+        }
+        
+        console.log(`❌ Cancelando orden ${id}...`);
+        
+        try {
+            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}`, {
+                method: 'DELETE'
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Error al cancelar orden');
+            }
+            
+            this.showNotification('✅ Orden cancelada correctamente', 'success');
+            await this.loadPurchaseOrders(); // Recargar lista
+            
+        } catch (error) {
+            console.error('Error cancelando orden:', error);
+            this.showNotification('Error: ' + error.message, 'error');
         }
     }
 
@@ -995,11 +1338,35 @@ class InventoryManager {
                     <select name="spare_part_id" class="base-form-input" required>
                         <option value="">Seleccionar repuesto</option>
                         ${this.data.spareParts.map(part => 
-                            `<option value="${part.id}">${part.name}</option>`
+                            `<option value="${part.id}">${part.item_name || part.name}</option>`
                         ).join('')}
                     </select>
                     <input type="number" name="quantity" placeholder="Cantidad" class="base-form-input" min="1" required>
                     <input type="number" name="unit_price" placeholder="Precio unitario" class="base-form-input" min="0" step="0.01">
+                </div>
+                <button type="button" class="order-item-remove">
+                    <i data-lucide="x" class="w-3 h-3"></i>
+                </button>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', itemHtml);
+        lucide.createIcons();
+    }
+
+    addOrderItemWithData(item) {
+        const container = document.getElementById('order-items-container');
+        const itemHtml = `
+            <div class="order-item">
+                <div class="order-item-content">
+                    <select name="spare_part_id" class="base-form-input" required>
+                        <option value="">Seleccionar repuesto</option>
+                        ${this.data.spareParts.map(part => 
+                            `<option value="${part.id}" ${part.id === item.spare_part_id ? 'selected' : ''}>${part.item_name || part.name}</option>`
+                        ).join('')}
+                    </select>
+                    <input type="number" name="quantity" placeholder="Cantidad" class="base-form-input" min="1" value="${item.quantity_ordered || item.quantity || ''}" required>
+                    <input type="number" name="unit_price" placeholder="Precio unitario" class="base-form-input" min="0" step="0.01" value="${item.unit_price || ''}">
                 </div>
                 <button type="button" class="order-item-remove">
                     <i data-lucide="x" class="w-3 h-3"></i>

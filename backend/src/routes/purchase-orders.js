@@ -46,17 +46,26 @@ router.get('/', authenticateToken, async (req, res) => {
         
         let sql = `
         SELECT 
-            po.*,
-            s.company_name as supplier_name,
-            s.contact_name as supplier_contact,
+            po.id,
+            po.supplier,
+            po.order_date,
+            po.expected_delivery,
+            po.status,
+            po.total_amount,
+            po.notes,
+            po.created_by,
+            po.created_at,
+            po.updated_at,
             creator.username as created_by_name,
-            COUNT(poi.id) as item_count,
+            COUNT(DISTINCT poi.id) as item_count,
             COALESCE(SUM(poi.quantity_ordered), 0) as total_items_ordered,
-            COALESCE(SUM(poi.quantity_received), 0) as total_items_received
+            COALESCE(SUM(poi.quantity_received), 0) as total_items_received,
+            GROUP_CONCAT(DISTINCT CONCAT(spr.spare_part_name, ' (', spr.quantity_needed, ' unidades)') SEPARATOR ', ') as spare_parts_list,
+            GROUP_CONCAT(DISTINCT spr.ticket_id SEPARATOR ', ') as ticket_ids
         FROM PurchaseOrders po
-        LEFT JOIN Suppliers s ON po.supplier = s.id
         LEFT JOIN Users creator ON po.created_by = creator.id
         LEFT JOIN PurchaseOrderItems poi ON po.id = poi.purchase_order_id
+        LEFT JOIN spare_part_requests spr ON po.id = spr.purchase_order_id
         WHERE 1=1`;
         
         const params = [];
@@ -142,14 +151,18 @@ router.get('/:id', authenticateToken, async (req, res) => {
         // Obtener orden
         const orderSQL = `
         SELECT 
-            po.*,
-            s.company_name as supplier_name,
-            s.contact_name as supplier_contact,
-            s.email as supplier_email,
-            s.phone as supplier_phone,
+            po.id,
+            po.supplier,
+            po.order_date,
+            po.expected_delivery,
+            po.status,
+            po.total_amount,
+            po.notes,
+            po.created_by,
+            po.created_at,
+            po.updated_at,
             creator.username as created_by_name
         FROM PurchaseOrders po
-        LEFT JOIN Suppliers s ON po.supplier = s.id
         LEFT JOIN Users creator ON po.created_by = creator.id
         WHERE po.id = ?`;
         
@@ -284,6 +297,99 @@ router.post('/', authenticateToken, async (req, res) => {
         console.error('Error al crear orden de compra:', error);
         res.status(500).json({
             error: 'Error al crear orden de compra',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route PUT /api/purchase-orders/:id
+ * @desc Actualizar orden de compra completa
+ * @access Protegido - Requiere autenticación
+ */
+router.put('/:id', authenticateToken, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { 
+            supplier, 
+            expected_delivery, 
+            notes, 
+            total_amount,
+            items 
+        } = req.body;
+        
+        console.log(`📝 Actualizando orden de compra #${id}...`);
+        
+        // Verificar que la orden existe
+        const checkSQL = 'SELECT id FROM PurchaseOrders WHERE id = ?';
+        const existingOrder = await db.get(checkSQL, [id]);
+        
+        if (!existingOrder) {
+            return res.status(404).json({
+                error: 'Orden de compra no encontrada',
+                code: 'NOT_FOUND'
+            });
+        }
+        
+        // Actualizar orden
+        const updateOrderSQL = `
+        UPDATE PurchaseOrders 
+        SET supplier = ?,
+            expected_delivery = ?,
+            notes = ?,
+            total_amount = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?`;
+        
+        await db.runAsync(updateOrderSQL, [
+            supplier,
+            expected_delivery,
+            notes,
+            total_amount || 0,
+            id
+        ]);
+        
+        // Si se enviaron items, actualizar
+        if (items && items.length > 0) {
+            // Eliminar items existentes
+            const deleteItemsSQL = 'DELETE FROM PurchaseOrderItems WHERE purchase_order_id = ?';
+            await db.runAsync(deleteItemsSQL, [id]);
+            
+            // Insertar nuevos items
+            for (const item of items) {
+                const itemSQL = `
+                INSERT INTO PurchaseOrderItems (
+                    purchase_order_id, spare_part_id, quantity_ordered, 
+                    quantity_received, unit_cost, total_cost
+                ) VALUES (?, ?, ?, 0, ?, ?)`;
+                
+                const itemTotal = parseFloat(item.unit_price || 0) * parseInt(item.quantity || 0);
+                
+                await db.runAsync(itemSQL, [
+                    id,
+                    item.spare_part_id,
+                    item.quantity,
+                    item.unit_price || 0,
+                    itemTotal
+                ]);
+            }
+        }
+        
+        console.log(`✅ Orden de compra #${id} actualizada correctamente`);
+        
+        res.json({
+            message: 'Orden de compra actualizada exitosamente',
+            data: {
+                id: parseInt(id),
+                supplier,
+                items_count: items ? items.length : 0
+            }
+        });
+        
+    } catch (error) {
+        console.error('Error al actualizar orden de compra:', error);
+        res.status(500).json({
+            error: 'Error al actualizar orden de compra',
             details: error.message
         });
     }
