@@ -5338,8 +5338,8 @@ app.get('/api/employee-schedules/:userId/active', authenticateToken, (req, res) 
         LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
         WHERE es.user_id = ?
           AND es.is_active = 1
-          AND DATE('now') >= es.start_date
-          AND (es.end_date IS NULL OR DATE('now') <= es.end_date)
+          AND CURDATE() >= es.start_date
+          AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
         ORDER BY es.start_date DESC
         LIMIT 1
     `;
@@ -5438,7 +5438,7 @@ app.get('/api/attendance/today', authenticateToken, (req, res) => {
             AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
             AND es.is_active = 1
         LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
-        WHERE a.user_id = ? AND a.date = DATE('now')
+        WHERE a.user_id = ? AND a.date = CURDATE()
     `;
     
     db.get(sql, [req.user.id], (err, row) => {
@@ -5457,7 +5457,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
     const ip = req.ip || req.connection.remoteAddress;
     
     // Verificar si ya marcó entrada hoy
-    const checkSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = DATE("now")';
+    const checkSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = CURDATE()';
     
     db.get(checkSql, [user_id], (err, existing) => {
         if (err) {
@@ -5475,21 +5475,21 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
         // Obtener horario del empleado para calcular tardanza
         const scheduleSql = `
             SELECT ws.*, 
-                   CASE strftime('%w', 'now')
-                       WHEN '1' THEN ws.monday_start
-                       WHEN '2' THEN ws.tuesday_start
-                       WHEN '3' THEN ws.wednesday_start
-                       WHEN '4' THEN ws.thursday_start
-                       WHEN '5' THEN ws.friday_start
-                       WHEN '6' THEN ws.saturday_start
-                       WHEN '0' THEN ws.sunday_start
+                   CASE DAYOFWEEK(NOW())
+                       WHEN 2 THEN ws.monday_start
+                       WHEN 3 THEN ws.tuesday_start
+                       WHEN 4 THEN ws.wednesday_start
+                       WHEN 5 THEN ws.thursday_start
+                       WHEN 6 THEN ws.friday_start
+                       WHEN 7 THEN ws.saturday_start
+                       WHEN 1 THEN ws.sunday_start
                    END as scheduled_start
             FROM EmployeeSchedules es
             JOIN WorkSchedules ws ON es.schedule_id = ws.id
             WHERE es.user_id = ?
               AND es.is_active = 1
-              AND DATE('now') >= es.start_date
-              AND (es.end_date IS NULL OR DATE('now') <= es.end_date)
+              AND CURDATE() >= es.start_date
+              AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
             LIMIT 1
         `;
         
@@ -5542,7 +5542,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
                     INSERT INTO Attendance (
                         user_id, date, check_in_time, check_in_location, check_in_notes, check_in_ip,
                         is_late, late_minutes, status, scheduled_hours
-                    ) VALUES (?, DATE('now'), ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
                 
                 const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // Aproximación
@@ -5844,7 +5844,7 @@ app.get('/api/holidays', authenticateToken, (req, res) => {
     const params = [];
     
     if (year) {
-        sql += ' AND strftime("%Y", date) = ?';
+        sql += ' AND YEAR(date) = ?';
         params.push(year);
     }
     
@@ -5905,8 +5905,8 @@ app.get('/api/attendance/summary/:userId', authenticateToken, (req, res) => {
     const params = [req.params.userId];
     
     if (month && year) {
-        sql += ' AND strftime("%m", date) = ? AND strftime("%Y", date) = ?';
-        params.push(month.padStart(2, '0'), year);
+        sql += ' AND MONTH(date) = ? AND YEAR(date) = ?';
+        params.push(month, year);
     }
     
     db.get(sql, params, (err, row) => {
@@ -5924,11 +5924,11 @@ app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manag
         SELECT 
             COUNT(DISTINCT user_id) as total_employees,
             COUNT(*) as total_records,
-            SUM(CASE WHEN date = DATE('now') THEN 1 ELSE 0 END) as today_present,
-            SUM(CASE WHEN date = DATE('now') AND check_in_time IS NOT NULL AND check_out_time IS NULL THEN 1 ELSE 0 END) as currently_working,
+            SUM(CASE WHEN date = CURDATE() THEN 1 ELSE 0 END) as today_present,
+            SUM(CASE WHEN date = CURDATE() AND check_in_time IS NOT NULL AND check_out_time IS NULL THEN 1 ELSE 0 END) as currently_working,
             SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as total_late
         FROM Attendance
-        WHERE date >= DATE('now', '-30 days')
+        WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
     `;
     
     db.get(sql, [], (err, row) => {
