@@ -848,6 +848,376 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // ===================================================================
+    // GESTIÓN ADMINISTRATIVA (SOLO ADMIN/MANAGER)
+    // ===================================================================
+    
+    const adminFunctions = {
+        // ============= ESTADÍSTICAS =============
+        async loadAdminStats() {
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/stats/today`);
+                if (!response.ok) throw new Error('Error loading stats');
+                const result = await response.json();
+                
+                const stats = result.data || {};
+                document.getElementById('stat-present').textContent = stats.present || 0;
+                document.getElementById('stat-late').textContent = stats.late || 0;
+                document.getElementById('stat-pending').textContent = (stats.pending_overtime || 0) + (stats.pending_leave || 0);
+                document.getElementById('stat-overtime').textContent = `${(stats.overtime_hours || 0).toFixed(1)}h`;
+            } catch (error) {
+                console.error('Error loading admin stats:', error);
+            }
+        },
+
+        // ============= HORAS EXTRAS =============
+        async loadPendingOvertime() {
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/overtime?status=pending`);
+                if (!response.ok) throw new Error('Error loading overtime');
+                const result = await response.json();
+                
+                const overtimeList = result.data || [];
+                document.getElementById('overtime-count').textContent = overtimeList.length;
+                
+                const container = document.getElementById('overtime-approvals-list');
+                if (overtimeList.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay solicitudes pendientes</p>';
+                    return;
+                }
+                
+                container.innerHTML = overtimeList.map(ot => `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="font-semibold text-gray-900">${ot.user_name || 'Usuario'}</p>
+                                <p class="text-sm text-gray-600">${ot.date} - ${ot.hours_requested || 0}h solicitadas</p>
+                            </div>
+                            <span class="status-badge status-pending">Pendiente</span>
+                        </div>
+                        <p class="text-sm text-gray-700 mb-3">${ot.reason || 'Sin motivo'}</p>
+                        
+                        <!-- Ajuste de horas -->
+                        <div class="flex items-center gap-2 mb-3 bg-blue-50 p-2 rounded">
+                            <label class="text-sm font-medium text-gray-700">Horas a aprobar:</label>
+                            <input type="number" 
+                                   id="overtime-hours-${ot.id}" 
+                                   value="${ot.hours_requested || 0}" 
+                                   step="0.5" 
+                                   min="0" 
+                                   max="${ot.hours_requested || 0}"
+                                   class="w-20 px-2 py-1 border border-gray-300 rounded text-center">
+                            <span class="text-xs text-gray-500">de ${ot.hours_requested}h</span>
+                        </div>
+                        
+                        <div class="flex gap-2">
+                            <button onclick="window.adminFunctions.approveOvertime(${ot.id})" 
+                                    class="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded text-sm font-medium transition">
+                                <i class="fas fa-check mr-1"></i>Aprobar
+                            </button>
+                            <button onclick="window.adminFunctions.rejectOvertime(${ot.id})" 
+                                    class="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm font-medium transition">
+                                <i class="fas fa-times mr-1"></i>Rechazar
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading pending overtime:', error);
+            }
+        },
+
+        async approveOvertime(overtimeId) {
+            try {
+                const hoursInput = document.getElementById(`overtime-hours-${overtimeId}`);
+                const hoursApproved = parseFloat(hoursInput.value) || 0;
+                
+                if (hoursApproved <= 0) {
+                    alert('Por favor ingrese horas válidas a aprobar');
+                    return;
+                }
+                
+                const response = await window.authenticatedFetch(`${window.API_URL}/overtime/${overtimeId}/approve`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ hours_approved: hoursApproved })
+                });
+                
+                if (!response.ok) throw new Error('Error approving overtime');
+                
+                ui.showSuccess(`Horas extras aprobadas: ${hoursApproved}h`);
+                this.loadPendingOvertime();
+                this.loadAdminStats();
+            } catch (error) {
+                console.error('Error approving overtime:', error);
+                ui.showError('Error al aprobar horas extras');
+            }
+        },
+
+        async rejectOvertime(overtimeId) {
+            if (!confirm('¿Está seguro de rechazar esta solicitud de horas extras?')) return;
+            
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/overtime/${overtimeId}/reject`, {
+                    method: 'PATCH'
+                });
+                
+                if (!response.ok) throw new Error('Error rejecting overtime');
+                
+                ui.showSuccess('Solicitud rechazada');
+                this.loadPendingOvertime();
+                this.loadAdminStats();
+            } catch (error) {
+                console.error('Error rejecting overtime:', error);
+                ui.showError('Error al rechazar solicitud');
+            }
+        },
+
+        // ============= GESTIÓN DE TURNOS =============
+        async loadShifts() {
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/shift-types`);
+                if (!response.ok) throw new Error('Error loading shifts');
+                const result = await response.json();
+                
+                const shifts = result.data || [];
+                const container = document.getElementById('shifts-list');
+                
+                if (shifts.length === 0) {
+                    container.innerHTML = '<p class="text-gray-500 text-center py-4">No hay turnos configurados</p>';
+                    return;
+                }
+                
+                container.innerHTML = shifts.map(shift => `
+                    <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <h3 class="font-semibold text-gray-900">${shift.name}</h3>
+                                <p class="text-sm text-gray-600 mt-1">
+                                    <i class="fas fa-clock mr-1"></i>
+                                    ${shift.start_time} - ${shift.end_time}
+                                    ${shift.is_overnight ? '<span class="text-orange-600">(Nocturno)</span>' : ''}
+                                </p>
+                                <p class="text-xs text-gray-500 mt-1">${shift.description || ''}</p>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="window.adminFunctions.editShift(${shift.id})" 
+                                        class="text-blue-600 hover:text-blue-800">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button onclick="window.adminFunctions.deleteShift(${shift.id})" 
+                                        class="text-red-600 hover:text-red-800">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading shifts:', error);
+            }
+        },
+
+        async createShift() {
+            const modalContent = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del Turno</label>
+                        <input type="text" id="shift-name" class="w-full px-3 py-2 border border-gray-300 rounded-lg" placeholder="Ej: Turno Mañana">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Hora Inicio</label>
+                            <input type="time" id="shift-start" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Hora Fin</label>
+                            <input type="time" id="shift-end" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="shift-overnight" class="rounded">
+                            <span class="text-sm text-gray-700">Turno nocturno (cruza medianoche)</span>
+                        </label>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Descripción (opcional)</label>
+                        <textarea id="shift-description" class="w-full px-3 py-2 border border-gray-300 rounded-lg" rows="2"></textarea>
+                    </div>
+                </div>
+            `;
+            
+            window.showModal('Crear Nuevo Turno', modalContent, async () => {
+                const name = document.getElementById('shift-name').value.trim();
+                const startTime = document.getElementById('shift-start').value;
+                const endTime = document.getElementById('shift-end').value;
+                const isOvernight = document.getElementById('shift-overnight').checked;
+                const description = document.getElementById('shift-description').value.trim();
+                
+                if (!name || !startTime || !endTime) {
+                    throw new Error('Por favor complete todos los campos requeridos');
+                }
+                
+                const response = await window.authenticatedFetch(`${window.API_URL}/shift-types`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, start_time: startTime, end_time: endTime, is_overnight: isOvernight, description })
+                });
+                
+                if (!response.ok) throw new Error('Error creating shift');
+                
+                ui.showSuccess('Turno creado exitosamente');
+                this.loadShifts();
+            });
+        },
+
+        async editShift(shiftId) {
+            // TODO: Implementar edición de turno
+            alert('Función de edición en desarrollo');
+        },
+
+        async deleteShift(shiftId) {
+            if (!confirm('¿Está seguro de eliminar este turno?')) return;
+            
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/shift-types/${shiftId}`, {
+                    method: 'DELETE'
+                });
+                
+                if (!response.ok) throw new Error('Error deleting shift');
+                
+                ui.showSuccess('Turno eliminado');
+                this.loadShifts();
+            } catch (error) {
+                console.error('Error deleting shift:', error);
+                ui.showError('Error al eliminar turno');
+            }
+        },
+
+        // ============= PERMISOS =============
+        async loadPendingLeave() {
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests?status=pending`);
+                if (!response.ok) throw new Error('Error loading leave requests');
+                const result = await response.json();
+                
+                const leaveRequests = result.data || [];
+                document.getElementById('leave-count').textContent = leaveRequests.length;
+                
+                const tbody = document.getElementById('leave-approvals-list');
+                if (leaveRequests.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-gray-500 py-4">No hay solicitudes pendientes</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = leaveRequests.map(leave => `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${leave.user_name || 'Usuario'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${leave.type || 'Permiso'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${leave.start_date} - ${leave.end_date}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600">${leave.reason || 'Sin motivo'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="status-badge status-pending">Pendiente</span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button onclick="window.adminFunctions.approveLeave(${leave.id})" 
+                                    class="text-green-600 hover:text-green-900 mr-3">
+                                <i class="fas fa-check"></i> Aprobar
+                            </button>
+                            <button onclick="window.adminFunctions.rejectLeave(${leave.id})" 
+                                    class="text-red-600 hover:text-red-900">
+                                <i class="fas fa-times"></i> Rechazar
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading leave requests:', error);
+            }
+        },
+
+        async approveLeave(leaveId) {
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests/${leaveId}/approve`, {
+                    method: 'PATCH'
+                });
+                
+                if (!response.ok) throw new Error('Error approving leave');
+                
+                ui.showSuccess('Permiso aprobado');
+                this.loadPendingLeave();
+                this.loadAdminStats();
+            } catch (error) {
+                console.error('Error approving leave:', error);
+                ui.showError('Error al aprobar permiso');
+            }
+        },
+
+        async rejectLeave(leaveId) {
+            if (!confirm('¿Está seguro de rechazar esta solicitud de permiso?')) return;
+            
+            try {
+                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests/${leaveId}/reject`, {
+                    method: 'PATCH'
+                });
+                
+                if (!response.ok) throw new Error('Error rejecting leave');
+                
+                ui.showSuccess('Solicitud rechazada');
+                this.loadPendingLeave();
+                this.loadAdminStats();
+            } catch (error) {
+                console.error('Error rejecting leave:', error);
+                ui.showError('Error al rechazar solicitud');
+            }
+        },
+
+        // Cargar todo el panel de gestión
+        async loadManagementPanel() {
+            await Promise.all([
+                this.loadAdminStats(),
+                this.loadPendingOvertime(),
+                this.loadShifts(),
+                this.loadPendingLeave()
+            ]);
+        }
+    };
+
+    // Exponer funciones de admin globalmente para onclick
+    window.adminFunctions = adminFunctions;
+
+    // Event listener para crear turno
+    const createShiftBtn = document.getElementById('create-shift-btn');
+    if (createShiftBtn) {
+        createShiftBtn.addEventListener('click', () => adminFunctions.createShift());
+    }
+
+    // Cargar panel de gestión cuando se cambia a esa pestaña
+    const managementTab = document.querySelector('[data-tab="management"]');
+    if (managementTab) {
+        managementTab.addEventListener('click', () => {
+            adminFunctions.loadManagementPanel();
+        });
+    }
+
+    // Control de visibilidad basado en rol
+    const currentUser = window.authManager.getCurrentUser();
+    const isAdmin = currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Manager');
+    
+    const adminElements = document.querySelectorAll('.admin-only');
+    adminElements.forEach(el => {
+        if (isAdmin) {
+            el.style.display = '';
+        } else {
+            el.style.display = 'none';
+        }
+    });
+
+    // ===================================================================
+    // FIN GESTIÓN ADMINISTRATIVA
+    // ===================================================================
+
     // Iniciar
     init();
 });

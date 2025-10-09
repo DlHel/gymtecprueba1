@@ -256,34 +256,103 @@
 
             <!-- Gestión Tab (Admin/Manager only) -->
             <div id="management-tab" class="tab-pane hidden">
+                <!-- Estadísticas Rápidas del Día -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-6 text-white">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-blue-100 text-sm font-medium">Empleados Presentes</p>
+                                <h3 class="text-3xl font-bold mt-1" id="stat-present">0</h3>
+                            </div>
+                            <i class="fas fa-user-check text-4xl text-blue-200 opacity-50"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-lg shadow-md p-6 text-white">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-yellow-100 text-sm font-medium">Tardanzas Hoy</p>
+                                <h3 class="text-3xl font-bold mt-1" id="stat-late">0</h3>
+                            </div>
+                            <i class="fas fa-clock text-4xl text-yellow-200 opacity-50"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md p-6 text-white">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-purple-100 text-sm font-medium">Pendientes Aprobar</p>
+                                <h3 class="text-3xl font-bold mt-1" id="stat-pending">0</h3>
+                            </div>
+                            <i class="fas fa-hourglass-half text-4xl text-purple-200 opacity-50"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md p-6 text-white">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-green-100 text-sm font-medium">Horas Extras Mes</p>
+                                <h3 class="text-3xl font-bold mt-1" id="stat-overtime">0h</h3>
+                            </div>
+                            <i class="fas fa-business-time text-4xl text-green-200 opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <!-- Gestión de Horarios -->
+                    <!-- Aprobación de Horas Extras -->
                     <div class="bg-white rounded-lg shadow-md p-6">
                         <div class="flex justify-between items-center mb-4">
-                            <h2 class="text-xl font-bold text-gray-900">Horarios de Trabajo</h2>
-                            <button id="create-schedule-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
-                                <i class="fas fa-plus mr-2"></i>Nuevo
-                            </button>
+                            <h2 class="text-xl font-bold text-gray-900">
+                                <i class="fas fa-business-time mr-2 text-purple-600"></i>Horas Extras Pendientes
+                            </h2>
+                            <span class="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full" id="overtime-count">0</span>
                         </div>
-                        <div id="schedules-list" class="space-y-3">
+                        <div id="overtime-approvals-list" class="space-y-3 max-h-96 overflow-y-auto">
                             <!-- Populated by JS -->
                         </div>
                     </div>
 
-                    <!-- Aprobaciones Pendientes -->
+                    <!-- Gestión de Turnos/Horarios -->
                     <div class="bg-white rounded-lg shadow-md p-6">
-                        <h2 class="text-xl font-bold text-gray-900 mb-4">Pendientes de Aprobación</h2>
-                        <div id="pending-approvals" class="space-y-3">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold text-gray-900">
+                                <i class="fas fa-calendar-week mr-2 text-blue-600"></i>Turnos y Horarios
+                            </h2>
+                            <button id="create-shift-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition">
+                                <i class="fas fa-plus mr-2"></i>Nuevo Turno
+                            </button>
+                        </div>
+                        <div id="shifts-list" class="space-y-3 max-h-96 overflow-y-auto">
                             <!-- Populated by JS -->
                         </div>
                     </div>
                 </div>
 
-                <!-- Estadísticas Generales -->
+                <!-- Solicitudes de Permisos Pendientes -->
                 <div class="bg-white rounded-lg shadow-md p-6 mt-6">
-                    <h2 class="text-xl font-bold text-gray-900 mb-4">Estadísticas del Día</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4" id="stats-container">
-                        <!-- Populated by JS -->
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-xl font-bold text-gray-900">
+                            <i class="fas fa-umbrella-beach mr-2 text-orange-600"></i>Solicitudes de Permisos
+                        </h2>
+                        <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full" id="leave-count">0</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Empleado</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fechas</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Motivo</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leave-approvals-list" class="bg-white divide-y divide-gray-200">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>

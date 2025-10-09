@@ -5854,6 +5854,195 @@ app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin
     });
 });
 
+// ===================================================================
+// ENDPOINTS ESPECÃ�FICOS PARA APROBACIÃ"N/RECHAZO (ADMIN)
+// ===================================================================
+
+// PATCH - Aprobar horas extras (con ajuste manual de horas)
+app.patch('/api/overtime/:id/approve', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { hours_approved } = req.body;
+    const overtimeId = req.params.id;
+    
+    // Validar que hours_approved sea un número positivo
+    if (!hours_approved || hours_approved <= 0) {
+        return res.status(400).json({ error: 'Horas aprobadas debe ser mayor a 0' });
+    }
+    
+    // Verificar que no se aprueben más horas de las solicitadas
+    const checkSql = 'SELECT hours_requested FROM Overtime WHERE id = ?';
+    
+    db.get(checkSql, [overtimeId], (err, row) => {
+        if (err) {
+            console.error('Error verificando overtime:', err);
+            return res.status(500).json({ error: 'Error al verificar horas extras' });
+        }
+        
+        if (!row) {
+            return res.status(404).json({ error: 'Solicitud no encontrada' });
+        }
+        
+        if (hours_approved > row.hours_requested) {
+            return res.status(400).json({ 
+                error: `No puede aprobar más horas (${hours_approved}h) de las solicitadas (${row.hours_requested}h)` 
+            });
+        }
+        
+        // Aprobar con horas ajustadas
+        const updateSql = `
+            UPDATE Overtime SET
+                status = 'approved',
+                hours_approved = ?,
+                approved_by = ?,
+                approved_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        `;
+        
+        db.run(updateSql, [hours_approved, req.user.id, overtimeId], function(err) {
+            if (err) {
+                console.error('Error aprobando horas extras:', err);
+                return res.status(500).json({ error: 'Error al aprobar horas extras' });
+            }
+            
+            console.log(`✅ Horas extras aprobadas: ${hours_approved}h (ID: ${overtimeId}) por usuario ${req.user.id}`);
+            res.json({ 
+                message: 'success', 
+                data: { 
+                    id: overtimeId, 
+                    hours_approved, 
+                    status: 'approved' 
+                } 
+            });
+        });
+    });
+});
+
+// PATCH - Rechazar horas extras
+app.patch('/api/overtime/:id/reject', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { rejection_reason } = req.body;
+    const overtimeId = req.params.id;
+    
+    const sql = `
+        UPDATE Overtime SET
+            status = 'rejected',
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [req.user.id, rejection_reason || 'Rechazado por administrador', overtimeId], function(err) {
+        if (err) {
+            console.error('Error rechazando horas extras:', err);
+            return res.status(500).json({ error: 'Error al rechazar horas extras' });
+        }
+        
+        console.log(`❌ Horas extras rechazadas (ID: ${overtimeId}) por usuario ${req.user.id}`);
+        res.json({ message: 'success', data: { id: overtimeId, status: 'rejected' } });
+    });
+});
+
+// PATCH - Aprobar permiso/vacaciones
+app.patch('/api/leave-requests/:id/approve', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const leaveId = req.params.id;
+    
+    const sql = `
+        UPDATE LeaveRequests SET
+            status = 'approved',
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [req.user.id, leaveId], function(err) {
+        if (err) {
+            console.error('Error aprobando permiso:', err);
+            return res.status(500).json({ error: 'Error al aprobar permiso' });
+        }
+        
+        console.log(`✅ Permiso aprobado (ID: ${leaveId}) por usuario ${req.user.id}`);
+        res.json({ message: 'success', data: { id: leaveId, status: 'approved' } });
+    });
+});
+
+// PATCH - Rechazar permiso/vacaciones
+app.patch('/api/leave-requests/:id/reject', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { rejection_reason } = req.body;
+    const leaveId = req.params.id;
+    
+    const sql = `
+        UPDATE LeaveRequests SET
+            status = 'rejected',
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [req.user.id, rejection_reason || 'Rechazado por administrador', leaveId], function(err) {
+        if (err) {
+            console.error('Error rechazando permiso:', err);
+            return res.status(500).json({ error: 'Error al rechazar permiso' });
+        }
+        
+        console.log(`❌ Permiso rechazado (ID: ${leaveId}) por usuario ${req.user.id}`);
+        res.json({ message: 'success', data: { id: leaveId, status: 'rejected' } });
+    });
+});
+
+// GET - Estadísticas del día para administradores
+app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    const statsQueries = {
+        // Empleados presentes (con check-in hoy)
+        present: `SELECT COUNT(DISTINCT user_id) as count FROM Attendance WHERE DATE(check_in) = ?`,
+        
+        // Llegadas tarde (check-in después de horario)
+        late: `SELECT COUNT(DISTINCT a.user_id) as count 
+               FROM Attendance a 
+               JOIN EmployeeSchedules es ON a.user_id = es.user_id
+               JOIN ShiftTypes st ON es.shift_type_id = st.id
+               WHERE DATE(a.check_in) = ? 
+               AND TIME(a.check_in) > st.start_time`,
+        
+        // Horas extras pendientes
+        pending_overtime: `SELECT COUNT(*) as count FROM Overtime WHERE status = 'pending'`,
+        
+        // Permisos pendientes
+        pending_leave: `SELECT COUNT(*) as count FROM LeaveRequests WHERE status = 'pending'`,
+        
+        // Total horas extras del mes
+        overtime_hours: `SELECT IFNULL(SUM(hours_approved), 0) as total 
+                         FROM Overtime 
+                         WHERE status = 'approved' 
+                         AND MONTH(date) = MONTH(CURDATE()) 
+                         AND YEAR(date) = YEAR(CURDATE())`
+    };
+    
+    const stats = {};
+    let completed = 0;
+    const total = Object.keys(statsQueries).length;
+    
+    Object.keys(statsQueries).forEach(key => {
+        const params = statsQueries[key].includes('?') ? [today] : [];
+        
+        db.get(statsQueries[key], params, (err, row) => {
+            if (err) {
+                console.error(`Error en query ${key}:`, err);
+                stats[key] = 0;
+            } else {
+                stats[key] = row.count || row.total || 0;
+            }
+            
+            completed++;
+            if (completed === total) {
+                console.log('📊 Estadísticas del día generadas:', stats);
+                res.json({ message: 'success', data: stats });
+            }
+        });
+    });
+});
+
 console.log('âœ… Rutas principales de asistencia registradas (shift-types, schedules, employee-schedules, attendance, summary, stats, check-in, check-out, overtime, leave-requests)');
 
 // ===================================================================

@@ -616,4 +616,136 @@ CREATE TABLE IF NOT EXISTS `SparePartRequests` (
     INDEX `idx_spare_part_requests_priority` (`priority`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- ===================================================================
+-- MÓDULO DE ASISTENCIA - TABLAS DE SISTEMA DE CONTROL HORARIO
+-- ===================================================================
+
+-- Tipos de turnos (Turno Mañana, Tarde, Noche, etc.)
+CREATE TABLE IF NOT EXISTS `ShiftTypes` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(100) NOT NULL,
+    `description` TEXT,
+    `start_time` TIME NOT NULL,
+    `end_time` TIME NOT NULL,
+    `is_overnight` BOOLEAN DEFAULT FALSE,
+    `tolerance_minutes` INT(11) DEFAULT 15,
+    `color` VARCHAR(7) DEFAULT '#3B82F6',
+    `active` BOOLEAN DEFAULT TRUE,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    INDEX `idx_shift_types_active` (`active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Horarios semanales (qué días trabaja cada usuario)
+CREATE TABLE IF NOT EXISTS `Schedules` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `name` VARCHAR(200) NOT NULL,
+    `description` TEXT,
+    `total_hours_per_week` DECIMAL(5,2) NOT NULL DEFAULT 40.00,
+    `active` BOOLEAN DEFAULT TRUE,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Asignación de horarios a empleados
+CREATE TABLE IF NOT EXISTS `EmployeeSchedules` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) NOT NULL,
+    `schedule_id` INT(11) NOT NULL,
+    `shift_type_id` INT(11) NOT NULL,
+    `day_of_week` ENUM('Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday') NOT NULL,
+    `is_rest_day` BOOLEAN DEFAULT FALSE,
+    `effective_from` DATE NOT NULL,
+    `effective_to` DATE NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`schedule_id`) REFERENCES `Schedules` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`shift_type_id`) REFERENCES `ShiftTypes` (`id`) ON DELETE CASCADE,
+    INDEX `idx_employee_schedules_user` (`user_id`),
+    INDEX `idx_employee_schedules_schedule` (`schedule_id`),
+    INDEX `idx_employee_schedules_effective` (`effective_from`, `effective_to`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Registro de asistencia (check-in / check-out)
+CREATE TABLE IF NOT EXISTS `Attendance` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) NOT NULL,
+    `check_in` DATETIME NOT NULL,
+    `check_out` DATETIME NULL,
+    `worked_hours` DECIMAL(5,2) NULL,
+    `status` ENUM('present', 'late', 'absent', 'half_day', 'leave') DEFAULT 'present',
+    `notes` TEXT,
+    `approved_by` INT(11) NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`approved_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL,
+    INDEX `idx_attendance_user` (`user_id`),
+    INDEX `idx_attendance_date` (`check_in`),
+    INDEX `idx_attendance_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Solicitudes de horas extras
+CREATE TABLE IF NOT EXISTS `Overtime` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) NOT NULL,
+    `date` DATE NOT NULL,
+    `hours_requested` DECIMAL(5,2) NOT NULL,
+    `hours_approved` DECIMAL(5,2) NULL,
+    `reason` TEXT NOT NULL,
+    `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    `approved_by` INT(11) NULL,
+    `approved_at` TIMESTAMP NULL,
+    `rejection_reason` TEXT NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`approved_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL,
+    INDEX `idx_overtime_user` (`user_id`),
+    INDEX `idx_overtime_date` (`date`),
+    INDEX `idx_overtime_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Solicitudes de permisos / vacaciones
+CREATE TABLE IF NOT EXISTS `LeaveRequests` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `user_id` INT(11) NOT NULL,
+    `type` ENUM('vacation', 'sick_leave', 'personal', 'maternity', 'paternity', 'other') NOT NULL,
+    `start_date` DATE NOT NULL,
+    `end_date` DATE NOT NULL,
+    `total_days` INT(11) NOT NULL,
+    `reason` TEXT NOT NULL,
+    `status` ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
+    `approved_by` INT(11) NULL,
+    `approved_at` TIMESTAMP NULL,
+    `rejection_reason` TEXT NULL,
+    `replacement_user_id` INT(11) NULL,
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`user_id`) REFERENCES `Users` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`approved_by`) REFERENCES `Users` (`id`) ON DELETE SET NULL,
+    FOREIGN KEY (`replacement_user_id`) REFERENCES `Users` (`id`) ON DELETE SET NULL,
+    INDEX `idx_leave_requests_user` (`user_id`),
+    INDEX `idx_leave_requests_dates` (`start_date`, `end_date`),
+    INDEX `idx_leave_requests_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Datos iniciales para módulo de asistencia
+INSERT INTO `ShiftTypes` (`name`, `description`, `start_time`, `end_time`, `is_overnight`, `tolerance_minutes`, `color`) VALUES
+('Turno Mañana', 'Turno estándar de mañana', '08:00:00', '17:00:00', FALSE, 15, '#3B82F6'),
+('Turno Tarde', 'Turno de tarde', '14:00:00', '23:00:00', FALSE, 15, '#F59E0B'),
+('Turno Noche', 'Turno nocturno que cruza medianoche', '22:00:00', '07:00:00', TRUE, 15, '#6366F1');
+
+INSERT INTO `Schedules` (`name`, `description`, `total_hours_per_week`) VALUES
+('Tiempo Completo 40h', 'Jornada laboral completa de 40 horas semanales', 40.00),
+('Medio Tiempo 20h', 'Jornada parcial de 20 horas semanales', 20.00),
+('Tiempo Completo 45h', 'Jornada laboral de 45 horas semanales', 45.00);
+
 COMMIT; 
