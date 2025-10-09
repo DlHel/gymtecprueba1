@@ -284,7 +284,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     checkOutBtn.disabled = false;
                     
                     // Calcular horas trabajadas en tiempo real
-                    const checkIn = new Date(todayAttendance.check_in_time);
+                    // FIX: Parsear correctamente la fecha MySQL (sin 'Z' asume hora local)
+                    const checkInTime = todayAttendance.check_in_time.replace(' ', 'T');
+                    const checkIn = new Date(checkInTime);
+                    
                     const updateWorkedHours = () => {
                         const now = new Date();
                         const hours = ((now - checkIn) / (1000 * 60 * 60)).toFixed(2);
@@ -298,7 +301,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     statusDiv.innerHTML = '<span class="status-badge status-approved">Jornada Completada</span>';
                     checkInBtn.disabled = true;
                     checkOutBtn.disabled = true;
-                    workedHoursDiv.textContent = `Horas trabajadas hoy: ${todayAttendance.worked_hours || 0}`;
+                    
+                    // FIX: Mostrar horas trabajadas correctamente (viene de BD)
+                    const workedHours = parseFloat(todayAttendance.worked_hours) || 0;
+                    workedHoursDiv.textContent = `Horas trabajadas hoy: ${workedHours.toFixed(2)}h`;
                 }
             } else {
                 // No ha marcado entrada

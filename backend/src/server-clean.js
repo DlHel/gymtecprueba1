@@ -1,18 +1,20 @@
-const express = require('express');
+﻿const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
-// CRÍTICO: Cargar variables de entorno DESPUÉS de require('path')
+console.log('ðŸš€ðŸš€ðŸš€ CARGANDO server-clean.js - INICIO DEL ARCHIVO ðŸš€ðŸš€ðŸš€');
+
+// CRÃTICO: Cargar variables de entorno DESPUÃ‰S de require('path')
 require('dotenv').config({ path: path.join(__dirname, '../config.env') });
 
 // Base de datos - usando adaptador configurable
 const dbAdapter = require('./db-adapter');
 const db = dbAdapter;
 
-// Servicios de Autenticación
+// Servicios de AutenticaciÃ³n
 const AuthService = require('./services/authService');
 
 // Sistema de Notificaciones
@@ -29,22 +31,44 @@ const {
 } = require('./validators');
 
 // ===================================================================
-// CONFIGURACIÓN BÁSICA DE EXPRESS
+// HELPER FUNCTIONS
+// ===================================================================
+
+/**
+ * Convierte una fecha JavaScript a formato MySQL DATETIME (hora local)
+ * Esto evita problemas de zona horaria al guardar/recuperar fechas
+ * @param {Date} date - Fecha a convertir (por defecto: fecha actual)
+ * @returns {string} Fecha en formato MySQL 'YYYY-MM-DD HH:MM:SS'
+ */
+function toMySQLDateTime(date = new Date()) {
+    // Obtener componentes de fecha en zona horaria local
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+}
+
+// ===================================================================
+// CONFIGURACIÃ“N BÃSICA DE EXPRESS
 // ===================================================================
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware básico
+// Middleware bÃ¡sico
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
-// Archivos estáticos
+// Archivos estÃ¡ticos
 app.use(express.static(path.join(__dirname, '../../frontend')));
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// Configuración de multer para subida de archivos
+// ConfiguraciÃ³n de multer para subida de archivos
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
         cb(null, path.join(__dirname, '../uploads/models/'));
@@ -66,7 +90,7 @@ const upload = multer({
         if (mimetype && extname) {
             return cb(null, true);
         } else {
-            cb(new Error('Solo se permiten imágenes (JPEG, JPG, PNG, GIF)'));
+            cb(new Error('Solo se permiten imÃ¡genes (JPEG, JPG, PNG, GIF)'));
         }
     }
 });
@@ -89,7 +113,7 @@ const uploadManuals = multer({
 });
 
 // ===================================================================
-// MIDDLEWARE DE AUTENTICACIÓN Y AUTORIZACIÓN
+// MIDDLEWARE DE AUTENTICACIÃ“N Y AUTORIZACIÃ“N
 // ===================================================================
 
 // Verificar token JWT
@@ -106,9 +130,9 @@ function authenticateToken(req, res, next) {
 
     jwt.verify(token, AuthService.JWT_SECRET, (err, user) => {
         if (err) {
-            console.log('❌ Token inválido:', err.message);
+            console.log('âŒ Token invÃ¡lido:', err.message);
             return res.status(401).json({
-                error: 'Token inválido o expirado',
+                error: 'Token invÃ¡lido o expirado',
                 code: 'INVALID_TOKEN'
             });
         }
@@ -149,7 +173,7 @@ function requireRole(roles) {
 }
 
 // ===================================================================
-// RUTAS DE AUTENTICACIÓN
+// RUTAS DE AUTENTICACIÃ“N
 // ===================================================================
 
 app.post('/api/auth/login', async (req, res) => {
@@ -157,7 +181,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     if (!username || !password) {
         return res.status(400).json({
-            error: 'Username y contraseña son requeridos',
+            error: 'Username y contraseÃ±a son requeridos',
             code: 'MISSING_CREDENTIALS'
         });
     }
@@ -165,7 +189,7 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         const result = await AuthService.login(username, password);
         
-        console.log(`✅ Login exitoso para usuario: ${username}`);
+        console.log(`âœ… Login exitoso para usuario: ${username}`);
         
         res.json({
             message: 'Login exitoso',
@@ -173,7 +197,7 @@ app.post('/api/auth/login', async (req, res) => {
         });
 
     } catch (error) {
-        console.log(`❌ Login fallido para usuario: ${username} - ${error.message}`);
+        console.log(`âŒ Login fallido para usuario: ${username} - ${error.message}`);
         
         res.status(401).json({
             error: error.message,
@@ -183,7 +207,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/logout', authenticateToken, (req, res) => {
-    console.log(`📤 Logout del usuario: ${req.user.username}`);
+    console.log(`ðŸ“¤ Logout del usuario: ${req.user.username}`);
     
     res.json({
         message: 'Logout exitoso'
@@ -192,7 +216,7 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
 
 app.get('/api/auth/verify', authenticateToken, (req, res) => {
     res.json({
-        message: 'Token válido',
+        message: 'Token vÃ¡lido',
         user: req.user
     });
 });
@@ -202,23 +226,23 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
     if (!currentPassword || !newPassword) {
         return res.status(400).json({
-            error: 'Contraseña actual y nueva contraseña son requeridas'
+            error: 'ContraseÃ±a actual y nueva contraseÃ±a son requeridas'
         });
     }
 
     if (newPassword.length < 6) {
         return res.status(400).json({
-            error: 'La nueva contraseña debe tener al menos 6 caracteres'
+            error: 'La nueva contraseÃ±a debe tener al menos 6 caracteres'
         });
     }
 
     try {
         await AuthService.changePassword(req.user.id, currentPassword, newPassword);
         
-        console.log(`🔐 Contraseña cambiada para usuario: ${req.user.username}`);
+        console.log(`ðŸ” ContraseÃ±a cambiada para usuario: ${req.user.username}`);
         
         res.json({
-            message: 'Contraseña actualizada exitosamente'
+            message: 'ContraseÃ±a actualizada exitosamente'
         });
 
     } catch (error) {
@@ -249,12 +273,12 @@ app.get('/api/users', authenticateToken, (req, res) => {
     
     db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error getting users:', err);
+            console.error('âŒ Error getting users:', err);
             res.status(500).json({"error": "Error al obtener usuarios: " + err.message});
             return;
         }
         
-        console.log(`✅ Users found${role ? ` with role ${role}` : ''}:`, rows.length, 'items');
+        console.log(`âœ… Users found${role ? ` with role ${role}` : ''}:`, rows.length, 'items');
         res.json({ data: rows });
     });
 });
@@ -263,7 +287,7 @@ app.get('/api/users', authenticateToken, (req, res) => {
 // RUTAS PRINCIPALES - TAREAS DE MANTENIMIENTO
 // ===================================================================
 
-// GET technicians for task assignment (DEBE IR ANTES de la ruta genérica)
+// GET technicians for task assignment (DEBE IR ANTES de la ruta genÃ©rica)
 app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
@@ -283,7 +307,7 @@ app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting technicians:', err.message);
+            console.error('âŒ Error getting technicians:', err.message);
             res.status(500).json({ 
                 error: 'Error retrieving technicians',
                 code: 'DB_ERROR'
@@ -291,7 +315,7 @@ app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log('✅ Technicians found:', rows.length, 'items');
+        console.log('âœ… Technicians found:', rows.length, 'items');
         res.json({ 
             message: 'success',
             data: rows
@@ -340,7 +364,7 @@ app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting maintenance tasks:', err.message);
+            console.error('âŒ Error getting maintenance tasks:', err.message);
             res.status(500).json({ 
                 error: 'Error retrieving maintenance tasks',
                 code: 'DB_ERROR'
@@ -348,7 +372,7 @@ app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log('✅ Maintenance tasks found:', rows.length, 'items');
+        console.log('âœ… Maintenance tasks found:', rows.length, 'items');
         res.json({ 
             message: 'success',
             data: rows,
@@ -409,7 +433,7 @@ app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
     
     db.run(sql, values, function(err) {
         if (err) {
-            console.error('❌ Error creating maintenance task:', err.message);
+            console.error('âŒ Error creating maintenance task:', err.message);
             res.status(500).json({ 
                 error: 'Error creating maintenance task',
                 code: 'DB_ERROR',
@@ -418,7 +442,7 @@ app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log('✅ Maintenance task created with ID:', this.lastID);
+        console.log('âœ… Maintenance task created with ID:', this.lastID);
         
         // Fetch the created task with all relations
         const fetchSql = `
@@ -436,7 +460,7 @@ app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
         
         db.get(fetchSql, [this.lastID], (err, row) => {
             if (err) {
-                console.error('❌ Error fetching created task:', err.message);
+                console.error('âŒ Error fetching created task:', err.message);
             }
             
             res.status(201).json({ 
@@ -490,7 +514,7 @@ app.put('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
     
     db.run(sql, values, function(err) {
         if (err) {
-            console.error('❌ Error updating maintenance task:', err.message);
+            console.error('âŒ Error updating maintenance task:', err.message);
             res.status(500).json({ 
                 error: 'Error updating maintenance task',
                 code: 'DB_ERROR'
@@ -506,7 +530,7 @@ app.put('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log('✅ Maintenance task updated:', taskId);
+        console.log('âœ… Maintenance task updated:', taskId);
         res.json({ 
             message: 'Maintenance task updated successfully',
             success: true
@@ -522,7 +546,7 @@ app.delete('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
     
     db.run(sql, [taskId], function(err) {
         if (err) {
-            console.error('❌ Error deleting maintenance task:', err.message);
+            console.error('âŒ Error deleting maintenance task:', err.message);
             res.status(500).json({ 
                 error: 'Error deleting maintenance task',
                 code: 'DB_ERROR'
@@ -538,7 +562,7 @@ app.delete('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log('✅ Maintenance task deleted:', taskId);
+        console.log('âœ… Maintenance task deleted:', taskId);
         res.json({ 
             message: 'Maintenance task deleted successfully',
             success: true
@@ -547,7 +571,7 @@ app.delete('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
 });
 
 // ===================================================================
-// RUTAS PRINCIPALES - CONFIGURACIÓN DEL SISTEMA
+// RUTAS PRINCIPALES - CONFIGURACIÃ“N DEL SISTEMA
 // ===================================================================
 
 // GET system settings
@@ -556,21 +580,21 @@ app.get('/api/system-settings', authenticateToken, requireRole(['Admin']), (req,
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting system settings:', err);
+            console.error('âŒ Error getting system settings:', err);
             // Return default settings as fallback
             res.json({ 
                 data: [
                     { setting_key: 'company_name', setting_value: 'Gymtec ERP', description: 'Nombre de la empresa' },
                     { setting_key: 'notifications_enabled', setting_value: 'true', description: 'Notificaciones habilitadas' },
-                    { setting_key: 'session_timeout', setting_value: '8', description: 'Tiempo de sesión en horas' },
-                    { setting_key: 'auto_backup', setting_value: 'true', description: 'Respaldo automático' },
-                    { setting_key: 'maintenance_interval', setting_value: '30', description: 'Intervalo de mantenimiento en días' }
+                    { setting_key: 'session_timeout', setting_value: '8', description: 'Tiempo de sesiÃ³n en horas' },
+                    { setting_key: 'auto_backup', setting_value: 'true', description: 'Respaldo automÃ¡tico' },
+                    { setting_key: 'maintenance_interval', setting_value: '30', description: 'Intervalo de mantenimiento en dÃ­as' }
                 ]
             });
             return;
         }
         
-        console.log('✅ System settings found:', rows.length, 'items');
+        console.log('âœ… System settings found:', rows.length, 'items');
         res.json({ data: rows });
     });
 });
@@ -584,7 +608,7 @@ app.put('/api/system-settings', authenticateToken, requireRole(['Admin']), (req,
     }
     
     // For now, just return success (settings can be stored in localStorage on frontend)
-    console.log('✅ System settings updated (localStorage mode):', settings.length, 'settings');
+    console.log('âœ… System settings updated (localStorage mode):', settings.length, 'settings');
     res.json({ 
         message: 'Settings updated successfully',
         data: settings
@@ -629,7 +653,7 @@ app.post('/api/clients', authenticateToken, (req, res) => {
     const validation = validateClient(req.body);
     if (!validation.isValid) {
         res.status(400).json({
-            "error": "Datos de cliente inválidos",
+            "error": "Datos de cliente invÃ¡lidos",
             "details": validation.errors
         });
         return;
@@ -653,7 +677,7 @@ app.put("/api/clients/:id", authenticateToken, (req, res) => {
     const validation = validateClientUpdate(req.body);
     if (!validation.isValid) {
         res.status(400).json({
-            "error": "Datos de cliente inválidos",
+            "error": "Datos de cliente invÃ¡lidos",
             "details": validation.errors
         });
         return;
@@ -684,16 +708,16 @@ app.put("/api/clients/:id", authenticateToken, (req, res) => {
 
 app.delete("/api/clients/:id", authenticateToken, (req, res) => {
     const clientId = req.params.id;
-    console.log(`🗑️ Iniciando eliminación en cascada para cliente ID: ${clientId}`);
+    console.log(`ðŸ—‘ï¸ Iniciando eliminaciÃ³n en cascada para cliente ID: ${clientId}`);
     
     db.serialize(() => {
         db.run("BEGIN TRANSACTION", (err) => {
             if (err) {
-                console.error("❌ Error al iniciar transacción:", err);
-                return res.status(500).json({"error": "Error al iniciar transacción: " + err.message});
+                console.error("âŒ Error al iniciar transacciÃ³n:", err);
+                return res.status(500).json({"error": "Error al iniciar transacciÃ³n: " + err.message});
             }
             
-            console.log("📋 Paso 1: Eliminando fotos de equipos...");
+            console.log("ðŸ“‹ Paso 1: Eliminando fotos de equipos...");
             const deleteEquipmentPhotosSQL = `
                 DELETE FROM EquipmentPhotos 
                 WHERE equipment_id IN (
@@ -705,14 +729,14 @@ app.delete("/api/clients/:id", authenticateToken, (req, res) => {
             
             db.run(deleteEquipmentPhotosSQL, [clientId], function(err) {
                 if (err) {
-                    console.error("❌ Error eliminando fotos de equipos:", err);
+                    console.error("âŒ Error eliminando fotos de equipos:", err);
                     return db.run("ROLLBACK", () => {
                         res.status(500).json({"error": "Error eliminando fotos de equipos: " + err.message});
                     });
                 }
-                console.log(`✅ Eliminadas ${this.changes} fotos de equipos`);
+                console.log(`âœ… Eliminadas ${this.changes} fotos de equipos`);
                 
-                console.log("🎫 Paso 2: Eliminando tickets...");
+                console.log("ðŸŽ« Paso 2: Eliminando tickets...");
                 const deleteTicketsSQL = `
                     DELETE FROM Tickets 
                     WHERE equipment_id IN (
@@ -724,14 +748,14 @@ app.delete("/api/clients/:id", authenticateToken, (req, res) => {
                 
                 db.run(deleteTicketsSQL, [clientId], function(err) {
                     if (err) {
-                        console.error("❌ Error eliminando tickets:", err);
+                        console.error("âŒ Error eliminando tickets:", err);
                         return db.run("ROLLBACK", () => {
                             res.status(500).json({"error": "Error eliminando tickets: " + err.message});
                         });
                     }
-                    console.log(`✅ Eliminados ${this.changes} tickets`);
+                    console.log(`âœ… Eliminados ${this.changes} tickets`);
                     
-                    console.log("🔧 Paso 3: Eliminando equipos...");
+                    console.log("ðŸ”§ Paso 3: Eliminando equipos...");
                     const deleteEquipmentSQL = `
                         DELETE FROM Equipment 
                         WHERE location_id IN (
@@ -741,51 +765,51 @@ app.delete("/api/clients/:id", authenticateToken, (req, res) => {
                     
                     db.run(deleteEquipmentSQL, [clientId], function(err) {
                         if (err) {
-                            console.error("❌ Error eliminando equipos:", err);
+                            console.error("âŒ Error eliminando equipos:", err);
                             return db.run("ROLLBACK", () => {
                                 res.status(500).json({"error": "Error eliminando equipos: " + err.message});
                             });
                         }
-                        console.log(`✅ Eliminados ${this.changes} equipos`);
+                        console.log(`âœ… Eliminados ${this.changes} equipos`);
                         
-                        console.log("🏢 Paso 4: Eliminando sedes...");
+                        console.log("ðŸ¢ Paso 4: Eliminando sedes...");
                         const deleteLocationsSQL = 'DELETE FROM Locations WHERE client_id = ?';
                         
                         db.run(deleteLocationsSQL, [clientId], function(err) {
                             if (err) {
-                                console.error("❌ Error eliminando sedes:", err);
+                                console.error("âŒ Error eliminando sedes:", err);
                                 return db.run("ROLLBACK", () => {
                                     res.status(500).json({"error": "Error eliminando sedes: " + err.message});
                                 });
                             }
-                            console.log(`✅ Eliminadas ${this.changes} sedes`);
+                            console.log(`âœ… Eliminadas ${this.changes} sedes`);
                             
-                            console.log("👤 Paso 5: Eliminando cliente...");
+                            console.log("ðŸ‘¤ Paso 5: Eliminando cliente...");
                             const deleteClientSQL = 'DELETE FROM Clients WHERE id = ?';
                             
                             db.run(deleteClientSQL, [clientId], function(err) {
                                 if (err) {
-                                    console.error("❌ Error eliminando cliente:", err);
+                                    console.error("âŒ Error eliminando cliente:", err);
                                     return db.run("ROLLBACK", () => {
                                         res.status(500).json({"error": "Error eliminando cliente: " + err.message});
                                     });
                                 }
                                 
                                 if (this.changes === 0) {
-                                    console.log("⚠️ Cliente no encontrado");
+                                    console.log("âš ï¸ Cliente no encontrado");
                                     return db.run("ROLLBACK", () => {
                                         res.status(404).json({"error": "Cliente no encontrado"});
                                     });
                                 }
                                 
-                                console.log("✅ Cliente eliminado exitosamente");
+                                console.log("âœ… Cliente eliminado exitosamente");
                                 db.run("COMMIT", (err) => {
                                     if (err) {
-                                        console.error("❌ Error al confirmar transacción:", err);
-                                        return res.status(500).json({"error": "Error al confirmar eliminación: " + err.message});
+                                        console.error("âŒ Error al confirmar transacciÃ³n:", err);
+                                        return res.status(500).json({"error": "Error al confirmar eliminaciÃ³n: " + err.message});
                                     }
                                     
-                                    console.log("🎉 Eliminación en cascada completada exitosamente");
+                                    console.log("ðŸŽ‰ EliminaciÃ³n en cascada completada exitosamente");
                                     res.json({
                                         "message": "Cliente y todos sus datos relacionados eliminados exitosamente",
                                         "clientId": clientId,
@@ -859,7 +883,7 @@ app.get('/api/clients/:clientId/locations', authenticateToken, (req, res) => {
         ORDER BY l.name
     `, [clientId], (err, rows) => {
         if (err) {
-            console.error('❌ Error en consulta de ubicaciones:', err.message);
+            console.error('âŒ Error en consulta de ubicaciones:', err.message);
             res.status(500).json({ error: err.message });
             return;
         }
@@ -885,7 +909,7 @@ app.post('/api/locations', authenticateToken, (req, res) => {
     const validation = validateLocation(req.body);
     if (!validation.isValid) {
         res.status(400).json({
-            "error": "Datos de ubicación inválidos",
+            "error": "Datos de ubicaciÃ³n invÃ¡lidos",
             "details": validation.errors
         });
         return;
@@ -907,7 +931,7 @@ app.put("/api/locations/:id", authenticateToken, (req, res) => {
     const validation = validateLocationUpdate(req.body);
     if (!validation.isValid) {
         res.status(400).json({
-            "error": "Datos de ubicación inválidos",
+            "error": "Datos de ubicaciÃ³n invÃ¡lidos",
             "details": validation.errors
         });
         return;
@@ -970,12 +994,12 @@ app.get('/api/equipment', authenticateToken, (req, res) => {
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting all equipment:', err.message);
+            console.error('âŒ Error getting all equipment:', err.message);
             res.status(500).json({"error": "Error al obtener equipos: " + err.message});
             return;
         }
         
-        console.log('✅ All equipment found:', rows.length, 'items');
+        console.log('âœ… All equipment found:', rows.length, 'items');
         res.json({ 
             message: 'success',
             data: rows || []
@@ -1004,7 +1028,7 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
                 WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
                 WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
                 WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
-                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categorÃ­a')
             END as type,
             COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
             COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
@@ -1023,7 +1047,7 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
     
     db.get(sql, [id], (err, row) => {
         if (err) {
-            console.error(`❌ Error fetching equipment ${id}:`, err);
+            console.error(`âŒ Error fetching equipment ${id}:`, err);
             res.status(500).json({ 
                 error: 'Error al obtener el equipo', 
                 code: 'DB_ERROR' 
@@ -1032,7 +1056,7 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
         }
         
         if (!row) {
-            console.log(`⚠️  Equipment ${id} not found`);
+            console.log(`âš ï¸  Equipment ${id} not found`);
             res.status(404).json({ 
                 error: 'Equipo no encontrado', 
                 code: 'EQUIPMENT_NOT_FOUND' 
@@ -1040,13 +1064,13 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ Equipment ${id} found:`, row.name || row.type);
+        console.log(`âœ… Equipment ${id} found:`, row.name || row.type);
         res.json(row);
     });
 });
 
 // ===================================================================
-// IMPORTAR MÓDULOS DE FASES AVANZADAS
+// IMPORTAR MÃ“DULOS DE FASES AVANZADAS
 // ===================================================================
 
 // FASE 1 ENHANCEMENTS - Sistema de Contratos y Workflow
@@ -1055,25 +1079,25 @@ try {
     const checklistRoutes = require('./routes/checklist');
     const workflowRoutes = require('./routes/workflow');
     const dashboardCorrelationsRoutes = require('./routes/dashboard-correlations'); // Nueva ruta para correlaciones
-    const taskGeneratorRoutes = require('./routes/task-generator'); // Sistema de generación automática de tareas
-    const intelligentAssignmentRoutes = require('./routes/intelligent-assignment'); // Sistema de asignación inteligente
+    const taskGeneratorRoutes = require('./routes/task-generator'); // Sistema de generaciÃ³n automÃ¡tica de tareas
+    const intelligentAssignmentRoutes = require('./routes/intelligent-assignment'); // Sistema de asignaciÃ³n inteligente
     const { router: slaProcessorRoutes, initializeSLAProcessor, startAutomaticMonitoring } = require('./routes/sla-processor'); // Sistema de reglas SLA
     
     app.use('/api', contractsSlaRoutes);
     app.use('/api', checklistRoutes);
     app.use('/api', workflowRoutes);
     app.use('/api', dashboardCorrelationsRoutes); // Agregar correlaciones inteligentes
-    app.use('/api', taskGeneratorRoutes); // Agregar generador automático de tareas
-    app.use('/api', intelligentAssignmentRoutes); // Agregar asignación inteligente de recursos
+    app.use('/api', taskGeneratorRoutes); // Agregar generador automÃ¡tico de tareas
+    app.use('/api', intelligentAssignmentRoutes); // Agregar asignaciÃ³n inteligente de recursos
     app.use('/api/sla', slaProcessorRoutes); // Agregar sistema de reglas SLA
     
-    // Inicializar procesador SLA con monitoreo automático
+    // Inicializar procesador SLA con monitoreo automÃ¡tico
     initializeSLAProcessor(db);
     startAutomaticMonitoring(db, 5); // Monitoreo cada 5 minutos
     
-    console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow, Dashboard Correlations, Task Generator, Intelligent Assignment, SLA Processor');
+    console.log('âœ… Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow, Dashboard Correlations, Task Generator, Intelligent Assignment, SLA Processor');
 } catch (error) {
-    console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
+    console.warn('âš ï¸  Warning: Some Fase 1 routes could not be loaded:', error.message);
 }
 
 // FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes
@@ -1092,9 +1116,9 @@ try {
     app.use('/api', testDbRoutes);
     app.use('/api', simpleTestRoutes);
     
-    console.log('✅ Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
+    console.log('âœ… Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
 } catch (error) {
-    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
+    console.warn('âš ï¸  Warning: Some Fase 2 routes could not be loaded:', error.message);
 }
 
 // FASE 3 ENHANCEMENTS - Sistema de Inventario Inteligente y Reportes
@@ -1105,11 +1129,11 @@ try {
     app.use('/api/inventory', inventoryRoutes);
     app.use('/api/purchase-orders', purchaseOrdersRoutes);
     
-    console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
-    console.log('   📦 /api/inventory/* (Gestión de Inventario)');
-    console.log('   🛒 /api/purchase-orders/* (Órdenes de Compra)');
+    console.log('âœ… Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
+    console.log('   ðŸ“¦ /api/inventory/* (GestiÃ³n de Inventario)');
+    console.log('   ðŸ›’ /api/purchase-orders/* (Ã“rdenes de Compra)');
 } catch (error) {
-    console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
+    console.warn('âš ï¸  Warning: Some Fase 3 routes could not be loaded:', error.message);
 }
 
 // ===================================================================
@@ -1124,9 +1148,9 @@ function logTicketChange(ticketId, fieldChanged, oldValue, newValue, changedBy =
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('⚠️ Error logging ticket change:', err.message);
+            console.error('âš ï¸ Error logging ticket change:', err.message);
         } else {
-            console.log(`📝 Cambio registrado en ticket ${ticketId}: ${fieldChanged}`);
+            console.log(`ðŸ“ Cambio registrado en ticket ${ticketId}: ${fieldChanged}`);
         }
     });
 }
@@ -1154,11 +1178,11 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
             const templates = {
                 'Cardiovascular': [
                     'Verificar funcionamiento de pantalla',
-                    'Revisar calibración de velocidad',
-                    'Inspeccionar correa de transmisión',
-                    'Verificar sistema de inclinación',
+                    'Revisar calibraciÃ³n de velocidad',
+                    'Inspeccionar correa de transmisiÃ³n',
+                    'Verificar sistema de inclinaciÃ³n',
                     'Probar botones de emergencia',
-                    'Limpiar y lubricar componentes móviles'
+                    'Limpiar y lubricar componentes mÃ³viles'
                 ],
                 'Fuerza': [
                     'Verificar cables y poleas',
@@ -1176,8 +1200,8 @@ async function createChecklistFromTemplate(ticketId, equipmentId) {
                     'Verificar sistema de agarre'
                 ],
                 'default': [
-                    'Inspección visual general',
-                    'Verificar funcionamiento básico',
+                    'InspecciÃ³n visual general',
+                    'Verificar funcionamiento bÃ¡sico',
                     'Revisar seguridad del equipo',
                     'Limpiar equipo',
                     'Documentar hallazgos'
@@ -1253,17 +1277,17 @@ app.get('/api/tickets', authenticateToken, (req, res) => {
     
     sql += ` ORDER BY t.created_at DESC`;
     
-    console.log('📊 GET /api/tickets - Ejecutando query...');
+    console.log('ðŸ“Š GET /api/tickets - Ejecutando query...');
     
     db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error en consulta de tickets:', err.message);
+            console.error('âŒ Error en consulta de tickets:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
         
-        console.log(`✅ Tickets encontrados: ${rows.length}`);
-        console.log('📊 Tipos de tickets:', rows.reduce((acc, t) => {
+        console.log(`âœ… Tickets encontrados: ${rows.length}`);
+        console.log('ðŸ“Š Tipos de tickets:', rows.reduce((acc, t) => {
             acc[t.ticket_type] = (acc[t.ticket_type] || 0) + 1;
             return acc;
         }, {}));
@@ -1293,7 +1317,7 @@ app.get('/api/tickets/:id', authenticateToken, (req, res) => {
     
     db.get(sql, [req.params.id], (err, row) => {
         if (err) {
-            console.error('❌ Error obteniendo ticket:', err.message);
+            console.error('âŒ Error obteniendo ticket:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
@@ -1310,9 +1334,9 @@ app.get('/api/tickets/:id', authenticateToken, (req, res) => {
 // GET detailed ticket information (for ticket-detail page)
 app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
     const ticketId = req.params.id;
-    console.log(`🔍 Obteniendo detalle completo del ticket ID: ${ticketId}`);
+    console.log(`ðŸ” Obteniendo detalle completo del ticket ID: ${ticketId}`);
     
-    // Query principal del ticket con información completa (UPPERCASE para MySQL)
+    // Query principal del ticket con informaciÃ³n completa (UPPERCASE para MySQL)
     const ticketSql = `
         SELECT 
             t.*,
@@ -1343,7 +1367,7 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
     
     db.get(ticketSql, [ticketId], (err, ticket) => {
         if (err) {
-            console.error('❌ Error obteniendo ticket:', err.message);
+            console.error('âŒ Error obteniendo ticket:', err.message);
             return res.status(500).json({ 
                 error: 'Error interno del servidor al obtener ticket',
                 code: 'TICKET_FETCH_ERROR'
@@ -1351,47 +1375,47 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
         }
         
         if (!ticket) {
-            console.log(`❌ Ticket ${ticketId} no encontrado`);
+            console.log(`âŒ Ticket ${ticketId} no encontrado`);
             return res.status(404).json({ 
                 error: "Ticket no encontrado",
                 code: 'TICKET_NOT_FOUND'
             });
         }
         
-        console.log(`✅ Ticket ${ticketId} encontrado: ${ticket.title}`);
+        console.log(`âœ… Ticket ${ticketId} encontrado: ${ticket.title}`);
         
         // Obtener fotos del ticket (UPPERCASE para MySQL)
         const photosSql = `SELECT * FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at DESC`;
         
         db.all(photosSql, [ticketId], (photoErr, photos) => {
             if (photoErr) {
-                console.log('⚠️ Error obteniendo fotos (continuando sin fotos):', photoErr.message);
+                console.log('âš ï¸ Error obteniendo fotos (continuando sin fotos):', photoErr.message);
                 photos = [];
             }
             
-            console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
+            console.log(`ðŸ“¸ Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
             
             // Obtener notas del ticket (UPPERCASE para MySQL)
             const notesSql = `SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC`;
             
             db.all(notesSql, [ticketId], (notesErr, notes) => {
                 if (notesErr) {
-                    console.log('⚠️ Error obteniendo notas (continuando sin notas):', notesErr.message);
+                    console.log('âš ï¸ Error obteniendo notas (continuando sin notas):', notesErr.message);
                     notes = [];
                 }
                 
-                console.log(`📝 Encontradas ${notes ? notes.length : 0} notas para ticket ${ticketId}`);
+                console.log(`ðŸ“ Encontradas ${notes ? notes.length : 0} notas para ticket ${ticketId}`);
                 
                 // Obtener checklist del ticket (UPPERCASE para MySQL)
                 const checklistSql = `SELECT * FROM TicketChecklist WHERE ticket_id = ? ORDER BY created_at DESC`;
                 
                 db.all(checklistSql, [ticketId], (checklistErr, checklist) => {
                     if (checklistErr) {
-                        console.log('⚠️ Error obteniendo checklist (continuando sin checklist):', checklistErr.message);
+                        console.log('âš ï¸ Error obteniendo checklist (continuando sin checklist):', checklistErr.message);
                         checklist = [];
                     }
                     
-                    console.log(`📋 Encontradas ${checklist ? checklist.length : 0} tareas de checklist para ticket ${ticketId}`);
+                    console.log(`ðŸ“‹ Encontradas ${checklist ? checklist.length : 0} tareas de checklist para ticket ${ticketId}`);
                     
                     // Estructurar respuesta completa con TODOS los datos
                     const detailedTicket = {
@@ -1399,7 +1423,7 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                         photos: photos || [],
                         notes: notes || [],
                         checklist: checklist || [],
-                        activities: [], // Mantenemos actividades vacío por ahora
+                        activities: [], // Mantenemos actividades vacÃ­o por ahora
                         metadata: {
                             photos_count: photos ? photos.length : 0,
                             notes_count: notes ? notes.length : 0,
@@ -1410,7 +1434,7 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                         }
                     };
                     
-                    console.log(`✅ Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}`);
+                    console.log(`âœ… Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}`);
                     
                     return res.json({
                         success: true,
@@ -1429,7 +1453,7 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
 
     // Basic validation
     if (!title || !client_id || !priority) {
-        return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
+        return res.status(400).json({ error: "TÃ­tulo, Cliente y Prioridad son campos obligatorios." });
     }
 
     const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, ticket_type, created_at, updated_at)
@@ -1438,16 +1462,16 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error creando ticket:', err.message);
+            console.error('âŒ Error creando ticket:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
-        console.log(`✅ Ticket creado con ID: ${this.lastID}`);
+        console.log(`âœ… Ticket creado con ID: ${this.lastID}`);
         
-        // 🔔 Trigger notificaciones después de crear ticket
+        // ðŸ”” Trigger notificaciones despuÃ©s de crear ticket
         const ticketId = this.lastID;
         triggerNotificationProcessing('create', ticketId).catch(error => {
-            console.error('⚠️  Error procesando notificaciones post-creación:', error.message);
+            console.error('âš ï¸  Error procesando notificaciones post-creaciÃ³n:', error.message);
         });
         
         res.status(201).json({
@@ -1457,11 +1481,11 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
     });
 });
 
-// GET equipment scope for a gimnación ticket (organized by category)
+// GET equipment scope for a gimnaciÃ³n ticket (organized by category)
 app.get('/api/tickets/:id/equipment-scope', authenticateToken, (req, res) => {
     const ticketId = req.params.id;
     
-    console.log(`📋 Fetching equipment scope for ticket ${ticketId}`);
+    console.log(`ðŸ“‹ Fetching equipment scope for ticket ${ticketId}`);
     
     const sql = `
         SELECT 
@@ -1483,11 +1507,11 @@ app.get('/api/tickets/:id/equipment-scope', authenticateToken, (req, res) => {
     
     db.all(sql, [ticketId], (err, rows) => {
         if (err) {
-            console.error('❌ Error fetching equipment scope:', err.message);
+            console.error('âŒ Error fetching equipment scope:', err.message);
             return res.status(500).json({ error: err.message });
         }
         
-        console.log(`✅ Found ${rows.length} equipment items for ticket ${ticketId}`);
+        console.log(`âœ… Found ${rows.length} equipment items for ticket ${ticketId}`);
         
         res.json({
             message: "success",
@@ -1501,7 +1525,7 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
     const { client_id, location_id, equipment_id, title, description, status, priority, due_date } = req.body;
     
     if (!title || !client_id || !priority || !status) {
-        return res.status(400).json({ error: "Título, Cliente, Prioridad y Estado son campos obligatorios." });
+        return res.status(400).json({ error: "TÃ­tulo, Cliente, Prioridad y Estado son campos obligatorios." });
     }
 
     const sql = `UPDATE Tickets SET
@@ -1520,18 +1544,18 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
 
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error actualizando ticket:', err.message);
+            console.error('âŒ Error actualizando ticket:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
         if (this.changes === 0) {
             return res.status(404).json({ error: "Ticket no encontrado." });
         }
-        console.log(`✅ Ticket ${req.params.id} actualizado`);
+        console.log(`âœ… Ticket ${req.params.id} actualizado`);
         
-        // 🔔 Trigger notificaciones después de actualizar ticket
+        // ðŸ”” Trigger notificaciones despuÃ©s de actualizar ticket
         triggerNotificationProcessing('update', req.params.id).catch(error => {
-            console.error('⚠️  Error procesando notificaciones post-actualización:', error.message);
+            console.error('âš ï¸  Error procesando notificaciones post-actualizaciÃ³n:', error.message);
         });
         
         res.json({
@@ -1546,14 +1570,14 @@ app.delete('/api/tickets/:id', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM Tickets WHERE id = ?';
     db.run(sql, [req.params.id], function(err) {
         if (err) {
-            console.error('❌ Error eliminando ticket:', err.message);
+            console.error('âŒ Error eliminando ticket:', err.message);
             res.status(500).json({ "error": err.message });
             return;
         }
         if (this.changes === 0) {
             return res.status(404).json({ error: "Ticket no encontrado." });
         }
-        console.log(`✅ Ticket ${req.params.id} eliminado`);
+        console.log(`âœ… Ticket ${req.params.id} eliminado`);
         res.json({ "message": "deleted", changes: this.changes });
     });
 });
@@ -1572,7 +1596,7 @@ app.get('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
     `;
     db.all(sql, [ticketId], (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo notas de ticket:', err.message);
+            console.error('âŒ Error obteniendo notas de ticket:', err.message);
             res.status(500).json({ error: 'Error al obtener notas del ticket' });
             return;
         }
@@ -1590,7 +1614,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
     
     if (!note || note.trim() === '') {
         return res.status(400).json({ 
-            error: "La nota no puede estar vacía",
+            error: "La nota no puede estar vacÃ­a",
             code: 'NOTE_REQUIRED'
         });
     }
@@ -1608,7 +1632,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error agregando nota de ticket:', err.message);
+            console.error('âŒ Error agregando nota de ticket:', err.message);
             res.status(500).json({ 
                 error: 'Error al agregar nota al ticket',
                 code: 'NOTE_INSERT_ERROR'
@@ -1616,12 +1640,12 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ Nota agregada al ticket ${ticketId}, ID: ${this.lastID}`);
+        console.log(`âœ… Nota agregada al ticket ${ticketId}, ID: ${this.lastID}`);
         
-        // Obtener la nota recién creada
+        // Obtener la nota reciÃ©n creada
         db.get('SELECT * FROM ticketnotes WHERE id = ?', [this.lastID], (err, newNote) => {
             if (err) {
-                console.error('❌ Error obteniendo nota creada:', err.message);
+                console.error('âŒ Error obteniendo nota creada:', err.message);
                 return res.status(500).json({ 
                     error: 'Error al obtener nota creada',
                     code: 'NOTE_RETRIEVE_ERROR'
@@ -1643,7 +1667,7 @@ app.delete('/api/tickets/notes/:noteId', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM ticketnotes WHERE id = ?';
     db.run(sql, [noteId], function(err) {
         if (err) {
-            console.error('❌ Error eliminando nota de ticket:', err.message);
+            console.error('âŒ Error eliminando nota de ticket:', err.message);
             res.status(500).json({ 
                 error: 'Error al eliminar nota del ticket',
                 code: 'NOTE_DELETE_ERROR'
@@ -1658,7 +1682,7 @@ app.delete('/api/tickets/notes/:noteId', authenticateToken, (req, res) => {
             });
         }
         
-        console.log(`✅ Nota ${noteId} eliminada`);
+        console.log(`âœ… Nota ${noteId} eliminada`);
         res.json({ 
             message: "Nota eliminada exitosamente", 
             changes: this.changes 
@@ -1680,7 +1704,7 @@ app.get('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
     `;
     db.all(sql, [ticketId], (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo fotos de ticket:', err.message);
+            console.error('âŒ Error obteniendo fotos de ticket:', err.message);
             res.status(500).json({ 
                 error: 'Error al obtener fotos del ticket',
                 code: 'PHOTOS_FETCH_ERROR'
@@ -1699,7 +1723,7 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
     const { ticketId } = req.params;
     const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
     
-    console.log(`📸 Solicitud de subir foto al ticket ${ticketId}:`, {
+    console.log(`ðŸ“¸ Solicitud de subir foto al ticket ${ticketId}:`, {
         file_name,
         mime_type,
         photo_data_length: photo_data?.length || 0,
@@ -1708,19 +1732,19 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
     });
     
     if (!photo_data || !mime_type) {
-        console.warn('⚠️ Falta photo_data o mime_type');
+        console.warn('âš ï¸ Falta photo_data o mime_type');
         return res.status(400).json({ 
             error: "photo_data y mime_type son requeridos",
             code: 'PHOTO_DATA_REQUIRED'
         });
     }
     
-    // Validar tamaño del archivo (límite 10MB en base64)
+    // Validar tamaÃ±o del archivo (lÃ­mite 10MB en base64)
     const maxSize = 10 * 1024 * 1024; // 10MB
     if (photo_data.length > maxSize) {
-        console.warn(`⚠️ Archivo demasiado grande: ${photo_data.length} bytes`);
+        console.warn(`âš ï¸ Archivo demasiado grande: ${photo_data.length} bytes`);
         return res.status(400).json({
-            error: "La imagen es demasiado grande (máximo 10MB)",
+            error: "La imagen es demasiado grande (mÃ¡ximo 10MB)",
             code: 'FILE_TOO_LARGE'
         });
     }
@@ -1739,35 +1763,35 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
             photo_type || 'Otros'
         ];
         
-        console.log(`💾 Insertando foto en base de datos...`);
+        console.log(`ðŸ’¾ Insertando foto en base de datos...`);
         const insertResult = await db.runAsync(sql, params);
         const photoId = insertResult.lastID;
         
-        console.log(`✅ Foto agregada al ticket ${ticketId}, ID: ${photoId}`);
+        console.log(`âœ… Foto agregada al ticket ${ticketId}, ID: ${photoId}`);
         
-        // Obtener la foto recién creada (sin el photo_data para evitar respuesta grande)
-        console.log(`🔍 Obteniendo foto recién creada (ID: ${photoId})...`);
+        // Obtener la foto reciÃ©n creada (sin el photo_data para evitar respuesta grande)
+        console.log(`ðŸ” Obteniendo foto reciÃ©n creada (ID: ${photoId})...`);
         const newPhoto = await db.getAsync(
             'SELECT id, ticket_id, file_name, mime_type, file_size, description, photo_type, created_at FROM TicketPhotos WHERE id = ?', 
             [photoId]
         );
         
         if (!newPhoto) {
-            console.error(`❌ No se encontró la foto recién creada (ID: ${photoId})`);
+            console.error(`âŒ No se encontrÃ³ la foto reciÃ©n creada (ID: ${photoId})`);
             return res.status(500).json({ 
                 error: 'Error al obtener foto creada',
                 code: 'PHOTO_RETRIEVE_ERROR'
             });
         }
         
-        console.log(`✅ Foto obtenida exitosamente:`, newPhoto);
+        console.log(`âœ… Foto obtenida exitosamente:`, newPhoto);
         res.status(201).json({
             message: "Foto agregada exitosamente",
             data: newPhoto
         });
         
     } catch (err) {
-        console.error('❌ Error completo al procesar foto:', {
+        console.error('âŒ Error completo al procesar foto:', {
             error: err.message,
             stack: err.stack,
             ticketId,
@@ -1787,7 +1811,7 @@ app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM TicketPhotos WHERE id = ?';
     db.run(sql, [photoId], function(err) {
         if (err) {
-            console.error('❌ Error eliminando foto de ticket:', err.message);
+            console.error('âŒ Error eliminando foto de ticket:', err.message);
             res.status(500).json({ 
                 error: 'Error al eliminar foto del ticket',
                 code: 'PHOTO_DELETE_ERROR'
@@ -1802,7 +1826,7 @@ app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
             });
         }
         
-        console.log(`✅ Foto ${photoId} eliminada`);
+        console.log(`âœ… Foto ${photoId} eliminada`);
         res.json({ 
             message: "Foto eliminada exitosamente", 
             changes: this.changes 
@@ -1811,7 +1835,7 @@ app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
 });
 
 // ===================================================================
-// GESTIÓN DE FOTOS PARA EQUIPOS
+// GESTIÃ“N DE FOTOS PARA EQUIPOS
 // ===================================================================
 
 // GET all photos for a specific equipment
@@ -1825,7 +1849,7 @@ app.get('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
     
     db.all(sql, [equipmentId], (err, rows) => {
         if (err) {
-            console.error('❌ Error fetching equipment photos:', err.message);
+            console.error('âŒ Error fetching equipment photos:', err.message);
             res.status(500).json({ 
                 error: 'Error al obtener fotos del equipo',
                 code: 'PHOTOS_FETCH_ERROR'
@@ -1833,7 +1857,7 @@ app.get('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`📸 Fotos encontradas para equipo ${equipmentId}:`, rows.length);
+        console.log(`ðŸ“¸ Fotos encontradas para equipo ${equipmentId}:`, rows.length);
         res.json(rows || []);
     });
 });
@@ -1854,7 +1878,7 @@ app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => 
                  (equipment_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
                  VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
     
-    const file_size = filename ? Math.round(photo_data.length * 0.75) : 0; // Aproximación del tamaño real
+    const file_size = filename ? Math.round(photo_data.length * 0.75) : 0; // AproximaciÃ³n del tamaÃ±o real
     const params = [
         parseInt(equipmentId), 
         photo_data, 
@@ -1867,7 +1891,7 @@ app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => 
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error agregando foto al equipo:', err.message);
+            console.error('âŒ Error agregando foto al equipo:', err.message);
             res.status(500).json({ 
                 error: 'Error al agregar foto al equipo',
                 code: 'PHOTO_UPLOAD_ERROR'
@@ -1875,7 +1899,7 @@ app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => 
             return;
         }
         
-        console.log(`✅ Foto agregada al equipo ${equipmentId}, ID: ${this.lastID}`);
+        console.log(`âœ… Foto agregada al equipo ${equipmentId}, ID: ${this.lastID}`);
         res.json({ 
             message: "Foto agregada exitosamente", 
             photoId: this.lastID 
@@ -1890,7 +1914,7 @@ app.delete('/api/equipment/photos/:photoId', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM equipmentphotos WHERE id = ?';
     db.run(sql, [photoId], function(err) {
         if (err) {
-            console.error('❌ Error eliminando foto de equipo:', err.message);
+            console.error('âŒ Error eliminando foto de equipo:', err.message);
             res.status(500).json({ 
                 error: 'Error al eliminar foto del equipo',
                 code: 'PHOTO_DELETE_ERROR'
@@ -1905,7 +1929,7 @@ app.delete('/api/equipment/photos/:photoId', authenticateToken, (req, res) => {
             });
         }
         
-        console.log(`✅ Foto ${photoId} eliminada del equipo`);
+        console.log(`âœ… Foto ${photoId} eliminada del equipo`);
         res.json({ 
             message: "Foto eliminada exitosamente", 
             changes: this.changes 
@@ -1914,7 +1938,7 @@ app.delete('/api/equipment/photos/:photoId', authenticateToken, (req, res) => {
 });
 
 // ===================================================================
-// GESTIÓN DE NOTAS PARA EQUIPOS
+// GESTIÃ“N DE NOTAS PARA EQUIPOS
 // ===================================================================
 
 // GET all notes for a specific equipment
@@ -1928,7 +1952,7 @@ app.get('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
     
     db.all(sql, [equipmentId], (err, rows) => {
         if (err) {
-            console.error('❌ Error fetching equipment notes:', err.message);
+            console.error('âŒ Error fetching equipment notes:', err.message);
             res.status(500).json({ 
                 error: 'Error al obtener notas del equipo',
                 code: 'NOTES_FETCH_ERROR'
@@ -1936,7 +1960,7 @@ app.get('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`📝 Notas encontradas para equipo ${equipmentId}:`, rows.length);
+        console.log(`ðŸ“ Notas encontradas para equipo ${equipmentId}:`, rows.length);
         res.json(rows || []);
     });
 });
@@ -1948,7 +1972,7 @@ app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
     
     if (!note || note.trim() === '') {
         return res.status(400).json({ 
-            error: 'La nota no puede estar vacía',
+            error: 'La nota no puede estar vacÃ­a',
             code: 'EMPTY_NOTE'
         });
     }
@@ -1966,7 +1990,7 @@ app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error agregando nota al equipo:', err.message);
+            console.error('âŒ Error agregando nota al equipo:', err.message);
             res.status(500).json({ 
                 error: 'Error al agregar nota al equipo',
                 code: 'NOTE_ADD_ERROR'
@@ -1974,7 +1998,7 @@ app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ Nota agregada al equipo ${equipmentId}, ID: ${this.lastID}`);
+        console.log(`âœ… Nota agregada al equipo ${equipmentId}, ID: ${this.lastID}`);
         res.json({ 
             message: "Nota agregada exitosamente", 
             noteId: this.lastID 
@@ -1989,7 +2013,7 @@ app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM equipmentnotes WHERE id = ?';
     db.run(sql, [noteId], function(err) {
         if (err) {
-            console.error('❌ Error eliminando nota de equipo:', err.message);
+            console.error('âŒ Error eliminando nota de equipo:', err.message);
             res.status(500).json({ 
                 error: 'Error al eliminar nota del equipo',
                 code: 'NOTE_DELETE_ERROR'
@@ -2004,7 +2028,7 @@ app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
             });
         }
         
-        console.log(`✅ Nota ${noteId} eliminada del equipo`);
+        console.log(`âœ… Nota ${noteId} eliminada del equipo`);
         res.json({ 
             message: "Nota eliminada exitosamente", 
             changes: this.changes 
@@ -2013,7 +2037,7 @@ app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
 });
 
 // ===================================================================
-// GESTIÓN DE TICKETS PARA EQUIPOS
+// GESTIÃ“N DE TICKETS PARA EQUIPOS
 // ===================================================================
 
 // GET all tickets for a specific equipment
@@ -2033,7 +2057,7 @@ app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => 
     
     db.all(sql, [equipmentId], (err, rows) => {
         if (err) {
-            console.error('❌ Error fetching equipment tickets:', err.message);
+            console.error('âŒ Error fetching equipment tickets:', err.message);
             res.status(500).json({ 
                 error: 'Error al obtener tickets del equipo',
                 code: 'TICKETS_FETCH_ERROR'
@@ -2041,13 +2065,13 @@ app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => 
             return;
         }
         
-        console.log(`🎫 Tickets encontrados para equipo ${equipmentId}:`, rows.length);
+        console.log(`ðŸŽ« Tickets encontrados para equipo ${equipmentId}:`, rows.length);
         res.json(rows || []);
     });
 });
 
 // ===================================================================
-// GESTIÓN DE REPUESTOS PARA TICKETS
+// GESTIÃ“N DE REPUESTOS PARA TICKETS
 // ===================================================================
 
 // POST spare part usage to ticket
@@ -2055,7 +2079,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
     const { ticketId } = req.params;
     const { spare_part_id, quantity_used, unit_cost, notes, bill_to_client } = req.body;
     
-    console.log(`🔧 Registrando uso de repuesto en ticket ${ticketId}:`, { spare_part_id, quantity_used, unit_cost, bill_to_client });
+    console.log(`ðŸ”§ Registrando uso de repuesto en ticket ${ticketId}:`, { spare_part_id, quantity_used, unit_cost, bill_to_client });
     
     // Validaciones
     if (!spare_part_id || !quantity_used || quantity_used <= 0) {
@@ -2065,7 +2089,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
         });
     }
     
-    // Validar que unit_cost esté presente
+    // Validar que unit_cost estÃ© presente
     if (unit_cost === undefined || unit_cost === null || unit_cost <= 0) {
         return res.status(400).json({
             error: 'unit_cost es requerido y debe ser mayor a 0',
@@ -2076,7 +2100,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
     // Verificar que el ticket existe
     db.get('SELECT id, title FROM Tickets WHERE id = ?', [ticketId], (err, ticket) => {
         if (err) {
-            console.error('❌ Error verificando ticket:', err.message);
+            console.error('âŒ Error verificando ticket:', err.message);
             return res.status(500).json({ 
                 error: 'Error verificando ticket',
                 code: 'TICKET_CHECK_ERROR'
@@ -2093,7 +2117,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
         // Verificar que el repuesto existe y tiene stock
         db.get('SELECT id, name, sku, current_stock FROM spareparts WHERE id = ?', [spare_part_id], (err, sparePart) => {
             if (err) {
-                console.error('❌ Error verificando repuesto:', err.message);
+                console.error('âŒ Error verificando repuesto:', err.message);
                 return res.status(500).json({ 
                     error: 'Error verificando repuesto',
                     code: 'SPARE_PART_CHECK_ERROR'
@@ -2107,13 +2131,13 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                 });
             }
             
-            // 🆕 NUEVA LÓGICA: Si no hay stock suficiente, usar lo disponible y solicitar lo faltante
+            // ðŸ†• NUEVA LÃ“GICA: Si no hay stock suficiente, usar lo disponible y solicitar lo faltante
             const availableStock = parseFloat(sparePart.current_stock);
             const requestedQty = parseFloat(quantity_used);
             const shortageQty = requestedQty - availableStock;
             const actualUsedQty = Math.min(availableStock, requestedQty);
             
-            console.log(`📊 Stock analysis:`, {
+            console.log(`ðŸ“Š Stock analysis:`, {
                 available: availableStock,
                 requested: requestedQty,
                 shortage: shortageQty > 0 ? shortageQty : 0,
@@ -2122,7 +2146,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
             
             // Si no hay NADA de stock, solo crear solicitud
             if (availableStock <= 0) {
-                console.log('⚠️ Sin stock disponible, creando solo solicitud de compra...');
+                console.log('âš ï¸ Sin stock disponible, creando solo solicitud de compra...');
                 
                 // Crear solicitud de compra por la cantidad total
                 const requestSql = `
@@ -2149,14 +2173,14 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                     req.user.username || req.user.id
                 ], function(err) {
                     if (err) {
-                        console.error('❌ Error creando solicitud:', err.message);
+                        console.error('âŒ Error creando solicitud:', err.message);
                         return res.status(500).json({ 
                             error: 'Error al crear solicitud de compra',
                             code: 'REQUEST_CREATE_ERROR'
                         });
                     }
                     
-                    console.log(`✅ Solicitud de compra creada - ID: ${this.lastID}, Cantidad: ${requestedQty}`);
+                    console.log(`âœ… Solicitud de compra creada - ID: ${this.lastID}, Cantidad: ${requestedQty}`);
                     
                     res.status(201).json({
                         message: 'Sin stock disponible. Se ha creado una solicitud de compra',
@@ -2168,10 +2192,10 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                     });
                 });
                 
-                return; // Terminar aquí
+                return; // Terminar aquÃ­
             }
             
-            // Insertar en ticketspareparts (solo la cantidad que SÍ hay en stock)
+            // Insertar en ticketspareparts (solo la cantidad que SÃ hay en stock)
             const insertSql = `
                 INSERT INTO ticketspareparts 
                 (ticket_id, spare_part_id, quantity_used, unit_cost, notes, used_at) 
@@ -2184,7 +2208,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
             
             db.run(insertSql, [ticketId, spare_part_id, actualUsedQty, unit_cost, usageNotes], function(err) {
                 if (err) {
-                    console.error('❌ Error insertando repuesto en ticket:', err.message);
+                    console.error('âŒ Error insertando repuesto en ticket:', err.message);
                     return res.status(500).json({ 
                         error: 'Error al agregar repuesto al ticket',
                         code: 'INSERT_ERROR'
@@ -2193,12 +2217,12 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                 
                 const sparePartUsageId = this.lastID;
                 
-                // Actualizar stock del repuesto (restar solo lo que SE USARÁ)
+                // Actualizar stock del repuesto (restar solo lo que SE USARÃ)
                 const updateStockSql = 'UPDATE spareparts SET current_stock = current_stock - ? WHERE id = ?';
                 db.run(updateStockSql, [actualUsedQty, spare_part_id], (err) => {
                     if (err) {
-                        console.error('❌ Error actualizando stock:', err.message);
-                        // Revertir la inserción
+                        console.error('âŒ Error actualizando stock:', err.message);
+                        // Revertir la inserciÃ³n
                         db.run('DELETE FROM ticketspareparts WHERE id = ?', [sparePartUsageId]);
                         return res.status(500).json({ 
                             error: 'Error actualizando stock del repuesto',
@@ -2206,11 +2230,11 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                         });
                     }
                     
-                    console.log(`✅ Stock actualizado: ${sparePart.name} - usado: ${actualUsedQty}, nuevo stock: ${availableStock - actualUsedQty}`);
+                    console.log(`âœ… Stock actualizado: ${sparePart.name} - usado: ${actualUsedQty}, nuevo stock: ${availableStock - actualUsedQty}`);
                     
-                    // 🆕 Si hay faltante, crear solicitud de compra automáticamente
+                    // ðŸ†• Si hay faltante, crear solicitud de compra automÃ¡ticamente
                     if (shortageQty > 0) {
-                        console.log(`📋 Creando solicitud de compra por ${shortageQty} unidades faltantes...`);
+                        console.log(`ðŸ“‹ Creando solicitud de compra por ${shortageQty} unidades faltantes...`);
                         
                         const requestSql = `
                             INSERT INTO spare_part_requests (
@@ -2236,10 +2260,10 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                             req.user.username || req.user.id
                         ], function(requestErr) {
                             if (requestErr) {
-                                console.error('⚠️ Error creando solicitud automática:', requestErr.message);
+                                console.error('âš ï¸ Error creando solicitud automÃ¡tica:', requestErr.message);
                                 // No revertimos el uso, solo loggeamos
                             } else {
-                                console.log(`✅ Solicitud de compra automática creada - ID: ${this.lastID}, Cantidad: ${shortageQty}`);
+                                console.log(`âœ… Solicitud de compra automÃ¡tica creada - ID: ${this.lastID}, Cantidad: ${shortageQty}`);
                             }
                             
                             // Continuar con expense y respuesta
@@ -2251,8 +2275,8 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                     }
                     
                     function handleExpenseAndResponse() {
-                        // 🆕 CREAR SOLICITUD APROBADA AUTOMÁTICAMENTE (registro de uso)
-                        console.log(`📋 Creando registro de solicitud aprobada para ${actualUsedQty} unidades usadas...`);
+                        // ðŸ†• CREAR SOLICITUD APROBADA AUTOMÃTICAMENTE (registro de uso)
+                        console.log(`ðŸ“‹ Creando registro de solicitud aprobada para ${actualUsedQty} unidades usadas...`);
                         
                         const approvedRequestSql = `
                             INSERT INTO spare_part_requests (
@@ -2288,10 +2312,10 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                             req.user.id
                         ], function(requestErr) {
                             if (requestErr) {
-                                console.error('⚠️ Error creando solicitud aprobada:', requestErr.message);
+                                console.error('âš ï¸ Error creando solicitud aprobada:', requestErr.message);
                                 // No revertimos el uso, solo loggeamos
                             } else {
-                                console.log(`✅ Solicitud aprobada registrada - ID: ${this.lastID}, Cantidad: ${actualUsedQty}`);
+                                console.log(`âœ… Solicitud aprobada registrada - ID: ${this.lastID}, Cantidad: ${actualUsedQty}`);
                             }
                             
                             // Continuar con expense
@@ -2299,12 +2323,12 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                         });
                         
                         function createExpenseIfNeeded() {
-                            // CREAR EXPENSE AUTOMÁTICAMENTE si bill_to_client = true
+                            // CREAR EXPENSE AUTOMÃTICAMENTE si bill_to_client = true
                             if (bill_to_client && unit_cost && unit_cost > 0) {
                                 const totalCost = actualUsedQty * unit_cost;
                                 const expenseDescription = `Repuesto: ${sparePart.name} (${actualUsedQty} ${actualUsedQty > 1 ? 'unidades' : 'unidad'}) - ${ticket.title}`;
                                 
-                                // Obtener o crear categoría "Repuestos"
+                                // Obtener o crear categorÃ­a "Repuestos"
                                 db.get('SELECT id FROM ExpenseCategories WHERE name = ? LIMIT 1', ['Repuestos'], (err, category) => {
                                     const categoryId = category ? category.id : null;
                                     
@@ -2334,10 +2358,10 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                                         req.user.id
                                     ], function(expenseErr) {
                                         if (expenseErr) {
-                                            console.error('⚠️ Error creando gasto automático:', expenseErr.message);
+                                            console.error('âš ï¸ Error creando gasto automÃ¡tico:', expenseErr.message);
                                             // No revertimos el uso del repuesto, solo loggeamos el error
                                         } else {
-                                            console.log(`💰 Gasto automático creado - ID: ${this.lastID}, Monto: $${totalCost}`);
+                                            console.log(`ðŸ’° Gasto automÃ¡tico creado - ID: ${this.lastID}, Monto: $${totalCost}`);
                                         }
                                         
                                         // Continuar con la respuesta (con o sin expense)
@@ -2365,19 +2389,19 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                         
                         db.get(selectSql, [sparePartUsageId], (err, newRecord) => {
                             if (err) {
-                                console.error('❌ Error obteniendo registro creado:', err.message);
+                                console.error('âŒ Error obteniendo registro creado:', err.message);
                                 return res.status(500).json({ 
                                     error: 'Error obteniendo registro creado',
                                     code: 'RECORD_FETCH_ERROR'
                                 });
                             }
                             
-                            console.log(`✅ Uso de repuesto registrado en ticket ${ticketId}, ID: ${sparePartUsageId}`);
+                            console.log(`âœ… Uso de repuesto registrado en ticket ${ticketId}, ID: ${sparePartUsageId}`);
                             
-                            // Respuesta mejorada con información de stock parcial
+                            // Respuesta mejorada con informaciÃ³n de stock parcial
                             const responseData = {
                                 message: shortageQty > 0 ? 
-                                    `Stock parcial usado. Se creó solicitud de compra por ${shortageQty} unidades faltantes.` :
+                                    `Stock parcial usado. Se creÃ³ solicitud de compra por ${shortageQty} unidades faltantes.` :
                                     "Uso de repuesto registrado exitosamente",
                                 data: newRecord,
                                 expense_created: bill_to_client,
@@ -2401,12 +2425,12 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
 /**
  * @route GET /api/tickets/:ticketId/spare-parts/requests
  * @desc Obtener todas las solicitudes de repuestos de un ticket (usados + pendientes)
- * @access Protegido - Requiere autenticación
+ * @access Protegido - Requiere autenticaciÃ³n
  */
 app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, res) => {
     const { ticketId } = req.params;
     
-    console.log(`📋 Obteniendo repuestos y solicitudes del ticket ${ticketId}...`);
+    console.log(`ðŸ“‹ Obteniendo repuestos y solicitudes del ticket ${ticketId}...`);
     
     // 1. Obtener repuestos ya USADOS (ticketspareparts)
     const usedPartsSql = `
@@ -2423,7 +2447,7 @@ app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, 
     
     db.all(usedPartsSql, [ticketId], (err, usedParts) => {
         if (err) {
-            console.error('❌ Error obteniendo repuestos usados:', err.message);
+            console.error('âŒ Error obteniendo repuestos usados:', err.message);
             return res.status(500).json({
                 error: 'Error al obtener repuestos usados',
                 code: 'USED_PARTS_ERROR'
@@ -2446,14 +2470,14 @@ app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, 
         
         db.all(requestsSql, [ticketId], (err, requests) => {
             if (err) {
-                console.error('❌ Error obteniendo solicitudes:', err.message);
+                console.error('âŒ Error obteniendo solicitudes:', err.message);
                 return res.status(500).json({
                     error: 'Error al obtener solicitudes de repuestos',
                     code: 'REQUESTS_ERROR'
                 });
             }
             
-            console.log(`✅ Repuestos encontrados: ${usedParts.length} usados, ${requests.length} solicitudes`);
+            console.log(`âœ… Repuestos encontrados: ${usedParts.length} usados, ${requests.length} solicitudes`);
             
             res.json({
                 message: 'success',
@@ -2473,7 +2497,7 @@ app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, 
 });
 
 // ===================================================================
-// RUTAS DE TICKETS DE GIMNACIÓN - MANTENIMIENTO PREVENTIVO MASIVO
+// RUTAS DE TICKETS DE GIMNACIÃ“N - MANTENIMIENTO PREVENTIVO MASIVO
 // ===================================================================
 
 // 1. GET /api/locations/:id/equipment - Obtener equipos de una sede con info de contrato
@@ -2491,7 +2515,7 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
                 COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
                 COALESCE(NULLIF(e.serial_number, ''), 'S/N no disponible') as serial_number,
                 e.custom_id,
-                COALESCE(em.category, 'Sin categoría') as category,
+                COALESCE(em.category, 'Sin categorÃ­a') as category,
                 CASE 
                     WHEN ce.equipment_id IS NOT NULL THEN true 
                     ELSE false 
@@ -2529,7 +2553,7 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
     }
 });
 
-// 2. POST /api/tickets/gimnacion - Crear ticket de gimnación
+// 2. POST /api/tickets/gimnacion - Crear ticket de gimnaciÃ³n
 app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
     try {
         const {
@@ -2545,7 +2569,7 @@ app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
             custom_checklist // Array de { item_text, item_order, is_required, category }
         } = req.body;
         
-        // Validaciones básicas
+        // Validaciones bÃ¡sicas
         if (!title || !client_id || !location_id || !equipment_scope || !Array.isArray(equipment_scope)) {
             return res.status(400).json({ 
                 error: 'Faltan campos requeridos',
@@ -2577,12 +2601,12 @@ app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
             let totalOperations = equipment_scope.length + (technicians ? technicians.length : 0);
             let hasErrors = false;
             
-            // Función para completar la operación
+            // FunciÃ³n para completar la operaciÃ³n
             const completeOperation = () => {
                 completedOperations++;
                 if (completedOperations === totalOperations && !hasErrors) {
                     res.status(201).json({
-                        message: 'Ticket de gimnación creado exitosamente',
+                        message: 'Ticket de gimnaciÃ³n creado exitosamente',
                         data: {
                             ticket_id: ticketId,
                             title: title,
@@ -2619,7 +2643,7 @@ app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
                 });
             });
             
-            // Insertar técnicos asignados
+            // Insertar tÃ©cnicos asignados
             if (technicians && technicians.length > 0) {
                 technicians.forEach(tech => {
                     const techSql = `
@@ -2640,14 +2664,14 @@ app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
                     });
                 });
             } else {
-                // Si no hay técnicos, ajustar el total de operaciones
+                // Si no hay tÃ©cnicos, ajustar el total de operaciones
                 totalOperations = equipment_scope.length;
             }
             
             // Si no hay operaciones pendientes, responder inmediatamente
             if (totalOperations === 0) {
                 res.status(201).json({
-                    message: 'Ticket de gimnación creado exitosamente',
+                    message: 'Ticket de gimnaciÃ³n creado exitosamente',
                     data: {
                         ticket_id: ticketId,
                         title: title,
@@ -2665,7 +2689,7 @@ app.post('/api/tickets/gimnacion', authenticateToken, (req, res) => {
     }
 });
 
-// 3. GET /api/tickets/:id/gimnacion-details - Obtener detalles completos de ticket de gimnación
+// 3. GET /api/tickets/:id/gimnacion-details - Obtener detalles completos de ticket de gimnaciÃ³n
 app.get('/api/tickets/:ticketId/gimnacion-details', authenticateToken, (req, res) => {
     try {
         const { ticketId } = req.params;
@@ -2690,7 +2714,7 @@ app.get('/api/tickets/:ticketId/gimnacion-details', authenticateToken, (req, res
             }
             
             if (!ticket) {
-                return res.status(404).json({ error: 'Ticket de gimnación no encontrado' });
+                return res.status(404).json({ error: 'Ticket de gimnaciÃ³n no encontrado' });
             }
             
             // Obtener scope de equipos
@@ -2710,7 +2734,7 @@ app.get('/api/tickets/:ticketId/gimnacion-details', authenticateToken, (req, res
                     return res.status(500).json({ error: 'Database error' });
                 }
                 
-                // Obtener técnicos asignados
+                // Obtener tÃ©cnicos asignados
                 const techniciansSql = `
                     SELECT tt.*, u.username, u.email
                     FROM TicketTechnicians tt
@@ -3051,7 +3075,7 @@ app.delete('/api/gimnacion/checklist-templates/:id', authenticateToken, (req, re
                 return res.status(400).json({ error: 'No se puede eliminar un template por defecto' });
             }
             
-            // Eliminar template (los items se eliminan automáticamente por CASCADE)
+            // Eliminar template (los items se eliminan automÃ¡ticamente por CASCADE)
             const deleteSql = `DELETE FROM GimnacionChecklistTemplates WHERE id = ?`;
             
             db.run(deleteSql, [templateId], function(err) {
@@ -3079,9 +3103,9 @@ app.delete('/api/gimnacion/checklist-templates/:id', authenticateToken, (req, re
 
 // Endpoint para obtener KPIs del dashboard
 app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
-    console.log('📊 Solicitando KPIs del dashboard...');
+    console.log('ðŸ“Š Solicitando KPIs del dashboard...');
     
-    // Realizar múltiples consultas para obtener KPIs
+    // Realizar mÃºltiples consultas para obtener KPIs
     const queries = [
         // Total de clientes
         new Promise((resolve, reject) => {
@@ -3120,7 +3144,7 @@ app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
             });
         }),
         
-        // Tiempo promedio de resolución (en días)
+        // Tiempo promedio de resoluciÃ³n (en dÃ­as)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT AVG(DATEDIFF(updated_at, created_at)) as avg_resolution_time
@@ -3152,7 +3176,7 @@ app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
                 kpis[result.metric] = result.value;
             });
             
-            console.log('✅ KPIs calculados:', kpis);
+            console.log('âœ… KPIs calculados:', kpis);
             res.json({
                 message: 'success',
                 data: kpis,
@@ -3160,7 +3184,7 @@ app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('❌ Error calculando KPIs:', error);
+            console.error('âŒ Error calculando KPIs:', error);
             res.status(500).json({ 
                 error: 'Error obteniendo KPIs',
                 details: error.message 
@@ -3171,7 +3195,7 @@ app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
 // Endpoint para obtener actividad reciente
 app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
-    console.log(`📋 Solicitando actividad reciente (límite: ${limit})...`);
+    console.log(`ðŸ“‹ Solicitando actividad reciente (lÃ­mite: ${limit})...`);
     
     const sql = `
         SELECT 
@@ -3211,7 +3235,7 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
     
     db.all(sql, [limit], (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo actividad:', err);
+            console.error('âŒ Error obteniendo actividad:', err);
             res.status(500).json({ 
                 error: 'Error obteniendo actividad',
                 details: err.message 
@@ -3219,7 +3243,7 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ Actividad obtenida: ${rows.length} registros`);
+        console.log(`âœ… Actividad obtenida: ${rows.length} registros`);
         res.json({
             message: 'success',
             data: rows,
@@ -3230,7 +3254,7 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
 });
 
 // ===================================================================
-// MANEJADORES GLOBALES DE ERRORES Y FINALIZACIÓN
+// MANEJADORES GLOBALES DE ERRORES Y FINALIZACIÃ“N
 // ===================================================================
 
 // ===================================================================
@@ -3240,7 +3264,7 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
 // GET /api/models - Obtener todos los modelos de EquipmentModels
 app.get('/api/models', async (req, res) => {
     try {
-        console.log('📋 Obteniendo lista de modelos desde EquipmentModels...');
+        console.log('ðŸ“‹ Obteniendo lista de modelos desde EquipmentModels...');
         
         const query = `
             SELECT 
@@ -3263,14 +3287,14 @@ app.get('/api/models', async (req, res) => {
         
         db.all(query, [], (err, rows) => {
             if (err) {
-                console.error('❌ Error obteniendo modelos:', err);
+                console.error('âŒ Error obteniendo modelos:', err);
                 return res.status(500).json({
                     error: 'Error al obtener modelos',
                     details: err.message
                 });
             }
             
-            console.log(`✅ ${rows.length} modelos encontrados desde EquipmentModels`);
+            console.log(`âœ… ${rows.length} modelos encontrados desde EquipmentModels`);
             
             res.json({
                 message: 'success',
@@ -3280,7 +3304,7 @@ app.get('/api/models', async (req, res) => {
         });
         
     } catch (error) {
-        console.error('💥 Error en endpoint de modelos:', error);
+        console.error('ðŸ’¥ Error en endpoint de modelos:', error);
         res.status(500).json({
             error: 'Error interno del servidor',
             details: error.message
@@ -3306,32 +3330,32 @@ app.post('/api/models', authenticateToken, async (req, res) => {
         
         if (!name || !brand || !category) {
             return res.status(400).json({
-                error: 'Nombre, marca y categoría son requeridos'
+                error: 'Nombre, marca y categorÃ­a son requeridos'
             });
         }
         
-        console.log('📝 Creando nuevo modelo:', name);
+        console.log('ðŸ“ Creando nuevo modelo:', name);
         
-        // Verificar si el código del modelo ya existe
+        // Verificar si el cÃ³digo del modelo ya existe
         if (model_code) {
             const checkQuery = `SELECT COUNT(*) as count FROM EquipmentModels WHERE model_code = ?`;
             
             db.get(checkQuery, [model_code], (err, row) => {
                 if (err) {
-                    console.error('❌ Error verificando código del modelo:', err);
+                    console.error('âŒ Error verificando cÃ³digo del modelo:', err);
                     return res.status(500).json({
-                        error: 'Error al verificar código del modelo',
+                        error: 'Error al verificar cÃ³digo del modelo',
                         details: err.message
                     });
                 }
                 
                 if (row.count > 0) {
                     return res.status(409).json({
-                        error: 'El código del modelo ya existe'
+                        error: 'El cÃ³digo del modelo ya existe'
                     });
                 }
                 
-                // Proceder con la inserción
+                // Proceder con la inserciÃ³n
                 insertModel();
             });
         } else {
@@ -3358,14 +3382,14 @@ app.post('/api/models', authenticateToken, async (req, res) => {
                 technical_specs || null
             ], function(err) {
                 if (err) {
-                    console.error('❌ Error creando modelo:', err);
+                    console.error('âŒ Error creando modelo:', err);
                     return res.status(500).json({
                         error: 'Error al crear modelo',
                         details: err.message
                     });
                 }
                 
-                console.log(`✅ Modelo creado con ID: ${this.lastID}`);
+                console.log(`âœ… Modelo creado con ID: ${this.lastID}`);
                 
                 res.status(201).json({
                     message: 'success',
@@ -3387,7 +3411,7 @@ app.post('/api/models', authenticateToken, async (req, res) => {
         }
         
     } catch (error) {
-        console.error('💥 Error en creación de modelo:', error);
+        console.error('ðŸ’¥ Error en creaciÃ³n de modelo:', error);
         res.status(500).json({
             error: 'Error interno del servidor',
             details: error.message
@@ -3414,18 +3438,18 @@ app.put('/api/models/:id', authenticateToken, async (req, res) => {
         
         if (!name || !brand || !category) {
             return res.status(400).json({
-                error: 'Nombre, marca y categoría son requeridos'
+                error: 'Nombre, marca y categorÃ­a son requeridos'
             });
         }
         
-        console.log('📝 Actualizando modelo ID:', modelId);
+        console.log('ðŸ“ Actualizando modelo ID:', modelId);
         
         // Verificar si el modelo existe
         const checkQuery = `SELECT * FROM EquipmentModels WHERE id = ?`;
         
         db.get(checkQuery, [modelId], (err, row) => {
             if (err) {
-                console.error('❌ Error verificando modelo:', err);
+                console.error('âŒ Error verificando modelo:', err);
                 return res.status(500).json({
                     error: 'Error al verificar modelo',
                     details: err.message
@@ -3438,22 +3462,22 @@ app.put('/api/models/:id', authenticateToken, async (req, res) => {
                 });
             }
             
-            // Verificar código único si se está cambiando
+            // Verificar cÃ³digo Ãºnico si se estÃ¡ cambiando
             if (model_code && model_code !== row.model_code) {
                 const checkCodeQuery = `SELECT COUNT(*) as count FROM EquipmentModels WHERE model_code = ? AND id != ?`;
                 
                 db.get(checkCodeQuery, [model_code, modelId], (err, codeRow) => {
                     if (err) {
-                        console.error('❌ Error verificando código del modelo:', err);
+                        console.error('âŒ Error verificando cÃ³digo del modelo:', err);
                         return res.status(500).json({
-                            error: 'Error al verificar código del modelo',
+                            error: 'Error al verificar cÃ³digo del modelo',
                             details: err.message
                         });
                     }
                     
                     if (codeRow.count > 0) {
                         return res.status(409).json({
-                            error: 'El código del modelo ya existe'
+                            error: 'El cÃ³digo del modelo ya existe'
                         });
                     }
                     
@@ -3495,14 +3519,14 @@ app.put('/api/models/:id', authenticateToken, async (req, res) => {
                 modelId
             ], function(err) {
                 if (err) {
-                    console.error('❌ Error actualizando modelo:', err);
+                    console.error('âŒ Error actualizando modelo:', err);
                     return res.status(500).json({
                         error: 'Error al actualizar modelo',
                         details: err.message
                     });
                 }
                 
-                console.log(`✅ Modelo ${modelId} actualizado exitosamente`);
+                console.log(`âœ… Modelo ${modelId} actualizado exitosamente`);
                 
                 res.json({
                     message: 'success',
@@ -3524,7 +3548,7 @@ app.put('/api/models/:id', authenticateToken, async (req, res) => {
         }
         
     } catch (error) {
-        console.error('💥 Error en actualización de modelo:', error);
+        console.error('ðŸ’¥ Error en actualizaciÃ³n de modelo:', error);
         res.status(500).json({
             error: 'Error interno del servidor',
             details: error.message
@@ -3537,14 +3561,14 @@ app.delete('/api/models/:id', authenticateToken, async (req, res) => {
     try {
         const modelId = req.params.id;
         
-        console.log('🗑️ Eliminando modelo ID:', modelId);
+        console.log('ðŸ—‘ï¸ Eliminando modelo ID:', modelId);
         
         // Verificar si el modelo existe
         const checkQuery = `SELECT * FROM EquipmentModels WHERE id = ?`;
         
         db.get(checkQuery, [modelId], (err, row) => {
             if (err) {
-                console.error('❌ Error verificando modelo:', err);
+                console.error('âŒ Error verificando modelo:', err);
                 return res.status(500).json({
                     error: 'Error al verificar modelo',
                     details: err.message
@@ -3562,7 +3586,7 @@ app.delete('/api/models/:id', authenticateToken, async (req, res) => {
             
             db.get(equipmentCheckQuery, [modelId], (err, equipmentRow) => {
                 if (err) {
-                    console.error('❌ Error verificando equipos:', err);
+                    console.error('âŒ Error verificando equipos:', err);
                     return res.status(500).json({
                         error: 'Error al verificar equipos',
                         details: err.message
@@ -3580,14 +3604,14 @@ app.delete('/api/models/:id', authenticateToken, async (req, res) => {
                 
                 db.run(deleteQuery, [modelId], function(err) {
                     if (err) {
-                        console.error('❌ Error eliminando modelo:', err);
+                        console.error('âŒ Error eliminando modelo:', err);
                         return res.status(500).json({
                             error: 'Error al eliminar modelo',
                             details: err.message
                         });
                     }
                     
-                    console.log(`✅ Modelo ${modelId} eliminado exitosamente`);
+                    console.log(`âœ… Modelo ${modelId} eliminado exitosamente`);
                     
                     res.json({
                         message: 'success',
@@ -3598,7 +3622,7 @@ app.delete('/api/models/:id', authenticateToken, async (req, res) => {
         });
         
     } catch (error) {
-        console.error('💥 Error en eliminación de modelo:', error);
+        console.error('ðŸ’¥ Error en eliminaciÃ³n de modelo:', error);
         res.status(500).json({
             error: 'Error interno del servidor',
             details: error.message
@@ -3611,7 +3635,7 @@ app.get('/api/models/:id/photos', async (req, res) => {
     try {
         const modelId = req.params.id;
         
-        console.log('📷 Obteniendo fotos del modelo ID:', modelId);
+        console.log('ðŸ“· Obteniendo fotos del modelo ID:', modelId);
         
         const query = `
             SELECT 
@@ -3629,7 +3653,7 @@ app.get('/api/models/:id/photos', async (req, res) => {
         
         db.all(query, [modelId], (err, rows) => {
             if (err) {
-                console.error('❌ Error obteniendo fotos del modelo:', err);
+                console.error('âŒ Error obteniendo fotos del modelo:', err);
                 return res.status(500).json({
                     error: 'Error al obtener fotos del modelo',
                     details: err.message
@@ -3645,13 +3669,13 @@ app.get('/api/models/:id/photos', async (req, res) => {
                 createdAt: row.created_at
             }));
             
-            console.log(`✅ ${photos.length} fotos encontradas para el modelo ${modelId}`);
+            console.log(`âœ… ${photos.length} fotos encontradas para el modelo ${modelId}`);
             
             res.json(photos);
         });
         
     } catch (error) {
-        console.error('💥 Error en endpoint de fotos:', error);
+        console.error('ðŸ’¥ Error en endpoint de fotos:', error);
         res.status(500).json({
             error: 'Error interno del servidor',
             details: error.message
@@ -3665,7 +3689,7 @@ app.get('/api/models/:id/photos', async (req, res) => {
 
 // GET /api/expenses - Obtener todos los gastos
 app.get('/api/expenses', authenticateToken, (req, res) => {
-    console.log('💸 Obteniendo lista de gastos...');
+    console.log('ðŸ’¸ Obteniendo lista de gastos...');
     
     const { status, category, date_from, date_to, limit = 50, offset = 0 } = req.query;
     
@@ -3709,7 +3733,7 @@ app.get('/api/expenses', authenticateToken, (req, res) => {
     
     db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo gastos:', err);
+            console.error('âŒ Error obteniendo gastos:', err);
             res.status(500).json({ 
                 error: 'Error obteniendo gastos',
                 details: err.message 
@@ -3717,7 +3741,7 @@ app.get('/api/expenses', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ ${rows.length} gastos obtenidos`);
+        console.log(`âœ… ${rows.length} gastos obtenidos`);
         res.json({
             message: 'success',
             data: rows,
@@ -3745,10 +3769,10 @@ app.post('/api/expenses', authenticateToken, (req, res) => {
         receipt_file
     } = req.body;
     
-    // Validaciones básicas
+    // Validaciones bÃ¡sicas
     if (!description || !amount || !date) {
         return res.status(400).json({
-            error: 'Descripción, monto y fecha son requeridos'
+            error: 'DescripciÃ³n, monto y fecha son requeridos'
         });
     }
     
@@ -3758,7 +3782,7 @@ app.post('/api/expenses', authenticateToken, (req, res) => {
         });
     }
     
-    console.log(`💸 Creando nuevo gasto: ${description} - $${amount}`);
+    console.log(`ðŸ’¸ Creando nuevo gasto: ${description} - $${amount}`);
     
     const sql = `
         INSERT INTO Expenses (
@@ -3786,7 +3810,7 @@ app.post('/api/expenses', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error creando gasto:', err);
+            console.error('âŒ Error creando gasto:', err);
             res.status(500).json({
                 error: 'Error al crear gasto',
                 details: err.message
@@ -3794,7 +3818,7 @@ app.post('/api/expenses', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ Gasto creado con ID: ${this.lastID}`);
+        console.log(`âœ… Gasto creado con ID: ${this.lastID}`);
         
         // Obtener el gasto completo creado
         const getSql = `
@@ -3810,7 +3834,7 @@ app.post('/api/expenses', authenticateToken, (req, res) => {
         
         db.get(getSql, [this.lastID], (err, row) => {
             if (err) {
-                console.error('❌ Error obteniendo gasto creado:', err);
+                console.error('âŒ Error obteniendo gasto creado:', err);
                 res.status(201).json({
                     message: 'Gasto creado exitosamente',
                     id: this.lastID
@@ -3844,14 +3868,14 @@ app.put('/api/expenses/:id', authenticateToken, (req, res) => {
         receipt_file
     } = req.body;
     
-    console.log(`💸 Actualizando gasto ID: ${expenseId}`);
+    console.log(`ðŸ’¸ Actualizando gasto ID: ${expenseId}`);
     
     // Primero verificar que el gasto existe y obtener su estado actual
     const checkSql = `SELECT status, created_by FROM Expenses WHERE id = ?`;
     
     db.get(checkSql, [expenseId], (err, expense) => {
         if (err) {
-            console.error('❌ Error verificando gasto:', err);
+            console.error('âŒ Error verificando gasto:', err);
             return res.status(500).json({
                 error: 'Error verificando gasto',
                 details: err.message
@@ -3913,14 +3937,14 @@ app.put('/api/expenses/:id', authenticateToken, (req, res) => {
         
         db.run(sql, params, function(err) {
             if (err) {
-                console.error('❌ Error actualizando gasto:', err);
+                console.error('âŒ Error actualizando gasto:', err);
                 return res.status(500).json({
                     error: 'Error al actualizar gasto',
                     details: err.message
                 });
             }
             
-            console.log(`✅ Gasto ${expenseId} actualizado`);
+            console.log(`âœ… Gasto ${expenseId} actualizado`);
             
             // Obtener el gasto actualizado
             const getSql = `
@@ -3938,7 +3962,7 @@ app.put('/api/expenses/:id', authenticateToken, (req, res) => {
             
             db.get(getSql, [expenseId], (err, row) => {
                 if (err) {
-                    console.error('❌ Error obteniendo gasto actualizado:', err);
+                    console.error('âŒ Error obteniendo gasto actualizado:', err);
                     return res.json({
                         message: 'Gasto actualizado exitosamente',
                         changes: this.changes
@@ -3960,7 +3984,7 @@ app.put('/api/expenses/:id/approve', authenticateToken, requireRole(['Admin', 'M
     const expenseId = req.params.id;
     const { notes } = req.body;
     
-    console.log(`✅ Aprobando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
+    console.log(`âœ… Aprobando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
     
     const sql = `
         UPDATE Expenses SET
@@ -3974,7 +3998,7 @@ app.put('/api/expenses/:id/approve', authenticateToken, requireRole(['Admin', 'M
     
     db.run(sql, [req.user.id, notes, expenseId], function(err) {
         if (err) {
-            console.error('❌ Error aprobando gasto:', err);
+            console.error('âŒ Error aprobando gasto:', err);
             return res.status(500).json({
                 error: 'Error al aprobar gasto',
                 details: err.message
@@ -3987,7 +4011,7 @@ app.put('/api/expenses/:id/approve', authenticateToken, requireRole(['Admin', 'M
             });
         }
         
-        console.log(`✅ Gasto ${expenseId} aprobado exitosamente`);
+        console.log(`âœ… Gasto ${expenseId} aprobado exitosamente`);
         
         res.json({
             message: 'Gasto aprobado exitosamente',
@@ -4009,7 +4033,7 @@ app.put('/api/expenses/:id/reject', authenticateToken, requireRole(['Admin', 'Ma
         });
     }
     
-    console.log(`❌ Rechazando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
+    console.log(`âŒ Rechazando gasto ID: ${expenseId} por usuario: ${req.user.username}`);
     
     const sql = `
         UPDATE Expenses SET
@@ -4023,7 +4047,7 @@ app.put('/api/expenses/:id/reject', authenticateToken, requireRole(['Admin', 'Ma
     
     db.run(sql, [req.user.id, notes, expenseId], function(err) {
         if (err) {
-            console.error('❌ Error rechazando gasto:', err);
+            console.error('âŒ Error rechazando gasto:', err);
             return res.status(500).json({
                 error: 'Error al rechazar gasto',
                 details: err.message
@@ -4036,7 +4060,7 @@ app.put('/api/expenses/:id/reject', authenticateToken, requireRole(['Admin', 'Ma
             });
         }
         
-        console.log(`❌ Gasto ${expenseId} rechazado exitosamente`);
+        console.log(`âŒ Gasto ${expenseId} rechazado exitosamente`);
         
         res.json({
             message: 'Gasto rechazado exitosamente',
@@ -4053,7 +4077,7 @@ app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manag
     const expenseId = req.params.id;
     const { payment_method, payment_notes } = req.body;
     
-    console.log(`💳 Marcando gasto ID: ${expenseId} como pagado`);
+    console.log(`ðŸ’³ Marcando gasto ID: ${expenseId} como pagado`);
     
     const sql = `
         UPDATE Expenses SET
@@ -4070,7 +4094,7 @@ app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manag
     
     db.run(sql, [payment_method, payment_notes, payment_notes, expenseId], function(err) {
         if (err) {
-            console.error('❌ Error marcando gasto como pagado:', err);
+            console.error('âŒ Error marcando gasto como pagado:', err);
             return res.status(500).json({
                 error: 'Error al marcar gasto como pagado',
                 details: err.message
@@ -4079,11 +4103,11 @@ app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manag
         
         if (this.changes === 0) {
             return res.status(404).json({
-                error: 'Gasto no encontrado o no está aprobado'
+                error: 'Gasto no encontrado o no estÃ¡ aprobado'
             });
         }
         
-        console.log(`💳 Gasto ${expenseId} marcado como pagado`);
+        console.log(`ðŸ’³ Gasto ${expenseId} marcado como pagado`);
         
         res.json({
             message: 'Gasto marcado como pagado exitosamente',
@@ -4098,14 +4122,14 @@ app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manag
 app.delete('/api/expenses/:id', authenticateToken, (req, res) => {
     const expenseId = req.params.id;
     
-    console.log(`🗑️ Eliminando gasto ID: ${expenseId}`);
+    console.log(`ðŸ—‘ï¸ Eliminando gasto ID: ${expenseId}`);
     
     // Verificar permisos: solo el creador o admin pueden eliminar gastos pendientes
     const checkSql = `SELECT status, created_by FROM Expenses WHERE id = ?`;
     
     db.get(checkSql, [expenseId], (err, expense) => {
         if (err) {
-            console.error('❌ Error verificando gasto:', err);
+            console.error('âŒ Error verificando gasto:', err);
             return res.status(500).json({
                 error: 'Error verificando gasto',
                 details: err.message
@@ -4136,14 +4160,14 @@ app.delete('/api/expenses/:id', authenticateToken, (req, res) => {
         
         db.run(deleteSql, [expenseId], function(err) {
             if (err) {
-                console.error('❌ Error eliminando gasto:', err);
+                console.error('âŒ Error eliminando gasto:', err);
                 return res.status(500).json({
                     error: 'Error al eliminar gasto',
                     details: err.message
                 });
             }
             
-            console.log(`✅ Gasto ${expenseId} eliminado exitosamente`);
+            console.log(`âœ… Gasto ${expenseId} eliminado exitosamente`);
             
             res.json({
                 message: 'Gasto eliminado exitosamente',
@@ -4154,9 +4178,9 @@ app.delete('/api/expenses/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/expense-categories - Obtener categorías de gastos
+// GET /api/expense-categories - Obtener categorÃ­as de gastos
 app.get('/api/expense-categories', authenticateToken, (req, res) => {
-    console.log('📁 Obteniendo categorías de gastos...');
+    console.log('ðŸ“ Obteniendo categorÃ­as de gastos...');
     
     const sql = `
         SELECT * FROM ExpenseCategories 
@@ -4166,15 +4190,15 @@ app.get('/api/expense-categories', authenticateToken, (req, res) => {
     
     db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo categorías:', err);
+            console.error('âŒ Error obteniendo categorÃ­as:', err);
             res.status(500).json({
-                error: 'Error obteniendo categorías',
+                error: 'Error obteniendo categorÃ­as',
                 details: err.message
             });
             return;
         }
         
-        console.log(`✅ ${rows.length} categorías obtenidas`);
+        console.log(`âœ… ${rows.length} categorÃ­as obtenidas`);
         res.json({
             message: 'success',
             data: rows,
@@ -4183,17 +4207,17 @@ app.get('/api/expense-categories', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/expense-categories - Crear nueva categoría
+// POST /api/expense-categories - Crear nueva categorÃ­a
 app.post('/api/expense-categories', authenticateToken, requireRole(['Admin']), (req, res) => {
     const { name, description } = req.body;
     
     if (!name) {
         return res.status(400).json({
-            error: 'El nombre de la categoría es requerido'
+            error: 'El nombre de la categorÃ­a es requerido'
         });
     }
     
-    console.log(`📁 Creando nueva categoría: ${name}`);
+    console.log(`ðŸ“ Creando nueva categorÃ­a: ${name}`);
     
     const sql = `
         INSERT INTO ExpenseCategories (name, description)
@@ -4204,21 +4228,21 @@ app.post('/api/expense-categories', authenticateToken, requireRole(['Admin']), (
         if (err) {
             if (err.message.includes('UNIQUE constraint')) {
                 return res.status(409).json({
-                    error: 'Ya existe una categoría con ese nombre'
+                    error: 'Ya existe una categorÃ­a con ese nombre'
                 });
             }
             
-            console.error('❌ Error creando categoría:', err);
+            console.error('âŒ Error creando categorÃ­a:', err);
             return res.status(500).json({
-                error: 'Error al crear categoría',
+                error: 'Error al crear categorÃ­a',
                 details: err.message
             });
         }
         
-        console.log(`✅ Categoría creada con ID: ${this.lastID}`);
+        console.log(`âœ… CategorÃ­a creada con ID: ${this.lastID}`);
         
         res.status(201).json({
-            message: 'Categoría creada exitosamente',
+            message: 'CategorÃ­a creada exitosamente',
             data: {
                 id: this.lastID,
                 name,
@@ -4230,9 +4254,9 @@ app.post('/api/expense-categories', authenticateToken, requireRole(['Admin']), (
     });
 });
 
-// GET /api/expenses/stats - Obtener estadísticas de gastos
+// GET /api/expenses/stats - Obtener estadÃ­sticas de gastos
 app.get('/api/expenses/stats', authenticateToken, (req, res) => {
-    console.log('📊 Calculando estadísticas de gastos...');
+    console.log('ðŸ“Š Calculando estadÃ­sticas de gastos...');
     
     const { period = 'month' } = req.query;
     
@@ -4273,11 +4297,11 @@ app.get('/api/expenses/stats', authenticateToken, (req, res) => {
             });
         }),
         
-        // Total gastos por categoría
+        // Total gastos por categorÃ­a
         new Promise((resolve, reject) => {
             const sql = `
                 SELECT 
-                    COALESCE(e.category, 'Sin categoría') as category,
+                    COALESCE(e.category, 'Sin categorÃ­a') as category,
                     COUNT(*) as count,
                     SUM(amount) as total_amount
                 FROM Expenses e
@@ -4328,7 +4352,7 @@ app.get('/api/expenses/stats', authenticateToken, (req, res) => {
                 stats[result.type] = result.data;
             });
             
-            console.log('✅ Estadísticas de gastos calculadas');
+            console.log('âœ… EstadÃ­sticas de gastos calculadas');
             res.json({
                 message: 'success',
                 data: stats,
@@ -4336,9 +4360,9 @@ app.get('/api/expenses/stats', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('❌ Error calculando estadísticas:', error);
+            console.error('âŒ Error calculando estadÃ­sticas:', error);
             res.status(500).json({
-                error: 'Error calculando estadísticas',
+                error: 'Error calculando estadÃ­sticas',
                 details: error.message
             });
         });
@@ -4350,7 +4374,7 @@ app.get('/api/expenses/stats', authenticateToken, (req, res) => {
 
 // GET /api/quotes - Obtener todas las cotizaciones
 app.get('/api/quotes', authenticateToken, (req, res) => {
-    console.log('📋 Obteniendo lista de cotizaciones...');
+    console.log('ðŸ“‹ Obteniendo lista de cotizaciones...');
     
     const { status, client_id, date_from, date_to, limit = 50, offset = 0 } = req.query;
     
@@ -4392,7 +4416,7 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     
     db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo cotizaciones:', err);
+            console.error('âŒ Error obteniendo cotizaciones:', err);
             res.status(500).json({ 
                 error: 'Error obteniendo cotizaciones',
                 details: err.message 
@@ -4400,7 +4424,7 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ ${rows.length} cotizaciones obtenidas`);
+        console.log(`âœ… ${rows.length} cotizaciones obtenidas`);
         res.json({
             message: 'success',
             data: rows,
@@ -4411,7 +4435,7 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     });
 });
 
-// POST /api/quotes - Crear nueva cotización
+// POST /api/quotes - Crear nueva cotizaciÃ³n
 app.post('/api/quotes', authenticateToken, (req, res) => {
     const {
         client_id,
@@ -4427,10 +4451,10 @@ app.post('/api/quotes', authenticateToken, (req, res) => {
         notes
     } = req.body;
     
-    // Validaciones básicas
+    // Validaciones bÃ¡sicas
     if (!client_id || !created_date || !description || !total) {
         return res.status(400).json({
-            error: 'Cliente, fecha, descripción y total son requeridos'
+            error: 'Cliente, fecha, descripciÃ³n y total son requeridos'
         });
     }
     
@@ -4440,7 +4464,7 @@ app.post('/api/quotes', authenticateToken, (req, res) => {
         });
     }
     
-    console.log(`📋 Creando nueva cotización para cliente ${client_id}: $${total}`);
+    console.log(`ðŸ“‹ Creando nueva cotizaciÃ³n para cliente ${client_id}: $${total}`);
     
     const sql = `
         INSERT INTO Quotes (
@@ -4467,24 +4491,24 @@ app.post('/api/quotes', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error creando cotización:', err);
+            console.error('âŒ Error creando cotizaciÃ³n:', err);
             res.status(500).json({ 
-                error: 'Error creando cotización',
+                error: 'Error creando cotizaciÃ³n',
                 details: err.message 
             });
             return;
         }
         
-        console.log(`✅ Cotización creada con ID: ${this.lastID}`);
+        console.log(`âœ… CotizaciÃ³n creada con ID: ${this.lastID}`);
         res.status(201).json({
-            message: 'Cotización creada exitosamente',
+            message: 'CotizaciÃ³n creada exitosamente',
             id: this.lastID,
             quote_number: quote_number || `Q-${Date.now()}`
         });
     });
 });
 
-// PUT /api/quotes/:id - Actualizar cotización
+// PUT /api/quotes/:id - Actualizar cotizaciÃ³n
 app.put('/api/quotes/:id', authenticateToken, (req, res) => {
     const quoteId = req.params.id;
     const {
@@ -4502,7 +4526,7 @@ app.put('/api/quotes/:id', authenticateToken, (req, res) => {
         status
     } = req.body;
     
-    console.log(`📋 Actualizando cotización ID: ${quoteId}`);
+    console.log(`ðŸ“‹ Actualizando cotizaciÃ³n ID: ${quoteId}`);
     
     const sql = `
         UPDATE Quotes SET
@@ -4540,9 +4564,9 @@ app.put('/api/quotes/:id', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error actualizando cotización:', err);
+            console.error('âŒ Error actualizando cotizaciÃ³n:', err);
             res.status(500).json({ 
-                error: 'Error actualizando cotización',
+                error: 'Error actualizando cotizaciÃ³n',
                 details: err.message 
             });
             return;
@@ -4550,31 +4574,31 @@ app.put('/api/quotes/:id', authenticateToken, (req, res) => {
         
         if (this.changes === 0) {
             return res.status(404).json({
-                error: 'Cotización no encontrada'
+                error: 'CotizaciÃ³n no encontrada'
             });
         }
         
-        console.log(`✅ Cotización ${quoteId} actualizada`);
+        console.log(`âœ… CotizaciÃ³n ${quoteId} actualizada`);
         res.json({
-            message: 'Cotización actualizada exitosamente',
+            message: 'CotizaciÃ³n actualizada exitosamente',
             changes: this.changes
         });
     });
 });
 
-// DELETE /api/quotes/:id - Eliminar cotización
+// DELETE /api/quotes/:id - Eliminar cotizaciÃ³n
 app.delete('/api/quotes/:id', authenticateToken, (req, res) => {
     const quoteId = req.params.id;
     
-    console.log(`📋 Eliminando cotización ID: ${quoteId}`);
+    console.log(`ðŸ“‹ Eliminando cotizaciÃ³n ID: ${quoteId}`);
     
     const sql = 'DELETE FROM Quotes WHERE id = ?';
     
     db.run(sql, [quoteId], function(err) {
         if (err) {
-            console.error('❌ Error eliminando cotización:', err);
+            console.error('âŒ Error eliminando cotizaciÃ³n:', err);
             res.status(500).json({ 
-                error: 'Error eliminando cotización',
+                error: 'Error eliminando cotizaciÃ³n',
                 details: err.message 
             });
             return;
@@ -4582,23 +4606,23 @@ app.delete('/api/quotes/:id', authenticateToken, (req, res) => {
         
         if (this.changes === 0) {
             return res.status(404).json({
-                error: 'Cotización no encontrada'
+                error: 'CotizaciÃ³n no encontrada'
             });
         }
         
-        console.log(`✅ Cotización ${quoteId} eliminada`);
+        console.log(`âœ… CotizaciÃ³n ${quoteId} eliminada`);
         res.json({
-            message: 'Cotización eliminada exitosamente',
+            message: 'CotizaciÃ³n eliminada exitosamente',
             changes: this.changes
         });
     });
 });
 
-// GET /api/quotes/:id - Obtener cotización específica
+// GET /api/quotes/:id - Obtener cotizaciÃ³n especÃ­fica
 app.get('/api/quotes/:id', authenticateToken, (req, res) => {
     const quoteId = req.params.id;
     
-    console.log(`📋 Obteniendo cotización ID: ${quoteId}`);
+    console.log(`ðŸ“‹ Obteniendo cotizaciÃ³n ID: ${quoteId}`);
     
     const sql = `
         SELECT 
@@ -4615,9 +4639,9 @@ app.get('/api/quotes/:id', authenticateToken, (req, res) => {
     
     db.get(sql, [quoteId], (err, row) => {
         if (err) {
-            console.error('❌ Error obteniendo cotización:', err);
+            console.error('âŒ Error obteniendo cotizaciÃ³n:', err);
             res.status(500).json({ 
-                error: 'Error obteniendo cotización',
+                error: 'Error obteniendo cotizaciÃ³n',
                 details: err.message 
             });
             return;
@@ -4625,7 +4649,7 @@ app.get('/api/quotes/:id', authenticateToken, (req, res) => {
         
         if (!row) {
             return res.status(404).json({
-                error: 'Cotización no encontrada'
+                error: 'CotizaciÃ³n no encontrada'
             });
         }
         
@@ -4634,12 +4658,12 @@ app.get('/api/quotes/:id', authenticateToken, (req, res) => {
             try {
                 row.items = JSON.parse(row.items);
             } catch (e) {
-                console.warn('⚠️ Error parsing items JSON:', e);
+                console.warn('âš ï¸ Error parsing items JSON:', e);
                 row.items = [];
             }
         }
         
-        console.log(`✅ Cotización ${quoteId} obtenida`);
+        console.log(`âœ… CotizaciÃ³n ${quoteId} obtenida`);
         res.json({
             message: 'success',
             data: row
@@ -4653,7 +4677,7 @@ app.get('/api/quotes/:id', authenticateToken, (req, res) => {
 
 // GET /api/invoices - Obtener todas las facturas
 app.get('/api/invoices', authenticateToken, (req, res) => {
-    console.log('🧾 Obteniendo lista de facturas...');
+    console.log('ðŸ§¾ Obteniendo lista de facturas...');
     
     const { status, client_id, date_from, date_to, limit = 50, offset = 0 } = req.query;
     
@@ -4695,7 +4719,7 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     
     db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error obteniendo facturas:', err);
+            console.error('âŒ Error obteniendo facturas:', err);
             res.status(500).json({ 
                 error: 'Error obteniendo facturas',
                 details: err.message 
@@ -4703,7 +4727,7 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ ${rows.length} facturas obtenidas`);
+        console.log(`âœ… ${rows.length} facturas obtenidas`);
         res.json({
             message: 'success',
             data: rows,
@@ -4731,10 +4755,10 @@ app.post('/api/invoices', authenticateToken, (req, res) => {
         notes
     } = req.body;
     
-    // Validaciones básicas
+    // Validaciones bÃ¡sicas
     if (!client_id || !invoice_date || !description || !total) {
         return res.status(400).json({
-            error: 'Cliente, fecha, descripción y total son requeridos'
+            error: 'Cliente, fecha, descripciÃ³n y total son requeridos'
         });
     }
     
@@ -4744,7 +4768,7 @@ app.post('/api/invoices', authenticateToken, (req, res) => {
         });
     }
     
-    console.log(`🧾 Creando nueva factura para cliente ${client_id}: $${total}`);
+    console.log(`ðŸ§¾ Creando nueva factura para cliente ${client_id}: $${total}`);
     
     const sql = `
         INSERT INTO Invoices (
@@ -4772,7 +4796,7 @@ app.post('/api/invoices', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error creando factura:', err);
+            console.error('âŒ Error creando factura:', err);
             res.status(500).json({ 
                 error: 'Error creando factura',
                 details: err.message 
@@ -4780,7 +4804,7 @@ app.post('/api/invoices', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log(`✅ Factura creada con ID: ${this.lastID}`);
+        console.log(`âœ… Factura creada con ID: ${this.lastID}`);
         res.status(201).json({
             message: 'Factura creada exitosamente',
             id: this.lastID,
@@ -4810,7 +4834,7 @@ app.put('/api/invoices/:id', authenticateToken, (req, res) => {
         paid_amount
     } = req.body;
     
-    console.log(`🧾 Actualizando factura ID: ${invoiceId}`);
+    console.log(`ðŸ§¾ Actualizando factura ID: ${invoiceId}`);
     
     const sql = `
         UPDATE Invoices SET
@@ -4854,7 +4878,7 @@ app.put('/api/invoices/:id', authenticateToken, (req, res) => {
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error actualizando factura:', err);
+            console.error('âŒ Error actualizando factura:', err);
             res.status(500).json({ 
                 error: 'Error actualizando factura',
                 details: err.message 
@@ -4868,7 +4892,7 @@ app.put('/api/invoices/:id', authenticateToken, (req, res) => {
             });
         }
         
-        console.log(`✅ Factura ${invoiceId} actualizada`);
+        console.log(`âœ… Factura ${invoiceId} actualizada`);
         res.json({
             message: 'Factura actualizada exitosamente',
             changes: this.changes
@@ -4880,13 +4904,13 @@ app.put('/api/invoices/:id', authenticateToken, (req, res) => {
 app.delete('/api/invoices/:id', authenticateToken, (req, res) => {
     const invoiceId = req.params.id;
     
-    console.log(`🧾 Eliminando factura ID: ${invoiceId}`);
+    console.log(`ðŸ§¾ Eliminando factura ID: ${invoiceId}`);
     
     const sql = 'DELETE FROM Invoices WHERE id = ?';
     
     db.run(sql, [invoiceId], function(err) {
         if (err) {
-            console.error('❌ Error eliminando factura:', err);
+            console.error('âŒ Error eliminando factura:', err);
             res.status(500).json({ 
                 error: 'Error eliminando factura',
                 details: err.message 
@@ -4900,7 +4924,7 @@ app.delete('/api/invoices/:id', authenticateToken, (req, res) => {
             });
         }
         
-        console.log(`✅ Factura ${invoiceId} eliminada`);
+        console.log(`âœ… Factura ${invoiceId} eliminada`);
         res.json({
             message: 'Factura eliminada exitosamente',
             changes: this.changes
@@ -4908,11 +4932,11 @@ app.delete('/api/invoices/:id', authenticateToken, (req, res) => {
     });
 });
 
-// GET /api/invoices/:id - Obtener factura específica
+// GET /api/invoices/:id - Obtener factura especÃ­fica
 app.get('/api/invoices/:id', authenticateToken, (req, res) => {
     const invoiceId = req.params.id;
     
-    console.log(`🧾 Obteniendo factura ID: ${invoiceId}`);
+    console.log(`ðŸ§¾ Obteniendo factura ID: ${invoiceId}`);
     
     const sql = `
         SELECT 
@@ -4932,7 +4956,7 @@ app.get('/api/invoices/:id', authenticateToken, (req, res) => {
     
     db.get(sql, [invoiceId], (err, row) => {
         if (err) {
-            console.error('❌ Error obteniendo factura:', err);
+            console.error('âŒ Error obteniendo factura:', err);
             res.status(500).json({ 
                 error: 'Error obteniendo factura',
                 details: err.message 
@@ -4951,12 +4975,12 @@ app.get('/api/invoices/:id', authenticateToken, (req, res) => {
             try {
                 row.items = JSON.parse(row.items);
             } catch (e) {
-                console.warn('⚠️ Error parsing items JSON:', e);
+                console.warn('âš ï¸ Error parsing items JSON:', e);
                 row.items = [];
             }
         }
         
-        console.log(`✅ Factura ${invoiceId} obtenida`);
+        console.log(`âœ… Factura ${invoiceId} obtenida`);
         res.json({
             message: 'success',
             data: row
@@ -4969,7 +4993,7 @@ app.put('/api/invoices/:id/mark-paid', authenticateToken, requireRole(['Admin', 
     const invoiceId = req.params.id;
     const { paid_amount, paid_date, payment_method, notes } = req.body;
     
-    console.log(`🧾 Marcando factura ${invoiceId} como pagada`);
+    console.log(`ðŸ§¾ Marcando factura ${invoiceId} como pagada`);
     
     const sql = `
         UPDATE Invoices SET
@@ -4992,7 +5016,7 @@ app.put('/api/invoices/:id/mark-paid', authenticateToken, requireRole(['Admin', 
     
     db.run(sql, params, function(err) {
         if (err) {
-            console.error('❌ Error marcando factura como pagada:', err);
+            console.error('âŒ Error marcando factura como pagada:', err);
             res.status(500).json({ 
                 error: 'Error marcando factura como pagada',
                 details: err.message 
@@ -5006,7 +5030,7 @@ app.put('/api/invoices/:id/mark-paid', authenticateToken, requireRole(['Admin', 
             });
         }
         
-        console.log(`✅ Factura ${invoiceId} marcada como pagada`);
+        console.log(`âœ… Factura ${invoiceId} marcada como pagada`);
         res.json({
             message: 'Factura marcada como pagada exitosamente',
             changes: this.changes
@@ -5014,94 +5038,880 @@ app.put('/api/invoices/:id/mark-paid', authenticateToken, requireRole(['Admin', 
     });
 });
 
-app.use('*', (req, res) => {
-    res.status(404).json({
-        error: 'Endpoint no encontrado',
-        path: req.originalUrl,
-        method: req.method,
-        timestamp: new Date().toISOString()
+// ===================================================================
+// MÃ“DULO DE ASISTENCIA Y CONTROL HORARIO - MOVIDO AQUÃ ANTES DE ERROR HANDLER
+// ===================================================================
+console.log('ðŸ”„ Registrando rutas del mÃ³dulo de asistencia...');
+console.log('ðŸ“ PosiciÃ³n actual en archivo: ANTES del error handler');
+console.log('âœ… app estÃ¡ definido:', typeof app);
+console.log('âœ… authenticateToken estÃ¡ definido:', typeof authenticateToken);
+
+// ===================================================================
+// TIPOS DE TURNO
+// ===================================================================
+
+// GET - Obtener todos los tipos de turno
+app.get('/api/shift-types', authenticateToken, (req, res) => {
+    console.log('ðŸŽ¯ RUTA /api/shift-types INVOCADA');
+    const sql = 'SELECT * FROM ShiftTypes WHERE is_active = 1 ORDER BY name';
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo tipos de turno:', err);
+            return res.status(500).json({ error: 'Error al obtener tipos de turno' });
+        }
+        res.json({ message: 'success', data: rows });
     });
 });
 
-app.use((err, req, res, next) => {
-    console.error('💥 Error no manejado:', err);
+// POST - Crear tipo de turno
+app.post('/api/shift-types', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const { name, description, color } = req.body;
     
-    if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json({
-            error: 'Token inválido',
-            code: 'INVALID_TOKEN'
-        });
+    if (!name) {
+        return res.status(400).json({ error: 'El nombre es requerido' });
     }
     
-    if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({
-            error: 'Token expirado',
-            code: 'TOKEN_EXPIRED'
-        });
-    }
+    const sql = `INSERT INTO ShiftTypes (name, description, color) VALUES (?, ?, ?)`;
     
-    if (err.type === 'validation') {
-        return res.status(400).json({
-            error: 'Error de validación',
-            details: err.details
+    db.run(sql, [name, description, color || '#3B82F6'], function(err) {
+        if (err) {
+            console.error('Error creando tipo de turno:', err);
+            return res.status(500).json({ error: 'Error al crear tipo de turno' });
+        }
+        res.json({ 
+            message: 'success',
+            data: { id: this.lastID, name, description, color }
         });
-    }
-    
-    res.status(500).json({
-        error: 'Error interno del servidor',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
-        timestamp: new Date().toISOString()
     });
 });
 
 // ===================================================================
-// INICIALIZACIÓN DEL SERVIDOR
+// HORARIOS DE TRABAJO
+// ===================================================================
+
+// GET - Obtener todos los horarios
+app.get('/api/work-schedules', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT ws.*, st.name as shift_type_name, st.color as shift_type_color
+        FROM WorkSchedules ws
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE ws.is_active = 1
+        ORDER BY ws.name
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo horarios:', err);
+            return res.status(500).json({ error: 'Error al obtener horarios' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET - Obtener horario por ID
+app.get('/api/work-schedules/:id', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT ws.*, st.name as shift_type_name
+        FROM WorkSchedules ws
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE ws.id = ?
+    `;
+    
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo horario:', err);
+            return res.status(500).json({ error: 'Error al obtener horario' });
+        }
+        if (!row) {
+            return res.status(404).json({ error: 'Horario no encontrado' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// POST - Crear horario
+app.post('/api/work-schedules', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const {
+        name, description, shift_type_id,
+        monday_enabled, monday_start, monday_end, monday_break_duration,
+        tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
+        wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
+        thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
+        friday_enabled, friday_start, friday_end, friday_break_duration,
+        saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
+        sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
+        weekly_hours, tolerance_minutes
+    } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({ error: 'El nombre es requerido' });
+    }
+    
+    const sql = `
+        INSERT INTO WorkSchedules (
+            name, description, shift_type_id,
+            monday_enabled, monday_start, monday_end, monday_break_duration,
+            tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
+            wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
+            thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
+            friday_enabled, friday_start, friday_end, friday_break_duration,
+            saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
+            sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
+            weekly_hours, tolerance_minutes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const params = [
+        name, description, shift_type_id,
+        monday_enabled || 0, monday_start, monday_end, monday_break_duration || 0,
+        tuesday_enabled || 0, tuesday_start, tuesday_end, tuesday_break_duration || 0,
+        wednesday_enabled || 0, wednesday_start, wednesday_end, wednesday_break_duration || 0,
+        thursday_enabled || 0, thursday_start, thursday_end, thursday_break_duration || 0,
+        friday_enabled || 0, friday_start, friday_end, friday_break_duration || 0,
+        saturday_enabled || 0, saturday_start, saturday_end, saturday_break_duration || 0,
+        sunday_enabled || 0, sunday_start, sunday_end, sunday_break_duration || 0,
+        weekly_hours || 0, tolerance_minutes || 15
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error creando horario:', err);
+            return res.status(500).json({ error: 'Error al crear horario' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// PUT - Actualizar horario
+app.put('/api/work-schedules/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const {
+        name, description, shift_type_id,
+        monday_enabled, monday_start, monday_end, monday_break_duration,
+        tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
+        wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
+        thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
+        friday_enabled, friday_start, friday_end, friday_break_duration,
+        saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
+        sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
+        weekly_hours, tolerance_minutes
+    } = req.body;
+    
+    const sql = `
+        UPDATE WorkSchedules SET
+            name = ?, description = ?, shift_type_id = ?,
+            monday_enabled = ?, monday_start = ?, monday_end = ?, monday_break_duration = ?,
+            tuesday_enabled = ?, tuesday_start = ?, tuesday_end = ?, tuesday_break_duration = ?,
+            wednesday_enabled = ?, wednesday_start = ?, wednesday_end = ?, wednesday_break_duration = ?,
+            thursday_enabled = ?, thursday_start = ?, thursday_end = ?, thursday_break_duration = ?,
+            friday_enabled = ?, friday_start = ?, friday_end = ?, friday_break_duration = ?,
+            saturday_enabled = ?, saturday_start = ?, saturday_end = ?, saturday_break_duration = ?,
+            sunday_enabled = ?, sunday_start = ?, sunday_end = ?, sunday_break_duration = ?,
+            weekly_hours = ?, tolerance_minutes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        name, description, shift_type_id,
+        monday_enabled || 0, monday_start, monday_end, monday_break_duration || 0,
+        tuesday_enabled || 0, tuesday_start, tuesday_end, tuesday_break_duration || 0,
+        wednesday_enabled || 0, wednesday_start, wednesday_end, wednesday_break_duration || 0,
+        thursday_enabled || 0, thursday_start, thursday_end, thursday_break_duration || 0,
+        friday_enabled || 0, friday_start, friday_end, friday_break_duration || 0,
+        saturday_enabled || 0, saturday_start, saturday_end, saturday_break_duration || 0,
+        sunday_enabled || 0, sunday_start, sunday_end, sunday_break_duration || 0,
+        weekly_hours || 0, tolerance_minutes || 15,
+        req.params.id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error actualizando horario:', err);
+            return res.status(500).json({ error: 'Error al actualizar horario' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// DELETE - Desactivar horario
+app.delete('/api/work-schedules/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const sql = 'UPDATE WorkSchedules SET is_active = 0 WHERE id = ?';
+    
+    db.run(sql, [req.params.id], function(err) {
+        if (err) {
+            console.error('Error desactivando horario:', err);
+            return res.status(500).json({ error: 'Error al desactivar horario' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// ===================================================================
+// ASIGNACIÃ“N DE HORARIOS A EMPLEADOS
+// ===================================================================
+
+// GET - Obtener horarios de un empleado
+app.get('/api/employee-schedules/:userId', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT es.*, ws.name as schedule_name, ws.weekly_hours,
+               u.username, st.name as shift_type_name
+        FROM EmployeeSchedules es
+        JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        JOIN Users u ON es.user_id = u.id
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE es.user_id = ?
+        ORDER BY es.start_date DESC
+    `;
+    
+    db.all(sql, [req.params.userId], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo horarios del empleado:', err);
+            return res.status(500).json({ error: 'Error al obtener horarios' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET - Obtener horario activo de un empleado
+app.get('/api/employee-schedules/:userId/active', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT es.*, ws.*, st.name as shift_type_name
+        FROM EmployeeSchedules es
+        JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE es.user_id = ?
+          AND es.is_active = 1
+          AND CURDATE() >= es.start_date
+          AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
+        ORDER BY es.start_date DESC
+        LIMIT 1
+    `;
+    
+    db.get(sql, [req.params.userId], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo horario activo:', err);
+            return res.status(500).json({ error: 'Error al obtener horario activo' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// POST - Asignar horario a empleado
+app.post('/api/employee-schedules', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { user_id, schedule_id, start_date, end_date, notes } = req.body;
+    
+    if (!user_id || !schedule_id || !start_date) {
+        return res.status(400).json({ error: 'Datos incompletos' });
+    }
+    
+    const sql = `
+        INSERT INTO EmployeeSchedules (user_id, schedule_id, start_date, end_date, notes)
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [user_id, schedule_id, start_date, end_date, notes], function(err) {
+        if (err) {
+            console.error('Error asignando horario:', err);
+            return res.status(500).json({ error: 'Error al asignar horario' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// ===================================================================
+// ASISTENCIA
+// ===================================================================
+
+// GET - Obtener asistencias (con filtros)
+app.get('/api/attendance', authenticateToken, (req, res) => {
+    const { user_id, date_from, date_to, status } = req.query;
+    
+    let sql = `
+        SELECT a.*, u.username, u.role_id,
+               ws.name as schedule_name
+        FROM Attendance a
+        JOIN Users u ON a.user_id = u.id
+        LEFT JOIN EmployeeSchedules es ON es.user_id = u.id 
+            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
+            AND es.is_active = 1
+        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (user_id) {
+        sql += ' AND a.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (date_from) {
+        sql += ' AND a.date >= ?';
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ' AND a.date <= ?';
+        params.push(date_to);
+    }
+    
+    if (status) {
+        sql += ' AND a.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY a.date DESC, u.username';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo asistencias:', err);
+            return res.status(500).json({ error: 'Error al obtener asistencias' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET - Obtener asistencia de hoy del usuario actual
+app.get('/api/attendance/today', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT a.*, ws.name as schedule_name,
+               ws.tolerance_minutes
+        FROM Attendance a
+        LEFT JOIN EmployeeSchedules es ON es.user_id = a.user_id 
+            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
+            AND es.is_active = 1
+        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        WHERE a.user_id = ? AND a.date = CURDATE()
+    `;
+    
+    db.get(sql, [req.user.id], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo asistencia de hoy:', err);
+            return res.status(500).json({ error: 'Error al obtener asistencia' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// NOTE: Por limitaciones de tamaÃ±o, las demÃ¡s rutas (check-in, check-out, overtime, leave-requests, holidays, reports) 
+// se mantendrÃ¡n en su ubicaciÃ³n actual despuÃ©s de startServer() temporalmente.
+// TODO: Mover todas las rutas aquÃ­ en un refactor posterior.
+
+// ===================================================================
+// REPORTES DE ASISTENCIA
+// ===================================================================
+
+// GET - Resumen de asistencia por empleado
+app.get('/api/attendance/summary/:userId', authenticateToken, (req, res) => {
+    const { month, year } = req.query;
+    
+    let sql = `
+        SELECT 
+            COUNT(*) as total_days,
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days,
+            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_days,
+            SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as late_days,
+            SUM(late_minutes) as total_late_minutes,
+            SUM(worked_hours) as total_worked_hours,
+            AVG(worked_hours) as avg_worked_hours
+        FROM Attendance
+        WHERE user_id = ?
+    `;
+    
+    const params = [req.params.userId];
+    
+    if (month && year) {
+        sql += ' AND MONTH(date) = ? AND YEAR(date) = ?';
+        params.push(month, year);
+    }
+    
+    db.get(sql, params, (err, row) => {
+        if (err) {
+            console.error('Error obteniendo resumen de asistencia:', err);
+            return res.status(500).json({ error: 'Error al obtener resumen' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// GET - EstadÃ­sticas generales de asistencia
+app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const sql = `
+        SELECT 
+            COUNT(DISTINCT user_id) as total_employees,
+            COUNT(*) as total_records,
+            SUM(CASE WHEN date = CURDATE() THEN 1 ELSE 0 END) as today_present,
+            SUM(CASE WHEN date = CURDATE() AND check_in_time IS NOT NULL AND check_out_time IS NULL THEN 1 ELSE 0 END) as currently_working,
+            SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as total_late
+        FROM Attendance
+        WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+    `;
+    
+    db.get(sql, [], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo estadÃ­sticas:', err);
+            return res.status(500).json({ error: 'Error al obtener estadÃ­sticas' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// POST - Marcar entrada (check-in)
+app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
+    const { location, notes } = req.body;
+    const user_id = req.user.id;
+    const ip = req.ip || req.connection.remoteAddress;
+    
+    // Verificar si ya marcÃ³ entrada hoy
+    const checkSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = CURDATE()';
+    
+    db.get(checkSql, [user_id], (err, existing) => {
+        if (err) {
+            console.error('Error verificando asistencia:', err);
+            return res.status(500).json({ error: 'Error al verificar asistencia' });
+        }
+        
+        if (existing && existing.check_in_time) {
+            return res.status(400).json({ 
+                error: 'Ya has marcado tu entrada hoy',
+                data: existing
+            });
+        }
+        
+        // Obtener horario del empleado para calcular tardanza
+        const scheduleSql = `
+            SELECT ws.*, 
+                   CASE DAYOFWEEK(NOW())
+                       WHEN 2 THEN ws.monday_start
+                       WHEN 3 THEN ws.tuesday_start
+                       WHEN 4 THEN ws.wednesday_start
+                       WHEN 5 THEN ws.thursday_start
+                       WHEN 6 THEN ws.friday_start
+                       WHEN 7 THEN ws.saturday_start
+                       WHEN 1 THEN ws.sunday_start
+                   END as scheduled_start
+            FROM EmployeeSchedules es
+            JOIN WorkSchedules ws ON es.schedule_id = ws.id
+            WHERE es.user_id = ?
+              AND es.is_active = 1
+              AND CURDATE() >= es.start_date
+              AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
+            LIMIT 1
+        `;
+        
+        db.get(scheduleSql, [user_id], (err, schedule) => {
+            const now = new Date();
+            const nowTime = toMySQLDateTime(now); //  FIX: Hora local
+            let is_late = 0;
+            let late_minutes = 0;
+            let status = 'present';
+            
+            if (schedule && schedule.scheduled_start) {
+                const scheduledStart = new Date();
+                const [hours, minutes] = schedule.scheduled_start.split(':');
+                scheduledStart.setHours(parseInt(hours), parseInt(minutes), 0);
+                
+                const tolerance = (schedule.tolerance_minutes || 15) * 60 * 1000;
+                const diff = now - scheduledStart;
+                
+                if (diff > tolerance) {
+                    is_late = 1;
+                    late_minutes = Math.floor(diff / 60000);
+                    status = 'late';
+                }
+            }
+            
+            if (existing) {
+                // Actualizar registro existente
+                const updateSql = `
+                    UPDATE Attendance SET
+                        check_in_time = ?,
+                        check_in_location = ?,
+                        check_in_notes = ?,
+                        check_in_ip = ?,
+                        is_late = ?,
+                        late_minutes = ?,
+                        status = ?
+                    WHERE id = ?
+                `;
+                
+                db.run(updateSql, [nowTime, location, notes, ip, is_late, late_minutes, status, existing.id], function(err) {
+                    if (err) {
+                        console.error('Error actualizando entrada:', err);
+                        return res.status(500).json({ error: 'Error al marcar entrada' });
+                    }
+                    res.json({ message: 'Entrada registrada correctamente', data: { id: existing.id, is_late, late_minutes } });
+                });
+            } else {
+                // Crear nuevo registro
+                const insertSql = `
+                    INSERT INTO Attendance (
+                        user_id, date, check_in_time, check_in_location, check_in_notes, check_in_ip,
+                        is_late, late_minutes, status, scheduled_hours
+                    ) VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
+                
+                const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // AproximaciÃ³n
+                
+                db.run(insertSql, [user_id, nowTime, location, notes, ip, is_late, late_minutes, status, scheduled_hours], function(err) {
+                    if (err) {
+                        console.error('Error creando entrada:', err);
+                        return res.status(500).json({ error: 'Error al marcar entrada' });
+                    }
+                    res.json({ message: 'Entrada registrada correctamente', data: { id: this.lastID, is_late, late_minutes } });
+                });
+            }
+        });
+    });
+});
+
+// POST - Marcar salida (check-out)
+app.post('/api/attendance/check-out', authenticateToken, (req, res) => {
+    const { location, notes } = req.body;
+    const user_id = req.user.id;
+    const ip = req.ip || req.connection.remoteAddress;
+    
+    // Obtener registro de hoy
+    const getSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = CURDATE()';
+    
+    db.get(getSql, [user_id], (err, attendance) => {
+        if (err) {
+            console.error('Error obteniendo asistencia:', err);
+            return res.status(500).json({ error: 'Error al obtener asistencia' });
+        }
+        
+        if (!attendance) {
+            return res.status(400).json({ error: 'No has marcado entrada hoy' });
+        }
+        
+        if (attendance.check_out_time) {
+            return res.status(400).json({ error: 'Ya has marcado tu salida hoy' });
+        }
+        
+        const now = new Date();
+        
+        // FIX: Convertir check_in_time de MySQL DATETIME a JavaScript Date correctamente
+        // MySQL puede devolver Date object o string "2025-10-09 03:29:00"
+        let check_in;
+        if (attendance.check_in_time instanceof Date) {
+            // Ya es un objeto Date
+            check_in = attendance.check_in_time;
+        } else if (typeof attendance.check_in_time === 'string') {
+            // Es un string, necesitamos parsearlo como hora local
+            const checkInStr = attendance.check_in_time.replace(' ', 'T');
+            check_in = new Date(checkInStr);
+        } else {
+            console.error('Tipo inesperado para check_in_time:', typeof attendance.check_in_time);
+            return res.status(500).json({ error: 'Error procesando hora de entrada' });
+        }
+        
+        const worked_hours = (now - check_in) / (1000 * 60 * 60); // Horas trabajadas
+        
+        const updateSql = `
+            UPDATE Attendance SET
+                check_out_time = ?,
+                check_out_location = ?,
+                check_out_notes = ?,
+                check_out_ip = ?,
+                worked_hours = ?
+            WHERE id = ?
+        `;
+        
+        db.run(updateSql, [toMySQLDateTime(now), location, notes, ip, worked_hours.toFixed(2), attendance.id], function(err) {
+            if (err) {
+                console.error('Error marcando salida:', err);
+                return res.status(500).json({ error: 'Error al marcar salida' });
+            }
+            res.json({ 
+                message: 'Salida registrada correctamente',
+                data: { worked_hours: worked_hours.toFixed(2) }
+            });
+        });
+    });
+});
+
+// ===================================================================
+// HORAS EXTRAS
+// ===================================================================
+
+// GET - Obtener horas extras
+app.get('/api/overtime', authenticateToken, (req, res) => {
+    const { user_id, status, date_from, date_to } = req.query;
+    
+    let sql = `
+        SELECT o.*, u.username,
+               requester.username as requested_by_name,
+               approver.username as approved_by_name
+        FROM Overtime o
+        JOIN Users u ON o.user_id = u.id
+        LEFT JOIN Users requester ON o.requested_by = requester.id
+        LEFT JOIN Users approver ON o.approved_by = approver.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (user_id) {
+        sql += ' AND o.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (status) {
+        sql += ' AND o.status = ?';
+        params.push(status);
+    }
+    
+    if (date_from) {
+        sql += ' AND o.date >= ?';
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ' AND o.date <= ?';
+        params.push(date_to);
+    }
+    
+    sql += ' ORDER BY o.date DESC, o.start_time DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo horas extras:', err);
+            return res.status(500).json({ error: 'Error al obtener horas extras' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// POST - Registrar horas extras
+app.post('/api/overtime', authenticateToken, (req, res) => {
+    const { 
+        user_id, date, start_time, end_time, type, description, reason,
+        hourly_rate
+    } = req.body;
+    
+    if (!user_id || !date || !start_time || !end_time) {
+        return res.status(400).json({ error: 'Datos incompletos' });
+    }
+    
+    // Calcular horas
+    const start = new Date(`${date}T${start_time}`);
+    const end = new Date(`${date}T${end_time}`);
+    const hours = (end - start) / (1000 * 60 * 60);
+    
+    // Determinar multiplicador segÃºn tipo
+    let multiplier = 1.5;
+    if (type === 'night') multiplier = 2.0;
+    if (type === 'holiday') multiplier = 2.0;
+    if (type === 'sunday') multiplier = 1.8;
+    
+    const total_amount = hourly_rate ? (hours * hourly_rate * multiplier).toFixed(2) : 0;
+    
+    const sql = `
+        INSERT INTO Overtime (
+            user_id, date, start_time, end_time, hours,
+            type, multiplier, description, reason,
+            hourly_rate, total_amount, requested_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [
+        user_id, date, start_time, end_time, hours.toFixed(2),
+        type || 'regular', multiplier, description, reason,
+        hourly_rate || 0, total_amount, req.user.id, 'pending'
+    ], function(err) {
+        if (err) {
+            console.error('Error registrando horas extras:', err);
+            return res.status(500).json({ error: 'Error al registrar horas extras' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID, hours: hours.toFixed(2), total_amount } });
+    });
+});
+
+// PUT - Aprobar/Rechazar horas extras
+app.put('/api/overtime/:id/status', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { status, rejection_reason } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Estado invÃ¡lido' });
+    }
+    
+    const sql = `
+        UPDATE Overtime SET
+            status = ?,
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [status, req.user.id, rejection_reason, req.params.id], function(err) {
+        if (err) {
+            console.error('Error actualizando estado de horas extras:', err);
+            return res.status(500).json({ error: 'Error al actualizar estado' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// ===================================================================
+// SOLICITUDES DE PERMISO/VACACIONES
+// ===================================================================
+
+// GET - Obtener solicitudes de permiso
+app.get('/api/leave-requests', authenticateToken, (req, res) => {
+    const { user_id, status } = req.query;
+    
+    let sql = `
+        SELECT lr.*, u.username,
+               approver.username as approved_by_name,
+               replacement.username as replacement_name
+        FROM LeaveRequests lr
+        JOIN Users u ON lr.user_id = u.id
+        LEFT JOIN Users approver ON lr.approved_by = approver.id
+        LEFT JOIN Users replacement ON lr.replacement_user_id = replacement.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (user_id) {
+        sql += ' AND lr.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (status) {
+        sql += ' AND lr.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY lr.start_date DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo solicitudes de permiso:', err);
+            return res.status(500).json({ error: 'Error al obtener solicitudes' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// POST - Crear solicitud de permiso
+app.post('/api/leave-requests', authenticateToken, (req, res) => {
+    const {
+        start_date, end_date, days_requested, type, reason,
+        has_documentation, documentation_file, replacement_user_id
+    } = req.body;
+    
+    if (!start_date || !end_date || !type) {
+        return res.status(400).json({ error: 'Datos incompletos' });
+    }
+    
+    const sql = `
+        INSERT INTO LeaveRequests (
+            user_id, start_date, end_date, days_requested,
+            type, reason, has_documentation, documentation_file,
+            replacement_user_id, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [
+        req.user.id, start_date, end_date, days_requested || 1,
+        type, reason, has_documentation || 0, documentation_file,
+        replacement_user_id, 'pending'
+    ], function(err) {
+        if (err) {
+            console.error('Error creando solicitud de permiso:', err);
+            return res.status(500).json({ error: 'Error al crear solicitud' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// PUT - Aprobar/Rechazar solicitud de permiso
+app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { status, rejection_reason } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Estado invÃ¡lido' });
+    }
+    
+    const sql = `
+        UPDATE LeaveRequests SET
+            status = ?,
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [status, req.user.id, rejection_reason, req.params.id], function(err) {
+        if (err) {
+            console.error('Error actualizando solicitud:', err);
+            return res.status(500).json({ error: 'Error al actualizar solicitud' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+console.log('âœ… Rutas principales de asistencia registradas (shift-types, schedules, employee-schedules, attendance, summary, stats, check-in, check-out, overtime, leave-requests)');
+
+// ===================================================================
+// INICIALIZACIÃ“N DEL SERVIDOR
 // ===================================================================
 
 function startServer() {
     app.listen(PORT, '0.0.0.0', (err) => {
         if (err) {
-            console.error('💥 Error iniciando servidor:', err);
+            console.error('ðŸ’¥ Error iniciando servidor:', err);
             process.exit(1);
         }
         
-        console.log('\n🚀 ========================================');
-        console.log('🚀 GYMTEC ERP - SERVIDOR INICIADO');
-        console.log('🚀 ========================================');
-        console.log(`🌍 Servidor corriendo en: http://localhost:${PORT}`);
-        console.log(`🌍 Accessible via: http://0.0.0.0:${PORT}`);
-        console.log(`🔧 Modo: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`📂 Base de datos: MySQL`);
-        console.log('📋 Rutas disponibles:');
-        console.log('   🔐 /api/auth/* (Autenticación)');
-        console.log('   👥 /api/clients/* (Gestión de Clientes)');
-        console.log('   🏢 /api/locations/* (Gestión de Sedes)');
-        console.log('   🔧 /api/equipment/* (Gestión de Equipos)');
-        console.log('   🎫 /api/tickets/* (Sistema de Tickets)');
-        console.log('   📦 /api/inventory/* (Gestión de Inventario)');
-        console.log('   🛒 /api/purchase-orders/* (Órdenes de Compra)');
-        console.log('   📊 /api/dashboard/* (Dashboard y KPIs)');
-        console.log('   👤 /api/users/* (Gestión de Usuarios)');
-        console.log('   💰 /api/quotes/* (Cotizaciones)');
-        console.log('   🧾 /api/invoices/* (Facturación)');
-        console.log('   💸 /api/expenses/* (Gastos)');
-        console.log('   ⏱️  /api/time-entries/* (Control de Tiempo)');
-        console.log('   🔔 /api/notifications/* (Notificaciones - Fase 2)');
-        console.log('   📈 /api/inventory/* (Inventario Inteligente - Fase 3)');
-        console.log('🚀 ========================================\n');
+        console.log('\nðŸš€ ========================================');
+        console.log('ðŸš€ GYMTEC ERP - SERVIDOR INICIADO');
+        console.log('ðŸš€ ========================================');
+        console.log(`ðŸŒ Servidor corriendo en: http://localhost:${PORT}`);
+        console.log(`ðŸŒ Accessible via: http://0.0.0.0:${PORT}`);
+        console.log(`ðŸ”§ Modo: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`ðŸ“‚ Base de datos: MySQL`);
+        console.log('ðŸ“‹ Rutas disponibles:');
+        console.log('   ðŸ” /api/auth/* (AutenticaciÃ³n)');
+        console.log('   ðŸ‘¥ /api/clients/* (GestiÃ³n de Clientes)');
+        console.log('   ðŸ¢ /api/locations/* (GestiÃ³n de Sedes)');
+        console.log('   ðŸ”§ /api/equipment/* (GestiÃ³n de Equipos)');
+        console.log('   ðŸŽ« /api/tickets/* (Sistema de Tickets)');
+        console.log('   ðŸ“¦ /api/inventory/* (GestiÃ³n de Inventario)');
+        console.log('   ðŸ›’ /api/purchase-orders/* (Ã“rdenes de Compra)');
+        console.log('   ðŸ“Š /api/dashboard/* (Dashboard y KPIs)');
+        console.log('   ðŸ‘¤ /api/users/* (GestiÃ³n de Usuarios)');
+        console.log('   ðŸ’° /api/quotes/* (Cotizaciones)');
+        console.log('   ðŸ§¾ /api/invoices/* (FacturaciÃ³n)');
+        console.log('   ðŸ’¸ /api/expenses/* (Gastos)');
+        console.log('   â±ï¸  /api/time-entries/* (Control de Tiempo)');
+        console.log('   ðŸ”” /api/notifications/* (Notificaciones - Fase 2)');
+        console.log('   ðŸ“ˆ /api/inventory/* (Inventario Inteligente - Fase 3)');
+        console.log('   â° /api/attendance/* (Control de Asistencia)');
+        console.log('   ðŸ“… /api/schedules/* (Horarios y Turnos)');
+        console.log('   â³ /api/overtime/* (Horas Extras)');
+        console.log('   ðŸ“‹ /api/leave-requests/* (Solicitudes de Permiso)');
+        console.log('ðŸš€ ========================================\n');
         
         try {
-            console.log('🔄 Inicializando servicios de background...');
-            console.log('✅ Servicios de background iniciados correctamente');
+            console.log('ðŸ”„ Inicializando servicios de background...');
+            console.log('âœ… Servicios de background iniciados correctamente');
         } catch (error) {
-            console.warn('⚠️  Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
+            console.warn('âš ï¸  Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
         }
     });
 }
 
 // ===================================================================
-// MÓDULO DE ASISTENCIA Y CONTROL HORARIO
+// MÃ“DULO DE ASISTENCIA Y CONTROL HORARIO - BLOQUE DUPLICADO COMENTADO
 // ===================================================================
+// NOTA: Las rutas de asistencia estÃ¡n ahora definidas ANTES del error handler (lÃ­nea ~5030)
+// Este bloque duplicado ha sido comentado para evitar conflictos
+/*
+console.log('ðŸ”„ Registrando rutas del mÃ³dulo de asistencia...');
 
 // ===================================================================
 // TIPOS DE TURNO
@@ -5304,7 +6114,7 @@ app.delete('/api/work-schedules/:id', authenticateToken, requireRole(['Admin']),
 });
 
 // ===================================================================
-// ASIGNACIÓN DE HORARIOS A EMPLEADOS
+// ASIGNACIÃ“N DE HORARIOS A EMPLEADOS
 // ===================================================================
 
 // GET - Obtener horarios de un empleado
@@ -5456,7 +6266,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
     const user_id = req.user.id;
     const ip = req.ip || req.connection.remoteAddress;
     
-    // Verificar si ya marcó entrada hoy
+    // Verificar si ya marcÃ³ entrada hoy
     const checkSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = CURDATE()';
     
     db.get(checkSql, [user_id], (err, existing) => {
@@ -5545,7 +6355,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
                     ) VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
                 
-                const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // Aproximación
+                const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // AproximaciÃ³n
                 
                 db.run(insertSql, [user_id, nowTime, location, notes, ip, is_late, late_minutes, status, scheduled_hours], function(err) {
                     if (err) {
@@ -5596,7 +6406,7 @@ app.post('/api/attendance/check-out', authenticateToken, (req, res) => {
             WHERE id = ?
         `;
         
-        db.run(updateSql, [now.toISOString(), location, notes, ip, worked_hours.toFixed(2), attendance.id], function(err) {
+        db.run(updateSql, [toMySQLDateTime(now), location, notes, ip, worked_hours.toFixed(2), attendance.id], function(err) {
             if (err) {
                 console.error('Error marcando salida:', err);
                 return res.status(500).json({ error: 'Error al marcar salida' });
@@ -5677,7 +6487,7 @@ app.post('/api/overtime', authenticateToken, (req, res) => {
     const end = new Date(`${date}T${end_time}`);
     const hours = (end - start) / (1000 * 60 * 60);
     
-    // Determinar multiplicador según tipo
+    // Determinar multiplicador segÃºn tipo
     let multiplier = 1.5;
     if (type === 'night') multiplier = 2.0;
     if (type === 'holiday') multiplier = 2.0;
@@ -5711,7 +6521,7 @@ app.put('/api/overtime/:id/status', authenticateToken, requireRole(['Admin', 'Ma
     const { status, rejection_reason } = req.body;
     
     if (!['approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Estado inválido' });
+        return res.status(400).json({ error: 'Estado invÃ¡lido' });
     }
     
     const sql = `
@@ -5811,7 +6621,7 @@ app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin
     const { status, rejection_reason } = req.body;
     
     if (!['approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Estado inválido' });
+        return res.status(400).json({ error: 'Estado invÃ¡lido' });
     }
     
     const sql = `
@@ -5833,10 +6643,10 @@ app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin
 });
 
 // ===================================================================
-// DÍAS FESTIVOS
+// DÃAS FESTIVOS
 // ===================================================================
 
-// GET - Obtener días festivos
+// GET - Obtener dÃ­as festivos
 app.get('/api/holidays', authenticateToken, (req, res) => {
     const { year } = req.query;
     
@@ -5852,14 +6662,14 @@ app.get('/api/holidays', authenticateToken, (req, res) => {
     
     db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('Error obteniendo días festivos:', err);
-            return res.status(500).json({ error: 'Error al obtener días festivos' });
+            console.error('Error obteniendo dÃ­as festivos:', err);
+            return res.status(500).json({ error: 'Error al obtener dÃ­as festivos' });
         }
         res.json({ message: 'success', data: rows });
     });
 });
 
-// POST - Crear día festivo
+// POST - Crear dÃ­a festivo
 app.post('/api/holidays', authenticateToken, requireRole(['Admin']), (req, res) => {
     const { name, date, type, is_paid, description } = req.body;
     
@@ -5874,8 +6684,8 @@ app.post('/api/holidays', authenticateToken, requireRole(['Admin']), (req, res) 
     
     db.run(sql, [name, date, type || 'national', is_paid !== false ? 1 : 0, description], function(err) {
         if (err) {
-            console.error('Error creando día festivo:', err);
-            return res.status(500).json({ error: 'Error al crear día festivo' });
+            console.error('Error creando dÃ­a festivo:', err);
+            return res.status(500).json({ error: 'Error al crear dÃ­a festivo' });
         }
         res.json({ message: 'success', data: { id: this.lastID } });
     });
@@ -5918,7 +6728,7 @@ app.get('/api/attendance/summary/:userId', authenticateToken, (req, res) => {
     });
 });
 
-// GET - Estadísticas generales de asistencia
+// GET - EstadÃ­sticas generales de asistencia
 app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const sql = `
         SELECT 
@@ -5933,35 +6743,95 @@ app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manag
     
     db.get(sql, [], (err, row) => {
         if (err) {
-            console.error('Error obteniendo estadísticas:', err);
-            return res.status(500).json({ error: 'Error al obtener estadísticas' });
+            console.error('Error obteniendo estadÃ­sticas:', err);
+            return res.status(500).json({ error: 'Error al obtener estadÃ­sticas' });
         }
         res.json({ message: 'success', data: row });
     });
 });
+*/
+// FIN DEL BLOQUE DUPLICADO COMENTADO
+// ===================================================================
+
+// ===================================================================
+// CATCH-ALL 404 HANDLER - DEBE IR ANTES DEL ERROR HANDLER
+// ===================================================================
+
+app.use('*', (req, res) => {
+    console.log(`âš ï¸  404 - Endpoint no encontrado: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+        error: 'Endpoint no encontrado',
+        path: req.originalUrl,
+        method: req.method,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===================================================================
+// ERROR HANDLER - DEBE IR AL FINAL DESPUÃ‰S DE TODAS LAS RUTAS
+// ===================================================================
+
+app.use((err, req, res, next) => {
+    console.error('ðŸ’¥ Error no manejado:', err);
+    
+    if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+            error: 'Token invÃ¡lido',
+            code: 'INVALID_TOKEN'
+        });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+            error: 'Token expirado',
+            code: 'TOKEN_EXPIRED'
+        });
+    }
+    
+    if (err.type === 'validation') {
+        return res.status(400).json({
+            error: 'Error de validaciÃ³n',
+            details: err.details
+        });
+    }
+    
+    res.status(500).json({
+        error: 'Error interno del servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===================================================================
+// PROCESS HANDLERS
+// ===================================================================
 
 process.on('SIGINT', () => {
-    console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');
+    console.log('\nðŸ›‘ Recibida seÃ±al SIGINT, cerrando servidor...');
     db.close((err) => {
         if (err) {
-            console.error('❌ Error cerrando base de datos:', err.message);
+            console.error('âŒ Error cerrando base de datos:', err.message);
         } else {
-            console.log('✅ Base de datos cerrada correctamente');
+            console.log('âœ… Base de datos cerrada correctamente');
         }
         process.exit(0);
     });
 });
 
 process.on('SIGTERM', () => {
-    console.log('\n🛑 Recibida señal SIGTERM, cerrando servidor...');
+    console.log('\nðŸ›‘ Recibida seÃ±al SIGTERM, cerrando servidor...');
     db.close((err) => {
         if (err) {
-            console.error('❌ Error cerrando base de datos:', err.message);
+            console.error('âŒ Error cerrando base de datos:', err.message);
         } else {
-            console.log('✅ Base de datos cerrada correctamente');
+            console.log('âœ… Base de datos cerrada correctamente');
         }
         process.exit(0);
     });
 });
+
+// ===================================================================
+// INICIAR SERVIDOR
+// ===================================================================
 
 startServer();
