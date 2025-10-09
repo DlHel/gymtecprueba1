@@ -1,6 +1,5 @@
 ﻿// dashboard.js - Dashboard Principal con KPIs en tiempo real
 const CONFIG = {
-    API_BASE_URL: 'http://localhost:3000/api',
     REFRESH_INTERVAL: 300000 // 5 minutos en milisegundos
 };
 

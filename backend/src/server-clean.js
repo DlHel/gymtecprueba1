@@ -840,7 +840,7 @@ app.get('/api/locations', authenticateToken, (req, res) => {
     });
 });
 
-app.get('/api/clients/:clientId/locations', (req, res) => {
+app.get('/api/clients/:clientId/locations', authenticateToken, (req, res) => {
     const { clientId } = req.params;
     
     db.all(`
@@ -867,7 +867,7 @@ app.get('/api/clients/:clientId/locations', (req, res) => {
     });
 });
 
-app.get("/api/locations/:id", (req, res) => {
+app.get("/api/locations/:id", authenticateToken, (req, res) => {
     const sql = "SELECT * FROM Locations WHERE id = ?"
     const params = [req.params.id]
     db.get(sql, params, (err, row) => {
@@ -901,7 +901,7 @@ app.post('/api/locations', authenticateToken, (req, res) => {
     });
 });
 
-app.put("/api/locations/:id", (req, res) => {
+app.put("/api/locations/:id", authenticateToken, (req, res) => {
     const { name, address } = req.body;
     
     const validation = validateLocationUpdate(req.body);
@@ -930,7 +930,7 @@ app.put("/api/locations/:id", (req, res) => {
     });
 });
 
-app.delete("/api/locations/:id", (req, res) => {
+app.delete("/api/locations/:id", authenticateToken, (req, res) => {
     const sql = 'DELETE FROM Locations WHERE id = ?';
     const params = [req.params.id];
     db.run(sql, params, function (err, result) {
@@ -5098,6 +5098,847 @@ function startServer() {
         }
     });
 }
+
+// ===================================================================
+// MÓDULO DE ASISTENCIA Y CONTROL HORARIO
+// ===================================================================
+
+// ===================================================================
+// TIPOS DE TURNO
+// ===================================================================
+
+// GET - Obtener todos los tipos de turno
+app.get('/api/shift-types', authenticateToken, (req, res) => {
+    const sql = 'SELECT * FROM ShiftTypes WHERE is_active = 1 ORDER BY name';
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo tipos de turno:', err);
+            return res.status(500).json({ error: 'Error al obtener tipos de turno' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// POST - Crear tipo de turno
+app.post('/api/shift-types', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const { name, description, color } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({ error: 'El nombre es requerido' });
+    }
+    
+    const sql = `INSERT INTO ShiftTypes (name, description, color) VALUES (?, ?, ?)`;
+    
+    db.run(sql, [name, description, color || '#3B82F6'], function(err) {
+        if (err) {
+            console.error('Error creando tipo de turno:', err);
+            return res.status(500).json({ error: 'Error al crear tipo de turno' });
+        }
+        res.json({ 
+            message: 'success',
+            data: { id: this.lastID, name, description, color }
+        });
+    });
+});
+
+// ===================================================================
+// HORARIOS DE TRABAJO
+// ===================================================================
+
+// GET - Obtener todos los horarios
+app.get('/api/work-schedules', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT ws.*, st.name as shift_type_name, st.color as shift_type_color
+        FROM WorkSchedules ws
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE ws.is_active = 1
+        ORDER BY ws.name
+    `;
+    
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo horarios:', err);
+            return res.status(500).json({ error: 'Error al obtener horarios' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET - Obtener horario por ID
+app.get('/api/work-schedules/:id', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT ws.*, st.name as shift_type_name
+        FROM WorkSchedules ws
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE ws.id = ?
+    `;
+    
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo horario:', err);
+            return res.status(500).json({ error: 'Error al obtener horario' });
+        }
+        if (!row) {
+            return res.status(404).json({ error: 'Horario no encontrado' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// POST - Crear horario
+app.post('/api/work-schedules', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const {
+        name, description, shift_type_id,
+        monday_enabled, monday_start, monday_end, monday_break_duration,
+        tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
+        wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
+        thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
+        friday_enabled, friday_start, friday_end, friday_break_duration,
+        saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
+        sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
+        weekly_hours, tolerance_minutes
+    } = req.body;
+    
+    if (!name) {
+        return res.status(400).json({ error: 'El nombre es requerido' });
+    }
+    
+    const sql = `
+        INSERT INTO WorkSchedules (
+            name, description, shift_type_id,
+            monday_enabled, monday_start, monday_end, monday_break_duration,
+            tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
+            wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
+            thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
+            friday_enabled, friday_start, friday_end, friday_break_duration,
+            saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
+            sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
+            weekly_hours, tolerance_minutes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const params = [
+        name, description, shift_type_id,
+        monday_enabled || 0, monday_start, monday_end, monday_break_duration || 0,
+        tuesday_enabled || 0, tuesday_start, tuesday_end, tuesday_break_duration || 0,
+        wednesday_enabled || 0, wednesday_start, wednesday_end, wednesday_break_duration || 0,
+        thursday_enabled || 0, thursday_start, thursday_end, thursday_break_duration || 0,
+        friday_enabled || 0, friday_start, friday_end, friday_break_duration || 0,
+        saturday_enabled || 0, saturday_start, saturday_end, saturday_break_duration || 0,
+        sunday_enabled || 0, sunday_start, sunday_end, sunday_break_duration || 0,
+        weekly_hours || 0, tolerance_minutes || 15
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error creando horario:', err);
+            return res.status(500).json({ error: 'Error al crear horario' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// PUT - Actualizar horario
+app.put('/api/work-schedules/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const {
+        name, description, shift_type_id,
+        monday_enabled, monday_start, monday_end, monday_break_duration,
+        tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
+        wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
+        thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
+        friday_enabled, friday_start, friday_end, friday_break_duration,
+        saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
+        sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
+        weekly_hours, tolerance_minutes
+    } = req.body;
+    
+    const sql = `
+        UPDATE WorkSchedules SET
+            name = ?, description = ?, shift_type_id = ?,
+            monday_enabled = ?, monday_start = ?, monday_end = ?, monday_break_duration = ?,
+            tuesday_enabled = ?, tuesday_start = ?, tuesday_end = ?, tuesday_break_duration = ?,
+            wednesday_enabled = ?, wednesday_start = ?, wednesday_end = ?, wednesday_break_duration = ?,
+            thursday_enabled = ?, thursday_start = ?, thursday_end = ?, thursday_break_duration = ?,
+            friday_enabled = ?, friday_start = ?, friday_end = ?, friday_break_duration = ?,
+            saturday_enabled = ?, saturday_start = ?, saturday_end = ?, saturday_break_duration = ?,
+            sunday_enabled = ?, sunday_start = ?, sunday_end = ?, sunday_break_duration = ?,
+            weekly_hours = ?, tolerance_minutes = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+    `;
+    
+    const params = [
+        name, description, shift_type_id,
+        monday_enabled || 0, monday_start, monday_end, monday_break_duration || 0,
+        tuesday_enabled || 0, tuesday_start, tuesday_end, tuesday_break_duration || 0,
+        wednesday_enabled || 0, wednesday_start, wednesday_end, wednesday_break_duration || 0,
+        thursday_enabled || 0, thursday_start, thursday_end, thursday_break_duration || 0,
+        friday_enabled || 0, friday_start, friday_end, friday_break_duration || 0,
+        saturday_enabled || 0, saturday_start, saturday_end, saturday_break_duration || 0,
+        sunday_enabled || 0, sunday_start, sunday_end, sunday_break_duration || 0,
+        weekly_hours || 0, tolerance_minutes || 15,
+        req.params.id
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('Error actualizando horario:', err);
+            return res.status(500).json({ error: 'Error al actualizar horario' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// DELETE - Desactivar horario
+app.delete('/api/work-schedules/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const sql = 'UPDATE WorkSchedules SET is_active = 0 WHERE id = ?';
+    
+    db.run(sql, [req.params.id], function(err) {
+        if (err) {
+            console.error('Error desactivando horario:', err);
+            return res.status(500).json({ error: 'Error al desactivar horario' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// ===================================================================
+// ASIGNACIÓN DE HORARIOS A EMPLEADOS
+// ===================================================================
+
+// GET - Obtener horarios de un empleado
+app.get('/api/employee-schedules/:userId', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT es.*, ws.name as schedule_name, ws.weekly_hours,
+               u.username, st.name as shift_type_name
+        FROM EmployeeSchedules es
+        JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        JOIN Users u ON es.user_id = u.id
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE es.user_id = ?
+        ORDER BY es.start_date DESC
+    `;
+    
+    db.all(sql, [req.params.userId], (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo horarios del empleado:', err);
+            return res.status(500).json({ error: 'Error al obtener horarios' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET - Obtener horario activo de un empleado
+app.get('/api/employee-schedules/:userId/active', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT es.*, ws.*, st.name as shift_type_name
+        FROM EmployeeSchedules es
+        JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
+        WHERE es.user_id = ?
+          AND es.is_active = 1
+          AND DATE('now') >= es.start_date
+          AND (es.end_date IS NULL OR DATE('now') <= es.end_date)
+        ORDER BY es.start_date DESC
+        LIMIT 1
+    `;
+    
+    db.get(sql, [req.params.userId], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo horario activo:', err);
+            return res.status(500).json({ error: 'Error al obtener horario activo' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// POST - Asignar horario a empleado
+app.post('/api/employee-schedules', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { user_id, schedule_id, start_date, end_date, notes } = req.body;
+    
+    if (!user_id || !schedule_id || !start_date) {
+        return res.status(400).json({ error: 'Datos incompletos' });
+    }
+    
+    const sql = `
+        INSERT INTO EmployeeSchedules (user_id, schedule_id, start_date, end_date, notes)
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [user_id, schedule_id, start_date, end_date, notes], function(err) {
+        if (err) {
+            console.error('Error asignando horario:', err);
+            return res.status(500).json({ error: 'Error al asignar horario' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// ===================================================================
+// ASISTENCIA
+// ===================================================================
+
+// GET - Obtener asistencias (con filtros)
+app.get('/api/attendance', authenticateToken, (req, res) => {
+    const { user_id, date_from, date_to, status } = req.query;
+    
+    let sql = `
+        SELECT a.*, u.username, u.role_id,
+               ws.name as schedule_name
+        FROM Attendance a
+        JOIN Users u ON a.user_id = u.id
+        LEFT JOIN EmployeeSchedules es ON es.user_id = u.id 
+            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
+            AND es.is_active = 1
+        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (user_id) {
+        sql += ' AND a.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (date_from) {
+        sql += ' AND a.date >= ?';
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ' AND a.date <= ?';
+        params.push(date_to);
+    }
+    
+    if (status) {
+        sql += ' AND a.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY a.date DESC, u.username';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo asistencias:', err);
+            return res.status(500).json({ error: 'Error al obtener asistencias' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET - Obtener asistencia de hoy del usuario actual
+app.get('/api/attendance/today', authenticateToken, (req, res) => {
+    const sql = `
+        SELECT a.*, ws.name as schedule_name,
+               ws.tolerance_minutes
+        FROM Attendance a
+        LEFT JOIN EmployeeSchedules es ON es.user_id = a.user_id 
+            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
+            AND es.is_active = 1
+        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        WHERE a.user_id = ? AND a.date = DATE('now')
+    `;
+    
+    db.get(sql, [req.user.id], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo asistencia de hoy:', err);
+            return res.status(500).json({ error: 'Error al obtener asistencia' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// POST - Marcar entrada (check-in)
+app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
+    const { location, notes } = req.body;
+    const user_id = req.user.id;
+    const ip = req.ip || req.connection.remoteAddress;
+    
+    // Verificar si ya marcó entrada hoy
+    const checkSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = DATE("now")';
+    
+    db.get(checkSql, [user_id], (err, existing) => {
+        if (err) {
+            console.error('Error verificando asistencia:', err);
+            return res.status(500).json({ error: 'Error al verificar asistencia' });
+        }
+        
+        if (existing && existing.check_in_time) {
+            return res.status(400).json({ 
+                error: 'Ya has marcado tu entrada hoy',
+                data: existing
+            });
+        }
+        
+        // Obtener horario del empleado para calcular tardanza
+        const scheduleSql = `
+            SELECT ws.*, 
+                   CASE strftime('%w', 'now')
+                       WHEN '1' THEN ws.monday_start
+                       WHEN '2' THEN ws.tuesday_start
+                       WHEN '3' THEN ws.wednesday_start
+                       WHEN '4' THEN ws.thursday_start
+                       WHEN '5' THEN ws.friday_start
+                       WHEN '6' THEN ws.saturday_start
+                       WHEN '0' THEN ws.sunday_start
+                   END as scheduled_start
+            FROM EmployeeSchedules es
+            JOIN WorkSchedules ws ON es.schedule_id = ws.id
+            WHERE es.user_id = ?
+              AND es.is_active = 1
+              AND DATE('now') >= es.start_date
+              AND (es.end_date IS NULL OR DATE('now') <= es.end_date)
+            LIMIT 1
+        `;
+        
+        db.get(scheduleSql, [user_id], (err, schedule) => {
+            const now = new Date();
+            const nowTime = now.toISOString();
+            let is_late = 0;
+            let late_minutes = 0;
+            let status = 'present';
+            
+            if (schedule && schedule.scheduled_start) {
+                const scheduledStart = new Date();
+                const [hours, minutes] = schedule.scheduled_start.split(':');
+                scheduledStart.setHours(parseInt(hours), parseInt(minutes), 0);
+                
+                const tolerance = (schedule.tolerance_minutes || 15) * 60 * 1000;
+                const diff = now - scheduledStart;
+                
+                if (diff > tolerance) {
+                    is_late = 1;
+                    late_minutes = Math.floor(diff / 60000);
+                    status = 'late';
+                }
+            }
+            
+            if (existing) {
+                // Actualizar registro existente
+                const updateSql = `
+                    UPDATE Attendance SET
+                        check_in_time = ?,
+                        check_in_location = ?,
+                        check_in_notes = ?,
+                        check_in_ip = ?,
+                        is_late = ?,
+                        late_minutes = ?,
+                        status = ?
+                    WHERE id = ?
+                `;
+                
+                db.run(updateSql, [nowTime, location, notes, ip, is_late, late_minutes, status, existing.id], function(err) {
+                    if (err) {
+                        console.error('Error actualizando entrada:', err);
+                        return res.status(500).json({ error: 'Error al marcar entrada' });
+                    }
+                    res.json({ message: 'Entrada registrada correctamente', data: { id: existing.id, is_late, late_minutes } });
+                });
+            } else {
+                // Crear nuevo registro
+                const insertSql = `
+                    INSERT INTO Attendance (
+                        user_id, date, check_in_time, check_in_location, check_in_notes, check_in_ip,
+                        is_late, late_minutes, status, scheduled_hours
+                    ) VALUES (?, DATE('now'), ?, ?, ?, ?, ?, ?, ?, ?)
+                `;
+                
+                const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // Aproximación
+                
+                db.run(insertSql, [user_id, nowTime, location, notes, ip, is_late, late_minutes, status, scheduled_hours], function(err) {
+                    if (err) {
+                        console.error('Error creando entrada:', err);
+                        return res.status(500).json({ error: 'Error al marcar entrada' });
+                    }
+                    res.json({ message: 'Entrada registrada correctamente', data: { id: this.lastID, is_late, late_minutes } });
+                });
+            }
+        });
+    });
+});
+
+// POST - Marcar salida (check-out)
+app.post('/api/attendance/check-out', authenticateToken, (req, res) => {
+    const { location, notes } = req.body;
+    const user_id = req.user.id;
+    const ip = req.ip || req.connection.remoteAddress;
+    
+    // Obtener registro de hoy
+    const getSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = DATE("now")';
+    
+    db.get(getSql, [user_id], (err, attendance) => {
+        if (err) {
+            console.error('Error obteniendo asistencia:', err);
+            return res.status(500).json({ error: 'Error al obtener asistencia' });
+        }
+        
+        if (!attendance) {
+            return res.status(400).json({ error: 'No has marcado entrada hoy' });
+        }
+        
+        if (attendance.check_out_time) {
+            return res.status(400).json({ error: 'Ya has marcado tu salida hoy' });
+        }
+        
+        const now = new Date();
+        const check_in = new Date(attendance.check_in_time);
+        const worked_hours = (now - check_in) / (1000 * 60 * 60); // Horas trabajadas
+        
+        const updateSql = `
+            UPDATE Attendance SET
+                check_out_time = ?,
+                check_out_location = ?,
+                check_out_notes = ?,
+                check_out_ip = ?,
+                worked_hours = ?
+            WHERE id = ?
+        `;
+        
+        db.run(updateSql, [now.toISOString(), location, notes, ip, worked_hours.toFixed(2), attendance.id], function(err) {
+            if (err) {
+                console.error('Error marcando salida:', err);
+                return res.status(500).json({ error: 'Error al marcar salida' });
+            }
+            res.json({ 
+                message: 'Salida registrada correctamente',
+                data: { worked_hours: worked_hours.toFixed(2) }
+            });
+        });
+    });
+});
+
+// ===================================================================
+// HORAS EXTRAS
+// ===================================================================
+
+// GET - Obtener horas extras
+app.get('/api/overtime', authenticateToken, (req, res) => {
+    const { user_id, status, date_from, date_to } = req.query;
+    
+    let sql = `
+        SELECT o.*, u.username,
+               requester.username as requested_by_name,
+               approver.username as approved_by_name
+        FROM Overtime o
+        JOIN Users u ON o.user_id = u.id
+        LEFT JOIN Users requester ON o.requested_by = requester.id
+        LEFT JOIN Users approver ON o.approved_by = approver.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (user_id) {
+        sql += ' AND o.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (status) {
+        sql += ' AND o.status = ?';
+        params.push(status);
+    }
+    
+    if (date_from) {
+        sql += ' AND o.date >= ?';
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ' AND o.date <= ?';
+        params.push(date_to);
+    }
+    
+    sql += ' ORDER BY o.date DESC, o.start_time DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo horas extras:', err);
+            return res.status(500).json({ error: 'Error al obtener horas extras' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// POST - Registrar horas extras
+app.post('/api/overtime', authenticateToken, (req, res) => {
+    const { 
+        user_id, date, start_time, end_time, type, description, reason,
+        hourly_rate
+    } = req.body;
+    
+    if (!user_id || !date || !start_time || !end_time) {
+        return res.status(400).json({ error: 'Datos incompletos' });
+    }
+    
+    // Calcular horas
+    const start = new Date(`${date}T${start_time}`);
+    const end = new Date(`${date}T${end_time}`);
+    const hours = (end - start) / (1000 * 60 * 60);
+    
+    // Determinar multiplicador según tipo
+    let multiplier = 1.5;
+    if (type === 'night') multiplier = 2.0;
+    if (type === 'holiday') multiplier = 2.0;
+    if (type === 'sunday') multiplier = 1.8;
+    
+    const total_amount = hourly_rate ? (hours * hourly_rate * multiplier).toFixed(2) : 0;
+    
+    const sql = `
+        INSERT INTO Overtime (
+            user_id, date, start_time, end_time, hours,
+            type, multiplier, description, reason,
+            hourly_rate, total_amount, requested_by, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [
+        user_id, date, start_time, end_time, hours.toFixed(2),
+        type || 'regular', multiplier, description, reason,
+        hourly_rate || 0, total_amount, req.user.id, 'pending'
+    ], function(err) {
+        if (err) {
+            console.error('Error registrando horas extras:', err);
+            return res.status(500).json({ error: 'Error al registrar horas extras' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID, hours: hours.toFixed(2), total_amount } });
+    });
+});
+
+// PUT - Aprobar/Rechazar horas extras
+app.put('/api/overtime/:id/status', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { status, rejection_reason } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Estado inválido' });
+    }
+    
+    const sql = `
+        UPDATE Overtime SET
+            status = ?,
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [status, req.user.id, rejection_reason, req.params.id], function(err) {
+        if (err) {
+            console.error('Error actualizando estado de horas extras:', err);
+            return res.status(500).json({ error: 'Error al actualizar estado' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// ===================================================================
+// SOLICITUDES DE PERMISO/VACACIONES
+// ===================================================================
+
+// GET - Obtener solicitudes de permiso
+app.get('/api/leave-requests', authenticateToken, (req, res) => {
+    const { user_id, status } = req.query;
+    
+    let sql = `
+        SELECT lr.*, u.username,
+               approver.username as approved_by_name,
+               replacement.username as replacement_name
+        FROM LeaveRequests lr
+        JOIN Users u ON lr.user_id = u.id
+        LEFT JOIN Users approver ON lr.approved_by = approver.id
+        LEFT JOIN Users replacement ON lr.replacement_user_id = replacement.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (user_id) {
+        sql += ' AND lr.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (status) {
+        sql += ' AND lr.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY lr.start_date DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo solicitudes de permiso:', err);
+            return res.status(500).json({ error: 'Error al obtener solicitudes' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// POST - Crear solicitud de permiso
+app.post('/api/leave-requests', authenticateToken, (req, res) => {
+    const {
+        start_date, end_date, days_requested, type, reason,
+        has_documentation, documentation_file, replacement_user_id
+    } = req.body;
+    
+    if (!start_date || !end_date || !type) {
+        return res.status(400).json({ error: 'Datos incompletos' });
+    }
+    
+    const sql = `
+        INSERT INTO LeaveRequests (
+            user_id, start_date, end_date, days_requested,
+            type, reason, has_documentation, documentation_file,
+            replacement_user_id, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [
+        req.user.id, start_date, end_date, days_requested || 1,
+        type, reason, has_documentation || 0, documentation_file,
+        replacement_user_id, 'pending'
+    ], function(err) {
+        if (err) {
+            console.error('Error creando solicitud de permiso:', err);
+            return res.status(500).json({ error: 'Error al crear solicitud' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// PUT - Aprobar/Rechazar solicitud de permiso
+app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { status, rejection_reason } = req.body;
+    
+    if (!['approved', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: 'Estado inválido' });
+    }
+    
+    const sql = `
+        UPDATE LeaveRequests SET
+            status = ?,
+            approved_by = ?,
+            approved_at = CURRENT_TIMESTAMP,
+            rejection_reason = ?
+        WHERE id = ?
+    `;
+    
+    db.run(sql, [status, req.user.id, rejection_reason, req.params.id], function(err) {
+        if (err) {
+            console.error('Error actualizando solicitud:', err);
+            return res.status(500).json({ error: 'Error al actualizar solicitud' });
+        }
+        res.json({ message: 'success' });
+    });
+});
+
+// ===================================================================
+// DÍAS FESTIVOS
+// ===================================================================
+
+// GET - Obtener días festivos
+app.get('/api/holidays', authenticateToken, (req, res) => {
+    const { year } = req.query;
+    
+    let sql = 'SELECT * FROM Holidays WHERE 1=1';
+    const params = [];
+    
+    if (year) {
+        sql += ' AND strftime("%Y", date) = ?';
+        params.push(year);
+    }
+    
+    sql += ' ORDER BY date';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error obteniendo días festivos:', err);
+            return res.status(500).json({ error: 'Error al obtener días festivos' });
+        }
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// POST - Crear día festivo
+app.post('/api/holidays', authenticateToken, requireRole(['Admin']), (req, res) => {
+    const { name, date, type, is_paid, description } = req.body;
+    
+    if (!name || !date) {
+        return res.status(400).json({ error: 'Nombre y fecha son requeridos' });
+    }
+    
+    const sql = `
+        INSERT INTO Holidays (name, date, type, is_paid, description)
+        VALUES (?, ?, ?, ?, ?)
+    `;
+    
+    db.run(sql, [name, date, type || 'national', is_paid !== false ? 1 : 0, description], function(err) {
+        if (err) {
+            console.error('Error creando día festivo:', err);
+            return res.status(500).json({ error: 'Error al crear día festivo' });
+        }
+        res.json({ message: 'success', data: { id: this.lastID } });
+    });
+});
+
+// ===================================================================
+// REPORTES DE ASISTENCIA
+// ===================================================================
+
+// GET - Resumen de asistencia por empleado
+app.get('/api/attendance/summary/:userId', authenticateToken, (req, res) => {
+    const { month, year } = req.query;
+    
+    let sql = `
+        SELECT 
+            COUNT(*) as total_days,
+            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days,
+            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_days,
+            SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as late_days,
+            SUM(late_minutes) as total_late_minutes,
+            SUM(worked_hours) as total_worked_hours,
+            AVG(worked_hours) as avg_worked_hours
+        FROM Attendance
+        WHERE user_id = ?
+    `;
+    
+    const params = [req.params.userId];
+    
+    if (month && year) {
+        sql += ' AND strftime("%m", date) = ? AND strftime("%Y", date) = ?';
+        params.push(month.padStart(2, '0'), year);
+    }
+    
+    db.get(sql, params, (err, row) => {
+        if (err) {
+            console.error('Error obteniendo resumen de asistencia:', err);
+            return res.status(500).json({ error: 'Error al obtener resumen' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// GET - Estadísticas generales de asistencia
+app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const sql = `
+        SELECT 
+            COUNT(DISTINCT user_id) as total_employees,
+            COUNT(*) as total_records,
+            SUM(CASE WHEN date = DATE('now') THEN 1 ELSE 0 END) as today_present,
+            SUM(CASE WHEN date = DATE('now') AND check_in_time IS NOT NULL AND check_out_time IS NULL THEN 1 ELSE 0 END) as currently_working,
+            SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as total_late
+        FROM Attendance
+        WHERE date >= DATE('now', '-30 days')
+    `;
+    
+    db.get(sql, [], (err, row) => {
+        if (err) {
+            console.error('Error obteniendo estadísticas:', err);
+            return res.status(500).json({ error: 'Error al obtener estadísticas' });
+        }
+        res.json({ message: 'success', data: row });
+    });
+});
 
 process.on('SIGINT', () => {
     console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');

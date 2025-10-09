@@ -11,10 +11,6 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
 
-    const CONFIG = {
-        API_BASE_URL: window.API_URL || 'http://localhost:3000/api'
-    };
-
     class ReportsManager {
         constructor() {
             this.reports = [];
@@ -131,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async loadTickets() {
             try {
-                const response = await authenticatedFetch(`${CONFIG.API_BASE_URL}/tickets`);
+                const response = await authenticatedFetch(`${API_URL}/tickets`);
                 if (response && response.ok) {
                     const result = await response.json();
                     this.tickets = result.data || [];
@@ -153,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         async loadTechnicians() {
             try {
-                const response = await authenticatedFetch(`${CONFIG.API_BASE_URL}/users?role=technician`);
+                const response = await authenticatedFetch(`${API_URL}/users?role=technician`);
                 if (response && response.ok) {
                     const result = await response.json();
                     this.technicians = result.data || [];
