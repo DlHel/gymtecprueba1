@@ -806,6 +806,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Obtener usuario actual
             state.currentUser = window.authManager.getUser();
             
+            // Actualizar nombre de usuario en header
+            const userNameElement = document.getElementById('current-user-name');
+            if (userNameElement && state.currentUser) {
+                userNameElement.textContent = `${state.currentUser.name} (${state.currentUser.role})`;
+            }
+            
             // Mostrar tab de gestión si es admin/manager
             if (['Admin', 'Manager'].includes(state.currentUser.role)) {
                 document.querySelectorAll('.admin-only').forEach(el => {
