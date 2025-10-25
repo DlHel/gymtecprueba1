@@ -56,6 +56,10 @@
                             <i data-lucide="credit-card" class="w-4 h-4"></i>
                             Gastos
                         </button>
+                        <button class="tab-button" data-tab="payroll">
+                            <i data-lucide="banknote" class="w-4 h-4"></i>
+                            Nómina
+                        </button>
                         </div>
 
                         <!-- Contenido: Resumen -->
@@ -160,6 +164,113 @@
                                 <!-- Contenido de gastos se cargará dinámicamente -->
                             </div>
                         </div>
+
+                        <!-- Contenido: Nómina -->
+                        <div id="payroll-tab" class="tab-content">
+                            <div class="app-card mb-4">
+                                <div class="flex justify-between items-center mb-4">
+                                    <div>
+                                        <h3 class="text-xl font-semibold">Períodos de Nómina</h3>
+                                        <p class="text-sm text-secondary">Gestión de liquidaciones de sueldo</p>
+                                    </div>
+                                    <div class="flex gap-2 items-center">
+                                        <select id="currency-selector" class="px-3 py-2 border rounded-lg text-sm" onchange="switchCurrency(this.value)">
+                                            <option value="CLP" selected>💰 Pesos (CLP)</option>
+                                            <option value="UTM">📊 UTM</option>
+                                            <option value="UF">📈 UF</option>
+                                        </select>
+                                        <button onclick="openPayrollPeriodModal()" class="btn btn-primary">
+                                            <i data-lucide="plus" class="w-4 h-4"></i>
+                                            Nuevo Período
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div id="payroll-periods-loading" class="text-center py-8" style="display: none;">
+                                    <div class="loading-spinner"></div>
+                                    <p class="text-secondary mt-2">Cargando períodos...</p>
+                                </div>
+                                
+                                <div id="payroll-periods-container">
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full border-collapse">
+                                            <thead>
+                                                <tr class="bg-gray-50">
+                                                    <th class="border px-4 py-2 text-left">Período</th>
+                                                    <th class="border px-4 py-2 text-left">Fecha Pago</th>
+                                                    <th class="border px-4 py-2 text-center">Empleados</th>
+                                                    <th class="border px-4 py-2 text-right">Total Nómina</th>
+                                                    <th class="border px-4 py-2 text-center">Estado</th>
+                                                    <th class="border px-4 py-2 text-center">Acciones</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="payroll-periods-tbody">
+                                                <tr>
+                                                    <td colspan="6" class="text-center py-8 text-secondary">
+                                                        No hay períodos de nómina. Crea el primero haciendo clic en "Nuevo Período"
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Sección de Liquidaciones (se muestra al seleccionar un período) -->
+                            <div id="payroll-details-section" class="app-card" style="display: none;">
+                                <div class="flex justify-between items-center mb-4">
+                                    <h4 class="text-lg font-semibold">
+                                        <i data-lucide="file-text" class="w-5 h-5 inline"></i>
+                                        Liquidaciones - <span id="current-period-name" class="text-primary"></span>
+                                    </h4>
+                                    <button onclick="closePayrollDetails()" class="btn btn-secondary btn-sm">
+                                        <i data-lucide="x" class="w-4 h-4"></i>
+                                        Cerrar
+                                    </button>
+                                </div>
+                                
+                                <div id="payroll-details-loading" class="text-center py-8" style="display: none;">
+                                    <div class="loading-spinner"></div>
+                                    <p class="text-secondary mt-2">Cargando liquidaciones...</p>
+                                </div>
+                                
+                                <div class="overflow-x-auto">
+                                    <table class="w-full border-collapse">
+                                        <thead>
+                                            <tr class="bg-gray-50">
+                                                <th class="border px-4 py-2 text-left">Empleado</th>
+                                                <th class="border px-4 py-2 text-center">Horas</th>
+                                                <th class="border px-4 py-2 text-right">Haberes</th>
+                                                <th class="border px-4 py-2 text-right">Descuentos</th>
+                                                <th class="border px-4 py-2 text-right">Líquido</th>
+                                                <th class="border px-4 py-2 text-center">Estado</th>
+                                                <th class="border px-4 py-2 text-center">Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="payroll-details-tbody">
+                                            <tr>
+                                                <td colspan="7" class="text-center py-8 text-secondary">
+                                                    No hay liquidaciones para este período
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                
+                                <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                                    <div class="flex items-start gap-3">
+                                        <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-1"></i>
+                                        <div>
+                                            <p class="font-semibold text-blue-900">Información de Cálculo</p>
+                                            <p class="text-sm text-blue-700 mt-1">
+                                                Los montos se calculan automáticamente desde el Control de Asistencia y Horas Extras.
+                                                Se aplican los descuentos legales: AFP, Salud, Seguro de Cesantía e Impuesto Único según normativa chilena 2025.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -212,6 +323,103 @@
                 </button>
                 <button type="submit" form="invoice-form" class="btn btn-primary">
                     Guardar Factura
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Período de Nómina -->
+    <div id="payroll-period-modal" class="base-modal">
+        <div class="base-modal-content base-modal-medium">
+            <div class="modal-header">
+                <h3 id="payroll-period-modal-title">Nuevo Período de Nómina</h3>
+                <button class="modal-close" onclick="closePayrollPeriodModal()" aria-label="Cerrar modal" title="Cerrar modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="payroll-period-form" class="space-y-4">
+                    <div>
+                        <label for="period-name" class="block text-sm font-medium mb-1">
+                            <i data-lucide="calendar" class="w-4 h-4 inline"></i>
+                            Nombre del Período*
+                        </label>
+                        <input type="text" id="period-name" name="period_name" 
+                               class="w-full px-3 py-2 border rounded-lg" 
+                               placeholder="Ej: Octubre 2025" required>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label for="period-start-date" class="block text-sm font-medium mb-1">
+                                Fecha Inicio*
+                            </label>
+                            <input type="date" id="period-start-date" name="start_date" 
+                                   class="w-full px-3 py-2 border rounded-lg" required>
+                        </div>
+                        <div>
+                            <label for="period-end-date" class="block text-sm font-medium mb-1">
+                                Fecha Fin*
+                            </label>
+                            <input type="date" id="period-end-date" name="end_date" 
+                                   class="w-full px-3 py-2 border rounded-lg" required>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="payment-date" class="block text-sm font-medium mb-1">
+                            <i data-lucide="banknote" class="w-4 h-4 inline"></i>
+                            Fecha de Pago*
+                        </label>
+                        <input type="date" id="payment-date" name="payment_date" 
+                               class="w-full px-3 py-2 border rounded-lg" required>
+                    </div>
+                    
+                    <div class="bg-blue-50 p-3 rounded-lg">
+                        <p class="text-sm text-blue-700">
+                            <i data-lucide="info" class="w-4 h-4 inline"></i>
+                            Una vez creado el período, podrás generar las liquidaciones automáticamente desde el Control de Asistencia.
+                        </p>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closePayrollPeriodModal()">
+                    Cancelar
+                </button>
+                <button type="submit" form="payroll-period-form" class="btn btn-primary">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Crear Período
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Detalle de Liquidación -->
+    <div id="liquidation-detail-modal" class="base-modal">
+        <div class="base-modal-content base-modal-large">
+            <div class="modal-header">
+                <h3 id="liquidation-detail-title">Liquidación de Sueldo</h3>
+                <button class="modal-close" onclick="closeLiquidationDetailModal()" aria-label="Cerrar modal" title="Cerrar modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div id="liquidation-detail-content">
+                    <!-- El contenido se cargará dinámicamente -->
+                    <div class="text-center py-8">
+                        <div class="loading-spinner"></div>
+                        <p class="text-secondary mt-2">Cargando liquidación...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeLiquidationDetailModal()">
+                    Cerrar
+                </button>
+                <button type="button" class="btn btn-info" onclick="exportLiquidationPDF()">
+                    <i data-lucide="download" class="w-4 h-4"></i>
+                    Descargar PDF
                 </button>
             </div>
         </div>

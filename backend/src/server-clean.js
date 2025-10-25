@@ -1116,7 +1116,16 @@ try {
     app.use('/api', testDbRoutes);
     app.use('/api', simpleTestRoutes);
     
-    console.log('âœ… Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
+    console.log('✅ Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
+} catch (error) {
+    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
+}
+
+// PAYROLL SYSTEM - Sistema de Nómina Chile
+try {
+    const payrollRoutes = require('./routes/payroll-chile');
+    app.use('/api', payrollRoutes);
+    console.log('✅ Payroll Routes loaded: Sistema de Nómina Chile con cálculos automáticos');
 } catch (error) {
     console.warn('âš ï¸  Warning: Some Fase 2 routes could not be loaded:', error.message);
 }
@@ -6046,6 +6055,17 @@ app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 
 console.log('âœ… Rutas principales de asistencia registradas (shift-types, schedules, employee-schedules, attendance, summary, stats, check-in, check-out, overtime, leave-requests)');
 
 // ===================================================================
+// NÓMINA CHILE - ENDPOINTS
+// ===================================================================
+try {
+    const payrollRoutes = require('./routes/payroll-chile');
+    payrollRoutes(app, db, authenticateToken, requireRole, toMySQLDateTime);
+    console.log(' Rutas de Nómina Chile cargadas correctamente');
+} catch (error) {
+    console.warn(' No se pudieron cargar rutas de nómina:', error.message);
+}
+
+// ===================================================================
 // INICIALIZACIÃ“N DEL SERVIDOR
 // ===================================================================
 
@@ -7024,3 +7044,4 @@ process.on('SIGTERM', () => {
 // ===================================================================
 
 startServer();
+
