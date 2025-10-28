@@ -25,6 +25,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const API_URL = window.API_URL;
     const authenticatedFetch = window.authManager.authenticatedFetch.bind(window.authManager);
 
+    // Función para formatear moneda
+    const formatCurrency = (amount) => {
+        return new Intl.NumberFormat('es-CL', {
+            style: 'currency',
+            currency: 'CLP',
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        }).format(amount || 0);
+    };
+
+    // Función para formatear fecha
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-CL', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+    };
+
     // ============================================================================
     // STATE MANAGEMENT
     // ============================================================================
@@ -494,6 +515,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (elements.overviewView) {
                         elements.overviewView.classList.add('active');
                         console.log('✅ Overview view activated');
+                        // Cargar balance cuando se activa la vista
+                        calculateAndDisplayBalance().catch(err => {
+                            console.error('Error loading balance:', err);
+                        });
                     } else {
                         console.warn('⚠️ overviewView element not found');
                     }
@@ -582,61 +607,71 @@ document.addEventListener('DOMContentLoaded', () => {
             if (quotes.length === 0) {
                 elements.quotesTable.innerHTML = `
                     <tr>
-                        <td colspan="7" class="text-center py-8 text-gray-500">
-                            No hay cotizaciones disponibles
+                        <td colspan="6" class="border px-4 py-8 text-center text-gray-500">
+                            No hay cotizaciones disponibles. Crea una nueva desde el botón "Nueva Cotización"
                         </td>
                     </tr>
                 `;
                 return;
             }
             
-            const fragment = document.createDocumentFragment();
+            let html = '';
             
             quotes.forEach(quote => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
+                // Determinar clase de estado
+                const statusConfig = {
+                    'pending': { class: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
+                    'approved': { class: 'bg-green-100 text-green-800', text: 'Aprobada' },
+                    'rejected': { class: 'bg-red-100 text-red-800', text: 'Rechazada' },
+                    'enviada': { class: 'bg-blue-100 text-blue-800', text: 'Enviada' },
+                    'borrador': { class: 'bg-gray-100 text-gray-800', text: 'Borrador' }
+                };
                 
-                const statusClass = getStatusClass(quote.status);
+                const status = statusConfig[quote.status?.toLowerCase()] || { class: 'bg-gray-100 text-gray-800', text: quote.status || 'Sin estado' };
                 
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${quote.quote_number || 'N/A'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${quote.client_name || 'Cliente no especificado'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${formatDate(quote.quote_date)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        $${formatMoney(quote.total)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                            ${quote.status}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${formatDate(quote.valid_until) || 'No especificado'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewQuote(${quote.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">
-                            Ver
-                        </button>
-                        <button onclick="editQuote(${quote.id})" class="text-yellow-600 hover:text-yellow-900 mr-3">
-                            Editar
-                        </button>
-                        <button onclick="deleteQuote(${quote.id})" class="text-red-600 hover:text-red-900">
-                            Eliminar
-                        </button>
-                    </td>
+                html += `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="border px-4 py-3 text-sm font-semibold text-gray-900">
+                            ${quote.quote_number || 'N/A'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            ${quote.client_name || 'Cliente no especificado'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            ${quote.quote_date ? formatDate(quote.quote_date) : formatDate(quote.created_at) || '-'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                            ${formatCurrency(quote.total || 0)}
+                        </td>
+                        <td class="border px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${status.class}">
+                                ${status.text}
+                            </span>
+                        </td>
+                        <td class="border px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="viewQuote(${quote.id})" 
+                                        class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Ver cotización">
+                                    Ver
+                                </button>
+                                <button onclick="editQuote(${quote.id})" 
+                                        class="text-amber-600 hover:text-amber-800 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Editar cotización">
+                                    Editar
+                                </button>
+                                <button onclick="deleteQuote(${quote.id})" 
+                                        class="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Eliminar cotización">
+                                    Eliminar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                 `;
-                
-                fragment.appendChild(row);
             });
             
-            elements.quotesTable.innerHTML = '';
-            elements.quotesTable.appendChild(fragment);
+            elements.quotesTable.innerHTML = html;
         },
         
         renderInvoices: (invoices) => {
@@ -647,69 +682,77 @@ document.addEventListener('DOMContentLoaded', () => {
             if (invoices.length === 0) {
                 elements.invoicesTable.innerHTML = `
                     <tr>
-                        <td colspan="8" class="text-center py-8 text-gray-500">
-                            No hay facturas disponibles
+                        <td colspan="7" class="border px-4 py-8 text-center text-gray-500">
+                            No hay facturas disponibles. Crea una nueva desde el botón "Nueva Factura"
                         </td>
                     </tr>
                 `;
                 return;
             }
             
-            const fragment = document.createDocumentFragment();
+            let html = '';
             
             invoices.forEach(invoice => {
-                const row = document.createElement('tr');
-                row.className = 'hover:bg-gray-50';
+                // Determinar clase de estado
+                const statusConfig = {
+                    'paid': { class: 'bg-green-100 text-green-800', text: 'Pagada' },
+                    'pagada': { class: 'bg-green-100 text-green-800', text: 'Pagada' },
+                    'pending': { class: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
+                    'pendiente': { class: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
+                    'overdue': { class: 'bg-red-100 text-red-800', text: 'Vencida' },
+                    'vencida': { class: 'bg-red-100 text-red-800', text: 'Vencida' },
+                    'vendida': { class: 'bg-blue-100 text-blue-800', text: 'Vendida' },
+                    'cancelled': { class: 'bg-gray-100 text-gray-800', text: 'Cancelada' }
+                };
                 
-                const statusClass = getStatusClass(invoice.status);
+                const status = statusConfig[invoice.status?.toLowerCase()] || { class: 'bg-gray-100 text-gray-800', text: invoice.status || 'Sin estado' };
                 
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        ${invoice.invoice_number || 'N/A'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${invoice.client_name || 'Cliente no especificado'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${formatDate(invoice.invoice_date)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        ${formatDate(invoice.due_date) || 'No especificado'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        $${formatMoney(invoice.total)}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
-                            ${invoice.status}
-                        </span>
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        ${invoice.paid_date ? formatDate(invoice.paid_date) : '-'}
-                    </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <button onclick="viewInvoice(${invoice.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">
-                            Ver
-                        </button>
-                        <button onclick="editInvoice(${invoice.id})" class="text-yellow-600 hover:text-yellow-900 mr-3">
-                            Editar
-                        </button>
-                        ${invoice.status !== 'Pagada' ? 
-                            `<button onclick="markInvoicePaid(${invoice.id})" class="text-green-600 hover:text-green-900 mr-3">
-                                Marcar Pagada
-                            </button>` : ''
-                        }
-                        <button onclick="deleteInvoice(${invoice.id})" class="text-red-600 hover:text-red-900">
-                            Eliminar
-                        </button>
-                    </td>
+                html += `
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="border px-4 py-3 text-sm font-semibold text-gray-900">
+                            ${invoice.invoice_number || 'N/A'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            ${invoice.client_name || 'Cliente no especificado'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            ${invoice.issue_date ? formatDate(invoice.issue_date) : (invoice.invoice_date ? formatDate(invoice.invoice_date) : '-')}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            ${invoice.due_date ? formatDate(invoice.due_date) : '-'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                            ${formatCurrency(invoice.total || 0)}
+                        </td>
+                        <td class="border px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${status.class}">
+                                ${status.text}
+                            </span>
+                        </td>
+                        <td class="border px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="viewInvoice(${invoice.id})" 
+                                        class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Ver factura">
+                                    Ver
+                                </button>
+                                <button onclick="editInvoice(${invoice.id})" 
+                                        class="text-amber-600 hover:text-amber-800 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Editar factura">
+                                    Editar
+                                </button>
+                                <button onclick="deleteInvoice(${invoice.id})" 
+                                        class="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Eliminar factura">
+                                    Eliminar
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
                 `;
-                
-                fragment.appendChild(row);
             });
             
-            elements.invoicesTable.innerHTML = '';
-            elements.invoicesTable.appendChild(fragment);
+            elements.invoicesTable.innerHTML = html;
         },
         
         renderExpenses: (expenses) => {
@@ -723,28 +766,26 @@ document.addEventListener('DOMContentLoaded', () => {
             
             if (expenses.length === 0) {
                 expensesContent.innerHTML = `
-                    <div class="financial-table">
-                        <div class="financial-table-header">
-                            <h3 class="financial-table-title">Gastos</h3>
-                            <div class="financial-table-actions">
-                                <button class="btn btn-secondary" onclick="window.print()">
-                                    <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="text-xl font-semibold text-gray-800">Gastos</h3>
+                            <div class="flex gap-3">
+                                <button class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2" onclick="window.print()">
+                                    <i data-lucide="printer" class="w-4 h-4"></i>
                                     Imprimir
                                 </button>
-                                <button class="btn btn-primary" onclick="createExpense()">
-                                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="createExpense()">
+                                    <i data-lucide="plus" class="w-4 h-4"></i>
                                     Nuevo Gasto
                                 </button>
                             </div>
                         </div>
-                        <div class="table-container">
-                            <div class="text-center py-8">
-                                <p class="text-gray-500 mb-4">No hay gastos registrados</p>
-                                <button class="btn btn-primary" onclick="createExpense()">
-                                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
-                                    Registrar Primer Gasto
-                                </button>
-                            </div>
+                        <div class="text-center py-8">
+                            <p class="text-gray-500 mb-4">No hay gastos registrados</p>
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 mx-auto" onclick="createExpense()">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
+                                Registrar Primer Gasto
+                            </button>
                         </div>
                     </div>
                 `;
@@ -755,74 +796,88 @@ document.addEventListener('DOMContentLoaded', () => {
             
             // Crear tabla con datos
             let html = `
-                <div class="financial-table">
-                    <div class="financial-table-header">
-                        <h3 class="financial-table-title">Gastos</h3>
-                        <div class="financial-table-actions">
-                            <button class="btn btn-secondary" onclick="window.print()">
-                                <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-semibold text-gray-800">Gastos</h3>
+                        <div class="flex gap-3">
+                            <button class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2" onclick="window.print()">
+                                <i data-lucide="printer" class="w-4 h-4"></i>
                                 Imprimir
                             </button>
-                            <button class="btn btn-primary" onclick="createExpense()">
-                                <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="createExpense()">
+                                <i data-lucide="plus" class="w-4 h-4"></i>
                                 Nuevo Gasto
                             </button>
                         </div>
                     </div>
-                    <div class="table-container">
-                        <table>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse">
                             <thead>
-                                <tr>
-                                    <th>Fecha</th>
-                                    <th>Categoría</th>
-                                    <th>Descripción</th>
-                                    <th>Monto</th>
-                                    <th>Proveedor</th>
-                                    <th>Tipo</th>
-                                    <th>Acciones</th>
+                                <tr class="bg-gray-50">
+                                    <th class="border px-4 py-2 text-left">Fecha</th>
+                                    <th class="border px-4 py-2 text-left">Categoría</th>
+                                    <th class="border px-4 py-2 text-left">Descripción</th>
+                                    <th class="border px-4 py-2 text-right">Monto</th>
+                                    <th class="border px-4 py-2 text-left">Proveedor</th>
+                                    <th class="border px-4 py-2 text-center">Tipo</th>
+                                    <th class="border px-4 py-2 text-center">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody>
             `;
             
             expenses.forEach(expense => {
-                const referenceType = expense.reference_type || 'general';
-                const typeClass = referenceType === 'ticket' ? 'bg-blue-100 text-blue-800' : 
-                                 referenceType === 'purchase_order' ? 'bg-purple-100 text-purple-800' : 
-                                 'bg-gray-100 text-gray-800';
+                // Tipo de gasto
+                const referenceType = expense.reference_type || 'General';
+                const typeConfig = {
+                    'ticket': { class: 'bg-blue-100 text-blue-800', text: 'Ticket' },
+                    'purchase_order': { class: 'bg-purple-100 text-purple-800', text: 'Orden Compra' },
+                    'general': { class: 'bg-gray-100 text-gray-800', text: 'General' }
+                };
+                const typeInfo = typeConfig[referenceType.toLowerCase()] || typeConfig['general'];
                 
                 html += `
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${formatDate(expense.expense_date)}
+                    <tr class="hover:bg-gray-50 transition-colors">
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            ${expense.date ? formatDate(expense.date) : (expense.expense_date ? formatDate(expense.expense_date) : (expense.created_at ? formatDate(expense.created_at) : '-'))}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${expense.category || 'Sin categoría'}
-                        </td>
-                        <td class="px-6 py-4 text-sm text-gray-900">
-                            ${expense.description || 'Sin descripción'}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                            $${formatMoney(expense.amount)}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            ${expense.supplier_name || 'No especificado'}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${typeClass}">
-                                ${referenceType === 'ticket' ? 'Ticket' : referenceType === 'purchase_order' ? 'Orden Compra' : 'General'}
+                        <td class="border px-4 py-3 text-sm text-gray-700">
+                            <span class="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">
+                                ${expense.category || expense.category_name || 'Sin categoría'}
                             </span>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onclick="viewExpense(${expense.id})" class="text-indigo-600 hover:text-indigo-900 mr-3">
-                                Ver
-                            </button>
-                            <button onclick="editExpense(${expense.id})" class="text-yellow-600 hover:text-yellow-900 mr-3">
-                                Editar
-                            </button>
-                            <button onclick="deleteExpense(${expense.id})" class="text-red-600 hover:text-red-900">
-                                Eliminar
-                            </button>
+                        <td class="border px-4 py-3 text-sm text-gray-700 max-w-md truncate" title="${expense.description || 'Sin descripción'}">
+                            ${expense.description || 'Sin descripción'}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-right font-semibold text-gray-900">
+                            ${formatCurrency(expense.amount || 0)}
+                        </td>
+                        <td class="border px-4 py-3 text-sm text-gray-600">
+                            ${expense.supplier || expense.supplier_name || 'No especificado'}
+                        </td>
+                        <td class="border px-4 py-3 text-center">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${typeInfo.class}">
+                                ${typeInfo.text}
+                            </span>
+                        </td>
+                        <td class="border px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button onclick="viewExpense(${expense.id})" 
+                                        class="text-blue-600 hover:text-blue-800 hover:bg-blue-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Ver gasto">
+                                    Ver
+                                </button>
+                                <button onclick="editExpense(${expense.id})" 
+                                        class="text-amber-600 hover:text-amber-800 hover:bg-amber-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Editar gasto">
+                                    Editar
+                                </button>
+                                <button onclick="deleteExpense(${expense.id})" 
+                                        class="text-red-600 hover:text-red-800 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                                        title="Eliminar gasto">
+                                    Eliminar
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -1206,11 +1261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================================================
     // UTILITY FUNCTIONS
     // ============================================================================
-    function formatDate(dateString) {
-        if (!dateString) return '';
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-ES');
-    }
+    // formatDate ya está declarado arriba en la sección de CONFIGURACIÓN Y UTILIDADES
     
     function formatMoney(amount) {
         if (!amount) return '0.00';
@@ -1252,6 +1303,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 5000);
     }
+    
+    // Exponer showNotification como global
+    window.showNotification = showNotification;
 
     // ============================================================================
     // DATA LOADING FUNCTIONS
@@ -1316,6 +1370,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const filters = getActiveFilters();
             const expenses = await api.expenses.getAll(filters);
+            
+            // Ordenar por fecha descendente (más reciente primero)
+            expenses.sort((a, b) => {
+                const dateA = new Date(a.date || a.expense_date || a.created_at || 0);
+                const dateB = new Date(b.date || b.expense_date || b.created_at || 0);
+                return dateB - dateA; // Descendente
+            });
+            
             state.expenses = expenses;
             ui.renderExpenses(expenses);
             console.log('✅ Expenses loaded successfully:', { count: expenses.length });
@@ -1324,6 +1386,11 @@ document.addEventListener('DOMContentLoaded', () => {
             throw error;
         }
     }
+    
+    // Exponer funciones de carga como globales para uso en botones
+    window.loadQuotes = loadQuotes;
+    window.loadInvoices = loadInvoices;
+    window.loadExpenses = loadExpenses;
     
     async function loadClients() {
         try {
@@ -1435,185 +1502,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================================================
-    // MODAL FUNCTIONS (placeholders - to be connected with finanzas-modals.js)
-    // ============================================================================
-    window.openNewQuoteModal = function() {
-        console.log('📋 Opening new quote modal...');
-        // This will be connected to finanzas-modals.js
-        if (typeof showQuoteModal === 'function') {
-            showQuoteModal();
-        } else {
-            console.warn('⚠️ Quote modal function not available');
-        }
-    };
-    
-    window.openNewInvoiceModal = function() {
-        console.log('🧾 Opening new invoice modal...');
-        // This will be connected to finanzas-modals.js
-        if (typeof showInvoiceModal === 'function') {
-            showInvoiceModal();
-        } else {
-            console.warn('⚠️ Invoice modal function not available');
-        }
-    };
-    
-    window.openNewExpenseModal = function() {
-        console.log('💸 Opening new expense modal...');
-        // This will be connected to finanzas-modals.js
-        if (typeof showExpenseModal === 'function') {
-            showExpenseModal();
-        } else {
-            console.warn('⚠️ Expense modal function not available');
-        }
-    };
-
-    // ============================================================================
-    // ALIASES para compatibilidad con HTML (nombres usados en onclick)
-    // ============================================================================
-    window.createQuote = window.openNewQuoteModal;
-    window.createInvoice = window.openNewInvoiceModal;
-    window.createExpense = window.openNewExpenseModal;
-
-    // Funciones para cerrar modales
-    window.closeQuoteModal = function() {
-        const modal = document.getElementById('quote-modal');
-        if (modal) modal.classList.remove('active');
-    };
-
-    window.closeInvoiceModal = function() {
-        const modal = document.getElementById('invoice-modal');
-        if (modal) modal.classList.remove('active');
-    };
-
-    window.closeExpenseModal = function() {
-        const modal = document.getElementById('expense-modal');
-        if (modal) modal.classList.remove('active');
-    };
-
-    // ============================================================================
-    // CRUD OPERATIONS (Global functions for table buttons)
-    // ============================================================================
-    
-    // Quotes CRUD
-    window.viewQuote = async function(id) {
-        try {
-            ui.showLoading();
-            const quote = await api.quotes.getById(id);
-            // Open view modal (to be implemented in finanzas-modals.js)
-            console.log('👁️ Viewing quote:', quote);
-        } catch (error) {
-            ui.showError('Error al cargar la cotización');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    window.editQuote = async function(id) {
-        try {
-            ui.showLoading();
-            const quote = await api.quotes.getById(id);
-            // Open edit modal (to be implemented in finanzas-modals.js)
-            console.log('✏️ Editing quote:', quote);
-        } catch (error) {
-            ui.showError('Error al cargar la cotización para editar');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    window.deleteQuote = async function(id) {
-        if (!confirm('¿Está seguro de que desea eliminar esta cotización?')) {
-            return;
-        }
-        
-        try {
-            ui.showLoading();
-            await api.quotes.delete(id);
-            showNotification('Cotización eliminada exitosamente', 'success');
-            await loadQuotes();
-        } catch (error) {
-            ui.showError('Error al eliminar la cotización');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    // Invoices CRUD
-    window.viewInvoice = async function(id) {
-        try {
-            ui.showLoading();
-            const invoice = await api.invoices.getById(id);
-            console.log('👁️ Viewing invoice:', invoice);
-        } catch (error) {
-            ui.showError('Error al cargar la factura');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    window.editInvoice = async function(id) {
-        try {
-            ui.showLoading();
-            const invoice = await api.invoices.getById(id);
-            console.log('✏️ Editing invoice:', invoice);
-        } catch (error) {
-            ui.showError('Error al cargar la factura para editar');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    window.deleteInvoice = async function(id) {
-        if (!confirm('¿Está seguro de que desea eliminar esta factura?')) {
-            return;
-        }
-        
-        try {
-            ui.showLoading();
-            await api.invoices.delete(id);
-            showNotification('Factura eliminada exitosamente', 'success');
-            await loadInvoices();
-        } catch (error) {
-            ui.showError('Error al eliminar la factura');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    window.markInvoicePaid = async function(id) {
-        const paymentData = {
-            paid_amount: prompt('Monto pagado:'),
-            paid_date: new Date().toISOString().split('T')[0],
-            payment_method: prompt('Método de pago:') || 'Efectivo'
-        };
-        
-        if (!paymentData.paid_amount) return;
-        
-        try {
-            ui.showLoading();
-            await api.invoices.markPaid(id, paymentData);
-            showNotification('Factura marcada como pagada', 'success');
-            await loadInvoices();
-        } catch (error) {
-            ui.showError('Error al marcar la factura como pagada');
-        } finally {
-            ui.hideLoading();
-        }
-    };
-    
-    // Expenses CRUD (basic placeholders)
-    window.viewExpense = function(id) {
-        console.log('👁️ Viewing expense:', id);
-    };
-    
-    window.editExpense = function(id) {
-        console.log('✏️ Editing expense:', id);
-    };
-    
-    window.deleteExpense = function(id) {
-        console.log('🗑️ Deleting expense:', id);
-    };
-
     // ============================================================================
     // RECENT ACTIVITY
     // ============================================================================
@@ -1688,6 +1576,450 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ============================================================================
+    // BALANCE FINANCIERO
+    // ============================================================================
+    async function calculateAndDisplayBalance() {
+        try {
+            console.log('💰 Calculando balance financiero...');
+            
+            // Obtener facturas pagadas del mes actual
+            const currentDate = new Date();
+            const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+            const lastDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+            
+            // Obtener datos con manejo de errores individual
+            let invoices = [];
+            let expenses = [];
+            let quotes = [];
+            
+            try {
+                invoices = await api.invoices.getAll() || [];
+                console.log('✅ Facturas obtenidas:', invoices.length);
+            } catch (err) {
+                console.warn('⚠️ No se pudieron obtener facturas:', err.message);
+                invoices = [];
+            }
+            
+            try {
+                expenses = await api.expenses.getAll() || [];
+                console.log('✅ Gastos obtenidos:', expenses.length);
+            } catch (err) {
+                console.warn('⚠️ No se pudieron obtener gastos:', err.message);
+                expenses = [];
+            }
+            
+            try {
+                quotes = await api.quotes.getAll() || [];
+                console.log('✅ Cotizaciones obtenidas:', quotes.length);
+            } catch (err) {
+                console.warn('⚠️ No se pudieron obtener cotizaciones:', err.message);
+                quotes = [];
+            }
+            
+            // Calcular ingresos (facturas pagadas o completadas)
+            // Incluir múltiples estados válidos de pago
+            const paidStatuses = ['paid', 'completed', 'vendida', 'pagada', 'pagado'];
+            const facturasPagadas = invoices.filter(inv => 
+                paidStatuses.includes(inv.status?.toLowerCase())
+            );
+            
+            console.log('📊 Análisis de facturas:', {
+                total: invoices.length,
+                pagadas: facturasPagadas.length,
+                estados: invoices.map(inv => inv.status)
+            });
+            
+            // LOG DETALLADO: Mostrar cada factura con su fecha y estado
+            console.table(invoices.map(inv => ({
+                numero: inv.invoice_number,
+                cliente: inv.client_name || 'N/A',
+                fecha: inv.issue_date,
+                monto: inv.total,
+                estado: inv.status,
+                '¿Pagada?': paidStatuses.includes(inv.status?.toLowerCase()) ? '✅ SÍ' : '❌ NO'
+            })));
+            
+            const ingresosTotales = facturasPagadas
+                .reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0);
+            
+            // Calcular gastos totales
+            const gastosTotales = expenses
+                .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            
+            // LOG DETALLADO: Mostrar gastos
+            console.log('💸 Análisis de gastos:');
+            console.table(expenses.slice(0, 10).map(exp => ({
+                descripcion: exp.description || 'N/A',
+                fecha: exp.date || exp.expense_date || exp.movement_date || exp.created_at,
+                monto: exp.amount,
+                categoria: exp.category || 'N/A'
+            })));
+            
+            // LOG: Mostrar todas las propiedades del primer gasto
+            if (expenses.length > 0) {
+                console.log('🔍 Propiedades del primer gasto:', Object.keys(expenses[0]));
+                console.log('📝 Primer gasto completo:', expenses[0]);
+            }
+            
+            // Gastos del mes actual (usar exp.date en lugar de exp.expense_date)
+            const gastosDelMes = expenses
+                .filter(exp => {
+                    const dateValue = exp.date || exp.expense_date || exp.movement_date || exp.created_at;
+                    if (!dateValue) return false;
+                    const expDate = new Date(dateValue);
+                    return expDate >= firstDayOfMonth && expDate <= lastDayOfMonth;
+                })
+                .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            
+            // Balance neto
+            const balanceNeto = ingresosTotales - gastosTotales;
+            
+            // Estadísticas adicionales
+            const facturasPendientes = invoices.filter(inv => inv.status === 'pending').length;
+            const cotizacionesActivas = quotes.filter(q => q.status === 'pending' || q.status === 'approved').length;
+            
+            // Actualizar UI
+            const balanceIngresosEl = document.getElementById('balance-ingresos');
+            const balanceGastosEl = document.getElementById('balance-gastos');
+            const balanceNetoEl = document.getElementById('balance-neto');
+            const facturasPendientesEl = document.getElementById('facturas-pendientes');
+            const cotizacionesActivasEl = document.getElementById('cotizaciones-activas');
+            const gastosMesEl = document.getElementById('gastos-mes');
+            
+            if (balanceIngresosEl) balanceIngresosEl.textContent = formatCurrency(ingresosTotales);
+            if (balanceGastosEl) balanceGastosEl.textContent = formatCurrency(gastosTotales);
+            if (balanceNetoEl) {
+                balanceNetoEl.textContent = formatCurrency(balanceNeto);
+                balanceNetoEl.className = `text-2xl font-bold ${balanceNeto >= 0 ? 'text-green-600' : 'text-red-600'}`;
+            }
+            if (facturasPendientesEl) facturasPendientesEl.textContent = facturasPendientes;
+            if (cotizacionesActivasEl) cotizacionesActivasEl.textContent = cotizacionesActivas;
+            if (gastosMesEl) gastosMesEl.textContent = formatCurrency(gastosDelMes);
+            
+            console.log('✅ Balance calculado:', {
+                ingresos: ingresosTotales,
+                gastos: gastosTotales,
+                neto: balanceNeto,
+                facturasPendientes,
+                cotizacionesActivas,
+                gastosDelMes
+            });
+            
+            // Generar gráfico simple de flujo de caja
+            generateCashFlowChart(invoices, expenses);
+            
+            // Mostrar actividad reciente
+            displayRecentActivity(invoices, expenses, quotes);
+            
+        } catch (error) {
+            console.error('❌ Error calculando balance:', error);
+        }
+    }
+    
+    function displayRecentActivity(invoices, expenses, quotes) {
+        const activityContainer = document.getElementById('recent-activity');
+        if (!activityContainer) return;
+        
+        // Combinar todas las actividades recientes
+        const activities = [];
+        
+        // Agregar facturas recientes (últimas 5)
+        invoices.slice(0, 5).forEach(inv => {
+            activities.push({
+                date: new Date(inv.issue_date),
+                type: 'invoice',
+                icon: 'file-text',
+                color: 'blue',
+                title: `Factura #${inv.invoice_number}`,
+                subtitle: inv.client_name || 'Cliente',
+                amount: parseFloat(inv.total || 0),
+                status: inv.status
+            });
+        });
+        
+        // Agregar gastos recientes (últimos 5)
+        expenses.slice(0, 5).forEach(exp => {
+            const dateValue = exp.date || exp.expense_date || exp.movement_date || exp.created_at;
+            activities.push({
+                date: dateValue ? new Date(dateValue) : new Date(),
+                type: 'expense',
+                icon: 'credit-card',
+                color: 'red',
+                title: exp.description || 'Gasto',
+                subtitle: exp.category || '',
+                amount: -parseFloat(exp.amount || 0),
+                status: 'completed'
+            });
+        });
+        
+        // Agregar cotizaciones recientes (últimas 3)
+        quotes.slice(0, 3).forEach(quote => {
+            activities.push({
+                date: new Date(quote.quote_date),
+                type: 'quote',
+                icon: 'file-check',
+                color: 'purple',
+                title: `Cotización #${quote.quote_number}`,
+                subtitle: quote.client_name || 'Cliente',
+                amount: parseFloat(quote.total || 0),
+                status: quote.status
+            });
+        });
+        
+        // Ordenar por fecha (más reciente primero)
+        activities.sort((a, b) => b.date - a.date);
+        
+        // Tomar solo las últimas 8 actividades
+        const recentActivities = activities.slice(0, 8);
+        
+        if (recentActivities.length === 0) {
+            activityContainer.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p class="text-sm">No hay actividad reciente</p>
+                </div>
+            `;
+            if (window.lucide) window.lucide.createIcons();
+            return;
+        }
+        
+        let html = '<div class="space-y-2.5">';
+        recentActivities.forEach(activity => {
+            const statusColors = {
+                'paid': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'pending': 'bg-amber-50 text-amber-700 border-amber-200',
+                'cancelled': 'bg-rose-50 text-rose-700 border-rose-200',
+                'approved': 'bg-sky-50 text-sky-700 border-sky-200',
+                'rejected': 'bg-gray-50 text-gray-700 border-gray-200',
+                'completed': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'vendida': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'pagada': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'vencida': 'bg-rose-50 text-rose-700 border-rose-200'
+            };
+            
+            const statusText = {
+                'paid': 'Pagado',
+                'pending': 'Pendiente',
+                'cancelled': 'Cancelado',
+                'approved': 'Aprobado',
+                'rejected': 'Rechazado',
+                'completed': 'Completado',
+                'vendida': 'Vendida',
+                'pagada': 'Pagada',
+                'vencida': 'Vencida'
+            };
+            
+            // Configuración por tipo de actividad
+            const typeConfig = {
+                'invoice': {
+                    bgGradient: 'linear-gradient(135deg, #dbeafe 0%, #eff6ff 100%)',
+                    iconBg: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    borderColor: '#3b82f6'
+                },
+                'expense': {
+                    bgGradient: 'linear-gradient(135deg, #fee2e2 0%, #fef2f2 100%)',
+                    iconBg: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    borderColor: '#ef4444'
+                },
+                'quote': {
+                    bgGradient: 'linear-gradient(135deg, #f3e8ff 0%, #faf5ff 100%)',
+                    iconBg: 'linear-gradient(135deg, #a855f7 0%, #9333ea 100%)',
+                    borderColor: '#a855f7'
+                }
+            };
+            
+            const config = typeConfig[activity.type] || typeConfig['invoice'];
+            
+            html += `
+                <div class="group relative overflow-hidden rounded-xl border-2 hover:shadow-lg transition-all duration-300" 
+                     style="background: ${config.bgGradient}; border-color: ${config.borderColor}20;">
+                    <!-- Barra lateral de color -->
+                    <div class="absolute left-0 top-0 bottom-0 w-1.5 transition-all duration-300 group-hover:w-2" 
+                         style="background: ${config.iconBg};"></div>
+                    
+                    <div class="flex items-center gap-4 p-4 pl-5">
+                        <!-- Icono con gradiente -->
+                        <div class="flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center shadow-md" 
+                             style="background: ${config.iconBg};">
+                            <i data-lucide="${activity.icon}" class="w-7 h-7 text-white"></i>
+                        </div>
+                        
+                        <!-- Contenido principal -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-start justify-between gap-3 mb-2">
+                                <div class="flex-1 min-w-0">
+                                    <h4 class="text-base font-bold text-gray-900 truncate leading-tight">${activity.title}</h4>
+                                    <p class="text-sm text-gray-600 mt-1 flex items-center gap-1.5">
+                                        <span class="font-medium">${activity.subtitle}</span>
+                                    </p>
+                                </div>
+                                <div class="flex flex-col items-end gap-2 flex-shrink-0">
+                                    <div class="text-right">
+                                        <div class="text-xl font-bold ${activity.amount >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                            ${activity.amount >= 0 ? '+' : ''}${formatCurrency(activity.amount)}
+                                        </div>
+                                    </div>
+                                    ${activity.status ? `
+                                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-semibold border ${statusColors[activity.status.toLowerCase()] || 'bg-gray-50 text-gray-700 border-gray-200'}">
+                                            ${statusText[activity.status.toLowerCase()] || activity.status}
+                                        </span>
+                                    ` : ''}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2 text-xs font-medium" style="color: ${config.borderColor};">
+                                <i data-lucide="clock" class="w-4 h-4"></i>
+                                <span>${formatTimeAgo(activity.date)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        
+        activityContainer.innerHTML = html;
+        if (window.lucide) window.lucide.createIcons();
+    }
+    
+    function formatTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - date;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHours = Math.floor(diffMs / 3600000);
+        const diffDays = Math.floor(diffMs / 86400000);
+        
+        if (diffMins < 1) return 'Hace un momento';
+        if (diffMins < 60) return `Hace ${diffMins} minuto${diffMins > 1 ? 's' : ''}`;
+        if (diffHours < 24) return `Hace ${diffHours} hora${diffHours > 1 ? 's' : ''}`;
+        if (diffDays === 1) return 'Ayer';
+        if (diffDays < 7) return `Hace ${diffDays} días`;
+        return date.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' });
+    }
+    
+    function generateCashFlowChart(invoices, expenses) {
+        const chartContainer = document.getElementById('flujo-caja-chart');
+        if (!chartContainer) return;
+        
+        // Estados válidos para considerar una factura como pagada
+        const paidStatuses = ['paid', 'completed', 'vendida', 'pagada', 'pagado'];
+        
+        // Obtener datos de los últimos 6 meses
+        const months = [];
+        const currentDate = new Date();
+        
+        for (let i = 5; i >= 0; i--) {
+            const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+            const monthName = date.toLocaleDateString('es-ES', { month: 'short' });
+            
+            const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+            const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+            
+            const ingresos = invoices
+                .filter(inv => {
+                    const invDate = new Date(inv.issue_date);
+                    return paidStatuses.includes(inv.status?.toLowerCase()) && 
+                           invDate >= monthStart && invDate <= monthEnd;
+                })
+                .reduce((sum, inv) => sum + parseFloat(inv.total || 0), 0);
+            
+            const gastos = expenses
+                .filter(exp => {
+                    const dateValue = exp.date || exp.expense_date || exp.movement_date || exp.created_at;
+                    if (!dateValue) return false;
+                    const expDate = new Date(dateValue);
+                    return expDate >= monthStart && expDate <= monthEnd;
+                })
+                .reduce((sum, exp) => sum + parseFloat(exp.amount || 0), 0);
+            
+            months.push({
+                name: monthName.charAt(0).toUpperCase() + monthName.slice(1),
+                ingresos,
+                gastos,
+                balance: ingresos - gastos
+            });
+        }
+        
+        console.log('📊 Datos de flujo de caja por mes:', months);
+        
+        // Calcular máximo para escala
+        const maxValue = Math.max(...months.map(m => Math.max(m.ingresos, m.gastos)), 1); // Mínimo 1 para evitar división por 0
+        const hasData = maxValue > 1;
+        
+        let chartHTML = '<div class="w-full">';
+        
+        if (!hasData) {
+            chartHTML += `
+                <div class="text-center py-8 text-gray-400">
+                    <i data-lucide="bar-chart-3" class="w-12 h-12 mx-auto mb-3 opacity-50"></i>
+                    <p class="text-sm">No hay datos de flujo de caja para mostrar</p>
+                    <p class="text-xs mt-1">Los datos aparecerán cuando tengas facturas pagadas y gastos registrados</p>
+                </div>
+            `;
+        } else {
+            months.forEach(month => {
+                const ingresosWidth = maxValue > 0 ? Math.max((month.ingresos / maxValue * 100), 2) : 0;
+                const gastosWidth = maxValue > 0 ? Math.max((month.gastos / maxValue * 100), 2) : 0;
+                
+                chartHTML += `
+                    <div class="mb-6 pb-4 border-b border-gray-200 last:border-0">
+                        <!-- Header del mes -->
+                        <div class="flex items-center justify-between mb-3">
+                            <h4 class="text-base font-bold text-gray-800">${month.name}</h4>
+                            <div class="text-right">
+                                <div class="text-lg font-bold ${month.balance >= 0 ? 'text-green-600' : 'text-red-600'}">
+                                    ${formatCurrency(month.balance)}
+                                </div>
+                                <div class="text-xs text-gray-500">Balance</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Barra de Ingresos -->
+                        <div class="mb-3">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-green-500 flex-shrink-0"></div>
+                                    <span class="text-sm font-medium text-gray-700">Ingresos</span>
+                                </div>
+                                <span class="text-sm font-semibold text-gray-800">${formatCurrency(month.ingresos)}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-lg h-6 overflow-hidden">
+                                <div class="h-6 rounded-lg transition-all duration-500" 
+                                     style="width: ${ingresosWidth}%; min-width: ${month.ingresos > 0 ? '20px' : '0'}; background: linear-gradient(90deg, #10b981 0%, #059669 100%);">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Barra de Gastos -->
+                        <div class="mb-2">
+                            <div class="flex items-center justify-between mb-1">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-red-500 flex-shrink-0"></div>
+                                    <span class="text-sm font-medium text-gray-700">Gastos</span>
+                                </div>
+                                <span class="text-sm font-semibold text-gray-800">${formatCurrency(month.gastos)}</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-lg h-6 overflow-hidden">
+                                <div class="h-6 rounded-lg transition-all duration-500" 
+                                     style="width: ${gastosWidth}%; min-width: ${month.gastos > 0 ? '20px' : '0'}; background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        
+        chartHTML += '</div>';
+        
+        chartContainer.innerHTML = chartHTML;
+        
+        // Re-inicializar iconos de Lucide
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+
+    // ============================================================================
     // INITIALIZATION
     // ============================================================================
     async function init() {
@@ -1720,6 +2052,11 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('🔄 Switching to overview view...');
             ui.switchView('overview');
             console.log('✅ View switched to overview');
+            
+            // Calcular y mostrar balance
+            console.log('🔄 Calculating financial balance...');
+            await calculateAndDisplayBalance();
+            console.log('✅ Balance calculated and displayed');
             
             const endTime = performance.now();
             console.log('✅ Finanzas module initialized successfully', {
@@ -2012,6 +2349,119 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ============================================================================
+// GLOBAL FUNCTIONS - Disponibles desde HTML onclick
+// ============================================================================
+
+// Funciones para abrir modales (deben estar fuera de DOMContentLoaded)
+window.createQuote = function() {
+    console.log('📋 Opening new quote modal...');
+    const modal = document.getElementById('quote-modal');
+    if (modal) {
+        modal.classList.add('active');
+        const title = document.getElementById('quote-modal-title');
+        if (title) title.textContent = 'Nueva Cotización';
+        const form = document.getElementById('quote-form');
+        if (form) form.reset();
+        // Inicializar iconos de Lucide
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } else {
+        console.error('❌ Modal quote-modal no encontrado');
+    }
+};
+
+window.createInvoice = function() {
+    console.log('🧾 Opening new invoice modal...');
+    const modal = document.getElementById('invoice-modal');
+    if (modal) {
+        modal.classList.add('active');
+        const title = document.getElementById('invoice-modal-title');
+        if (title) title.textContent = 'Nueva Factura';
+        const form = document.getElementById('invoice-form');
+        if (form) form.reset();
+        // Inicializar iconos de Lucide
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    } else {
+        console.error('❌ Modal invoice-modal no encontrado');
+    }
+};
+
+window.createExpense = function() {
+    console.log('💸 Opening new expense modal...');
+    alert('🚧 Modal de gastos en desarrollo');
+};
+
+// Funciones para cerrar modales
+window.closeQuoteModal = function() {
+    const modal = document.getElementById('quote-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.closeInvoiceModal = function() {
+    const modal = document.getElementById('invoice-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+window.closeExpenseModal = function() {
+    const modal = document.getElementById('expense-modal');
+    if (modal) modal.classList.remove('active');
+};
+
+// Funciones CRUD para botones de tablas
+window.viewQuote = async function(id) {
+    console.log('👁️ Viewing quote:', id);
+    alert('Ver cotización #' + id + ' - en desarrollo');
+};
+
+window.editQuote = async function(id) {
+    console.log('✏️ Editing quote:', id);
+    alert('Editar cotización #' + id + ' - en desarrollo');
+};
+
+window.deleteQuote = async function(id) {
+    if (!confirm('¿Está seguro de que desea eliminar esta cotización?')) {
+        return;
+    }
+    console.log('🗑️ Deleting quote:', id);
+    alert('Eliminar cotización #' + id + ' - en desarrollo');
+};
+
+window.viewInvoice = async function(id) {
+    console.log('👁️ Viewing invoice:', id);
+    alert('Ver factura #' + id + ' - en desarrollo');
+};
+
+window.editInvoice = async function(id) {
+    console.log('✏️ Editing invoice:', id);
+    alert('Editar factura #' + id + ' - en desarrollo');
+};
+
+window.deleteInvoice = async function(id) {
+    if (!confirm('¿Está seguro de que desea eliminar esta factura?')) {
+        return;
+    }
+    console.log('🗑️ Deleting invoice:', id);
+    alert('Eliminar factura #' + id + ' - en desarrollo');
+};
+
+window.viewExpense = async function(id) {
+    console.log('👁️ Viewing expense:', id);
+    alert('Ver gasto #' + id + ' - en desarrollo');
+};
+
+window.editExpense = async function(id) {
+    console.log('✏️ Editing expense:', id);
+    alert('Editar gasto #' + id + ' - en desarrollo');
+};
+
+window.deleteExpense = async function(id) {
+    if (!confirm('¿Está seguro de que desea eliminar este gasto?')) {
+        return;
+    }
+    console.log('🗑️ Deleting expense:', id);
+    alert('Eliminar gasto #' + id + ' - en desarrollo');
+};
 
 // ============================================================================
 // GLOBAL ERROR HANDLING FOR FINANZAS MODULE

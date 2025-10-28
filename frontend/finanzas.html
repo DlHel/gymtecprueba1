@@ -14,97 +14,181 @@
         <!-- El menú se cargará aquí -->
         <div id="menu-placeholder"></div>
 
-        <div class="flex-1 flex flex-col overflow-y-auto">
-            <!-- Header mejorado con estilo consistente -->
-            <header class="finanzas-header-improved">
-                <div class="finanzas-header-content">
-                    <div class="finanzas-title-section">
-                        <h1 class="finanzas-main-title">
-                            <i data-lucide="dollar-sign" class="w-8 h-8"></i>
-                            Sistema Financiero
-                        </h1>
-                        <p class="finanzas-subtitle">Gestión integral de cotizaciones, facturas y gastos</p>
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-800">Finanzas</h1>
                     </div>
-                    <div class="text-right">
-                        <div id="user-info" class="user-info"></div>
+                    <div class="user-info">
+                        Felipe Maturana (Admin)
                     </div>
                 </div>
             </header>
             
-            <main class="finanzas-main-content">
-                <!-- Métricas principales -->
-                <div class="metrics-grid">
-                    <!-- Las métricas se cargarán dinámicamente -->
-                </div>
-
-                <!-- Sistema de pestañas -->
-                <div class="tabs-container">
-                    <div class="tabs-header">
-                        <button class="tab-button active" data-tab="overview">
-                            <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
-                            Resumen
-                        </button>
-                        <button class="tab-button" data-tab="quotes">
-                            <i data-lucide="file-text" class="w-4 h-4"></i>
-                            Cotizaciones
-                        </button>
-                        <button class="tab-button" data-tab="invoices">
-                            <i data-lucide="receipt" class="w-4 h-4"></i>
-                            Facturas
-                        </button>
-                        <button class="tab-button" data-tab="expenses">
-                            <i data-lucide="credit-card" class="w-4 h-4"></i>
-                            Gastos
-                        </button>
-                        <button class="tab-button" data-tab="payroll">
-                            <i data-lucide="banknote" class="w-4 h-4"></i>
-                            Nómina
-                        </button>
+            <main class="flex-1 overflow-y-auto p-6">
+                <div class="w-full">
+                    <!-- Header con descripción -->
+                    <div class="mb-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h2 class="text-2xl font-bold text-gray-800">Sistema Financiero</h2>
+                                <p class="text-gray-600">Gestión integral de cotizaciones, facturas y gastos</p>
+                            </div>
                         </div>
+
+                        <!-- Pestañas de navegación -->
+                        <div class="border-b border-gray-200">
+                            <nav class="flex space-x-8">
+                                <button class="tab-button active" data-tab="overview">
+                                    <i data-lucide="bar-chart-3" class="h-4 w-4"></i>
+                                    Resumen
+                                </button>
+                                <button class="tab-button" data-tab="quotes">
+                                    <i data-lucide="file-text" class="h-4 w-4"></i>
+                                    Cotizaciones
+                                </button>
+                                <button class="tab-button" data-tab="invoices">
+                                    <i data-lucide="receipt" class="h-4 w-4"></i>
+                                    Facturas
+                                </button>
+                                <button class="tab-button" data-tab="expenses">
+                                    <i data-lucide="credit-card" class="h-4 w-4"></i>
+                                    Gastos
+                                </button>
+                                <button class="tab-button" data-tab="payroll">
+                                    <i data-lucide="banknote" class="h-4 w-4"></i>
+                                    Nómina
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
 
                         <!-- Contenido: Resumen -->
                         <div id="overview-tab" class="tab-content active">
-                            <div class="app-card">
+                            <!-- Métricas principales -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="metrics-container">
+                                <!-- Las métricas se cargarán dinámicamente aquí -->
+                            </div>
+
+                            <!-- Balance Financiero -->
+                            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                                <!-- Balance General -->
+                                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-800">Balance General</h3>
+                                        <i data-lucide="trending-up" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+                                    <div class="space-y-4">
+                                        <div class="flex justify-between items-center py-3 border-b">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                                                <span class="text-sm font-medium text-gray-700">Ingresos Totales</span>
+                                            </div>
+                                            <span id="balance-ingresos" class="text-lg font-bold text-green-600">$0</span>
+                                        </div>
+                                        <div class="flex justify-between items-center py-3 border-b">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                                                <span class="text-sm font-medium text-gray-700">Gastos Totales</span>
+                                            </div>
+                                            <span id="balance-gastos" class="text-lg font-bold text-red-600">$0</span>
+                                        </div>
+                                        <div class="flex justify-between items-center py-3 bg-blue-50 rounded-lg px-4">
+                                            <span class="text-base font-semibold text-gray-800">Balance Neto</span>
+                                            <span id="balance-neto" class="text-2xl font-bold text-blue-600">$0</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Gráfico de Flujo de Caja -->
+                                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                    <div class="flex items-center justify-between mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-800">Flujo de Caja Mensual</h3>
+                                        <i data-lucide="bar-chart-2" class="w-5 h-5 text-blue-600"></i>
+                                    </div>
+                                    <div id="flujo-caja-chart" class="h-48 flex items-center justify-center text-gray-500">
+                                        <p>Cargando datos del flujo de caja...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Estadísticas Rápidas -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-blue-700 font-medium">Facturas Pendientes</p>
+                                            <p id="facturas-pendientes" class="text-3xl font-bold text-blue-900">0</p>
+                                        </div>
+                                        <i data-lucide="file-text" class="w-10 h-10 text-blue-600 opacity-50"></i>
+                                    </div>
+                                </div>
+                                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-green-700 font-medium">Cotizaciones Activas</p>
+                                            <p id="cotizaciones-activas" class="text-3xl font-bold text-green-900">0</p>
+                                        </div>
+                                        <i data-lucide="clipboard" class="w-10 h-10 text-green-600 opacity-50"></i>
+                                    </div>
+                                </div>
+                                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm text-purple-700 font-medium">Gastos del Mes</p>
+                                            <p id="gastos-mes" class="text-3xl font-bold text-purple-900">$0</p>
+                                        </div>
+                                        <i data-lucide="credit-card" class="w-10 h-10 text-purple-600 opacity-50"></i>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                                 <h3 class="text-lg font-semibold mb-4">Actividad Reciente</h3>
                                 <div id="recent-activity">
                                     <div class="loading-spinner"></div>
-                                    <p class="text-center text-secondary">Cargando actividad reciente...</p>
+                                    <p class="text-center text-gray-600">Cargando actividad reciente...</p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Contenido: Cotizaciones -->
                         <div id="quotes-tab" class="tab-content">
-                            <div class="financial-table">
-                                <div class="financial-table-header">
-                                    <h3 class="financial-table-title">Cotizaciones</h3>
-                                    <div class="financial-table-actions">
-                                        <button class="btn btn-secondary" onclick="window.print()">
-                                            <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-xl font-semibold text-gray-800">Cotizaciones</h3>
+                                    <div class="flex gap-3">
+                                        <button class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2" onclick="window.print()">
+                                            <i data-lucide="printer" class="w-4 h-4"></i>
                                             Imprimir
                                         </button>
-                                        <button class="btn btn-primary" onclick="createQuote()">
-                                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="createQuote()">
+                                            <i data-lucide="plus" class="w-4 h-4"></i>
                                             Nueva Cotización
                                         </button>
                                     </div>
                                 </div>
                                 
-                                <div class="table-container">
-                                    <table>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full border-collapse">
                                         <thead>
-                                            <tr>
-                                                <th>Número</th>
-                                                <th>Cliente</th>
-                                                <th>Fecha</th>
-                                                <th>Total</th>
-                                                <th>Estado</th>
-                                                <th>Acciones</th>
+                                            <tr class="bg-gray-50">
+                                                <th class="border px-4 py-2 text-left">Número</th>
+                                                <th class="border px-4 py-2 text-left">Cliente</th>
+                                                <th class="border px-4 py-2 text-left">Fecha</th>
+                                                <th class="border px-4 py-2 text-right">Total</th>
+                                                <th class="border px-4 py-2 text-center">Estado</th>
+                                                <th class="border px-4 py-2 text-center">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody id="quotes-table-body">
                                             <tr>
-                                                <td colspan="6" class="loading-card">
+                                                <td colspan="6" class="border px-4 py-8 text-center text-gray-600">
                                                     <div class="loading-spinner"></div>
                                                     <p>Cargando cotizaciones...</p>
                                                 </td>
@@ -117,37 +201,37 @@
 
                         <!-- Contenido: Facturas -->
                         <div id="invoices-tab" class="tab-content">
-                            <div class="financial-table">
-                                <div class="financial-table-header">
-                                    <h3 class="financial-table-title">Facturas</h3>
-                                    <div class="financial-table-actions">
-                                        <button class="btn btn-secondary" onclick="window.print()">
-                                            <i data-lucide="printer" class="w-4 h-4 mr-2"></i>
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                                <div class="flex justify-between items-center mb-6">
+                                    <h3 class="text-xl font-semibold text-gray-800">Facturas</h3>
+                                    <div class="flex gap-3">
+                                        <button class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2" onclick="window.print()">
+                                            <i data-lucide="printer" class="w-4 h-4"></i>
                                             Imprimir
                                         </button>
-                                        <button class="btn btn-primary" onclick="createInvoice()">
-                                            <i data-lucide="plus" class="w-4 h-4 mr-2"></i>
+                                        <button class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="createInvoice()">
+                                            <i data-lucide="plus" class="w-4 h-4"></i>
                                             Nueva Factura
                                         </button>
                                     </div>
                                 </div>
                                 
-                                <div class="table-container">
-                                    <table>
+                                <div class="overflow-x-auto">
+                                    <table class="w-full border-collapse">
                                         <thead>
-                                            <tr>
-                                                <th>Número</th>
-                                                <th>Cliente</th>
-                                                <th>Fecha</th>
-                                                <th>Vencimiento</th>
-                                                <th>Total</th>
-                                                <th>Estado</th>
-                                                <th>Acciones</th>
+                                            <tr class="bg-gray-50">
+                                                <th class="border px-4 py-2 text-left">Número</th>
+                                                <th class="border px-4 py-2 text-left">Cliente</th>
+                                                <th class="border px-4 py-2 text-left">Fecha</th>
+                                                <th class="border px-4 py-2 text-left">Vencimiento</th>
+                                                <th class="border px-4 py-2 text-right">Total</th>
+                                                <th class="border px-4 py-2 text-center">Estado</th>
+                                                <th class="border px-4 py-2 text-center">Acciones</th>
                                             </tr>
                                         </thead>
                                         <tbody id="invoices-table-body">
                                             <tr>
-                                                <td colspan="7" class="loading-card">
+                                                <td colspan="7" class="border px-4 py-8 text-center text-gray-600">
                                                     <div class="loading-spinner"></div>
                                                     <p>Cargando facturas...</p>
                                                 </td>
@@ -167,28 +251,28 @@
 
                         <!-- Contenido: Nómina -->
                         <div id="payroll-tab" class="tab-content">
-                            <div class="app-card mb-4">
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-4">
                                 <div class="flex justify-between items-center mb-4">
                                     <div>
                                         <h3 class="text-xl font-semibold">Períodos de Nómina</h3>
-                                        <p class="text-sm text-secondary">Gestión de liquidaciones de sueldo</p>
+                                        <p class="text-sm text-gray-600">Gestión de liquidaciones de sueldo</p>
                                     </div>
                                     <div class="flex gap-2 items-center">
-                                        <select id="currency-selector" class="px-3 py-2 border rounded-lg text-sm" onchange="switchCurrency(this.value)">
+                                        <select id="currency-selector" class="px-3 py-2 border rounded-lg text-sm" onchange="switchCurrency(this.value)" title="Seleccionar moneda">
                                             <option value="CLP" selected>💰 Pesos (CLP)</option>
                                             <option value="UTM">📊 UTM</option>
                                             <option value="UF">📈 UF</option>
                                         </select>
-                                        <button onclick="openPayrollPeriodModal()" class="btn btn-primary">
+                                        <button onclick="openPayrollPeriodModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
                                             <i data-lucide="plus" class="w-4 h-4"></i>
                                             Nuevo Período
                                         </button>
                                     </div>
                                 </div>
                                 
-                                <div id="payroll-periods-loading" class="text-center py-8" style="display: none;">
+                                <div id="payroll-periods-loading" class="text-center py-8 hidden">
                                     <div class="loading-spinner"></div>
-                                    <p class="text-secondary mt-2">Cargando períodos...</p>
+                                    <p class="text-gray-600 mt-2">Cargando períodos...</p>
                                 </div>
                                 
                                 <div id="payroll-periods-container">
@@ -217,21 +301,21 @@
                             </div>
                             
                             <!-- Sección de Liquidaciones (se muestra al seleccionar un período) -->
-                            <div id="payroll-details-section" class="app-card" style="display: none;">
+                            <div id="payroll-details-section" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hidden">
                                 <div class="flex justify-between items-center mb-4">
                                     <h4 class="text-lg font-semibold">
                                         <i data-lucide="file-text" class="w-5 h-5 inline"></i>
-                                        Liquidaciones - <span id="current-period-name" class="text-primary"></span>
+                                        Liquidaciones - <span id="current-period-name" class="text-blue-600"></span>
                                     </h4>
-                                    <button onclick="closePayrollDetails()" class="btn btn-secondary btn-sm">
+                                    <button onclick="closePayrollDetails()" class="bg-gray-600 text-white px-3 py-1.5 rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2 text-sm">
                                         <i data-lucide="x" class="w-4 h-4"></i>
                                         Cerrar
                                     </button>
                                 </div>
                                 
-                                <div id="payroll-details-loading" class="text-center py-8" style="display: none;">
+                                <div id="payroll-details-loading" class="text-center py-8 hidden">
                                     <div class="loading-spinner"></div>
-                                    <p class="text-secondary mt-2">Cargando liquidaciones...</p>
+                                    <p class="text-gray-600 mt-2">Cargando liquidaciones...</p>
                                 </div>
                                 
                                 <div class="overflow-x-auto">
@@ -293,10 +377,10 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeQuoteModal()">
+                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closeQuoteModal()">
                     Cancelar
                 </button>
-                <button type="submit" form="quote-form" class="btn btn-primary">
+                <button type="submit" form="quote-form" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                     Guardar Cotización
                 </button>
             </div>
@@ -318,10 +402,10 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeInvoiceModal()">
+                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closeInvoiceModal()">
                     Cancelar
                 </button>
-                <button type="submit" form="invoice-form" class="btn btn-primary">
+                <button type="submit" form="invoice-form" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
                     Guardar Factura
                 </button>
             </div>
@@ -384,10 +468,10 @@
                 </form>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closePayrollPeriodModal()">
+                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closePayrollPeriodModal()">
                     Cancelar
                 </button>
-                <button type="submit" form="payroll-period-form" class="btn btn-primary">
+                <button type="submit" form="payroll-period-form" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     Crear Período
                 </button>
@@ -414,10 +498,10 @@
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="closeLiquidationDetailModal()">
+                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closeLiquidationDetailModal()">
                     Cerrar
                 </button>
-                <button type="button" class="btn btn-info" onclick="exportLiquidationPDF()">
+                <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="exportLiquidationPDF()">
                     <i data-lucide="download" class="w-4 h-4"></i>
                     Descargar PDF
                 </button>
