@@ -4493,6 +4493,95 @@ app.get('/api/models/:id/photos', async (req, res) => {
     }
 });
 
+// GET /api/models/:id/main-photo - Obtener foto principal de un modelo
+app.get('/api/models/:id/main-photo', async (req, res) => {
+    try {
+        const modelId = req.params.id;
+        
+        console.log('🖼️ Obteniendo foto principal del modelo ID:', modelId);
+        
+        const query = `
+            SELECT 
+                id,
+                photo_data,
+                file_name,
+                mime_type,
+                file_size,
+                created_at
+            FROM ModelPhotos 
+            WHERE model_id = ? AND is_primary = 1
+            LIMIT 1
+        `;
+        
+        db.get(query, [modelId], (err, row) => {
+            if (err) {
+                console.error('❌ Error obteniendo foto principal:', err);
+                return res.status(500).json({
+                    error: 'Error al obtener foto principal',
+                    details: err.message
+                });
+            }
+            
+            if (!row) {
+                // No hay foto principal, intentar obtener la primera foto disponible
+                const fallbackQuery = `
+                    SELECT 
+                        id,
+                        photo_data,
+                        file_name,
+                        mime_type,
+                        file_size,
+                        created_at
+                    FROM ModelPhotos 
+                    WHERE model_id = ?
+                    ORDER BY created_at ASC
+                    LIMIT 1
+                `;
+                
+                db.get(fallbackQuery, [modelId], (err2, fallbackRow) => {
+                    if (err2 || !fallbackRow) {
+                        return res.status(404).json({
+                            error: 'No se encontró foto para este modelo',
+                            modelId: modelId
+                        });
+                    }
+                    
+                    res.json({
+                        message: 'success',
+                        data: {
+                            id: fallbackRow.id,
+                            url: `data:${fallbackRow.mime_type};base64,${fallbackRow.photo_data}`,
+                            fileName: fallbackRow.file_name,
+                            isPrimary: false,
+                            size: fallbackRow.file_size,
+                            createdAt: fallbackRow.created_at
+                        }
+                    });
+                });
+                return;
+            }
+            
+            res.json({
+                message: 'success',
+                data: {
+                    id: row.id,
+                    url: `data:${row.mime_type};base64,${row.photo_data}`,
+                    fileName: row.file_name,
+                    isPrimary: true,
+                    size: row.file_size,
+                    createdAt: row.created_at
+                }
+            });
+        });
+    } catch (error) {
+        console.error('❌ Error en endpoint main-photo:', error);
+        res.status(500).json({
+            error: 'Error interno del servidor',
+            details: error.message
+        });
+    }
+});
+
 // ===================================================================
 // RUTAS DE GASTOS - SISTEMA FINANCIERO
 // ===================================================================
