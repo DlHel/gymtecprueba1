@@ -1,13 +1,12 @@
 // reportes.js - Sistema completo de reportes y informes técnicos
-//  CRÍTICO: Verificación de autenticación HABILITADA según patrón @bitacora
-console.log(' Inicializando módulo de reportes con autenticación...');
+// ✅ CRÍTICO: Verificación de autenticación HABILITADA según patrón @bitacora
+console.log('🔒 Inicializando módulo de reportes con autenticación...');
 
-//  PATRÓN @bitacora: Usar AuthManager (no window.authManager)
 document.addEventListener('DOMContentLoaded', function() {
     // CRÍTICO: Proteger página antes que nada
-    if (!AuthManager.isAuthenticated()) {
-        console.log(' Usuario no autenticado en reportes, redirigiendo a login...');
-        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.log('❌ Usuario no autenticado en reportes, redirigiendo a login...');
+        window.authManager.redirectToLogin();
         return;
     }
 
