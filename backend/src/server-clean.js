@@ -4563,7 +4563,8 @@ app.get('/api/expenses', authenticateToken, (req, res) => {
 });
 
 // POST /api/expenses - Crear nuevo gasto
-app.post('/api/expenses', authenticateToken, (req, res) => {
+// POST /api/expenses - Crear nuevo gasto (Admin/Manager/Technician) 🔒
+app.post('/api/expenses', authenticateToken, requireRole(['Admin', 'Manager', 'Technician']), (req, res) => {
     const {
         category,
         category_id,
@@ -4661,7 +4662,8 @@ app.post('/api/expenses', authenticateToken, (req, res) => {
 });
 
 // PUT /api/expenses/:id - Actualizar gasto
-app.put('/api/expenses/:id', authenticateToken, (req, res) => {
+// PUT /api/expenses/:id - Actualizar gasto (SOLO Admin/Manager) 🔒
+app.put('/api/expenses/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const expenseId = req.params.id;
     const {
         category,
@@ -4929,7 +4931,8 @@ app.put('/api/expenses/:id/pay', authenticateToken, requireRole(['Admin', 'Manag
 });
 
 // DELETE /api/expenses/:id - Eliminar gasto
-app.delete('/api/expenses/:id', authenticateToken, (req, res) => {
+// DELETE /api/expenses/:id - Eliminar gasto (SOLO Admin) 🔒
+app.delete('/api/expenses/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
     const expenseId = req.params.id;
     
     console.log(`🗑️ Eliminando gasto ID: ${expenseId}`);
@@ -5246,7 +5249,8 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
 });
 
 // POST /api/quotes - Crear nueva cotización
-app.post('/api/quotes', authenticateToken, (req, res) => {
+// POST /api/quotes - Crear nueva cotización (SOLO Admin/Manager) 🔒
+app.post('/api/quotes', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const {
         client_id,
         quote_number,
@@ -5319,7 +5323,8 @@ app.post('/api/quotes', authenticateToken, (req, res) => {
 });
 
 // PUT /api/quotes/:id - Actualizar cotización
-app.put('/api/quotes/:id', authenticateToken, (req, res) => {
+// PUT /api/quotes/:id - Actualizar cotización (SOLO Admin/Manager) 🔒
+app.put('/api/quotes/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const quoteId = req.params.id;
     const {
         client_id,
@@ -5397,7 +5402,8 @@ app.put('/api/quotes/:id', authenticateToken, (req, res) => {
 });
 
 // DELETE /api/quotes/:id - Eliminar cotización
-app.delete('/api/quotes/:id', authenticateToken, (req, res) => {
+// DELETE /api/quotes/:id - Eliminar cotización (SOLO Admin) 🔒
+app.delete('/api/quotes/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
     const quoteId = req.params.id;
     
     console.log(`📋 Eliminando cotización ID: ${quoteId}`);
@@ -5549,7 +5555,8 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
 });
 
 // POST /api/invoices - Crear nueva factura
-app.post('/api/invoices', authenticateToken, (req, res) => {
+// POST /api/invoices - Crear nueva factura (SOLO Admin/Manager) 🔒
+app.post('/api/invoices', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const {
         client_id,
         quote_id,
@@ -5624,7 +5631,8 @@ app.post('/api/invoices', authenticateToken, (req, res) => {
 });
 
 // PUT /api/invoices/:id - Actualizar factura
-app.put('/api/invoices/:id', authenticateToken, (req, res) => {
+// PUT /api/invoices/:id - Actualizar factura (SOLO Admin/Manager) 🔒
+app.put('/api/invoices/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const invoiceId = req.params.id;
     const {
         client_id,
@@ -5711,7 +5719,8 @@ app.put('/api/invoices/:id', authenticateToken, (req, res) => {
 });
 
 // DELETE /api/invoices/:id - Eliminar factura
-app.delete('/api/invoices/:id', authenticateToken, (req, res) => {
+// DELETE /api/invoices/:id - Eliminar factura (SOLO Admin) 🔒
+app.delete('/api/invoices/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
     const invoiceId = req.params.id;
     
     console.log(`🧾 Eliminando factura ID: ${invoiceId}`);
