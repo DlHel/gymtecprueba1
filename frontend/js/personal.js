@@ -85,7 +85,7 @@ class PersonalManager {
 
         try {
             console.log('🔄 Llamando API:', `${window.API_URL}/users`);
-            const response = await window.authenticatedFetch(`${window.API_URL}/users`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/users`);
             
             console.log('📡 Response status:', response.status);
             console.log('📡 Response ok:', response.ok);
@@ -278,7 +278,7 @@ class PersonalManager {
                 delete userData.password;
             }
 
-            const response = await window.authenticatedFetch(url, {
+            const response = await window.authManager.authenticatedFetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json',
@@ -349,7 +349,7 @@ class PersonalManager {
 
     async executeDeleteUser(userId) {
         try {
-            const response = await window.authenticatedFetch(`${window.API_URL}/users/${userId}`, {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/users/${userId}`, {
                 method: 'DELETE'
             });
 

@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Obtener todos los contratos
         async getContracts() {
             console.log('📡 Obteniendo contratos...');
-            const response = await window.authenticatedFetch(`${API_URL}/contracts`);
+            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts`);
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -97,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Obtener clientes para el selector
         async getClients() {
             console.log('📡 Obteniendo clientes...');
-            const response = await window.authenticatedFetch(`${API_URL}/clients`);
+            const response = await window.authManager.authenticatedFetch(`${API_URL}/clients`);
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Crear nuevo contrato
         async createContract(contractData) {
             console.log('📡 Creando contrato:', contractData);
-            const response = await window.authenticatedFetch(`${API_URL}/contracts`, {
+            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contractData)
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Actualizar contrato existente
         async updateContract(id, contractData) {
             console.log('📡 Actualizando contrato:', id, contractData);
-            const response = await window.authenticatedFetch(`${API_URL}/contracts/${id}`, {
+            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contractData)
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Eliminar contrato
         async deleteContract(id) {
             console.log('📡 Eliminando contrato:', id);
-            const response = await window.authenticatedFetch(`${API_URL}/contracts/${id}`, {
+            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts/${id}`, {
                 method: 'DELETE'
             });
             

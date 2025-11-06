@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return new Promise((resolve) => {
             const checkDependencies = () => {
                 if (window.authManager && 
-                    window.authenticatedFetch && 
+                    window.authManager.authenticatedFetch && 
                     window.API_URL &&
                     document.getElementById('total-notifications')) {
                     resolve();
@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const api = {
         getStats: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/notifications/stats`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/notifications/stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || {};
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         getNotifications: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/notifications`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/notifications`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || [];

@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Asistencia
         getTodayAttendance: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/today`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/today`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data;
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filters.date_from) params.append('date_from', filters.date_from);
                 if (filters.date_to) params.append('date_to', filters.date_to);
                 
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance?${params}`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance?${params}`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || [];
@@ -65,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         checkIn: async (data) => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/check-in`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/check-in`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -83,7 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         checkOut: async (data) => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/check-out`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/check-out`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -105,7 +105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (month) params.append('month', month);
                 if (year) params.append('year', year);
                 
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/summary/${userId}?${params}`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/summary/${userId}?${params}`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data;
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Horarios
         getActiveSchedule: async (userId) => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/employee-schedules/${userId}/active`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/employee-schedules/${userId}/active`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data;
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         getWorkSchedules: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/work-schedules`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/work-schedules`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || [];
@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filters.user_id) params.append('user_id', filters.user_id);
                 if (filters.status) params.append('status', filters.status);
                 
-                const response = await window.authenticatedFetch(`${window.API_URL}/overtime?${params}`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/overtime?${params}`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || [];
@@ -159,7 +159,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         createOvertime: async (data) => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/overtime`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/overtime`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (filters.user_id) params.append('user_id', filters.user_id);
                 if (filters.status) params.append('status', filters.status);
                 
-                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests?${params}`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/leave-requests?${params}`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data || [];
@@ -194,7 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         createLeaveRequest: async (data) => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/leave-requests`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Estadísticas (Admin)
         getStats: async () => {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/stats`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const result = await response.json();
                 return result.data;
@@ -856,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============= ESTADÍSTICAS =============
         async loadAdminStats() {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/attendance/stats/today`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/stats/today`);
                 if (!response.ok) throw new Error('Error loading stats');
                 const result = await response.json();
                 
@@ -873,7 +873,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============= HORAS EXTRAS =============
         async loadPendingOvertime() {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/overtime?status=pending`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/overtime?status=pending`);
                 if (!response.ok) throw new Error('Error loading overtime');
                 const result = await response.json();
                 
@@ -937,7 +937,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     return;
                 }
                 
-                const response = await window.authenticatedFetch(`${window.API_URL}/overtime/${overtimeId}/approve`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/overtime/${overtimeId}/approve`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ hours_approved: hoursApproved })
@@ -958,7 +958,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('¿Está seguro de rechazar esta solicitud de horas extras?')) return;
             
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/overtime/${overtimeId}/reject`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/overtime/${overtimeId}/reject`, {
                     method: 'PATCH'
                 });
                 
@@ -976,7 +976,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============= GESTIÓN DE TURNOS =============
         async loadShifts() {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/shift-types`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/shift-types`);
                 if (!response.ok) throw new Error('Error loading shifts');
                 const result = await response.json();
                 
@@ -1059,7 +1059,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw new Error('Por favor complete todos los campos requeridos');
                 }
                 
-                const response = await window.authenticatedFetch(`${window.API_URL}/shift-types`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/shift-types`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name, start_time: startTime, end_time: endTime, is_overnight: isOvernight, description })
@@ -1081,7 +1081,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('¿Está seguro de eliminar este turno?')) return;
             
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/shift-types/${shiftId}`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/shift-types/${shiftId}`, {
                     method: 'DELETE'
                 });
                 
@@ -1098,7 +1098,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // ============= PERMISOS =============
         async loadPendingLeave() {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests?status=pending`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/leave-requests?status=pending`);
                 if (!response.ok) throw new Error('Error loading leave requests');
                 const result = await response.json();
                 
@@ -1139,7 +1139,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         async approveLeave(leaveId) {
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests/${leaveId}/approve`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/leave-requests/${leaveId}/approve`, {
                     method: 'PATCH'
                 });
                 
@@ -1158,7 +1158,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!confirm('¿Está seguro de rechazar esta solicitud de permiso?')) return;
             
             try {
-                const response = await window.authenticatedFetch(`${window.API_URL}/leave-requests/${leaveId}/reject`, {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/leave-requests/${leaveId}/reject`, {
                     method: 'PATCH'
                 });
                 
@@ -1202,7 +1202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Control de visibilidad basado en rol
-    const currentUser = window.authManager.getCurrentUser();
+    const currentUser = window.authManager.getUser();
     const isAdmin = currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Manager');
     
     const adminElements = document.querySelectorAll('.admin-only');

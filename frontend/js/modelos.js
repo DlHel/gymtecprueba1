@@ -168,7 +168,7 @@ class ModelosManager {
             }
             
             // ✅ USAR authenticatedFetch en lugar de fetch
-            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/models`);
+            const response = await window.authManager.authenticatedFetch(`${this.apiBaseUrl}/models`);
             if (!response.ok) {
                 throw new Error('Error al cargar los modelos');
             }
@@ -236,7 +236,7 @@ class ModelosManager {
         let photoCount = 0;
         
         try {
-            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
+            const response = await window.authManager.authenticatedFetch(`${this.apiBaseUrl}/models/${model.id}/photos`);
             if (response.ok) {
                 const photos = await response.json();
                 photoCount = photos.length;
@@ -379,7 +379,7 @@ class ModelosManager {
 
         try {
             // ✅ USAR authenticatedFetch en lugar de fetch
-            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/models/${modelId}`, {
+            const response = await window.authManager.authenticatedFetch(`${this.apiBaseUrl}/models/${modelId}`, {
                 method: 'DELETE'
             });
 
@@ -684,7 +684,7 @@ class ModelosManager {
             const method = isEditing ? 'PUT' : 'POST';
             
             // ✅ USAR authenticatedFetch con window prefix y JSON
-            const response = await window.authenticatedFetch(url, {
+            const response = await window.authManager.authenticatedFetch(url, {
                 method: method,
                 headers: {
                     'Content-Type': 'application/json'
