@@ -128,7 +128,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         format: 'PDF',
                         status: 'completed',
                         created_at: new Date().toISOString(),
-                        size: '2.3 MB'
+                        size: '2.3 MB',
+                        ticketId: 1  // Agregar ticketId para cargar datos reales
                     },
                     {
                         id: 2,
@@ -1161,14 +1162,20 @@ document.addEventListener('DOMContentLoaded', function() {
                             <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                                 <h4 style="margin: 0 0 10px 0;">${report.type || 'Reporte'}</h4>
                                 <p style="margin: 5px 0;">
-                                    <strong>Generado:</strong> ${this.formatDate(report.createdAt)} ${this.formatTime(report.createdAt)}
+                                    <strong>Generado:</strong> ${this.formatDate(report.created_at || report.createdAt)} a las ${this.formatTime(report.created_at || report.createdAt)}
                                 </p>
                                 <p style="margin: 5px 0;">
                                     <strong>Estado:</strong> ${this.getStatusText(report.status)}
                                 </p>
+                                <p style="margin: 5px 0;">
+                                    <strong>Formato:</strong> ${report.format}
+                                </p>
+                                ${report.size ? `<p style="margin: 5px 0;"><strong>Tamaño:</strong> ${report.size}</p>` : ''}
                             </div>
-                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
-                                <pre style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${JSON.stringify(report.data || report, null, 2)}</pre>
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107;">
+                                <p style="margin: 0; color: #856404;">
+                                    <strong>ℹ️ Nota:</strong> Este reporte no tiene un ticket asociado. Haz click en "Descargar PDF" para generar el documento.
+                                </p>
                             </div>
                         </div>
                     `;
