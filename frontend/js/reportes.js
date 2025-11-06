@@ -1176,6 +1176,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         async generateDetailedClientReport(tickets, periodName, clientId) {
+            console.log('📊 Generando informe detallado por cliente...');
+            console.log(`📋 Total de tickets a procesar: ${tickets.length}`);
+            
             this.showNotification('Cargando detalles de tickets...', 'info');
 
             // Agrupar por cliente
@@ -1188,24 +1191,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 ticketsByClient[clientName].push(t);
             });
 
+            console.log(`👥 Clientes encontrados: ${Object.keys(ticketsByClient).length}`);
+
             // Obtener detalles completos de cada ticket (notas y fotos)
             const ticketsWithDetails = [];
+            let loadedCount = 0;
+            
             for (const ticket of tickets) {
                 try {
+                    console.log(`🔍 Cargando detalle del ticket #${ticket.id}...`);
                     const detailResponse = await window.authManager.authenticatedFetch(
                         `${window.API_URL}/tickets/${ticket.id}/detail`
                     );
+                    
                     if (detailResponse.ok) {
                         const detailResult = await detailResponse.json();
+                        console.log(`✅ Ticket #${ticket.id} cargado - Notas: ${detailResult.data.notes?.length || 0}, Fotos: ${detailResult.data.photos?.length || 0}`);
                         ticketsWithDetails.push(detailResult.data);
                     } else {
+                        console.warn(`⚠️ No se pudo cargar detalle del ticket ${ticket.id}, usando datos básicos`);
                         ticketsWithDetails.push(ticket);
                     }
+                    
+                    loadedCount++;
+                    // Actualizar notificación de progreso
+                    if (loadedCount % 5 === 0) {
+                        this.showNotification(`Cargando detalles... ${loadedCount}/${tickets.length}`, 'info');
+                    }
                 } catch (error) {
-                    console.warn(`No se pudo cargar detalle del ticket ${ticket.id}`, error);
+                    console.warn(`❌ Error cargando detalle del ticket ${ticket.id}:`, error);
                     ticketsWithDetails.push(ticket);
                 }
             }
+
+            console.log(`✅ Detalles cargados: ${ticketsWithDetails.length} tickets`);
+            this.showNotification('Generando PDF...', 'info');
 
             // Generar PDF detallado
             const { jsPDF } = window.jspdf;
@@ -1382,13 +1402,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     yPos += 6;
 
                     // Equipo (si existe)
-                    if (ticketDetails.equipment_details) {
+                    if (ticketDetails.equipment_model_name || ticketDetails.equipment_name) {
                         doc.setTextColor(0, 0, 0);
                         doc.setFont('helvetica', 'bold');
                         doc.text(`Equipo: `, 20, yPos);
                         doc.setFont('helvetica', 'normal');
-                        doc.text(`${ticketDetails.equipment_details.model || 'N/A'}`, 37, yPos);
+                        const equipmentText = ticketDetails.equipment_model_name || ticketDetails.equipment_name || 'N/A';
+                        const brandText = ticketDetails.equipment_brand ? ` (${ticketDetails.equipment_brand})` : '';
+                        doc.text(`${equipmentText}${brandText}`, 37, yPos);
                         yPos += 5;
+                        
+                        // Serial si existe
+                        if (ticketDetails.equipment_serial) {
+                            doc.setFont('helvetica', 'normal');
+                            doc.setFontSize(8);
+                            doc.setTextColor(100, 100, 100);
+                            doc.text(`S/N: ${ticketDetails.equipment_serial}`, 37, yPos);
+                            yPos += 4;
+                            doc.setFontSize(9);
+                            doc.setTextColor(0, 0, 0);
+                        }
                     }
 
                     // Descripción
@@ -1471,10 +1504,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         doc.text(`Evidencia Fotográfica (${ticketDetails.photos.length} fotos):`, 20, yPos);
                         yPos += 6;
 
-                        // Mostrar indicador de fotos
                         doc.setFontSize(8);
                         doc.setTextColor(100, 100, 100);
-                        doc.setFont('helvetica', 'italic');
+                        doc.setFont('helvetica', 'normal');
                         
                         ticketDetails.photos.forEach((photo, idx) => {
                             if (yPos > 270) {
@@ -1482,34 +1514,70 @@ document.addEventListener('DOMContentLoaded', function() {
                                 yPos = 20;
                             }
 
-                            const photoLabel = photo.photo_type === 'before' ? '📷 Foto ANTES' : 
-                                             photo.photo_type === 'after' ? '📷 Foto DESPUÉS' : 
-                                             `📷 Foto ${idx + 1}`;
+                            // Determinar etiqueta de la foto
+                            let photoLabel = `📷 Foto ${idx + 1}`;
+                            if (photo.photo_type) {
+                                if (photo.photo_type.toLowerCase() === 'before' || photo.photo_type === 'antes') {
+                                    photoLabel = '📷 Foto ANTES';
+                                } else if (photo.photo_type.toLowerCase() === 'after' || photo.photo_type === 'despues' || photo.photo_type === 'después') {
+                                    photoLabel = '📷 Foto DESPUÉS';
+                                }
+                            }
                             
-                            doc.setFont('helvetica', 'normal');
-                            doc.text(`${photoLabel} - ${this.formatDate(photo.created_at)}`, 22, yPos);
+                            doc.setFont('helvetica', 'bold');
+                            doc.setTextColor(0, 0, 0);
+                            doc.text(photoLabel, 22, yPos);
+                            if (photo.created_at) {
+                                doc.setFont('helvetica', 'normal');
+                                doc.setTextColor(100, 100, 100);
+                                doc.text(` - ${this.formatDate(photo.created_at)}`, 50, yPos);
+                            }
                             yPos += 5;
 
-                            // Si hay fotos base64 completas, intentar agregarlas
+                            // Intentar agregar imagen si existe
                             if (photo.photo_base64 && photo.photo_base64.length > 100) {
                                 try {
-                                    const imgData = photo.photo_base64.startsWith('data:') ? 
-                                        photo.photo_base64 : `data:image/jpeg;base64,${photo.photo_base64}`;
+                                    // Asegurar formato correcto
+                                    let imgData = photo.photo_base64;
+                                    if (!imgData.startsWith('data:')) {
+                                        // Detectar tipo de imagen
+                                        const imageType = imgData.startsWith('/9j') ? 'jpeg' : 
+                                                        imgData.startsWith('iVBOR') ? 'png' : 'jpeg';
+                                        imgData = `data:image/${imageType};base64,${imgData}`;
+                                    }
                                     
                                     if (yPos > 200) {
                                         doc.addPage();
                                         yPos = 20;
                                     }
 
-                                    doc.addImage(imgData, 'JPEG', 25, yPos, 80, 60);
-                                    yPos += 65;
+                                    // Agregar imagen al PDF
+                                    const imgWidth = 80;
+                                    const imgHeight = 60;
+                                    doc.addImage(imgData, 'JPEG', 25, yPos, imgWidth, imgHeight);
+                                    yPos += imgHeight + 5;
+                                    
+                                    console.log(`✅ Imagen ${idx + 1} agregada al PDF`);
                                 } catch (error) {
-                                    console.warn('No se pudo agregar imagen al PDF:', error);
-                                    doc.setTextColor(128, 128, 128);
-                                    doc.text('(Imagen no disponible en el PDF)', 22, yPos);
+                                    console.warn(`⚠️ No se pudo agregar imagen ${idx + 1} al PDF:`, error);
+                                    doc.setTextColor(200, 0, 0);
+                                    doc.setFont('helvetica', 'italic');
+                                    doc.setFontSize(8);
+                                    doc.text('(Error al cargar imagen)', 25, yPos);
                                     yPos += 5;
+                                    doc.setTextColor(0, 0, 0);
                                 }
+                            } else {
+                                // No hay imagen disponible
+                                doc.setTextColor(128, 128, 128);
+                                doc.setFont('helvetica', 'italic');
+                                doc.setFontSize(8);
+                                doc.text('(Miniatura no disponible)', 25, yPos);
+                                yPos += 5;
+                                doc.setTextColor(0, 0, 0);
                             }
+
+                            yPos += 2;
                         });
                     }
 
