@@ -7763,56 +7763,6 @@ app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manag
 // FIN DEL BLOQUE DUPLICADO COMENTADO
 // ===================================================================
 
-// ===================================================================
-// CATCH-ALL 404 HANDLER - DEBE IR ANTES DEL ERROR HANDLER
-// ===================================================================
-
-app.use('*', (req, res) => {
-    console.log(`⚠️  404 - Endpoint no encontrado: ${req.method} ${req.originalUrl}`);
-    res.status(404).json({
-        error: 'Endpoint no encontrado',
-        path: req.originalUrl,
-        method: req.method,
-        timestamp: new Date().toISOString()
-    });
-});
-
-// ===================================================================
-// ERROR HANDLER - DEBE IR AL FINAL DESPUÉS DE TODAS LAS RUTAS
-// ===================================================================
-
-app.use((err, req, res, next) => {
-    console.error('💥 Error no manejado:', err);
-    
-    if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json({
-            error: 'Token inválido',
-            code: 'INVALID_TOKEN'
-        });
-    }
-    
-    if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({
-            error: 'Token expirado',
-            code: 'TOKEN_EXPIRED'
-        });
-    }
-    
-    if (err.type === 'validation') {
-        return res.status(400).json({
-            error: 'Error de validación',
-            details: err.details
-        });
-    }
-    
-    res.status(500).json({
-        error: 'Error interno del servidor',
-        message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
-        timestamp: new Date().toISOString()
-    });
-});
-
-
 // =====================================================
 // ENDPOINTS DE INFORMES TÉCNICOS
 // =====================================================
@@ -7895,6 +7845,56 @@ app.patch('/api/informes/:id/enviar', authenticateToken, (req, res) => {
         res.json({ message: 'success', data: { id: req.params.id, sent: true } });
     });
 });
+
+// ===================================================================
+// CATCH-ALL 404 HANDLER - DEBE IR ANTES DEL ERROR HANDLER
+// ===================================================================
+
+app.use('*', (req, res) => {
+    console.log(`⚠️  404 - Endpoint no encontrado: ${req.method} ${req.originalUrl}`);
+    res.status(404).json({
+        error: 'Endpoint no encontrado',
+        path: req.originalUrl,
+        method: req.method,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// ===================================================================
+// ERROR HANDLER - DEBE IR AL FINAL DESPUÉS DE TODAS LAS RUTAS
+// ===================================================================
+
+app.use((err, req, res, next) => {
+    console.error('💥 Error no manejado:', err);
+    
+    if (err.name === 'JsonWebTokenError') {
+        return res.status(401).json({
+            error: 'Token inválido',
+            code: 'INVALID_TOKEN'
+        });
+    }
+    
+    if (err.name === 'TokenExpiredError') {
+        return res.status(401).json({
+            error: 'Token expirado',
+            code: 'TOKEN_EXPIRED'
+        });
+    }
+    
+    if (err.type === 'validation') {
+        return res.status(400).json({
+            error: 'Error de validación',
+            details: err.details
+        });
+    }
+    
+    res.status(500).json({
+        error: 'Error interno del servidor',
+        message: process.env.NODE_ENV === 'development' ? err.message : 'Error interno',
+        timestamp: new Date().toISOString()
+    });
+});
+
 // ===================================================================
 // PROCESS HANDLERS
 // ===================================================================
