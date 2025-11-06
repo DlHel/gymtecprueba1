@@ -1100,25 +1100,25 @@ try {
     console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
 }
 
-// FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes
+// FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes (Production mode)
 try {
     const notificationsRoutes = require('./routes/notifications');
-    const notificationsTestRoutes = require('./routes/notifications-test');
-    const notificationsSimpleTestRoutes = require('./routes/notifications-simple-test');
+    // const notificationsTestRoutes = require('./routes/notifications-test'); // ⚠️ TEST ROUTE - Disabled in production
+    // const notificationsSimpleTestRoutes = require('./routes/notifications-simple-test'); // ⚠️ TEST ROUTE - Disabled in production
     const notificationsFixedRoutes = require('./routes/notifications-fixed');
-    const testDbRoutes = require('./routes/test-db');
-    const simpleTestRoutes = require('./routes/simple-test');
+    // const testDbRoutes = require('./routes/test-db'); // ⚠️ TEST ROUTE - Disabled in production
+    // const simpleTestRoutes = require('./routes/simple-test'); // ⚠️ TEST ROUTE - Disabled in production
     
     app.use('/api/notifications', notificationsRoutes);
-    app.use('/api/notifications', notificationsTestRoutes);
-    app.use('/api/notifications', notificationsSimpleTestRoutes);
+    // app.use('/api/notifications', notificationsTestRoutes); // ⚠️ TEST ROUTE - Disabled in production
+    // app.use('/api/notifications', notificationsSimpleTestRoutes); // ⚠️ TEST ROUTE - Disabled in production
     app.use('/api/notifications', notificationsFixedRoutes);
-    app.use('/api', testDbRoutes);
-    app.use('/api', simpleTestRoutes);
+    // app.use('/api', testDbRoutes); // ⚠️ TEST ROUTE - Disabled in production
+    // app.use('/api', simpleTestRoutes); // ⚠️ TEST ROUTE - Disabled in production
     
-    console.log('? Fase 2 Routes loaded: Sistema de Notificaciones Inteligentes');
+    console.log('✅ Fase 2 Routes loaded: Sistema de Notificaciones (Production mode)');
 } catch (error) {
-    console.warn('??  Warning: Some Fase 2 routes could not be loaded:', error.message);
+    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
 }
 
 // PAYROLL SYSTEM - Sistema de N�mina Chile
