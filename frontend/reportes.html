@@ -98,56 +98,67 @@
                     </div>
 
                     <!-- Tipos de Reportes -->
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Tipos de Reportes Disponibles</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                            <i data-lucide="file-text" class="h-5 w-5"></i>
+                            Generar Nuevo Reporte
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
                             <!-- Informe Técnico de Ticket -->
-                            <div class="report-type-card" data-type="technical-ticket">
-                                <div class="report-type-icon technical">
-                                    <i data-lucide="wrench" class="h-6 w-6"></i>
+                            <button class="report-type-card-compact" data-type="technical-ticket">
+                                <div class="report-icon-compact technical">
+                                    <i data-lucide="wrench" class="h-5 w-5"></i>
                                 </div>
-                                <div class="report-type-content">
-                                    <h4 class="report-type-title">Informe Técnico</h4>
-                                    <p class="report-type-description">Reporte detallado de intervenciones técnicas en equipos</p>
-                                    <div class="report-type-tags">
-                                        <span class="tag">PDF</span>
-                                        <span class="tag">Técnico</span>
-                                    </div>
-                                </div>
-                            </div>
+                                <div class="report-title-compact">Informe Técnico</div>
+                                <div class="report-subtitle-compact">Ticket</div>
+                            </button>
 
-                            <!-- Reporte de Tickets -->
-                            <div class="report-type-card" data-type="tickets">
-                                <div class="report-type-icon tickets">
-                                    <i data-lucide="ticket" class="h-6 w-6"></i>
+                            <!-- Reporte de Tickets Mensual -->
+                            <button class="report-type-card-compact" data-type="tickets-monthly">
+                                <div class="report-icon-compact tickets">
+                                    <i data-lucide="calendar" class="h-5 w-5"></i>
                                 </div>
-                                <div class="report-type-content">
-                                    <h4 class="report-type-title">Reporte de Tickets</h4>
-                                    <p class="report-type-description">Análisis de tickets por período y estado</p>
-                                    <div class="report-type-tags">
-                                        <span class="tag">Excel</span>
-                                        <span class="tag">CSV</span>
-                                    </div>
-                                </div>
-                            </div>
+                                <div class="report-title-compact">Tickets</div>
+                                <div class="report-subtitle-compact">Mensual</div>
+                            </button>
 
                             <!-- Reporte de Clientes -->
-                            <div class="report-type-card" data-type="clients">
-                                <div class="report-type-icon clients">
-                                    <i data-lucide="users" class="h-6 w-6"></i>
+                            <button class="report-type-card-compact" data-type="clients-report">
+                                <div class="report-icon-compact clients">
+                                    <i data-lucide="users" class="h-5 w-5"></i>
                                 </div>
-                                <div class="report-type-content">
-                                    <h4 class="report-type-title">Reporte de Clientes</h4>
-                                    <p class="report-type-description">Estadísticas y análisis de base de clientes</p>
-                                    <div class="report-type-tags">
-                                        <span class="tag">PDF</span>
-                                        <span class="tag">Excel</span>
-                                    </div>
-                                </div>
-                            </div>
+                                <div class="report-title-compact">Clientes</div>
+                                <div class="report-subtitle-compact">General</div>
+                            </button>
 
                             <!-- Reporte de Equipos -->
-                            <div class="report-type-card" data-type="equipment">
+                            <button class="report-type-card-compact" data-type="equipment-report">
+                                <div class="report-icon-compact equipment">
+                                    <i data-lucide="tool" class="h-5 w-5"></i>
+                                </div>
+                                <div class="report-title-compact">Equipos</div>
+                                <div class="report-subtitle-compact">Inventario</div>
+                            </button>
+
+                            <!-- Reporte de Mantenimientos -->
+                            <button class="report-type-card-compact" data-type="maintenance-report">
+                                <div class="report-icon-compact maintenance">
+                                    <i data-lucide="settings" class="h-5 w-5"></i>
+                                </div>
+                                <div class="report-title-compact">Mantenimientos</div>
+                                <div class="report-subtitle-compact">Por período</div>
+                            </button>
+
+                            <!-- Reporte Financiero -->
+                            <button class="report-type-card-compact" data-type="financial-report">
+                                <div class="report-icon-compact financial">
+                                    <i data-lucide="dollar-sign" class="h-5 w-5"></i>
+                                </div>
+                                <div class="report-title-compact">Financiero</div>
+                                <div class="report-subtitle-compact">Mensual</div>
+                            </button>
+                        </div>
+                    </div>
                                 <div class="report-type-icon equipment">
                                     <i data-lucide="cpu" class="h-6 w-6"></i>
                                 </div>

@@ -74,7 +74,38 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
-            // Click en cards de tipo de reporte
+            // Click en cards de tipo de reporte (compactas)
+            document.querySelectorAll('.report-type-card-compact').forEach(card => {
+                card.addEventListener('click', () => {
+                    const type = card.dataset.type;
+                    console.log('📊 Generando reporte tipo:', type);
+                    
+                    switch(type) {
+                        case 'technical-ticket':
+                            this.openInformeTecnicoModal();
+                            break;
+                        case 'tickets-monthly':
+                            this.generateTicketsMonthlyReport();
+                            break;
+                        case 'clients-report':
+                            this.generateClientsReport();
+                            break;
+                        case 'equipment-report':
+                            this.generateEquipmentReport();
+                            break;
+                        case 'maintenance-report':
+                            this.generateMaintenanceReport();
+                            break;
+                        case 'financial-report':
+                            this.generateFinancialReport();
+                            break;
+                        default:
+                            this.showNotification('Tipo de reporte no implementado', 'warning');
+                    }
+                });
+            });
+
+            // DEPRECATED: Click en cards antiguas (por compatibilidad)
             document.querySelectorAll('.report-type-card').forEach(card => {
                 card.addEventListener('click', () => {
                     const type = card.dataset.type;
@@ -706,6 +737,189 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error generando informe:', error);
                 this.showNotification('Error al generar informe: ' + error.message, 'error');
             }
+        }
+
+        // ============ GENERADORES DE REPORTES ============
+
+        async generateTicketsMonthlyReport() {
+            try {
+                this.showNotification('Generando reporte de tickets mensual...', 'info');
+                
+                // Obtener datos de tickets del mes actual
+                const response = await window.authManager.authenticatedFetch(
+                    `${window.API_URL}/tickets`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Error al obtener tickets');
+                }
+                
+                const result = await response.json();
+                const tickets = result.data || [];
+                
+                // Filtrar por mes actual
+                const now = new Date();
+                const currentMonth = now.getMonth();
+                const currentYear = now.getFullYear();
+                
+                const ticketsThisMonth = tickets.filter(ticket => {
+                    const ticketDate = new Date(ticket.created_at);
+                    return ticketDate.getMonth() === currentMonth && 
+                           ticketDate.getFullYear() === currentYear;
+                });
+                
+                // Generar PDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Header
+                doc.setFillColor(41, 128, 185);
+                doc.rect(0, 0, 210, 35, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(20);
+                doc.text('REPORTE DE TICKETS', 105, 15, { align: 'center' });
+                doc.setFontSize(12);
+                doc.text(`Mes: ${now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`, 105, 25, { align: 'center' });
+                
+                let yPos = 50;
+                
+                // Estadísticas
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Resumen del Mes', 20, yPos);
+                yPos += 10;
+                
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Total de tickets: ${ticketsThisMonth.length}`, 25, yPos);
+                yPos += 7;
+                
+                const completados = ticketsThisMonth.filter(t => t.status === 'completed').length;
+                doc.text(`Completados: ${completados}`, 25, yPos);
+                yPos += 7;
+                
+                const pendientes = ticketsThisMonth.filter(t => t.status === 'open' || t.status === 'in_progress').length;
+                doc.text(`Pendientes: ${pendientes}`, 25, yPos);
+                yPos += 15;
+                
+                // Listado de tickets
+                doc.setFont('helvetica', 'bold');
+                doc.text('Listado de Tickets', 20, yPos);
+                yPos += 8;
+                
+                ticketsThisMonth.slice(0, 20).forEach((ticket, index) => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`#${ticket.id} - ${ticket.title.substring(0, 60)}`, 25, yPos);
+                    yPos += 5;
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.text(`Estado: ${ticket.status} | Prioridad: ${ticket.priority || 'N/A'}`, 25, yPos);
+                    yPos += 8;
+                    doc.setFontSize(10);
+                });
+                
+                const filename = `reporte_tickets_${currentYear}_${currentMonth + 1}_${Date.now()}.pdf`;
+                doc.save(filename);
+                
+                this.showNotification('Reporte generado exitosamente', 'success');
+                
+            } catch (error) {
+                console.error('Error generando reporte:', error);
+                this.showNotification('Error al generar reporte: ' + error.message, 'error');
+            }
+        }
+
+        async generateClientsReport() {
+            try {
+                this.showNotification('Generando reporte de clientes...', 'info');
+                
+                const response = await window.authManager.authenticatedFetch(
+                    `${window.API_URL}/clients`
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Error al obtener clientes');
+                }
+                
+                const result = await response.json();
+                const clients = result.data || [];
+                
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+                
+                // Header
+                doc.setFillColor(41, 128, 185);
+                doc.rect(0, 0, 210, 35, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(20);
+                doc.text('REPORTE DE CLIENTES', 105, 20, { align: 'center' });
+                
+                let yPos = 50;
+                
+                doc.setTextColor(0, 0, 0);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`Total de Clientes: ${clients.length}`, 20, yPos);
+                yPos += 15;
+                
+                // Listado
+                clients.forEach((client, index) => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(`${index + 1}. ${client.name}`, 25, yPos);
+                    yPos += 6;
+                    
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    if (client.rut) doc.text(`RUT: ${client.rut}`, 30, yPos);
+                    yPos += 5;
+                    if (client.email) doc.text(`Email: ${client.email}`, 30, yPos);
+                    yPos += 5;
+                    if (client.phone) doc.text(`Teléfono: ${client.phone}`, 30, yPos);
+                    yPos += 10;
+                });
+                
+                const filename = `reporte_clientes_${Date.now()}.pdf`;
+                doc.save(filename);
+                
+                this.showNotification('Reporte generado exitosamente', 'success');
+                
+            } catch (error) {
+                console.error('Error generando reporte:', error);
+                this.showNotification('Error al generar reporte: ' + error.message, 'error');
+            }
+        }
+
+        async generateEquipmentReport() {
+            this.showNotification('Generando reporte de equipos...', 'info');
+            setTimeout(() => {
+                this.showNotification('Reporte de equipos: Funcionalidad en desarrollo', 'warning');
+            }, 1000);
+        }
+
+        async generateMaintenanceReport() {
+            this.showNotification('Generando reporte de mantenimientos...', 'info');
+            setTimeout(() => {
+                this.showNotification('Reporte de mantenimientos: Funcionalidad en desarrollo', 'warning');
+            }, 1000);
+        }
+
+        async generateFinancialReport() {
+            this.showNotification('Generando reporte financiero...', 'info');
+            setTimeout(() => {
+                this.showNotification('Reporte financiero: Funcionalidad en desarrollo', 'warning');
+            }, 1000);
         }
 
         // Método para descargar reporte como PDF

@@ -764,3 +764,74 @@
 .modal-xl {
     max-width: 1200px;
 } 
+/* === TARJETAS DE REPORTE COMPACTAS === */
+.report-type-card-compact {
+    background: white;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.report-type-card-compact:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    transform: translateY(-2px);
+}
+
+.report-type-card-compact:active {
+    transform: translateY(0);
+}
+
+.report-icon-compact {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+}
+
+.report-icon-compact.technical {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.report-icon-compact.tickets {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.report-icon-compact.clients {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.report-icon-compact.equipment {
+    background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.report-icon-compact.maintenance {
+    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.report-icon-compact.financial {
+    background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+}
+
+.report-title-compact {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: #1f2937;
+    line-height: 1.2;
+}
+
+.report-subtitle-compact {
+    font-size: 0.75rem;
+    color: #6b7280;
+}
+
