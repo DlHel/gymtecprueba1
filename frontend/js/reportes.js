@@ -728,97 +728,311 @@ document.addEventListener('DOMContentLoaded', function() {
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
 
-                // Configurar fuente y colores
-                doc.setFont('helvetica');
+                // Si es un informe técnico de ticket, obtener datos completos
+                let ticketData = null;
+                if (report.ticketId || (report.data && report.data.ticketId)) {
+                    const ticketId = report.ticketId || report.data.ticketId;
+                    try {
+                        const response = await window.authManager.authenticatedFetch(
+                            `${window.API_URL}/tickets/${ticketId}/detail`
+                        );
+                        if (response.ok) {
+                            const result = await response.json();
+                            ticketData = result.data;
+                        }
+                    } catch (error) {
+                        console.warn('No se pudo cargar detalle del ticket:', error);
+                    }
+                }
+
+                // GENERAR PDF PROFESIONAL
+                let yPos = 20;
                 
-                // Título
-                doc.setFontSize(18);
-                doc.setTextColor(44, 62, 80);
-                doc.text('REPORTE - GYMTEC ERP', 105, 20, { align: 'center' });
+                // ============ HEADER ============
+                doc.setFillColor(41, 128, 185);
+                doc.rect(0, 0, 210, 35, 'F');
                 
-                // Línea decorativa
-                doc.setDrawColor(52, 152, 219);
-                doc.setLineWidth(0.5);
-                doc.line(20, 25, 190, 25);
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(24);
+                doc.setFont('helvetica', 'bold');
+                doc.text('INFORME TÉCNICO', 105, 15, { align: 'center' });
                 
-                // Información del reporte
                 doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+                doc.text('GYMTEC ERP - Sistema de Gestión', 105, 25, { align: 'center' });
+                
+                yPos = 45;
+
+                // ============ INFORMACIÓN DEL REPORTE ============
                 doc.setTextColor(0, 0, 0);
-                let yPos = 35;
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Número de Informe:', 20, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`#${report.id}`, 70, yPos);
                 
                 doc.setFont('helvetica', 'bold');
-                doc.text('Tipo de Reporte:', 20, yPos);
+                doc.text('Fecha de Generación:', 110, yPos);
                 doc.setFont('helvetica', 'normal');
-                doc.text(report.type || 'N/A', 70, yPos);
-                yPos += 8;
-                
-                doc.setFont('helvetica', 'bold');
-                doc.text('Fecha de Generación:', 20, yPos);
-                doc.setFont('helvetica', 'normal');
-                doc.text(this.formatDate(report.createdAt), 70, yPos);
-                yPos += 8;
-                
-                doc.setFont('helvetica', 'bold');
-                doc.text('Formato:', 20, yPos);
-                doc.setFont('helvetica', 'normal');
-                doc.text(report.format || 'PDF', 70, yPos);
-                yPos += 8;
-                
-                doc.setFont('helvetica', 'bold');
-                doc.text('Estado:', 20, yPos);
-                doc.setFont('helvetica', 'normal');
-                doc.text(this.getStatusText(report.status), 70, yPos);
-                yPos += 15;
-                
-                // Sección de datos (si existen)
-                if (report.data) {
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(14);
-                    doc.text('Datos del Reporte:', 20, yPos);
+                doc.text(this.formatDate(report.createdAt || new Date()), 165, yPos);
+                yPos += 10;
+
+                // ============ DATOS DEL TICKET ============
+                if (ticketData) {
+                    // Línea separadora
+                    doc.setDrawColor(41, 128, 185);
+                    doc.setLineWidth(0.5);
+                    doc.line(20, yPos, 190, yPos);
                     yPos += 10;
-                    
+
+                    // SECCIÓN: INFORMACIÓN DEL TICKET
+                    doc.setFillColor(240, 240, 240);
+                    doc.rect(20, yPos - 5, 170, 8, 'F');
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(41, 128, 185);
+                    doc.text('INFORMACIÓN DEL TICKET', 25, yPos);
+                    yPos += 12;
+
                     doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+                    
+                    // Ticket ID
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Ticket #:', 25, yPos);
                     doc.setFont('helvetica', 'normal');
+                    doc.text(String(ticketData.id), 55, yPos);
+                    yPos += 7;
+
+                    // Título
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Título:', 25, yPos);
+                    doc.setFont('helvetica', 'normal');
+                    const tituloLines = doc.splitTextToSize(ticketData.title || 'N/A', 130);
+                    doc.text(tituloLines, 55, yPos);
+                    yPos += (tituloLines.length * 5) + 2;
+
+                    // Estado y Prioridad
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Estado:', 25, yPos);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(ticketData.status || 'N/A', 55, yPos);
                     
-                    // Convertir datos a texto legible
-                    const dataText = JSON.stringify(report.data, null, 2);
-                    const lines = doc.splitTextToSize(dataText, 170);
-                    
-                    lines.forEach(line => {
-                        if (yPos > 270) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Prioridad:', 110, yPos);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(ticketData.priority || 'N/A', 140, yPos);
+                    yPos += 7;
+
+                    // Cliente y Ubicación
+                    if (ticketData.client_name) {
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Cliente:', 25, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(ticketData.client_name, 55, yPos);
+                        yPos += 7;
+                    }
+
+                    if (ticketData.location_name) {
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Ubicación:', 25, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(ticketData.location_name, 55, yPos);
+                        yPos += 7;
+                    }
+
+                    // Técnico asignado
+                    if (ticketData.assigned_technician) {
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Técnico:', 25, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(ticketData.assigned_technician, 55, yPos);
+                        yPos += 7;
+                    }
+
+                    yPos += 5;
+
+                    // SECCIÓN: EQUIPO
+                    if (ticketData.equipment_details) {
+                        if (yPos > 250) {
                             doc.addPage();
                             yPos = 20;
                         }
-                        doc.text(line, 20, yPos);
+
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(20, yPos - 5, 170, 8, 'F');
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(41, 128, 185);
+                        doc.text('EQUIPO INVOLUCRADO', 25, yPos);
+                        yPos += 12;
+
+                        doc.setFontSize(10);
+                        doc.setTextColor(0, 0, 0);
+
+                        const equip = ticketData.equipment_details;
+                        
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Modelo:', 25, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(equip.model || 'N/A', 55, yPos);
+                        yPos += 7;
+
+                        doc.setFont('helvetica', 'bold');
+                        doc.text('Marca:', 25, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(equip.brand || 'N/A', 55, yPos);
+                        yPos += 7;
+
+                        if (equip.serial_number) {
+                            doc.setFont('helvetica', 'bold');
+                            doc.text('Serie:', 25, yPos);
+                            doc.setFont('helvetica', 'normal');
+                            doc.text(equip.serial_number, 55, yPos);
+                            yPos += 7;
+                        }
+
                         yPos += 5;
-                    });
+                    }
+
+                    // SECCIÓN: DESCRIPCIÓN DEL PROBLEMA
+                    if (ticketData.description) {
+                        if (yPos > 230) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(20, yPos - 5, 170, 8, 'F');
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(41, 128, 185);
+                        doc.text('DESCRIPCIÓN DEL PROBLEMA', 25, yPos);
+                        yPos += 12;
+
+                        doc.setFontSize(10);
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFont('helvetica', 'normal');
+                        
+                        const descLines = doc.splitTextToSize(ticketData.description, 165);
+                        descLines.forEach(line => {
+                            if (yPos > 270) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            doc.text(line, 25, yPos);
+                            yPos += 5;
+                        });
+
+                        yPos += 5;
+                    }
+
+                    // SECCIÓN: TRABAJO REALIZADO (de las notas)
+                    if (ticketData.notes && ticketData.notes.length > 0) {
+                        if (yPos > 230) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+
+                        doc.setFillColor(240, 240, 240);
+                        doc.rect(20, yPos - 5, 170, 8, 'F');
+                        doc.setFontSize(12);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(41, 128, 185);
+                        doc.text('TRABAJO REALIZADO Y OBSERVACIONES', 25, yPos);
+                        yPos += 12;
+
+                        doc.setFontSize(9);
+                        doc.setTextColor(0, 0, 0);
+
+                        ticketData.notes.forEach((note, index) => {
+                            if (yPos > 260) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+
+                            doc.setFont('helvetica', 'bold');
+                            doc.text(`Nota ${index + 1}:`, 25, yPos);
+                            doc.setFont('helvetica', 'normal');
+                            doc.setFontSize(8);
+                            doc.text(`${note.created_by} - ${this.formatDate(note.created_at)}`, 25, yPos + 4);
+                            yPos += 9;
+
+                            doc.setFontSize(9);
+                            const noteLines = doc.splitTextToSize(note.note_text, 165);
+                            noteLines.forEach(line => {
+                                if (yPos > 270) {
+                                    doc.addPage();
+                                    yPos = 20;
+                                }
+                                doc.text(line, 25, yPos);
+                                yPos += 4;
+                            });
+                            yPos += 6;
+                        });
+                    }
+
+                } else {
+                    // Si no hay datos de ticket, mostrar información del reporte genérico
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Tipo de Reporte:', 20, yPos);
+                    doc.setFont('helvetica', 'normal');
+                    doc.text(report.type || 'N/A', 70, yPos);
+                    yPos += 10;
+
+                    if (report.data) {
+                        doc.setFontSize(10);
+                        const dataText = JSON.stringify(report.data, null, 2);
+                        const lines = doc.splitTextToSize(dataText, 170);
+                        
+                        lines.forEach(line => {
+                            if (yPos > 270) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            doc.text(line, 20, yPos);
+                            yPos += 5;
+                        });
+                    }
                 }
                 
-                // Footer
+                // ============ FOOTER EN TODAS LAS PÁGINAS ============
                 const pageCount = doc.internal.getNumberOfPages();
                 for (let i = 1; i <= pageCount; i++) {
                     doc.setPage(i);
-                    doc.setFontSize(9);
-                    doc.setTextColor(128, 128, 128);
+                    
+                    // Línea superior del footer
+                    doc.setDrawColor(200, 200, 200);
+                    doc.setLineWidth(0.5);
+                    doc.line(20, 282, 190, 282);
+                    
+                    // Texto del footer
+                    doc.setFontSize(8);
+                    doc.setTextColor(100, 100, 100);
+                    doc.setFont('helvetica', 'normal');
                     doc.text(
                         `Página ${i} de ${pageCount}`,
                         105,
-                        290,
+                        287,
                         { align: 'center' }
                     );
                     doc.text(
-                        `Generado por Gymtec ERP - ${new Date().toLocaleDateString('es-ES')}`,
+                        `Gymtec ERP - Generado el ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString('es-ES')}`,
                         105,
-                        295,
+                        292,
                         { align: 'center' }
                     );
                 }
                 
-                // Descargar el PDF
-                const filename = `reporte_${report.type}_${report.id}_${new Date().getTime()}.pdf`;
+                // ============ DESCARGAR ============
+                const filename = ticketData 
+                    ? `informe_tecnico_ticket_${ticketData.id}_${new Date().getTime()}.pdf`
+                    : `reporte_${report.type}_${report.id}_${new Date().getTime()}.pdf`;
+                
                 doc.save(filename);
                 
-                this.showNotification('Reporte descargado exitosamente', 'success');
+                this.showNotification('Informe descargado exitosamente', 'success');
                 console.log('✅ PDF generado:', filename);
                 
             } catch (error) {
