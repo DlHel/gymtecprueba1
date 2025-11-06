@@ -742,97 +742,530 @@ document.addEventListener('DOMContentLoaded', function() {
         // ============ GENERADORES DE REPORTES ============
 
         async generateTicketsMonthlyReport() {
+            // Mostrar modal con opciones de reporte
+            this.showTicketsReportOptionsModal();
+        }
+
+        async showTicketsReportOptionsModal() {
             try {
-                this.showNotification('Generando reporte de tickets mensual...', 'info');
-                
-                // Obtener datos de tickets del mes actual
-                const response = await window.authManager.authenticatedFetch(
-                    `${window.API_URL}/tickets`
-                );
-                
-                if (!response.ok) {
-                    throw new Error('Error al obtener tickets');
-                }
-                
+                // Obtener lista de clientes para el selector
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/clients`);
                 const result = await response.json();
-                const tickets = result.data || [];
-                
-                // Filtrar por mes actual
-                const now = new Date();
-                const currentMonth = now.getMonth();
-                const currentYear = now.getFullYear();
-                
-                const ticketsThisMonth = tickets.filter(ticket => {
-                    const ticketDate = new Date(ticket.created_at);
-                    return ticketDate.getMonth() === currentMonth && 
-                           ticketDate.getFullYear() === currentYear;
-                });
-                
-                // Generar PDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                // Header
-                doc.setFillColor(41, 128, 185);
-                doc.rect(0, 0, 210, 35, 'F');
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(20);
-                doc.text('REPORTE DE TICKETS', 105, 15, { align: 'center' });
-                doc.setFontSize(12);
-                doc.text(`Mes: ${now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`, 105, 25, { align: 'center' });
-                
-                let yPos = 50;
-                
-                // Estadísticas
-                doc.setTextColor(0, 0, 0);
-                doc.setFontSize(14);
-                doc.setFont('helvetica', 'bold');
-                doc.text('Resumen del Mes', 20, yPos);
-                yPos += 10;
-                
-                doc.setFontSize(10);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Total de tickets: ${ticketsThisMonth.length}`, 25, yPos);
-                yPos += 7;
-                
-                const completados = ticketsThisMonth.filter(t => t.status === 'completed').length;
-                doc.text(`Completados: ${completados}`, 25, yPos);
-                yPos += 7;
-                
-                const pendientes = ticketsThisMonth.filter(t => t.status === 'open' || t.status === 'in_progress').length;
-                doc.text(`Pendientes: ${pendientes}`, 25, yPos);
-                yPos += 15;
-                
-                // Listado de tickets
-                doc.setFont('helvetica', 'bold');
-                doc.text('Listado de Tickets', 20, yPos);
-                yPos += 8;
-                
-                ticketsThisMonth.slice(0, 20).forEach((ticket, index) => {
-                    if (yPos > 270) {
-                        doc.addPage();
-                        yPos = 20;
+                const clients = result.data || [];
+
+                const modal = document.createElement('div');
+                modal.id = 'tickets-report-options-modal';
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
+
+                modal.innerHTML = `
+                    <div style="
+                        background: white;
+                        border-radius: 12px;
+                        width: 90%;
+                        max-width: 600px;
+                        max-height: 90vh;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    ">
+                        <div style="
+                            padding: 20px;
+                            border-bottom: 1px solid #e0e0e0;
+                            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        ">
+                            <h2 style="margin: 0; color: white; display: flex; align-items: center; gap: 10px;">
+                                <i data-lucide="calendar" style="width: 24px; height: 24px;"></i>
+                                Opciones de Reporte de Tickets
+                            </h2>
+                            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.9); font-size: 14px;">
+                                Personaliza tu reporte seleccionando las opciones
+                            </p>
+                        </div>
+                        
+                        <div style="flex: 1; overflow-y: auto; padding: 24px;">
+                            
+                            <!-- Tipo de Reporte -->
+                            <div style="margin-bottom: 24px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937;">
+                                    <i data-lucide="file-text" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"></i>
+                                    Tipo de Reporte
+                                </label>
+                                <select id="ticket-report-type" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 14px;
+                                    cursor: pointer;
+                                ">
+                                    <option value="single">Informe de Ticket Individual</option>
+                                    <option value="general" selected>Reporte General de Tickets</option>
+                                    <option value="by-client">Reporte Agrupado por Cliente</option>
+                                </select>
+                                <small style="color: #6b7280; margin-top: 4px; display: block;">
+                                    Selecciona el tipo de informe que deseas generar
+                                </small>
+                            </div>
+
+                            <!-- Ticket Individual (solo si tipo = single) -->
+                            <div id="single-ticket-section" style="margin-bottom: 24px; display: none;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937;">
+                                    <i data-lucide="hash" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"></i>
+                                    Número de Ticket
+                                </label>
+                                <input type="number" id="single-ticket-id" placeholder="Ej: 183" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 14px;
+                                ">
+                            </div>
+
+                            <!-- Período -->
+                            <div style="margin-bottom: 24px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937;">
+                                    <i data-lucide="calendar-range" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"></i>
+                                    Período
+                                </label>
+                                <select id="ticket-report-period" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 14px;
+                                    cursor: pointer;
+                                ">
+                                    <option value="current-month" selected>Mes Actual</option>
+                                    <option value="last-month">Mes Anterior</option>
+                                    <option value="current-quarter">Trimestre Actual</option>
+                                    <option value="last-quarter">Trimestre Anterior</option>
+                                    <option value="current-year">Año Actual</option>
+                                    <option value="last-year">Año Anterior</option>
+                                    <option value="custom">Personalizado</option>
+                                </select>
+                            </div>
+
+                            <!-- Fechas Personalizadas -->
+                            <div id="custom-dates-section" style="margin-bottom: 24px; display: none;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                                    <div>
+                                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937; font-size: 13px;">
+                                            Fecha Inicio
+                                        </label>
+                                        <input type="date" id="ticket-report-start-date" style="
+                                            width: 100%;
+                                            padding: 10px;
+                                            border: 2px solid #e5e7eb;
+                                            border-radius: 8px;
+                                            font-size: 14px;
+                                        ">
+                                    </div>
+                                    <div>
+                                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937; font-size: 13px;">
+                                            Fecha Fin
+                                        </label>
+                                        <input type="date" id="ticket-report-end-date" style="
+                                            width: 100%;
+                                            padding: 10px;
+                                            border: 2px solid #e5e7eb;
+                                            border-radius: 8px;
+                                            font-size: 14px;
+                                        ">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Cliente (solo si tipo = by-client) -->
+                            <div id="client-filter-section" style="margin-bottom: 24px; display: none;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937;">
+                                    <i data-lucide="users" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"></i>
+                                    Cliente (Opcional)
+                                </label>
+                                <select id="ticket-report-client" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 14px;
+                                    cursor: pointer;
+                                ">
+                                    <option value="">Todos los clientes</option>
+                                    ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                                </select>
+                                <small style="color: #6b7280; margin-top: 4px; display: block;">
+                                    Deja en blanco para incluir todos los clientes
+                                </small>
+                            </div>
+
+                            <!-- Estado -->
+                            <div style="margin-bottom: 24px;">
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #1f2937;">
+                                    <i data-lucide="filter" style="width: 16px; height: 16px; display: inline-block; vertical-align: middle;"></i>
+                                    Estado de Tickets
+                                </label>
+                                <select id="ticket-report-status" style="
+                                    width: 100%;
+                                    padding: 10px;
+                                    border: 2px solid #e5e7eb;
+                                    border-radius: 8px;
+                                    font-size: 14px;
+                                    cursor: pointer;
+                                ">
+                                    <option value="all" selected>Todos los estados</option>
+                                    <option value="open">Solo Abiertos</option>
+                                    <option value="in_progress">En Progreso</option>
+                                    <option value="completed">Completados</option>
+                                    <option value="cancelled">Cancelados</option>
+                                </select>
+                            </div>
+
+                        </div>
+                        
+                        <div style="
+                            padding: 20px;
+                            border-top: 1px solid #e0e0e0;
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                            background: #f9fafb;
+                        ">
+                            <button onclick="document.getElementById('tickets-report-options-modal').remove()" style="
+                                padding: 10px 20px;
+                                border: 1px solid #ddd;
+                                background: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                                Cancelar
+                            </button>
+                            <button id="generate-tickets-report-btn" style="
+                                padding: 10px 24px;
+                                border: none;
+                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                color: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: 600;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+                                Generar Reporte
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                document.body.appendChild(modal);
+
+                // Animación de entrada
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                }, 10);
+
+                // Inicializar iconos de Lucide
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+
+                // Event listeners para mostrar/ocultar secciones
+                const reportTypeSelect = document.getElementById('ticket-report-type');
+                const periodSelect = document.getElementById('ticket-report-period');
+                const singleTicketSection = document.getElementById('single-ticket-section');
+                const customDatesSection = document.getElementById('custom-dates-section');
+                const clientFilterSection = document.getElementById('client-filter-section');
+
+                reportTypeSelect.addEventListener('change', (e) => {
+                    if (e.target.value === 'single') {
+                        singleTicketSection.style.display = 'block';
+                        clientFilterSection.style.display = 'none';
+                    } else if (e.target.value === 'by-client') {
+                        singleTicketSection.style.display = 'none';
+                        clientFilterSection.style.display = 'block';
+                    } else {
+                        singleTicketSection.style.display = 'none';
+                        clientFilterSection.style.display = 'none';
                     }
-                    
-                    doc.setFont('helvetica', 'bold');
-                    doc.text(`#${ticket.id} - ${ticket.title.substring(0, 60)}`, 25, yPos);
-                    yPos += 5;
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(9);
-                    doc.text(`Estado: ${ticket.status} | Prioridad: ${ticket.priority || 'N/A'}`, 25, yPos);
-                    yPos += 8;
-                    doc.setFontSize(10);
                 });
-                
-                const filename = `reporte_tickets_${currentYear}_${currentMonth + 1}_${Date.now()}.pdf`;
-                doc.save(filename);
-                
-                this.showNotification('Reporte generado exitosamente', 'success');
-                
+
+                periodSelect.addEventListener('change', (e) => {
+                    customDatesSection.style.display = e.target.value === 'custom' ? 'block' : 'none';
+                });
+
+                // Event listener del botón generar
+                document.getElementById('generate-tickets-report-btn').addEventListener('click', () => {
+                    this.executeTicketsReport();
+                });
+
+            } catch (error) {
+                console.error('Error mostrando modal:', error);
+                this.showNotification('Error al cargar opciones: ' + error.message, 'error');
+            }
+        }
+
+        async executeTicketsReport() {
+            const reportType = document.getElementById('ticket-report-type').value;
+            const period = document.getElementById('ticket-report-period').value;
+            const status = document.getElementById('ticket-report-status').value;
+            const clientId = document.getElementById('ticket-report-client')?.value;
+            const singleTicketId = document.getElementById('single-ticket-id')?.value;
+
+            // Cerrar modal
+            document.getElementById('tickets-report-options-modal').remove();
+
+            // Validaciones
+            if (reportType === 'single' && !singleTicketId) {
+                this.showNotification('Por favor ingresa el número de ticket', 'warning');
+                return;
+            }
+
+            this.showNotification('Generando reporte...', 'info');
+
+            try {
+                if (reportType === 'single') {
+                    // Reporte de ticket individual (ya existe en downloadReport)
+                    await this.downloadReport(singleTicketId);
+                } else {
+                    // Reporte general o por cliente
+                    await this.generateTicketsReportPDF(reportType, period, status, clientId);
+                }
             } catch (error) {
                 console.error('Error generando reporte:', error);
                 this.showNotification('Error al generar reporte: ' + error.message, 'error');
             }
+        }
+
+        async generateTicketsReportPDF(reportType, period, status, clientId) {
+            // Obtener tickets
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/tickets`);
+            if (!response.ok) throw new Error('Error al obtener tickets');
+            
+            const result = await response.json();
+            let tickets = result.data || [];
+
+            // Filtrar por período
+            const { startDate, endDate, periodName } = this.calculatePeriodDates(period);
+            tickets = tickets.filter(t => {
+                const ticketDate = new Date(t.created_at);
+                return ticketDate >= startDate && ticketDate <= endDate;
+            });
+
+            // Filtrar por estado
+            if (status !== 'all') {
+                tickets = tickets.filter(t => t.status === status);
+            }
+
+            // Filtrar por cliente si es necesario
+            if (clientId) {
+                tickets = tickets.filter(t => t.client_id == clientId);
+            }
+
+            // Generar PDF
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // Header
+            doc.setFillColor(102, 126, 234);
+            doc.rect(0, 0, 210, 40, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(22);
+            doc.text('REPORTE DE TICKETS', 105, 20, { align: 'center' });
+            doc.setFontSize(12);
+            doc.text(periodName, 105, 30, { align: 'center' });
+
+            let yPos = 55;
+
+            // Estadísticas
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Resumen General', 20, yPos);
+            yPos += 10;
+
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`Total de tickets: ${tickets.length}`, 25, yPos);
+            yPos += 6;
+
+            const completados = tickets.filter(t => t.status === 'completed').length;
+            doc.text(`Completados: ${completados} (${tickets.length ? Math.round(completados/tickets.length*100) : 0}%)`, 25, yPos);
+            yPos += 6;
+
+            const enProgreso = tickets.filter(t => t.status === 'in_progress').length;
+            doc.text(`En progreso: ${enProgreso}`, 25, yPos);
+            yPos += 6;
+
+            const abiertos = tickets.filter(t => t.status === 'open').length;
+            doc.text(`Abiertos: ${abiertos}`, 25, yPos);
+            yPos += 15;
+
+            if (reportType === 'by-client') {
+                // Agrupar por cliente
+                const ticketsByClient = {};
+                tickets.forEach(t => {
+                    const clientName = t.client_name || 'Sin cliente';
+                    if (!ticketsByClient[clientName]) {
+                        ticketsByClient[clientName] = [];
+                    }
+                    ticketsByClient[clientName].push(t);
+                });
+
+                // Renderizar por cliente
+                for (const [clientName, clientTickets] of Object.entries(ticketsByClient)) {
+                    if (yPos > 260) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+
+                    doc.setFontSize(12);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setTextColor(102, 126, 234);
+                    doc.text(`${clientName} (${clientTickets.length} tickets)`, 20, yPos);
+                    yPos += 8;
+
+                    doc.setFontSize(9);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(0, 0, 0);
+
+                    clientTickets.slice(0, 10).forEach(ticket => {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        doc.text(`#${ticket.id} - ${ticket.title.substring(0, 70)}`, 25, yPos);
+                        yPos += 5;
+                    });
+
+                    if (clientTickets.length > 10) {
+                        doc.setTextColor(128, 128, 128);
+                        doc.text(`... y ${clientTickets.length - 10} tickets más`, 25, yPos);
+                        yPos += 5;
+                        doc.setTextColor(0, 0, 0);
+                    }
+
+                    yPos += 5;
+                }
+            } else {
+                // Listado general
+                doc.setFont('helvetica', 'bold');
+                doc.text('Listado de Tickets', 20, yPos);
+                yPos += 8;
+
+                tickets.slice(0, 30).forEach(ticket => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text(`#${ticket.id} - ${ticket.title.substring(0, 65)}`, 25, yPos);
+                    yPos += 5;
+                    
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(9);
+                    doc.text(`${ticket.client_name || 'Sin cliente'} | Estado: ${ticket.status} | ${this.formatDate(ticket.created_at)}`, 25, yPos);
+                    yPos += 8;
+                });
+
+                if (tickets.length > 30) {
+                    doc.setTextColor(128, 128, 128);
+                    doc.text(`... y ${tickets.length - 30} tickets más`, 25, yPos);
+                }
+            }
+
+            // Footer en todas las páginas
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setDrawColor(200, 200, 200);
+                doc.setLineWidth(0.5);
+                doc.line(20, 282, 190, 282);
+                doc.setFontSize(8);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Página ${i} de ${pageCount}`, 105, 287, { align: 'center' });
+                doc.text(`Gymtec ERP - ${new Date().toLocaleDateString('es-ES')}`, 105, 292, { align: 'center' });
+            }
+
+            const filename = `reporte_tickets_${period}_${Date.now()}.pdf`;
+            doc.save(filename);
+
+            this.showNotification('Reporte generado exitosamente', 'success');
+        }
+
+        calculatePeriodDates(period) {
+            const now = new Date();
+            let startDate, endDate, periodName;
+
+            switch(period) {
+                case 'current-month':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    periodName = `${now.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}`;
+                    break;
+                case 'last-month':
+                    startDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth(), 0);
+                    periodName = new Date(startDate).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+                    break;
+                case 'current-quarter':
+                    const currentQuarter = Math.floor(now.getMonth() / 3);
+                    startDate = new Date(now.getFullYear(), currentQuarter * 3, 1);
+                    endDate = new Date(now.getFullYear(), (currentQuarter + 1) * 3, 0);
+                    periodName = `Trimestre ${currentQuarter + 1}, ${now.getFullYear()}`;
+                    break;
+                case 'last-quarter':
+                    const lastQuarter = Math.floor(now.getMonth() / 3) - 1;
+                    const quarterYear = lastQuarter < 0 ? now.getFullYear() - 1 : now.getFullYear();
+                    const quarter = lastQuarter < 0 ? 3 : lastQuarter;
+                    startDate = new Date(quarterYear, quarter * 3, 1);
+                    endDate = new Date(quarterYear, (quarter + 1) * 3, 0);
+                    periodName = `Trimestre ${quarter + 1}, ${quarterYear}`;
+                    break;
+                case 'current-year':
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                    endDate = new Date(now.getFullYear(), 11, 31);
+                    periodName = `Año ${now.getFullYear()}`;
+                    break;
+                case 'last-year':
+                    startDate = new Date(now.getFullYear() - 1, 0, 1);
+                    endDate = new Date(now.getFullYear() - 1, 11, 31);
+                    periodName = `Año ${now.getFullYear() - 1}`;
+                    break;
+                case 'custom':
+                    startDate = new Date(document.getElementById('ticket-report-start-date').value);
+                    endDate = new Date(document.getElementById('ticket-report-end-date').value);
+                    periodName = `${startDate.toLocaleDateString('es-ES')} - ${endDate.toLocaleDateString('es-ES')}`;
+                    break;
+                default:
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = now;
+                    periodName = 'Período actual';
+            }
+
+            return { startDate, endDate, periodName };
         }
 
         async generateClientsReport() {
