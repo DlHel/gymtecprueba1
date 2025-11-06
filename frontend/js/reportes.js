@@ -1082,7 +1082,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 tickets = tickets.filter(t => t.client_id == clientId);
             }
 
-            // Generar PDF
+            // Si es por cliente, obtener detalles completos de cada ticket
+            if (reportType === 'by-client') {
+                await this.generateDetailedClientReport(tickets, periodName, clientId);
+            } else {
+                await this.generateSimpleTicketsReport(tickets, periodName);
+            }
+        }
+
+        async generateSimpleTicketsReport(tickets, periodName) {
+            // Generar PDF simple (el código anterior)
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
@@ -1121,78 +1130,390 @@ document.addEventListener('DOMContentLoaded', function() {
             doc.text(`Abiertos: ${abiertos}`, 25, yPos);
             yPos += 15;
 
-            if (reportType === 'by-client') {
-                // Agrupar por cliente
-                const ticketsByClient = {};
-                tickets.forEach(t => {
-                    const clientName = t.client_name || 'Sin cliente';
-                    if (!ticketsByClient[clientName]) {
-                        ticketsByClient[clientName] = [];
-                    }
-                    ticketsByClient[clientName].push(t);
-                });
+            // Listado general
+            doc.setFont('helvetica', 'bold');
+            doc.text('Listado de Tickets', 20, yPos);
+            yPos += 8;
 
-                // Renderizar por cliente
-                for (const [clientName, clientTickets] of Object.entries(ticketsByClient)) {
-                    if (yPos > 260) {
+            tickets.slice(0, 30).forEach(ticket => {
+                if (yPos > 270) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text(`#${ticket.id} - ${ticket.title.substring(0, 65)}`, 25, yPos);
+                yPos += 5;
+                
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.text(`${ticket.client_name || 'Sin cliente'} | Estado: ${ticket.status} | ${this.formatDate(ticket.created_at)}`, 25, yPos);
+                yPos += 8;
+            });
+
+            if (tickets.length > 30) {
+                doc.setTextColor(128, 128, 128);
+                doc.text(`... y ${tickets.length - 30} tickets más`, 25, yPos);
+            }
+
+            // Footer
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setDrawColor(200, 200, 200);
+                doc.setLineWidth(0.5);
+                doc.line(20, 282, 190, 282);
+                doc.setFontSize(8);
+                doc.setTextColor(100, 100, 100);
+                doc.text(`Página ${i} de ${pageCount}`, 105, 287, { align: 'center' });
+                doc.text(`Gymtec ERP - ${new Date().toLocaleDateString('es-ES')}`, 105, 292, { align: 'center' });
+            }
+
+            const filename = `reporte_tickets_general_${Date.now()}.pdf`;
+            doc.save(filename);
+            this.showNotification('Reporte generado exitosamente', 'success');
+        }
+
+        async generateDetailedClientReport(tickets, periodName, clientId) {
+            this.showNotification('Cargando detalles de tickets...', 'info');
+
+            // Agrupar por cliente
+            const ticketsByClient = {};
+            tickets.forEach(t => {
+                const clientName = t.client_name || 'Sin cliente';
+                if (!ticketsByClient[clientName]) {
+                    ticketsByClient[clientName] = [];
+                }
+                ticketsByClient[clientName].push(t);
+            });
+
+            // Obtener detalles completos de cada ticket (notas y fotos)
+            const ticketsWithDetails = [];
+            for (const ticket of tickets) {
+                try {
+                    const detailResponse = await window.authManager.authenticatedFetch(
+                        `${window.API_URL}/tickets/${ticket.id}/detail`
+                    );
+                    if (detailResponse.ok) {
+                        const detailResult = await detailResponse.json();
+                        ticketsWithDetails.push(detailResult.data);
+                    } else {
+                        ticketsWithDetails.push(ticket);
+                    }
+                } catch (error) {
+                    console.warn(`No se pudo cargar detalle del ticket ${ticket.id}`, error);
+                    ticketsWithDetails.push(ticket);
+                }
+            }
+
+            // Generar PDF detallado
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // ============ PÁGINA 1: RESUMEN EJECUTIVO ============
+            // Header
+            doc.setFillColor(102, 126, 234);
+            doc.rect(0, 0, 210, 45, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.setFont('helvetica', 'bold');
+            doc.text('INFORME DETALLADO', 105, 20, { align: 'center' });
+            doc.setFontSize(16);
+            doc.text('DE TICKETS POR CLIENTE', 105, 30, { align: 'center' });
+            doc.setFontSize(12);
+            doc.setFont('helvetica', 'normal');
+            doc.text(periodName, 105, 38, { align: 'center' });
+
+            let yPos = 60;
+
+            // Resumen por cliente
+            for (const [clientName, clientTickets] of Object.entries(ticketsByClient)) {
+                if (yPos > 240) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                // Nombre del cliente con fondo
+                doc.setFillColor(240, 240, 255);
+                doc.rect(15, yPos - 5, 180, 12, 'F');
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(102, 126, 234);
+                doc.text(clientName, 20, yPos + 3);
+                yPos += 15;
+
+                // Estadísticas del cliente
+                const clientCompleted = clientTickets.filter(t => t.status === 'completed').length;
+                const clientInProgress = clientTickets.filter(t => t.status === 'in_progress').length;
+                const clientOpen = clientTickets.filter(t => t.status === 'open').length;
+                const clientCancelled = clientTickets.filter(t => t.status === 'cancelled').length;
+
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'normal');
+
+                // Grid de estadísticas
+                const statY = yPos;
+                doc.setFont('helvetica', 'bold');
+                doc.text('Total:', 25, statY);
+                doc.setFont('helvetica', 'normal');
+                doc.text(String(clientTickets.length), 50, statY);
+
+                doc.setFont('helvetica', 'bold');
+                doc.text('Completados:', 70, statY);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(34, 197, 94);
+                doc.text(String(clientCompleted), 110, statY);
+
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text('En Progreso:', 130, statY);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(234, 179, 8);
+                doc.text(String(clientInProgress), 165, statY);
+
+                yPos += 7;
+                doc.setTextColor(0, 0, 0);
+                doc.setFont('helvetica', 'bold');
+                doc.text('Abiertos:', 25, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(59, 130, 246);
+                doc.text(String(clientOpen), 50, yPos);
+
+                if (clientCancelled > 0) {
+                    doc.setTextColor(0, 0, 0);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('Cancelados:', 70, yPos);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(239, 68, 68);
+                    doc.text(String(clientCancelled), 110, yPos);
+                }
+
+                yPos += 12;
+                doc.setTextColor(0, 0, 0);
+            }
+
+            // ============ PÁGINAS SIGUIENTES: DETALLE DE CADA TICKET ============
+            for (const [clientName, clientTickets] of Object.entries(ticketsByClient)) {
+                // Nueva página para cada cliente
+                doc.addPage();
+                yPos = 20;
+
+                // Header del cliente
+                doc.setFillColor(102, 126, 234);
+                doc.rect(0, 0, 210, 30, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(18);
+                doc.setFont('helvetica', 'bold');
+                doc.text(clientName, 105, 12, { align: 'center' });
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`Detalle de ${clientTickets.length} tickets`, 105, 22, { align: 'center' });
+
+                yPos = 40;
+
+                // Iterar cada ticket del cliente
+                for (const ticket of clientTickets) {
+                    const ticketDetails = ticketsWithDetails.find(t => t.id === ticket.id) || ticket;
+
+                    // Verificar espacio para el ticket
+                    if (yPos > 200) {
                         doc.addPage();
                         yPos = 20;
                     }
+
+                    // === HEADER DEL TICKET ===
+                    doc.setDrawColor(102, 126, 234);
+                    doc.setLineWidth(0.5);
+                    doc.line(20, yPos, 190, yPos);
+                    yPos += 6;
 
                     doc.setFontSize(12);
                     doc.setFont('helvetica', 'bold');
                     doc.setTextColor(102, 126, 234);
-                    doc.text(`${clientName} (${clientTickets.length} tickets)`, 20, yPos);
-                    yPos += 8;
+                    doc.text(`Ticket #${ticket.id}`, 20, yPos);
+                    
+                    // Badge de estado
+                    const statusColors = {
+                        'completed': [34, 197, 94],
+                        'in_progress': [234, 179, 8],
+                        'open': [59, 130, 246],
+                        'cancelled': [239, 68, 68]
+                    };
+                    const statusTexts = {
+                        'completed': 'Completado',
+                        'in_progress': 'En Progreso',
+                        'open': 'Abierto',
+                        'cancelled': 'Cancelado'
+                    };
+                    const color = statusColors[ticket.status] || [128, 128, 128];
+                    doc.setFillColor(...color);
+                    doc.roundedRect(160, yPos - 4, 28, 6, 2, 2, 'F');
+                    doc.setTextColor(255, 255, 255);
+                    doc.setFontSize(8);
+                    doc.text(statusTexts[ticket.status] || ticket.status, 174, yPos, { align: 'center' });
+                    
+                    yPos += 7;
 
-                    doc.setFontSize(9);
-                    doc.setFont('helvetica', 'normal');
+                    // Título del ticket
                     doc.setTextColor(0, 0, 0);
-
-                    clientTickets.slice(0, 10).forEach(ticket => {
-                        if (yPos > 270) {
-                            doc.addPage();
-                            yPos = 20;
-                        }
-                        doc.text(`#${ticket.id} - ${ticket.title.substring(0, 70)}`, 25, yPos);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    const titleLines = doc.splitTextToSize(ticket.title || 'Sin título', 165);
+                    titleLines.forEach(line => {
+                        doc.text(line, 20, yPos);
                         yPos += 5;
                     });
 
-                    if (clientTickets.length > 10) {
-                        doc.setTextColor(128, 128, 128);
-                        doc.text(`... y ${clientTickets.length - 10} tickets más`, 25, yPos);
-                        yPos += 5;
-                        doc.setTextColor(0, 0, 0);
-                    }
+                    yPos += 2;
 
-                    yPos += 5;
-                }
-            } else {
-                // Listado general
-                doc.setFont('helvetica', 'bold');
-                doc.text('Listado de Tickets', 20, yPos);
-                yPos += 8;
-
-                tickets.slice(0, 30).forEach(ticket => {
-                    if (yPos > 270) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(10);
-                    doc.text(`#${ticket.id} - ${ticket.title.substring(0, 65)}`, 25, yPos);
-                    yPos += 5;
-                    
-                    doc.setFont('helvetica', 'normal');
+                    // Información básica
                     doc.setFontSize(9);
-                    doc.text(`${ticket.client_name || 'Sin cliente'} | Estado: ${ticket.status} | ${this.formatDate(ticket.created_at)}`, 25, yPos);
-                    yPos += 8;
-                });
+                    doc.setFont('helvetica', 'normal');
+                    doc.setTextColor(100, 100, 100);
+                    doc.text(`Fecha: ${this.formatDate(ticket.created_at)}`, 20, yPos);
+                    if (ticket.priority) {
+                        doc.text(`| Prioridad: ${ticket.priority}`, 70, yPos);
+                    }
+                    if (ticket.assigned_technician) {
+                        doc.text(`| Técnico: ${ticket.assigned_technician}`, 120, yPos);
+                    }
+                    yPos += 6;
 
-                if (tickets.length > 30) {
-                    doc.setTextColor(128, 128, 128);
-                    doc.text(`... y ${tickets.length - 30} tickets más`, 25, yPos);
+                    // Equipo (si existe)
+                    if (ticketDetails.equipment_details) {
+                        doc.setTextColor(0, 0, 0);
+                        doc.setFont('helvetica', 'bold');
+                        doc.text(`Equipo: `, 20, yPos);
+                        doc.setFont('helvetica', 'normal');
+                        doc.text(`${ticketDetails.equipment_details.model || 'N/A'}`, 37, yPos);
+                        yPos += 5;
+                    }
+
+                    // Descripción
+                    if (ticket.description) {
+                        yPos += 2;
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(9);
+                        doc.text('Descripción:', 20, yPos);
+                        yPos += 5;
+                        doc.setFont('helvetica', 'normal');
+                        doc.setFontSize(8);
+                        const descLines = doc.splitTextToSize(ticket.description, 165);
+                        descLines.forEach(line => {
+                            if (yPos > 275) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+                            doc.text(line, 20, yPos);
+                            yPos += 4;
+                        });
+                    }
+
+                    // === NOTAS/COMENTARIOS DEL TÉCNICO ===
+                    if (ticketDetails.notes && ticketDetails.notes.length > 0) {
+                        yPos += 3;
+                        
+                        if (yPos > 250) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+
+                        doc.setFontSize(9);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(102, 126, 234);
+                        doc.text('Comentarios del Técnico:', 20, yPos);
+                        yPos += 6;
+
+                        ticketDetails.notes.forEach((note, idx) => {
+                            if (yPos > 265) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+
+                            // Fondo para la nota
+                            doc.setFillColor(250, 250, 250);
+                            const noteHeight = Math.min(doc.splitTextToSize(note.note_text, 160).length * 4 + 8, 40);
+                            doc.roundedRect(20, yPos - 2, 170, noteHeight, 2, 2, 'F');
+
+                            doc.setFontSize(8);
+                            doc.setTextColor(100, 100, 100);
+                            doc.setFont('helvetica', 'bold');
+                            doc.text(`${note.created_by} - ${this.formatDate(note.created_at)} ${this.formatTime(note.created_at)}`, 22, yPos + 2);
+                            yPos += 6;
+
+                            doc.setFont('helvetica', 'normal');
+                            doc.setTextColor(0, 0, 0);
+                            doc.setFontSize(8);
+                            const noteLines = doc.splitTextToSize(note.note_text, 160);
+                            noteLines.forEach(line => {
+                                doc.text(line, 22, yPos);
+                                yPos += 4;
+                            });
+
+                            yPos += 4;
+                        });
+                    }
+
+                    // === FOTOS ===
+                    if (ticketDetails.photos && ticketDetails.photos.length > 0) {
+                        yPos += 3;
+
+                        if (yPos > 240) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+
+                        doc.setFontSize(9);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setTextColor(102, 126, 234);
+                        doc.text(`Evidencia Fotográfica (${ticketDetails.photos.length} fotos):`, 20, yPos);
+                        yPos += 6;
+
+                        // Mostrar indicador de fotos
+                        doc.setFontSize(8);
+                        doc.setTextColor(100, 100, 100);
+                        doc.setFont('helvetica', 'italic');
+                        
+                        ticketDetails.photos.forEach((photo, idx) => {
+                            if (yPos > 270) {
+                                doc.addPage();
+                                yPos = 20;
+                            }
+
+                            const photoLabel = photo.photo_type === 'before' ? '📷 Foto ANTES' : 
+                                             photo.photo_type === 'after' ? '📷 Foto DESPUÉS' : 
+                                             `📷 Foto ${idx + 1}`;
+                            
+                            doc.setFont('helvetica', 'normal');
+                            doc.text(`${photoLabel} - ${this.formatDate(photo.created_at)}`, 22, yPos);
+                            yPos += 5;
+
+                            // Si hay fotos base64 completas, intentar agregarlas
+                            if (photo.photo_base64 && photo.photo_base64.length > 100) {
+                                try {
+                                    const imgData = photo.photo_base64.startsWith('data:') ? 
+                                        photo.photo_base64 : `data:image/jpeg;base64,${photo.photo_base64}`;
+                                    
+                                    if (yPos > 200) {
+                                        doc.addPage();
+                                        yPos = 20;
+                                    }
+
+                                    doc.addImage(imgData, 'JPEG', 25, yPos, 80, 60);
+                                    yPos += 65;
+                                } catch (error) {
+                                    console.warn('No se pudo agregar imagen al PDF:', error);
+                                    doc.setTextColor(128, 128, 128);
+                                    doc.text('(Imagen no disponible en el PDF)', 22, yPos);
+                                    yPos += 5;
+                                }
+                            }
+                        });
+                    }
+
+                    yPos += 8;
                 }
             }
 
@@ -1206,13 +1527,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 doc.setFontSize(8);
                 doc.setTextColor(100, 100, 100);
                 doc.text(`Página ${i} de ${pageCount}`, 105, 287, { align: 'center' });
-                doc.text(`Gymtec ERP - ${new Date().toLocaleDateString('es-ES')}`, 105, 292, { align: 'center' });
+                doc.text(`Gymtec ERP - Generado el ${new Date().toLocaleDateString('es-ES')} a las ${new Date().toLocaleTimeString('es-ES')}`, 105, 292, { align: 'center' });
             }
 
-            const filename = `reporte_tickets_${period}_${Date.now()}.pdf`;
+            const filename = `informe_detallado_clientes_${Date.now()}.pdf`;
             doc.save(filename);
 
-            this.showNotification('Reporte generado exitosamente', 'success');
+            this.showNotification('Informe detallado generado exitosamente', 'success');
         }
 
         calculatePeriodDates(period) {
