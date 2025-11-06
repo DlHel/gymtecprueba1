@@ -1467,19 +1467,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             // Fondo para la nota
                             doc.setFillColor(250, 250, 250);
-                            const noteHeight = Math.min(doc.splitTextToSize(note.note_text, 160).length * 4 + 8, 40);
+                            const noteText = note.note || note.note_text || 'Sin comentario';
+                            const noteLines = doc.splitTextToSize(noteText, 160);
+                            const noteHeight = Math.min(noteLines.length * 4 + 8, 40);
                             doc.roundedRect(20, yPos - 2, 170, noteHeight, 2, 2, 'F');
 
                             doc.setFontSize(8);
                             doc.setTextColor(100, 100, 100);
                             doc.setFont('helvetica', 'bold');
-                            doc.text(`${note.created_by} - ${this.formatDate(note.created_at)} ${this.formatTime(note.created_at)}`, 22, yPos + 2);
+                            const author = note.author || note.created_by || 'Técnico';
+                            const noteDate = note.created_at ? this.formatDate(note.created_at) : '';
+                            const noteTime = note.created_at ? this.formatTime(note.created_at) : '';
+                            doc.text(`${author} - ${noteDate} ${noteTime}`, 22, yPos + 2);
                             yPos += 6;
 
                             doc.setFont('helvetica', 'normal');
                             doc.setTextColor(0, 0, 0);
                             doc.setFontSize(8);
-                            const noteLines = doc.splitTextToSize(note.note_text, 160);
                             noteLines.forEach(line => {
                                 doc.text(line, 22, yPos);
                                 yPos += 4;
@@ -1516,11 +1520,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
                             // Determinar etiqueta de la foto
                             let photoLabel = `📷 Foto ${idx + 1}`;
-                            if (photo.photo_type) {
-                                if (photo.photo_type.toLowerCase() === 'before' || photo.photo_type === 'antes') {
-                                    photoLabel = '📷 Foto ANTES';
-                                } else if (photo.photo_type.toLowerCase() === 'after' || photo.photo_type === 'despues' || photo.photo_type === 'después') {
-                                    photoLabel = '📷 Foto DESPUÉS';
+                            const photoType = photo.photo_type || '';
+                            
+                            // Mapeo de tipos de foto
+                            if (photoType) {
+                                const typeNormalized = photoType.toLowerCase();
+                                if (typeNormalized === 'problema' || typeNormalized === 'before' || typeNormalized === 'antes') {
+                                    photoLabel = '📷 Foto ANTES (Problema)';
+                                } else if (typeNormalized === 'solución' || typeNormalized === 'solucion' || typeNormalized === 'after' || typeNormalized === 'después' || typeNormalized === 'despues') {
+                                    photoLabel = '📷 Foto DESPUÉS (Solución)';
+                                } else if (typeNormalized === 'proceso') {
+                                    photoLabel = '📷 Foto PROCESO';
+                                } else {
+                                    photoLabel = `📷 Foto - ${photoType}`;
                                 }
                             }
                             
@@ -1530,15 +1542,30 @@ document.addEventListener('DOMContentLoaded', function() {
                             if (photo.created_at) {
                                 doc.setFont('helvetica', 'normal');
                                 doc.setTextColor(100, 100, 100);
-                                doc.text(` - ${this.formatDate(photo.created_at)}`, 50, yPos);
+                                doc.text(` - ${this.formatDate(photo.created_at)}`, 80, yPos);
                             }
                             yPos += 5;
 
+                            // Descripción de la foto si existe
+                            if (photo.description) {
+                                doc.setFont('helvetica', 'italic');
+                                doc.setFontSize(7);
+                                doc.setTextColor(100, 100, 100);
+                                const descLines = doc.splitTextToSize(photo.description, 160);
+                                descLines.slice(0, 2).forEach(line => {
+                                    doc.text(line, 22, yPos);
+                                    yPos += 3;
+                                });
+                                yPos += 2;
+                                doc.setFontSize(8);
+                            }
+
                             // Intentar agregar imagen si existe
-                            if (photo.photo_base64 && photo.photo_base64.length > 100) {
+                            const photoData = photo.photo_data || photo.photo_base64 || '';
+                            if (photoData && photoData.length > 100) {
                                 try {
                                     // Asegurar formato correcto
-                                    let imgData = photo.photo_base64;
+                                    let imgData = photoData;
                                     if (!imgData.startsWith('data:')) {
                                         // Detectar tipo de imagen
                                         const imageType = imgData.startsWith('/9j') ? 'jpeg' : 
@@ -1557,7 +1584,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                     doc.addImage(imgData, 'JPEG', 25, yPos, imgWidth, imgHeight);
                                     yPos += imgHeight + 5;
                                     
-                                    console.log(`✅ Imagen ${idx + 1} agregada al PDF`);
+                                    console.log(`✅ Imagen ${idx + 1} agregada al PDF (${photoLabel})`);
                                 } catch (error) {
                                     console.warn(`⚠️ No se pudo agregar imagen ${idx + 1} al PDF:`, error);
                                     doc.setTextColor(200, 0, 0);
