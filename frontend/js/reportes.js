@@ -1446,41 +1446,50 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // === NOTAS/COMENTARIOS DEL TÉCNICO ===
                     if (ticketDetails.notes && ticketDetails.notes.length > 0) {
-                        yPos += 3;
+                        yPos += 5;
                         
-                        if (yPos > 250) {
+                        if (yPos > 240) {
                             doc.addPage();
                             yPos = 20;
                         }
 
-                        doc.setFontSize(9);
+                        // Título de la sección
+                        doc.setFontSize(10);
                         doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(102, 126, 234);
-                        doc.text('Comentarios del Técnico:', 20, yPos);
-                        yPos += 6;
+                        doc.setTextColor(41, 128, 185);
+                        doc.text('COMENTARIOS DEL TECNICO', 20, yPos);
+                        yPos += 7;
+
+                        // Línea separadora
+                        doc.setDrawColor(41, 128, 185);
+                        doc.setLineWidth(0.5);
+                        doc.line(20, yPos, 190, yPos);
+                        yPos += 5;
 
                         ticketDetails.notes.forEach((note, idx) => {
-                            if (yPos > 265) {
+                            if (yPos > 255) {
                                 doc.addPage();
                                 yPos = 20;
                             }
 
                             // Fondo para la nota
-                            doc.setFillColor(250, 250, 250);
+                            doc.setFillColor(248, 249, 250);
                             const noteText = note.note || note.note_text || 'Sin comentario';
                             const noteLines = doc.splitTextToSize(noteText, 160);
                             const noteHeight = Math.min(noteLines.length * 4 + 8, 40);
                             doc.roundedRect(20, yPos - 2, 170, noteHeight, 2, 2, 'F');
 
+                            // Header de la nota
                             doc.setFontSize(8);
-                            doc.setTextColor(100, 100, 100);
+                            doc.setTextColor(52, 73, 94);
                             doc.setFont('helvetica', 'bold');
-                            const author = note.author || note.created_by || 'Técnico';
+                            const author = note.author || note.created_by || 'Tecnico';
                             const noteDate = note.created_at ? this.formatDate(note.created_at) : '';
                             const noteTime = note.created_at ? this.formatTime(note.created_at) : '';
                             doc.text(`${author} - ${noteDate} ${noteTime}`, 22, yPos + 2);
                             yPos += 6;
 
+                            // Contenido de la nota
                             doc.setFont('helvetica', 'normal');
                             doc.setTextColor(0, 0, 0);
                             doc.setFontSize(8);
@@ -1495,22 +1504,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // === FOTOS ===
                     if (ticketDetails.photos && ticketDetails.photos.length > 0) {
-                        yPos += 3;
+                        yPos += 5;
 
-                        if (yPos > 240) {
+                        if (yPos > 230) {
                             doc.addPage();
                             yPos = 20;
                         }
 
-                        doc.setFontSize(9);
+                        // Título de la sección
+                        doc.setFontSize(10);
                         doc.setFont('helvetica', 'bold');
-                        doc.setTextColor(102, 126, 234);
-                        doc.text(`Evidencia Fotográfica (${ticketDetails.photos.length} fotos):`, 20, yPos);
-                        yPos += 6;
+                        doc.setTextColor(41, 128, 185);
+                        doc.text(`EVIDENCIA FOTOGRAFICA (${ticketDetails.photos.length} fotos)`, 20, yPos);
+                        yPos += 7;
 
-                        doc.setFontSize(8);
-                        doc.setTextColor(100, 100, 100);
-                        doc.setFont('helvetica', 'normal');
+                        // Línea separadora
+                        doc.setDrawColor(41, 128, 185);
+                        doc.setLineWidth(0.5);
+                        doc.line(20, yPos, 190, yPos);
+                        yPos += 5;
                         
                         ticketDetails.photos.forEach((photo, idx) => {
                             if (yPos > 270) {
@@ -1518,31 +1530,33 @@ document.addEventListener('DOMContentLoaded', function() {
                                 yPos = 20;
                             }
 
-                            // Determinar etiqueta de la foto
-                            let photoLabel = `📷 Foto ${idx + 1}`;
+                            // Determinar etiqueta de la foto (sin emojis)
+                            let photoLabel = `Foto ${idx + 1}`;
                             const photoType = photo.photo_type || '';
                             
                             // Mapeo de tipos de foto
                             if (photoType) {
                                 const typeNormalized = photoType.toLowerCase();
                                 if (typeNormalized === 'problema' || typeNormalized === 'before' || typeNormalized === 'antes') {
-                                    photoLabel = '📷 Foto ANTES (Problema)';
+                                    photoLabel = 'FOTO ANTES (Problema)';
                                 } else if (typeNormalized === 'solución' || typeNormalized === 'solucion' || typeNormalized === 'after' || typeNormalized === 'después' || typeNormalized === 'despues') {
-                                    photoLabel = '📷 Foto DESPUÉS (Solución)';
+                                    photoLabel = 'FOTO DESPUES (Solucion)';
                                 } else if (typeNormalized === 'proceso') {
-                                    photoLabel = '📷 Foto PROCESO';
+                                    photoLabel = 'FOTO PROCESO';
                                 } else {
-                                    photoLabel = `📷 Foto - ${photoType}`;
+                                    photoLabel = `Foto - ${photoType}`;
                                 }
                             }
                             
                             doc.setFont('helvetica', 'bold');
-                            doc.setTextColor(0, 0, 0);
+                            doc.setTextColor(52, 73, 94);
+                            doc.setFontSize(9);
                             doc.text(photoLabel, 22, yPos);
                             if (photo.created_at) {
                                 doc.setFont('helvetica', 'normal');
                                 doc.setTextColor(100, 100, 100);
-                                doc.text(` - ${this.formatDate(photo.created_at)}`, 80, yPos);
+                                doc.setFontSize(8);
+                                doc.text(` - ${this.formatDate(photo.created_at)}`, 75, yPos);
                             }
                             yPos += 5;
 
