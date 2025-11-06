@@ -706,6 +706,188 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.showNotification('Error al generar informe: ' + error.message, 'error');
             }
         }
+
+        // Método para descargar reporte como PDF
+        async downloadReport(reportId) {
+            try {
+                const report = this.reports.find(r => r.id === reportId);
+                if (!report) {
+                    this.showNotification('Reporte no encontrado', 'error');
+                    return;
+                }
+
+                console.log('📥 Descargando reporte:', report);
+                
+                // Verificar que jsPDF esté cargado
+                if (typeof window.jspdf === 'undefined') {
+                    console.error('❌ jsPDF no está cargado');
+                    this.showNotification('Error: Librería PDF no disponible', 'error');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                // Configurar fuente y colores
+                doc.setFont('helvetica');
+                
+                // Título
+                doc.setFontSize(18);
+                doc.setTextColor(44, 62, 80);
+                doc.text('REPORTE - GYMTEC ERP', 105, 20, { align: 'center' });
+                
+                // Línea decorativa
+                doc.setDrawColor(52, 152, 219);
+                doc.setLineWidth(0.5);
+                doc.line(20, 25, 190, 25);
+                
+                // Información del reporte
+                doc.setFontSize(12);
+                doc.setTextColor(0, 0, 0);
+                let yPos = 35;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Tipo de Reporte:', 20, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(report.type || 'N/A', 70, yPos);
+                yPos += 8;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Fecha de Generación:', 20, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(this.formatDate(report.createdAt), 70, yPos);
+                yPos += 8;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Formato:', 20, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(report.format || 'PDF', 70, yPos);
+                yPos += 8;
+                
+                doc.setFont('helvetica', 'bold');
+                doc.text('Estado:', 20, yPos);
+                doc.setFont('helvetica', 'normal');
+                doc.text(this.getStatusText(report.status), 70, yPos);
+                yPos += 15;
+                
+                // Sección de datos (si existen)
+                if (report.data) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(14);
+                    doc.text('Datos del Reporte:', 20, yPos);
+                    yPos += 10;
+                    
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    
+                    // Convertir datos a texto legible
+                    const dataText = JSON.stringify(report.data, null, 2);
+                    const lines = doc.splitTextToSize(dataText, 170);
+                    
+                    lines.forEach(line => {
+                        if (yPos > 270) {
+                            doc.addPage();
+                            yPos = 20;
+                        }
+                        doc.text(line, 20, yPos);
+                        yPos += 5;
+                    });
+                }
+                
+                // Footer
+                const pageCount = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= pageCount; i++) {
+                    doc.setPage(i);
+                    doc.setFontSize(9);
+                    doc.setTextColor(128, 128, 128);
+                    doc.text(
+                        `Página ${i} de ${pageCount}`,
+                        105,
+                        290,
+                        { align: 'center' }
+                    );
+                    doc.text(
+                        `Generado por Gymtec ERP - ${new Date().toLocaleDateString('es-ES')}`,
+                        105,
+                        295,
+                        { align: 'center' }
+                    );
+                }
+                
+                // Descargar el PDF
+                const filename = `reporte_${report.type}_${report.id}_${new Date().getTime()}.pdf`;
+                doc.save(filename);
+                
+                this.showNotification('Reporte descargado exitosamente', 'success');
+                console.log('✅ PDF generado:', filename);
+                
+            } catch (error) {
+                console.error('Error descargando reporte:', error);
+                this.showNotification('Error al descargar el reporte: ' + error.message, 'error');
+            }
+        }
+
+        // Método para visualizar reporte
+        async viewReport(reportId) {
+            try {
+                const report = this.reports.find(r => r.id === reportId);
+                if (!report) {
+                    this.showNotification('Reporte no encontrado', 'error');
+                    return;
+                }
+
+                console.log('👁️ Visualizando reporte:', report);
+                
+                // Crear modal de vista previa
+                const modal = document.createElement('div');
+                modal.className = 'base-modal active';
+                modal.id = 'view-report-modal';
+                modal.innerHTML = `
+                    <div class="base-modal-content base-modal-large">
+                        <div class="base-modal-header">
+                            <h2>
+                                <i data-lucide="file-text"></i>
+                                Vista Previa del Reporte
+                            </h2>
+                            <button class="base-modal-close" onclick="document.getElementById('view-report-modal').remove()">
+                                <i data-lucide="x"></i>
+                            </button>
+                        </div>
+                        <div class="base-modal-body">
+                            <div class="report-preview-container">
+                                <div class="report-preview-header">
+                                    <h3>${report.type}</h3>
+                                    <p>Generado: ${this.formatDate(report.createdAt)} ${this.formatTime(report.createdAt)}</p>
+                                    <span class="report-status-badge ${report.status}">${this.getStatusText(report.status)}</span>
+                                </div>
+                                <div class="report-preview-content">
+                                    <pre>${JSON.stringify(report.data || report, null, 2)}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="base-modal-footer">
+                            <button class="base-btn base-btn-secondary" onclick="document.getElementById('view-report-modal').remove()">
+                                Cerrar
+                            </button>
+                            <button class="base-btn base-btn-primary" onclick="reportsManager.downloadReport(${reportId})">
+                                <i data-lucide="download"></i>
+                                Descargar PDF
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                document.body.appendChild(modal);
+                
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+                
+            } catch (error) {
+                console.error('Error visualizando reporte:', error);
+                this.showNotification('Error al visualizar el reporte', 'error');
+            }
+        }
     }
 
     // Inicializar cuando se carga la página según patrón @bitacora
