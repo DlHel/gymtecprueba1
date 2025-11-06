@@ -1073,11 +1073,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
                 
-                // Crear modal de vista previa mejorado
+                // Crear modal de vista previa con estilos inline fuertes
                 const modal = document.createElement('div');
-                modal.className = 'base-modal';
                 modal.id = 'view-report-modal';
-                modal.style.display = 'flex';
+                
+                // ESTILOS INLINE FORZADOS
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background-color: rgba(0, 0, 0, 0.5);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 9999;
+                    opacity: 0;
+                    transition: opacity 0.3s ease;
+                `;
                 
                 // Contenido del modal
                 let contentHTML = '';
@@ -1161,26 +1175,81 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 modal.innerHTML = `
-                    <div class="base-modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-                        <div class="base-modal-header">
-                            <h2>
-                                <i data-lucide="eye"></i>
+                    <div style="
+                        background: white;
+                        border-radius: 12px;
+                        width: 90%;
+                        max-width: 800px;
+                        max-height: 90vh;
+                        overflow: hidden;
+                        display: flex;
+                        flex-direction: column;
+                        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    ">
+                        <div style="
+                            padding: 20px;
+                            border-bottom: 1px solid #e0e0e0;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                        ">
+                            <h2 style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                <i data-lucide="eye" style="width: 24px; height: 24px;"></i>
                                 Vista Previa del Informe
                             </h2>
-                            <button class="base-modal-close" onclick="document.getElementById('view-report-modal').remove()">
-                                <i data-lucide="x"></i>
+                            <button onclick="document.getElementById('view-report-modal').remove()" style="
+                                background: none;
+                                border: none;
+                                cursor: pointer;
+                                padding: 8px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                            ">
+                                <i data-lucide="x" style="width: 24px; height: 24px;"></i>
                             </button>
                         </div>
-                        <div class="base-modal-body" style="max-height: 60vh; overflow-y: auto;">
+                        <div style="
+                            flex: 1;
+                            overflow-y: auto;
+                            padding: 20px;
+                        ">
                             ${contentHTML}
                         </div>
-                        <div class="base-modal-footer">
-                            <button class="base-btn base-btn-secondary" onclick="document.getElementById('view-report-modal').remove()">
-                                <i data-lucide="x"></i>
+                        <div style="
+                            padding: 20px;
+                            border-top: 1px solid #e0e0e0;
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                        ">
+                            <button onclick="document.getElementById('view-report-modal').remove()" style="
+                                padding: 10px 20px;
+                                border: 1px solid #ddd;
+                                background: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <i data-lucide="x" style="width: 16px; height: 16px;"></i>
                                 Cerrar
                             </button>
-                            <button class="base-btn base-btn-primary" onclick="window.reportsManager.downloadReport(${reportId}); document.getElementById('view-report-modal').remove();">
-                                <i data-lucide="download"></i>
+                            <button onclick="window.reportsManager.downloadReport(${reportId}); document.getElementById('view-report-modal').remove();" style="
+                                padding: 10px 20px;
+                                border: none;
+                                background: #2980b9;
+                                color: white;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                display: flex;
+                                align-items: center;
+                                gap: 8px;
+                            ">
+                                <i data-lucide="download" style="width: 16px; height: 16px;"></i>
                                 Descargar PDF
                             </button>
                         </div>
@@ -1189,9 +1258,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 document.body.appendChild(modal);
                 
-                // Hacer visible el modal
+                // Hacer visible el modal con animación
                 setTimeout(() => {
-                    modal.classList.add('active');
+                    modal.style.opacity = '1';
                 }, 10);
                 
                 // Inicializar iconos de Lucide
