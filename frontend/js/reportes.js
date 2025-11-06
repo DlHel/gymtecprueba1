@@ -75,6 +75,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             }
 
+            // Click en cards de tipo de reporte
+            document.querySelectorAll('.report-type-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const type = card.dataset.type;
+                    if (type === 'technical-ticket') {
+                        this.openInformeTecnicoModal();
+                    } else {
+                        this.openNewReportModal(type);
+                    }
+                });
+            });
+
+            // Modal de Informe Técnico
+            const informeTicketSelect = document.getElementById('informe-ticket-select');
+            if (informeTicketSelect) {
+                informeTicketSelect.addEventListener('change', (e) => this.onInformeTicketChange(e.target.value));
+            }
+
+            const generateInformeBtn = document.getElementById('generate-informe-btn');
+            if (generateInformeBtn) {
+                generateInformeBtn.addEventListener('click', () => this.handleGenerateInforme());
+            }
+
             // Cerrar modales al hacer clic fuera
             window.addEventListener('click', (e) => {
                 if (e.target.classList.contains('base-modal')) {
@@ -414,6 +437,275 @@ document.addEventListener('DOMContentLoaded', function() {
 
         showFilterModal() {
             this.showNotification('Filtros en desarrollo', 'info');
+        }
+
+        // ==========================================
+        // MÉTODOS PARA INFORMES TÉCNICOS
+        // ==========================================
+
+        async openInformeTecnicoModal() {
+            console.log('📄 Abriendo modal de informe técnico');
+            const modal = document.getElementById('informe-tecnico-modal');
+            if (!modal) {
+                console.error('Modal de informe técnico no encontrado');
+                return;
+            }
+
+            // Cargar tickets completados
+            await this.loadCompletedTickets();
+            
+            // Mostrar modal
+            modal.classList.add('active');
+            
+            // Reinicializar iconos de Lucide
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
+
+        async loadCompletedTickets() {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/tickets?status=completed,closed`);
+                
+                if (!response || !response.ok) {
+                    throw new Error('Error al cargar tickets');
+                }
+
+                const result = await response.json();
+                const tickets = result.data || [];
+
+                const select = document.getElementById('informe-ticket-select');
+                if (!select) return;
+
+                // Limpiar opciones existentes
+                select.innerHTML = '<option value="">Seleccionar ticket completado...</option>';
+
+                // Agregar tickets
+                tickets.forEach(ticket => {
+                    const option = document.createElement('option');
+                    option.value = ticket.id;
+                    option.textContent = `#${ticket.id} - ${ticket.title} (${ticket.client_name || 'Sin cliente'})`;
+                    select.appendChild(option);
+                });
+
+                console.log(`✅ Cargados ${tickets.length} tickets completados`);
+
+            } catch (error) {
+                console.error('Error cargando tickets:', error);
+                this.showNotification('Error al cargar tickets completados', 'error');
+            }
+        }
+
+        async onInformeTicketChange(ticketId) {
+            const previewSection = document.getElementById('informe-preview');
+            const generateBtn = document.getElementById('generate-informe-btn');
+
+            if (!ticketId) {
+                previewSection?.classList.add('hidden');
+                generateBtn?.setAttribute('disabled', 'true');
+                return;
+            }
+
+            try {
+                console.log(`📄 Cargando datos del ticket ${ticketId}`);
+                
+                // Cargar datos del ticket para preview
+                const response = await authenticatedFetch(`${API_URL}/tickets/${ticketId}/informe-data`);
+                
+                if (!response || !response.ok) {
+                    throw new Error('Error al cargar datos del ticket');
+                }
+
+                const result = await response.json();
+                
+                if (result.message === 'success' && result.data) {
+                    this.currentInformeData = result.data;
+                    this.renderInformePreview(result.data);
+                    previewSection?.classList.remove('hidden');
+                    generateBtn?.removeAttribute('disabled');
+                } else {
+                    throw new Error('Datos inválidos recibidos');
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                this.showNotification('Error al cargar datos del ticket', 'error');
+                previewSection?.classList.add('hidden');
+                generateBtn?.setAttribute('disabled', 'true');
+            }
+        }
+
+        renderInformePreview(data) {
+            const { ticket, comments, photos } = data;
+
+            // Extraer comentarios etiquetados
+            const contenido = this.extractTaggedCommentsPreview(comments);
+
+            // Renderizar resumen
+            const resumenEl = document.getElementById('informe-resumen');
+            if (resumenEl) {
+                resumenEl.innerHTML = `
+                    <div class="grid grid-cols-2 gap-2">
+                        <div><strong>Ticket:</strong> #${ticket.id}</div>
+                        <div><strong>Cliente:</strong> ${ticket.client_name || 'N/A'}</div>
+                        <div><strong>Equipo:</strong> ${ticket.equipment_model || 'N/A'}</div>
+                        <div><strong>Ubicación:</strong> ${ticket.location_name || 'N/A'}</div>
+                        <div><strong>Técnico:</strong> ${ticket.technician_name || 'N/A'}</div>
+                        <div><strong>Prioridad:</strong> ${ticket.priority || 'Media'}</div>
+                    </div>
+                `;
+            }
+
+            // Renderizar cada sección
+            this.renderSection('informe-diagnostico', contenido.diagnostico);
+            this.renderSection('informe-trabajo', contenido.trabajo);
+            this.renderSection('informe-solucion', contenido.solucion);
+            this.renderSection('informe-recomendaciones', contenido.recomendaciones);
+
+            // Renderizar comentario de cierre
+            const cierreSection = document.getElementById('informe-cierre-section');
+            const cierreEl = document.getElementById('informe-cierre');
+            if (contenido.cierre) {
+                cierreEl.textContent = contenido.cierre;
+                cierreSection?.classList.remove('hidden');
+            } else {
+                cierreSection?.classList.add('hidden');
+            }
+
+            // Renderizar fotos
+            const fotosSection = document.getElementById('informe-fotos-section');
+            const fotosEl = document.getElementById('informe-fotos');
+            const fotosCountEl = document.getElementById('informe-fotos-count');
+            
+            if (photos && photos.length > 0) {
+                fotosCountEl.textContent = photos.length;
+                fotosEl.innerHTML = photos.slice(0, 8).map(photo => `
+                    <img src="${photo.photo_base64}" alt="Foto" class="w-full h-20 object-cover rounded border border-gray-300">
+                `).join('');
+                fotosSection?.classList.remove('hidden');
+            } else {
+                fotosSection?.classList.add('hidden');
+            }
+
+            // Mostrar advertencia si no hay comentarios etiquetados
+            const warningEl = document.getElementById('informe-warning');
+            const hasContent = contenido.diagnostico.length > 0 || 
+                              contenido.trabajo.length > 0 || 
+                              contenido.solucion.length > 0 || 
+                              contenido.cierre;
+            
+            if (!hasContent && warningEl) {
+                warningEl.classList.remove('hidden');
+            } else if (warningEl) {
+                warningEl.classList.add('hidden');
+            }
+
+            // Reinicializar iconos
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
+        }
+
+        renderSection(elementId, items) {
+            const sectionId = elementId + '-section';
+            const section = document.getElementById(sectionId);
+            const list = document.getElementById(elementId);
+
+            if (!section || !list) return;
+
+            if (Array.isArray(items) && items.length > 0) {
+                list.innerHTML = items.map(item => `<li>${item}</li>`).join('');
+                section.classList.remove('hidden');
+            } else if (typeof items === 'string' && items) {
+                list.innerHTML = `<li>${items}</li>`;
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        }
+
+        extractTaggedCommentsPreview(comments) {
+            const contenido = {
+                diagnostico: [],
+                trabajo: [],
+                solucion: [],
+                recomendaciones: [],
+                cierre: null
+            };
+
+            if (!Array.isArray(comments)) return contenido;
+
+            comments.forEach(comment => {
+                const texto = comment.comment_text || '';
+
+                if (texto.includes('#diagnostico')) {
+                    const clean = texto.replace('#diagnostico', '').trim();
+                    if (clean) contenido.diagnostico.push(clean);
+                }
+                if (texto.includes('#trabajo')) {
+                    const clean = texto.replace('#trabajo', '').trim();
+                    if (clean) contenido.trabajo.push(clean);
+                }
+                if (texto.includes('#solucion')) {
+                    const clean = texto.replace('#solucion', '').trim();
+                    if (clean) contenido.solucion.push(clean);
+                }
+                if (texto.includes('#recomendacion')) {
+                    const clean = texto.replace('#recomendacion', '').trim();
+                    if (clean) contenido.recomendaciones.push(clean);
+                }
+                if (texto.includes('#cierre')) {
+                    const clean = texto.replace('#cierre', '').trim();
+                    if (clean) contenido.cierre = clean;
+                }
+            });
+
+            return contenido;
+        }
+
+        async handleGenerateInforme() {
+            const ticketSelect = document.getElementById('informe-ticket-select');
+            const notasTextarea = document.getElementById('informe-notas-adicionales');
+            
+            if (!ticketSelect || !ticketSelect.value) {
+                this.showNotification('Por favor selecciona un ticket', 'warning');
+                return;
+            }
+
+            const ticketId = parseInt(ticketSelect.value);
+            const notasAdicionales = notasTextarea?.value || '';
+
+            try {
+                console.log(`📄 Generando informe para ticket ${ticketId}`);
+                this.showNotification('Generando informe PDF...', 'info');
+
+                // Si tenemos informes-tecnicos.js cargado, usar su método
+                if (this.generateInformeTecnico) {
+                    // Agregar notas adicionales al data
+                    if (this.currentInformeData) {
+                        this.currentInformeData.notasAdicionales = notasAdicionales;
+                    }
+                    
+                    await this.generateInformeTecnico(ticketId);
+                } else {
+                    console.error('Módulo de informes técnicos no cargado');
+                    this.showNotification('Error: Módulo no disponible', 'error');
+                    return;
+                }
+
+                // Cerrar modal
+                const modal = document.getElementById('informe-tecnico-modal');
+                this.closeModal(modal);
+
+                // Limpiar formulario
+                ticketSelect.value = '';
+                if (notasTextarea) notasTextarea.value = '';
+                document.getElementById('informe-preview')?.classList.add('hidden');
+
+            } catch (error) {
+                console.error('Error generando informe:', error);
+                this.showNotification('Error al generar informe: ' + error.message, 'error');
+            }
         }
     }
 

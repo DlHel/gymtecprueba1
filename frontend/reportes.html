@@ -380,6 +380,115 @@
         </div>
     </div>
 
+    <!-- Modal para Informe Técnico -->
+    <div id="informe-tecnico-modal" class="base-modal">
+        <div class="base-modal-content modal-large">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">📄 Generar Informe Técnico</h3>
+                <button type="button" class="base-modal-close" title="Cerrar modal">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <!-- Selector de Ticket -->
+                <div class="mb-6">
+                    <label class="base-form-label">Ticket Completado <span class="required">*</span></label>
+                    <select id="informe-ticket-select" class="base-form-input">
+                        <option value="">Seleccionar ticket completado...</option>
+                    </select>
+                    <small class="base-form-help">Solo se muestran tickets con estado "completed" o "closed"</small>
+                </div>
+
+                <!-- Vista Previa de Datos (inicialmente oculto) -->
+                <div id="informe-preview" class="hidden">
+                    <h4 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <i data-lucide="eye" class="h-5 w-5"></i>
+                        Vista Previa de Datos Extraídos
+                    </h4>
+
+                    <!-- Resumen del Ticket -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <h5 class="font-medium text-blue-900 mb-2">📋 Información del Ticket</h5>
+                        <div id="informe-resumen" class="text-sm text-blue-800"></div>
+                    </div>
+
+                    <!-- Diagnóstico -->
+                    <div id="informe-diagnostico-section" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 hidden">
+                        <h5 class="font-medium text-gray-900 mb-2">🔍 Diagnóstico Inicial</h5>
+                        <ul id="informe-diagnostico" class="list-disc pl-5 text-sm text-gray-700"></ul>
+                    </div>
+
+                    <!-- Trabajo Realizado -->
+                    <div id="informe-trabajo-section" class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4 hidden">
+                        <h5 class="font-medium text-green-900 mb-2">✓ Trabajo Ejecutado</h5>
+                        <ul id="informe-trabajo" class="list-disc pl-5 text-sm text-green-800"></ul>
+                    </div>
+
+                    <!-- Solución -->
+                    <div id="informe-solucion-section" class="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4 hidden">
+                        <h5 class="font-medium text-purple-900 mb-2">🔧 Solución Aplicada</h5>
+                        <ul id="informe-solucion" class="list-disc pl-5 text-sm text-purple-800"></ul>
+                    </div>
+
+                    <!-- Recomendaciones -->
+                    <div id="informe-recomendaciones-section" class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4 hidden">
+                        <h5 class="font-medium text-orange-900 mb-2">💡 Recomendaciones</h5>
+                        <ul id="informe-recomendaciones" class="list-disc pl-5 text-sm text-orange-800"></ul>
+                    </div>
+
+                    <!-- Fotos -->
+                    <div id="informe-fotos-section" class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 hidden">
+                        <h5 class="font-medium text-gray-900 mb-2">📷 Fotos Incluidas (<span id="informe-fotos-count">0</span>)</h5>
+                        <div id="informe-fotos" class="grid grid-cols-4 gap-2"></div>
+                    </div>
+
+                    <!-- Comentario de Cierre -->
+                    <div id="informe-cierre-section" class="bg-indigo-50 border border-indigo-200 rounded-lg p-4 mb-4 hidden">
+                        <h5 class="font-medium text-indigo-900 mb-2">📝 Comentario de Cierre</h5>
+                        <p id="informe-cierre" class="text-sm text-indigo-800"></p>
+                    </div>
+
+                    <!-- Notas Adicionales -->
+                    <div class="mb-4">
+                        <label class="base-form-label">
+                            📌 Notas Adicionales (Opcional)
+                        </label>
+                        <textarea 
+                            id="informe-notas-adicionales" 
+                            rows="4" 
+                            class="base-form-input"
+                            placeholder="Agregar información adicional que deseas incluir en el informe PDF..."
+                        ></textarea>
+                        <small class="base-form-help">Estas notas se agregarán al final del informe</small>
+                    </div>
+
+                    <!-- Advertencia si no hay comentarios etiquetados -->
+                    <div id="informe-warning" class="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4 hidden">
+                        <div class="flex gap-2">
+                            <i data-lucide="alert-triangle" class="h-5 w-5 text-yellow-600 flex-shrink-0"></i>
+                            <div class="text-sm text-yellow-800">
+                                <strong>Advertencia:</strong> Este ticket no tiene comentarios etiquetados (#diagnostico, #trabajo, #solucion, #recomendacion, #cierre).
+                                El informe será generado con la información básica disponible.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel">Cancelar</button>
+                <button 
+                    type="button" 
+                    id="generate-informe-btn" 
+                    class="base-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled
+                >
+                    <i data-lucide="file-text" class="h-4 w-4"></i>
+                    Generar Informe PDF
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
