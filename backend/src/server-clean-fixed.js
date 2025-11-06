@@ -1121,11 +1121,11 @@ try {
     console.warn('??  Warning: Some Fase 2 routes could not be loaded:', error.message);
 }
 
-// PAYROLL SYSTEM - Sistema de Nï¿½mina Chile
+// PAYROLL SYSTEM - Sistema de Nómina Chile
 try {
     const payrollRoutes = require('./routes/payroll-chile');
     app.use('/api', payrollRoutes);
-    console.log('? Payroll Routes loaded: Sistema de Nï¿½mina Chile con cï¿½lculos automï¿½ticos');
+    console.log('? Payroll Routes loaded: Sistema de Nómina Chile con cálculos automáticos');
 } catch (error) {
     console.warn('âš ï¸  Warning: Some Fase 2 routes could not be loaded:', error.message);
 }
@@ -3262,11 +3262,6 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
     });
 });
 
-// ===================================================================
-
-// ===================================================================
-// DASHBOARD CONSOLIDADO - NUEVOS ENDPOINTS
-// ===================================================================
 
 // Endpoint 1: Resumen de Recursos Humanos
 app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
@@ -3281,7 +3276,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Tï¿½cnicos activos
+        // Técnicos activos
         new Promise((resolve, reject) => {
             db.all(`SELECT COUNT(*) as total FROM Users WHERE role = 'Technician'`, [], (err, rows) => {
                 if (err) reject(err);
@@ -3294,7 +3289,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
             db.all(`
                 SELECT COUNT(DISTINCT user_id) as total 
                 FROM Attendance 
-                WHERE DATE(check_in) = CURDATE()
+                WHERE DATE(check_in_time) = CURDATE()
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'attendance_today', value: rows[0].total });
@@ -3314,7 +3309,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Carga de trabajo por tï¿½cnico
+        // Carga de trabajo por técnico
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3322,7 +3317,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
                     u.username,
                     u.email,
                     COUNT(t.id) as ticket_count,
-                    SUM(CASE WHEN t.priority = 'Crï¿½tica' THEN 1 ELSE 0 END) as critical_count
+                    SUM(CASE WHEN t.priority = 'Crítica' THEN 1 ELSE 0 END) as critical_count
                 FROM Users u
                 LEFT JOIN Tickets t ON t.assigned_technician_id = u.id AND t.status NOT IN ('Cerrado', 'Completado')
                 WHERE u.role = 'Technician'
@@ -3334,7 +3329,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Utilizaciï¿½n de recursos (% de tï¿½cnicos con tickets)
+        // Utilización de recursos (% de técnicos con tickets)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3368,21 +3363,10 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('? Error calculando resumen de recursos (dashboard) - se devolverÃ¡n valores por defecto:', error && error.message || error);
-            // Devolver datos por defecto para evitar 500 en frontend cuando faltan tablas/columnas
-            const defaultSummary = {
-                active_staff: 0,
-                active_technicians: 0,
-                attendance_today: 0,
-                overtime_hours_month: 0,
-                technician_workload: [],
-                resource_utilization: 0
-            };
-            res.json({
-                message: 'success',
-                data: defaultSummary,
-                note: 'Datos parciales - algunas tablas/columnas no disponibles en la base de datos',
-                timestamp: new Date().toISOString()
+            console.error('? Error calculando resumen de recursos:', error);
+            res.status(500).json({ 
+                error: 'Error obteniendo resumen de recursos',
+                details: error.message 
             });
         });
 });
@@ -3404,7 +3388,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Gastos pendientes de aprobaciï¿½n
+        // Gastos pendientes de aprobación
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total, COALESCE(SUM(amount), 0) as total_amount
@@ -3449,7 +3433,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Gastos por categorï¿½a (top 5)
+        // Gastos por categoría (top 5)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3484,19 +3468,10 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('? Error calculando resumen financiero (dashboard) - devolviendo valores por defecto:', error && error.message || error);
-            const defaultSummary = {
-                expenses_this_month: 0,
-                pending_expenses: { count: 0, amount: 0 },
-                pending_invoices: { count: 0, amount: 0 },
-                active_quotes: { count: 0, amount: 0 },
-                expenses_by_category: []
-            };
-            res.json({
-                message: 'success',
-                data: defaultSummary,
-                note: 'Datos simulados - tablas financieras no disponibles o con columnas faltantes',
-                timestamp: new Date().toISOString()
+            console.error('? Error calculando resumen financiero:', error);
+            res.status(500).json({ 
+                error: 'Error obteniendo resumen financiero',
+                details: error.message 
             });
         });
 });
@@ -3510,7 +3485,7 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total 
-                FROM SpareParts 
+                FROM Inventory 
                 WHERE current_stock <= minimum_stock
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -3518,11 +3493,11 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Items con stock crï¿½tico (0 unidades)
+        // Items con stock crítico (0 unidades)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total 
-                FROM SpareParts 
+                FROM Inventory 
                 WHERE current_stock = 0
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -3534,7 +3509,7 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total 
-                FROM SparePartsMovements 
+                FROM InventoryMovements 
                 WHERE DATE(movement_date) = CURDATE()
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -3542,11 +3517,11 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // ï¿½rdenes de compra pendientes
+        // Órdenes de compra pendientes
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
-                FROM SpareParts WHERE 1=0 
+                FROM PurchaseOrders 
                 WHERE status IN ('Pending', 'Approved')
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -3557,18 +3532,18 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Top 5 repuestos mï¿½s usados este mes
+        // Top 5 repuestos más usados este mes
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
-                    i.sku,
-                    i.name,
+                    i.item_code,
+                    i.item_name,
                     SUM(CASE WHEN im.type = 'Salida' THEN im.quantity ELSE 0 END) as usage_count,
                     i.current_stock
-                FROM SpareParts i
-                LEFT JOIN SparePartsMovements im ON im.spare_part_id = i.id 
-                    AND DATE(im.created_at) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-                GROUP BY i.id, i.sku, i.name, i.current_stock
+                FROM Inventory i
+                LEFT JOIN InventoryMovements im ON im.inventory_id = i.id 
+                    AND DATE(im.movement_date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                GROUP BY i.id, i.item_code, i.item_name, i.current_stock
                 ORDER BY usage_count DESC
                 LIMIT 5
             `, [], (err, rows) => {
@@ -3577,16 +3552,16 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
             });
         }),
         
-        // Detalles de items crï¿½ticos
+        // Detalles de items críticos
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
-                    sku,
-                    name,
+                    item_code,
+                    item_name,
                     current_stock,
                     minimum_stock,
-                    0 as unit_cost
-                FROM SpareParts 
+                    unit_cost
+                FROM Inventory 
                 WHERE current_stock <= minimum_stock
                 ORDER BY current_stock ASC
                 LIMIT 10
@@ -3612,20 +3587,10 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('? Error calculando resumen de inventario (dashboard) - devolviendo valores por defecto:', error && error.message || error);
-            const defaultSummary = {
-                low_stock_items: 0,
-                critical_stock_items: 0,
-                movements_today: 0,
-                pending_purchase_orders: { count: 0, amount: 0 },
-                top_used_parts: [],
-                critical_items_detail: []
-            };
-            res.json({
-                message: 'success',
-                data: defaultSummary,
-                note: 'Datos parciales - tabla de inventario/modificaciones no disponibles',
-                timestamp: new Date().toISOString()
+            console.error('? Error calculando resumen de inventario:', error);
+            res.status(500).json({ 
+                error: 'Error obteniendo resumen de inventario',
+                details: error.message 
             });
         });
 });
@@ -3647,7 +3612,7 @@ app.get('/api/dashboard/contracts-sla-summary', authenticateToken, (req, res) =>
             });
         }),
         
-        // Contratos prï¿½ximos a vencer (30 dï¿½as)
+        // Contratos próximos a vencer (30 días)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total
@@ -3698,7 +3663,7 @@ app.get('/api/dashboard/contracts-sla-summary', authenticateToken, (req, res) =>
             });
         }),
         
-        // Cumplimiento SLA promedio (ï¿½ltimos 30 dï¿½as)
+        // Cumplimiento SLA promedio (últimos 30 días)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3721,7 +3686,7 @@ app.get('/api/dashboard/contracts-sla-summary', authenticateToken, (req, res) =>
             });
         }),
         
-        // Detalles de contratos prï¿½ximos a vencer
+        // Detalles de contratos próximos a vencer
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3758,28 +3723,17 @@ app.get('/api/dashboard/contracts-sla-summary', authenticateToken, (req, res) =>
             });
         })
         .catch(error => {
-            console.error('? Error calculando resumen de contratos y SLA (dashboard) - devolviendo valores por defecto:', error && error.message || error);
-            const defaultSummary = {
-                active_contracts: 0,
-                contracts_expiring_soon: 0,
-                expired_contracts: 0,
-                tickets_outside_sla: 0,
-                tickets_at_risk_sla: 0,
-                sla_compliance: { percentage: 0, total_tickets: 0, met_sla: 0 },
-                expiring_contracts_detail: []
-            };
-            res.json({
-                message: 'success',
-                data: defaultSummary,
-                note: 'Datos de contratos simulados - tabla Contracts no disponible o con columnas faltantes',
-                timestamp: new Date().toISOString()
+            console.error('? Error calculando resumen de contratos y SLA:', error);
+            res.status(500).json({ 
+                error: 'Error obteniendo resumen de contratos y SLA',
+                details: error.message 
             });
         });
 });
 
-// Endpoint 5: Alertas Crï¿½ticas Consolidadas
+// Endpoint 5: Alertas Críticas Consolidadas
 app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
-    console.log('?? Solicitando alertas crï¿½ticas...');
+    console.log('?? Solicitando alertas críticas...');
     
     const queries = [
         // Tickets sin asignar > 24 horas
@@ -3803,7 +3757,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
             });
         }),
         
-        // SLA en riesgo AHORA (prï¿½ximas 2 horas)
+        // SLA en riesgo AHORA (próximas 2 horas)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3828,15 +3782,15 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
             });
         }),
         
-        // Stock en 0 (crï¿½tico)
+        // Stock en 0 (crítico)
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
-                    sku,
-                    name,
+                    item_code,
+                    item_name,
                     minimum_stock,
-                    0 as unit_cost
-                FROM SpareParts 
+                    unit_cost
+                FROM Inventory 
                 WHERE current_stock = 0
                 ORDER BY minimum_stock DESC
                 LIMIT 5
@@ -3866,14 +3820,46 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
             });
         }),
         
-        // Equipos fuera de servicio (simulado - tabla Equipment no tiene columna activo)
+        // Equipos fuera de servicio
         new Promise((resolve, reject) => {
-            resolve({ metric: 'equipment_out_of_service', value: [] });
+            db.all(`
+                SELECT 
+                    e.id,
+                    e.name,
+                    e.serial_number,
+                    l.name as location_name,
+                    c.name as client_name
+                FROM Equipment e
+                LEFT JOIN Locations l ON e.location_id = l.id
+                LEFT JOIN Clients c ON l.client_id = c.id
+                WHERE e.activo = 0
+                LIMIT 10
+            `, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'equipment_out_of_service', value: rows });
+            });
         }),
         
-        // Gastos pendientes de aprobaciï¿½n > 7 dï¿½as (simulado - tabla Expenses no existe)
+        // Gastos pendientes de aprobación > 7 días
         new Promise((resolve, reject) => {
-            resolve({ metric: 'expenses_pending_7days', value: [] });
+            db.all(`
+                SELECT 
+                    e.id,
+                    e.description,
+                    e.amount,
+                    e.expense_date,
+                    DATEDIFF(CURDATE(), e.expense_date) as days_pending,
+                    u.username as submitted_by
+                FROM Expenses e
+                LEFT JOIN Users u ON e.user_id = u.id
+                WHERE e.approval_status = 'Pending'
+                AND e.expense_date < DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+                ORDER BY e.expense_date ASC
+                LIMIT 5
+            `, [], (err, rows) => {
+                if (err) reject(err);
+                else resolve({ metric: 'expenses_pending_7days', value: rows });
+            });
         })
     ];
     
@@ -3893,7 +3879,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
                 (alerts.equipment_out_of_service?.length || 0) +
                 (alerts.expenses_pending_7days?.length || 0);
             
-            console.log(`? Alertas crï¿½ticas calculadas: ${totalAlerts} alertas totales`);
+            console.log(`? Alertas críticas calculadas: ${totalAlerts} alertas totales`);
             res.json({
                 message: 'success',
                 data: alerts,
@@ -3902,168 +3888,93 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('? Error calculando alertas crÃ­ticas (dashboard) - devolviendo valores por defecto:', error && error.message || error);
-            const defaultAlerts = {
-                unassigned_tickets_24h: [],
-                sla_critical_2h: [],
-                zero_stock_items: [],
-                contracts_expiring_week: [],
-                equipment_out_of_service: [],
-                expenses_pending_7days: []
-            };
-            res.json({
-                message: 'success',
-                data: defaultAlerts,
-                total_alerts: 0,
-                note: 'Alertas parciales - algunas tablas/columnas no disponibles',
-                timestamp: new Date().toISOString()
+            console.error('? Error calculando alertas críticas:', error);
+            res.status(500).json({ 
+                error: 'Error obteniendo alertas críticas',
+                details: error.message 
             });
         });
 });
 
-// Endpoint 6: KPIs Mejorados (actualizaciï¿½n del existente)
-app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
+// Endpoint 6: KPIs Mejorados (actualización del existente)
+app.get('/api/dashboard/kpis-enhanced', authenticateToken, async (req, res) => {
     console.log('?? Solicitando KPIs mejorados del dashboard...');
-    
-    const queries = [
-        // KPIs originales
-        new Promise((resolve, reject) => {
-            db.all('SELECT COUNT(*) as total FROM Clients', [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'total_clients', value: rows[0].total });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all('SELECT COUNT(*) as total FROM Equipment', [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'total_equipment', value: rows[0].total });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Tickets WHERE status NOT IN ('Cerrado', 'Completado')`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'active_tickets', value: rows[0].total });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Tickets WHERE priority = 'Crï¿½tica' AND status NOT IN ('Cerrado', 'Completado')`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'critical_tickets', value: rows[0].total });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM SpareParts WHERE current_stock <= minimum_stock`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'low_stock_items', value: rows[0].total });
-            });
-        }),
-        
-        // Nuevos KPIs
-        new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Contracts WHERE status = 'Active' AND end_date >= CURDATE()`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'active_contracts', value: rows[0].total });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'Manager', 'Admin')`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'active_staff', value: rows[0].total });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(DISTINCT user_id) as total FROM Attendance WHERE DATE(check_in) = CURDATE()`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'attendance_today', value: rows[0].total });
-            });
-        }),
-        
-        // Datos para grï¿½ficos
-        new Promise((resolve, reject) => {
-            db.all(`
-                SELECT 
-                    status,
-                    COUNT(*) as count
-                FROM Tickets
-                GROUP BY status
-                ORDER BY count DESC
-            `, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'tickets_by_status', value: rows });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`
-                SELECT 
-                    priority,
-                    COUNT(*) as count
-                FROM Tickets
-                WHERE status NOT IN ('Cerrado', 'Completado')
-                GROUP BY priority
-                ORDER BY FIELD(priority, 'Crï¿½tica', 'Alta', 'Media', 'Baja')
-            `, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'tickets_by_priority', value: rows });
-            });
-        }),
-        new Promise((resolve, reject) => {
-            db.all(`
+    try {
+        const queries = [
+            // Total clientes
+            db.allAsync('SELECT COUNT(*) as total FROM Clients', []),
+            
+            // Total equipos  
+            db.allAsync('SELECT COUNT(*) as total FROM Equipment', []),
+            
+            // Tickets activos
+            db.allAsync(`SELECT COUNT(*) as total FROM Tickets WHERE status NOT IN ('Cerrado', 'Resuelto')`, []),
+            
+            // Tickets críticos
+            db.allAsync(`SELECT COUNT(*) as total FROM Tickets WHERE priority IN ('Urgente', 'Alta') AND status NOT IN ('Cerrado', 'Resuelto')`, []),
+            
+            // Items con stock bajo (SpareParts)
+            db.allAsync('SELECT COUNT(*) as total FROM SpareParts WHERE current_stock <= minimum_stock', []),
+            
+            // Contratos activos (SIMULADO = 0, no existe tabla Contracts)
+            Promise.resolve([{ total: 0 }]),
+            
+            // Personal activo
+            db.allAsync(`SELECT COUNT(*) as total FROM Users WHERE role_id IS NOT NULL`, []),
+            
+            // Asistencia hoy
+            db.allAsync(`SELECT COUNT(DISTINCT user_id) as total FROM Attendance WHERE DATE(check_in) = CURDATE()`, []),
+            
+            // Tickets por estado
+            db.allAsync(`SELECT status, COUNT(*) as count FROM Tickets WHERE status NOT IN ('Cerrado', 'Resuelto') GROUP BY status`, []),
+            
+            // Tickets por prioridad
+            db.allAsync(`SELECT priority, COUNT(*) as count FROM Tickets WHERE status NOT IN ('Cerrado', 'Resuelto') GROUP BY priority`, []),
+            
+            // Técnicos con carga (CORREGIDO: assigned_technician_id)
+            db.allAsync(`
                 SELECT 
                     u.id,
                     u.username,
                     COUNT(t.id) as ticket_count
                 FROM Users u
-                LEFT JOIN Tickets t ON t.assigned_technician_id = u.id AND t.status NOT IN ('Cerrado', 'Completado')
-                WHERE u.role = 'Technician'
+                LEFT JOIN Tickets t ON t.assigned_technician_id = u.id AND t.status NOT IN ('Cerrado', 'Resuelto')
                 GROUP BY u.id, u.username
                 ORDER BY ticket_count DESC
                 LIMIT 10
-            `, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'technician_workload', value: rows });
-            });
-        })
-    ];
-    
-    Promise.all(queries)
-        .then(results => {
-            const kpis = {};
-            results.forEach(result => {
-                kpis[result.metric] = result.value;
-            });
-            
-            console.log('? KPIs mejorados calculados:', Object.keys(kpis).length, 'mï¿½tricas');
-            res.json({
-                message: 'success',
-                data: kpis,
-                timestamp: new Date().toISOString()
-            });
-        })
-        .catch(error => {
-            console.error('? Error calculando KPIs mejorados (dashboard) - devolviendo valores por defecto:', error && error.message || error);
-            const defaultKpis = {
-                total_clients: 0,
-                total_equipment: 0,
-                active_tickets: 0,
-                critical_tickets: 0,
-                low_stock_items: 0,
-                active_contracts: 0,
-                active_staff: 0,
-                attendance_today: 0,
-                tickets_by_status: [],
-                tickets_by_priority: [],
-                technician_workload: []
-            };
-            res.json({
-                message: 'success',
-                data: defaultKpis,
-                note: 'KPIs parciales - algunas tablas/columnas no disponibles',
-                timestamp: new Date().toISOString()
-            });
+            `, [])
+        ];
+
+        const results = await Promise.all(queries);
+
+        const data = {
+            total_clients: results[0][0]?.total || 0,
+            total_equipment: results[1][0]?.total || 0,
+            active_tickets: results[2][0]?.total || 0,
+            critical_tickets: results[3][0]?.total || 0,
+            low_stock_items: results[4][0]?.total || 0,
+            active_contracts: results[5][0]?.total || 0,
+            active_staff: results[6][0]?.total || 0,
+            attendance_today: results[7][0]?.total || 0,
+            tickets_by_status: results[8] || [],
+            tickets_by_priority: results[9] || [],
+            technician_workload: results[10] || []
+        };
+
+        console.log('? KPIs mejorados calculados');
+        res.json({
+            message: 'success',
+            data: data,
+            timestamp: new Date().toISOString()
         });
+    } catch (error) {
+        console.error('? Error calculando KPIs mejorados:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 
+// ===================================================================
 // MANEJADORES GLOBALES DE ERRORES Y FINALIZACIÃ“N
 // ===================================================================
 
@@ -6665,7 +6576,7 @@ app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin
 });
 
 // ===================================================================
-// ENDPOINTS ESPECï¿½?FICOS PARA APROBACIï¿½"N/RECHAZO (ADMIN)
+// ENDPOINTS ESPECÃ?FICOS PARA APROBACIÃ"N/RECHAZO (ADMIN)
 // ===================================================================
 
 // PATCH - Aprobar horas extras (con ajuste manual de horas)
@@ -6673,12 +6584,12 @@ app.patch('/api/overtime/:id/approve', authenticateToken, requireRole(['Admin', 
     const { hours_approved } = req.body;
     const overtimeId = req.params.id;
     
-    // Validar que hours_approved sea un nï¿½mero positivo
+    // Validar que hours_approved sea un número positivo
     if (!hours_approved || hours_approved <= 0) {
         return res.status(400).json({ error: 'Horas aprobadas debe ser mayor a 0' });
     }
     
-    // Verificar que no se aprueben mï¿½s horas de las solicitadas
+    // Verificar que no se aprueben más horas de las solicitadas
     const checkSql = 'SELECT hours_requested FROM Overtime WHERE id = ?';
     
     db.get(checkSql, [overtimeId], (err, row) => {
@@ -6693,7 +6604,7 @@ app.patch('/api/overtime/:id/approve', authenticateToken, requireRole(['Admin', 
         
         if (hours_approved > row.hours_requested) {
             return res.status(400).json({ 
-                error: `No puede aprobar mï¿½s horas (${hours_approved}h) de las solicitadas (${row.hours_requested}h)` 
+                error: `No puede aprobar más horas (${hours_approved}h) de las solicitadas (${row.hours_requested}h)` 
             });
         }
         
@@ -6799,7 +6710,7 @@ app.patch('/api/leave-requests/:id/reject', authenticateToken, requireRole(['Adm
     });
 });
 
-// GET - Estadï¿½sticas del dï¿½a para administradores
+// GET - Estadísticas del día para administradores
 app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const today = new Date().toISOString().split('T')[0];
     
@@ -6807,7 +6718,7 @@ app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 
         // Empleados presentes (con check-in hoy)
         present: `SELECT COUNT(DISTINCT user_id) as count FROM Attendance WHERE DATE(check_in) = ?`,
         
-        // Llegadas tarde (check-in despuï¿½s de horario)
+        // Llegadas tarde (check-in después de horario)
         late: `SELECT COUNT(DISTINCT a.user_id) as count 
                FROM Attendance a 
                JOIN EmployeeSchedules es ON a.user_id = es.user_id
@@ -6846,7 +6757,7 @@ app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 
             
             completed++;
             if (completed === total) {
-                console.log('?? Estadï¿½sticas del dï¿½a generadas:', stats);
+                console.log('?? Estadísticas del día generadas:', stats);
                 res.json({ message: 'success', data: stats });
             }
         });
@@ -6856,14 +6767,14 @@ app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 
 console.log('âœ… Rutas principales de asistencia registradas (shift-types, schedules, employee-schedules, attendance, summary, stats, check-in, check-out, overtime, leave-requests)');
 
 // ===================================================================
-// Nï¿½MINA CHILE - ENDPOINTS
+// NÓMINA CHILE - ENDPOINTS
 // ===================================================================
 try {
     const payrollRoutes = require('./routes/payroll-chile');
     payrollRoutes(app, db, authenticateToken, requireRole, toMySQLDateTime);
-    console.log(' Rutas de Nï¿½mina Chile cargadas correctamente');
+    console.log(' Rutas de Nómina Chile cargadas correctamente');
 } catch (error) {
-    console.warn(' No se pudieron cargar rutas de nï¿½mina:', error.message);
+    console.warn(' No se pudieron cargar rutas de nómina:', error.message);
 }
 
 // ===================================================================

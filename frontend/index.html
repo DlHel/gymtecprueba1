@@ -8,78 +8,7 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-        .nav-link.active { background-color: #eef2ff; color: #4f46e5; font-weight: 600; }
-        
-        /* Estilos para correlaciones inteligentes */
-        .correlation-section {
-            margin-top: 2rem;
-        }
-        
-        .loading-small {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            color: #6b7280;
-            font-size: 0.875rem;
-        }
-        
-        .correlation-metric {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid #f3f4f6;
-        }
-        
-        .correlation-metric:last-child {
-            border-bottom: none;
-        }
-        
-        .metric-label {
-            font-size: 0.875rem;
-            color: #374151;
-            font-weight: 500;
-        }
-        
-        .metric-value {
-            font-weight: 600;
-            font-size: 0.875rem;
-        }
-        
-        .metric-value.success { color: #059669; }
-        .metric-value.warning { color: #d97706; }
-        .metric-value.danger { color: #dc2626; }
-        .metric-value.neutral { color: #6b7280; }
-        
-        .correlation-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.25rem 0.5rem;
-            border-radius: 0.375rem;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        
-        .correlation-badge.success {
-            background-color: #dcfce7;
-            color: #166534;
-        }
-        
-        .correlation-badge.warning {
-            background-color: #fef3c7;
-            color: #92400e;
-        }
-        
-        .correlation-badge.danger {
-            background-color: #fecaca;
-            color: #991b1b;
-        }
-    </style>
+</head>
 <body>
     <div class="flex h-screen">
         <!-- El menú se cargará aquí -->
@@ -106,182 +35,149 @@
             </header>
             
             <!-- Contenido principal -->
-            <main class="flex-1 overflow-y-auto section-spacing">
-                <div class="dashboard-container">
+            <main class="flex-1 overflow-y-auto bg-gray-50">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <!-- Error Container -->
                     <div id="error-container"></div>
 
-                    <!-- Dashboard Header -->
-                    <div class="dashboard-header">
-                        <div>
-                            <h1 class="dashboard-title">Dashboard Operacional</h1>
-                            <p class="dashboard-subtitle">Resumen general del sistema ERP - Datos en tiempo real</p>
-                        </div>
-                        <div class="dashboard-actions">
-                            <button id="refresh-dashboard" class="refresh-btn">
-                                <i data-lucide="refresh-cw"></i>
-                                Actualizar
-                            </button>
-                            <button id="generate-tasks-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2 ml-2">
-                                <i data-lucide="calendar-plus"></i>
-                                <span>Generar Tareas</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Enlaces Rápidos -->
-                    <div class="quick-links">
-                        <a href="tickets.html" class="quick-link">
-                            <i data-lucide="ticket"></i>
-                            <span class="quick-link-text">Gestionar Tickets</span>
-                        </a>
-                        <a href="clientes.html" class="quick-link">
-                            <i data-lucide="users"></i>
-                            <span class="quick-link-text">Gestionar Clientes</span>
-                        </a>
-                        <a href="inventario.html" class="quick-link">
-                            <i data-lucide="package"></i>
-                            <span class="quick-link-text">Inventario</span>
-                        </a>
-                        <a href="modelos.html" class="quick-link">
-                            <i data-lucide="server"></i>
-                            <span class="quick-link-text">Modelos de Equipos</span>
-                        </a>
-                        <a href="personal.html" class="quick-link">
-                            <i data-lucide="user-check"></i>
-                            <span class="quick-link-text">Personal</span>
-                        </a>
-                        <a href="finanzas.html" class="quick-link">
-                            <i data-lucide="dollar-sign"></i>
-                            <span class="quick-link-text">Finanzas</span>
-                        </a>
-                    </div>
-
-                    <!-- KPI Cards Grid -->
-                    <div id="kpi-container" class="kpi-grid">
-                        <!-- Los KPIs se cargarán dinámicamente -->
-                        <div class="loading">
-                            <i data-lucide="loader"></i>
-                            <span>Cargando estadísticas...</span>
-                        </div>
-                    </div>
-
-                    <!-- Resúmenes de Correlación Inteligente -->
-                    <div class="correlation-section mt-8">
-                        <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                            <i data-lucide="activity" class="w-6 h-6 mr-2 text-indigo-600"></i>
-                            Correlaciones Inteligentes
-                        </h2>
-                        
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            <!-- Resumen SLA vs Planificación -->
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">SLA vs Planificación</h3>
-                                    <i data-lucide="target" class="w-5 h-5 text-indigo-600"></i>
-                                </div>
-                                <div id="sla-planning-summary" class="space-y-3">
-                                    <div class="loading-small">
-                                        <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
-                                        <span class="text-sm">Cargando correlación...</span>
-                                    </div>
-                                </div>
+                    <!-- Dashboard Header mejorado -->
+                    <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div>
+                                <h1 class="text-2xl font-bold text-gray-900">Dashboard Operacional</h1>
+                                <p class="text-sm text-gray-600 mt-1">Resumen general del sistema - <span id="last-update" class="font-medium">Cargando...</span></p>
                             </div>
-
-                            <!-- Resumen Contratos Activos -->
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">Contratos & SLA</h3>
-                                    <i data-lucide="file-text" class="w-5 h-5 text-green-600"></i>
-                                </div>
-                                <div id="contracts-summary" class="space-y-3">
-                                    <div class="loading-small">
-                                        <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
-                                        <span class="text-sm">Cargando contratos...</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Resumen Eficiencia Operacional -->
-                            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="text-lg font-semibold text-gray-800">Eficiencia Operacional</h3>
-                                    <i data-lucide="trending-up" class="w-5 h-5 text-blue-600"></i>
-                                </div>
-                                <div id="efficiency-summary" class="space-y-3">
-                                    <div class="loading-small">
-                                        <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
-                                        <span class="text-sm">Calculando eficiencia...</span>
-                                    </div>
-                                </div>
+                            <div class="flex gap-3">
+                                <button id="refresh-dashboard" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                                    <i data-lucide="refresh-cw" class="w-4 h-4 mr-2"></i>
+                                    Actualizar
+                                </button>
+                                <button id="generate-tasks-btn" class="inline-flex items-center px-4 py-2 bg-indigo-600 rounded-lg text-sm font-medium text-white hover:bg-indigo-700 transition-colors">
+                                    <i data-lucide="calendar-plus" class="w-4 h-4 mr-2"></i>
+                                    Generar Tareas
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Charts Grid -->
-                    <div class="charts-grid">
-                        <!-- Gráfico de Tickets por Estado -->
-                        <div class="chart-card">
+                    <!-- Widget de Alertas Críticas (primero, más importante) -->
+                    <div id="critical-alerts-widget" class="mb-6">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <div class="flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando alertas críticas...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- KPI Cards Grid (compacto y limpio) -->
+                    <div id="kpi-container" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white rounded-lg shadow-sm p-6 flex items-center justify-center">
+                            <div class="flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando KPIs...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Paneles Consolidados (reorganizados) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <!-- Panel de Actividad Reciente (más importante arriba) -->
+                        <div id="recent-activity" class="bg-white rounded-lg shadow-sm">
+                            <div class="p-6 flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando actividad...</span>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Contratos & SLA -->
+                        <div id="contracts-sla-panel" class="bg-white rounded-lg shadow-sm">
+                            <div class="p-6 flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando contratos y SLA...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Resúmenes Compactos (3 columnas) -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                        <!-- Panel Financiero -->
+                        <div id="financial-panel" class="bg-white rounded-lg shadow-sm">
+                            <div class="p-6 flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando finanzas...</span>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Inventario -->
+                        <div id="inventory-panel" class="bg-white rounded-lg shadow-sm">
+                            <div class="p-6 flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando inventario...</span>
+                            </div>
+                        </div>
+
+                        <!-- Panel de Recursos -->
+                        <div id="resources-panel" class="bg-white rounded-lg shadow-sm">
+                            <div class="p-6 flex items-center gap-2 text-gray-500">
+                                <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                <span class="text-sm">Cargando recursos...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gráficos de Análisis (lado a lado) -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="bg-white rounded-lg shadow-sm p-6">
                             <div id="ticket-status-chart">
-                                <div class="loading">
-                                    <i data-lucide="loader"></i>
-                                    <span>Cargando gráfico...</span>
+                                <div class="flex items-center gap-2 text-gray-500">
+                                    <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                    <span class="text-sm">Cargando gráfico de estados...</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Gráfico de Actividad Reciente -->
-                        <div class="chart-card">
-                            <div id="activity-chart">
-                                <div class="loading">
-                                    <i data-lucide="loader"></i>
-                                    <span>Cargando actividad...</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Gráfico de Carga de Técnicos -->
-                        <div class="chart-card">
-                            <div id="technician-workload-chart">
-                                <div class="loading">
-                                    <i data-lucide="loader"></i>
-                                    <span>Cargando carga de trabajo...</span>
+                        <div class="bg-white rounded-lg shadow-sm p-6">
+                            <div id="ticket-priority-chart">
+                                <div class="flex items-center gap-2 text-gray-500">
+                                    <i data-lucide="loader" class="w-4 h-4 animate-spin"></i>
+                                    <span class="text-sm">Cargando gráfico de prioridades...</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Actividad Reciente -->
-                    <div class="activity-section">
-                        <div id="recent-activity">
-                            <div class="loading">
-                                <i data-lucide="loader"></i>
-                                <span>Cargando actividad reciente...</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Footer con información adicional -->
-                    <div class="mt-8 pt-6 border-t border-gray-200">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
-                            <div>
-                                <h4 class="font-semibold mb-2">Sistema ERP</h4>
-                                <p>Versión 2.0</p>
-                                <p>Gymtec - Soluciones Integrales</p>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold mb-2">Última Actualización</h4>
-                                <p id="last-update">Cargando...</p>
-                                <p>Actualización automática cada 5 minutos</p>
-                            </div>
-                            <div>
-                                <h4 class="font-semibold mb-2">Estado del Sistema</h4>
-                                <div class="flex items-center gap-2">
-                                    <div class="w-3 h-3 bg-green-500 rounded-full"></div>
-                                    <span>Sistema Operativo</span>
-                                </div>
-                                <p class="mt-1">Todos los servicios funcionando correctamente</p>
-                            </div>
+                    <!-- Enlaces Rápidos (más compactos al final) -->
+                    <div class="bg-white rounded-lg shadow-sm p-6">
+                        <h3 class="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                            <i data-lucide="zap" class="w-4 h-4 mr-2 text-indigo-600"></i>
+                            Accesos Rápidos
+                        </h3>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                            <a href="tickets.html" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
+                                <i data-lucide="ticket" class="w-6 h-6 text-gray-600 group-hover:text-indigo-600 mb-2"></i>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-indigo-700 text-center">Tickets</span>
+                            </a>
+                            <a href="clientes.html" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
+                                <i data-lucide="users" class="w-6 h-6 text-gray-600 group-hover:text-indigo-600 mb-2"></i>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-indigo-700 text-center">Clientes</span>
+                            </a>
+                            <a href="inventario.html" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
+                                <i data-lucide="package" class="w-6 h-6 text-gray-600 group-hover:text-indigo-600 mb-2"></i>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-indigo-700 text-center">Inventario</span>
+                            </a>
+                            <a href="modelos.html" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
+                                <i data-lucide="server" class="w-6 h-6 text-gray-600 group-hover:text-indigo-600 mb-2"></i>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-indigo-700 text-center">Modelos</span>
+                            </a>
+                            <a href="personal.html" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
+                                <i data-lucide="user-check" class="w-6 h-6 text-gray-600 group-hover:text-indigo-600 mb-2"></i>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-indigo-700 text-center">Personal</span>
+                            </a>
+                            <a href="finanzas.html" class="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-indigo-300 hover:bg-indigo-50 transition-all group">
+                                <i data-lucide="dollar-sign" class="w-6 h-6 text-gray-600 group-hover:text-indigo-600 mb-2"></i>
+                                <span class="text-xs font-medium text-gray-700 group-hover:text-indigo-700 text-center">Finanzas</span>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -373,12 +269,10 @@
             const lastUpdateElement = document.getElementById('last-update');
             if (lastUpdateElement) {
                 const now = new Date();
-                lastUpdateElement.textContent = now.toLocaleString('es-ES', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
+                lastUpdateElement.textContent = 'Actualizado: ' + now.toLocaleString('es-ES', {
                     hour: '2-digit',
-                    minute: '2-digit'
+                    minute: '2-digit',
+                    second: '2-digit'
                 });
             }
         }
@@ -393,8 +287,8 @@
             authManager.renderUserInfo('user-info');
 
             updateLastUpdateTime();
-            // Actualizar cada minuto
-            setInterval(updateLastUpdateTime, 60000);
+            // Actualizar cada 30 segundos
+            setInterval(updateLastUpdateTime, 30000);
         });
     </script>
 </body>
