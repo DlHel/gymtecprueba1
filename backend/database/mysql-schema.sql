@@ -748,4 +748,24 @@ INSERT INTO `Schedules` (`name`, `description`, `total_hours_per_week`) VALUES
 ('Medio Tiempo 20h', 'Jornada parcial de 20 horas semanales', 20.00),
 ('Tiempo Completo 45h', 'Jornada laboral de 45 horas semanales', 45.00);
 
-COMMIT; 
+-- =====================================================
+-- Tabla de Informes Técnicos
+-- =====================================================
+CREATE TABLE IF NOT EXISTS `InformesTecnicos` (
+    `id` INT(11) NOT NULL AUTO_INCREMENT,
+    `ticket_id` INT(11) NOT NULL,
+    `filename` VARCHAR(255) NOT NULL,
+    `generated_by` INT(11) NOT NULL,
+    `generated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `sent_to_client` BOOLEAN DEFAULT FALSE,
+    `client_email` VARCHAR(255),
+    `sent_at` TIMESTAMP NULL,
+    `notas_adicionales` TEXT,
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`ticket_id`) REFERENCES `Tickets` (`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`generated_by`) REFERENCES `Users` (`id`) ON DELETE CASCADE,
+    INDEX `idx_informes_ticket` (`ticket_id`),
+    INDEX `idx_informes_generated_at` (`generated_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+COMMIT;

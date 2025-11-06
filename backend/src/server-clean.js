@@ -7812,6 +7812,89 @@ app.use((err, req, res, next) => {
     });
 });
 
+
+// =====================================================
+// ENDPOINTS DE INFORMES TÉCNICOS
+// =====================================================
+
+// Obtener datos completos para informe
+app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
+    const ticketId = req.params.id;
+    console.log('📄 Solicitando datos para informe del ticket ' + ticketId);
+    
+    const queries = {
+        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.type as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_to = u.id WHERE t.id = ?',
+        comments: 'SELECT tc.*, u.username as author_name FROM TicketComments tc LEFT JOIN Users u ON tc.user_id = u.id WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
+        photos: 'SELECT id, photo_base64, uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY uploaded_at ASC'
+    };
+    
+    Promise.all([
+        new Promise((resolve, reject) => db.get(queries.ticket, [ticketId], (err, row) => err ? reject(err) : resolve(row))),
+        new Promise((resolve, reject) => db.all(queries.comments, [ticketId], (err, rows) => err ? reject(err) : resolve(rows || []))),
+        new Promise((resolve, reject) => db.all(queries.photos, [ticketId], (err, rows) => err ? reject(err) : resolve(rows || [])))
+    ])
+    .then(([ticket, comments, photos]) => {
+        if (!ticket) return res.status(404).json({ message: 'error', error: 'Ticket no encontrado' });
+        console.log('✅ Datos obtenidos: ' + comments.length + ' comentarios, ' + photos.length + ' fotos');
+        res.json({ message: 'success', data: { ticket, comments, photos } });
+    })
+    .catch(error => {
+        console.error('❌ Error:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    });
+});
+
+// Registrar informe generado
+app.post('/api/informes', authenticateToken, (req, res) => {
+    const { ticket_id, filename, notas_adicionales, client_email } = req.body;
+    const sql = 'INSERT INTO InformesTecnicos (ticket_id, filename, generated_by, notas_adicionales, client_email) VALUES (?, ?, ?, ?, ?)';
+    
+    db.run(sql, [ticket_id, filename, req.user.id, notas_adicionales, client_email], function(err) {
+        if (err) return res.status(500).json({ message: 'error', error: err.message });
+        console.log('✅ Informe registrado: ' + this.lastID);
+        res.json({ message: 'success', data: { id: this.lastID, ticket_id, filename } });
+    });
+});
+
+// Listar informes
+app.get('/api/informes', authenticateToken, (req, res) => {
+    const { ticket_id, date_from, date_to } = req.query;
+    let sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.generated_by = u.id WHERE 1=1';
+    const params = [];
+    
+    if (ticket_id) { sql += ' AND i.ticket_id = ?'; params.push(ticket_id); }
+    if (date_from) { sql += ' AND i.generated_at >= ?'; params.push(date_from); }
+    if (date_to) { sql += ' AND i.generated_at <= ?'; params.push(date_to); }
+    sql += ' ORDER BY i.generated_at DESC';
+    
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).json({ message: 'error', error: err.message });
+        res.json({ message: 'success', data: rows || [] });
+    });
+});
+
+// Obtener informe específico
+app.get('/api/informes/:id', authenticateToken, (req, res) => {
+    const sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.generated_by = u.id WHERE i.id = ?';
+    
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) return res.status(500).json({ message: 'error', error: err.message });
+        if (!row) return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// Marcar como enviado
+app.patch('/api/informes/:id/enviar', authenticateToken, (req, res) => {
+    const sql = 'UPDATE InformesTecnicos SET sent_to_client = TRUE, sent_at = CURRENT_TIMESTAMP, client_email = ? WHERE id = ?';
+    
+    db.run(sql, [req.body.client_email, req.params.id], function(err) {
+        if (err) return res.status(500).json({ message: 'error', error: err.message });
+        if (this.changes === 0) return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+        console.log('✅ Informe ' + req.params.id + ' marcado como enviado');
+        res.json({ message: 'success', data: { id: req.params.id, sent: true } });
+    });
+});
 // ===================================================================
 // PROCESS HANDLERS
 // ===================================================================

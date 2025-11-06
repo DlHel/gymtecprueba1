@@ -270,7 +270,7 @@ class DashboardManager {
                 ${hasAlerts ? `
                     <div class="space-y-3">
                         ${this.renderAlertItem('Tickets sin asignar > 24h', alerts.unassigned_tickets_24h?.length || 0, 'user-x', 'tickets.html')}
-                        ${this.renderAlertItem('SLA crítico (< 2h)', alerts.sla_critical_2h?.length || 0, 'clock', 'sla-dashboard.html')}
+                        ${this.renderAlertItem('SLA crítico (< 2h)', alerts.sla_critical_2h?.length || 0, 'clock', 'tickets.html?filter=sla_critical')}
                         ${this.renderAlertItem('Stock en 0', alerts.zero_stock_items?.length || 0, 'package-x', 'inventario.html')}
                         ${this.renderAlertItem('Contratos vencen esta semana', alerts.contracts_expiring_week?.length || 0, 'file-warning', 'contratos.html')}
                         ${this.renderAlertItem('Equipos fuera de servicio', alerts.equipment_out_of_service?.length || 0, 'power-off', 'equipo.html')}
