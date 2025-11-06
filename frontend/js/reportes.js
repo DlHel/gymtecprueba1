@@ -1044,46 +1044,142 @@ document.addEventListener('DOMContentLoaded', function() {
         // Método para visualizar reporte
         async viewReport(reportId) {
             try {
+                console.log('👁️ Intentando visualizar reporte ID:', reportId);
+                
                 const report = this.reports.find(r => r.id === reportId);
                 if (!report) {
+                    console.error('❌ Reporte no encontrado:', reportId);
                     this.showNotification('Reporte no encontrado', 'error');
                     return;
                 }
 
-                console.log('👁️ Visualizando reporte:', report);
+                console.log('✅ Reporte encontrado:', report);
+
+                // Obtener datos completos del ticket si existe
+                let ticketData = null;
+                if (report.ticketId || (report.data && report.data.ticketId)) {
+                    const ticketId = report.ticketId || report.data.ticketId;
+                    try {
+                        const response = await window.authManager.authenticatedFetch(
+                            `${window.API_URL}/tickets/${ticketId}/detail`
+                        );
+                        if (response.ok) {
+                            const result = await response.json();
+                            ticketData = result.data;
+                            console.log('✅ Datos del ticket obtenidos:', ticketData);
+                        }
+                    } catch (error) {
+                        console.warn('⚠️ No se pudo cargar detalle del ticket:', error);
+                    }
+                }
                 
-                // Crear modal de vista previa
+                // Crear modal de vista previa mejorado
                 const modal = document.createElement('div');
-                modal.className = 'base-modal active';
+                modal.className = 'base-modal';
                 modal.id = 'view-report-modal';
+                modal.style.display = 'flex';
+                
+                // Contenido del modal
+                let contentHTML = '';
+                
+                if (ticketData) {
+                    // Vista previa con datos del ticket
+                    contentHTML = `
+                        <div style="padding: 20px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                <h4 style="margin: 0 0 10px 0; color: #2980b9;">
+                                    <i data-lucide="file-text" style="width: 20px; height: 20px;"></i>
+                                    Informe Técnico - Ticket #${ticketData.id}
+                                </h4>
+                                <p style="margin: 5px 0; color: #666;">
+                                    <strong>Título:</strong> ${ticketData.title || 'N/A'}
+                                </p>
+                                <p style="margin: 5px 0; color: #666;">
+                                    <strong>Estado:</strong> ${ticketData.status || 'N/A'} | 
+                                    <strong>Prioridad:</strong> ${ticketData.priority || 'N/A'}
+                                </p>
+                            </div>
+                            
+                            ${ticketData.client_name ? `
+                                <div style="margin-bottom: 15px;">
+                                    <h5 style="color: #2980b9; margin-bottom: 8px;">Cliente y Ubicación</h5>
+                                    <p style="margin: 5px 0;"><strong>Cliente:</strong> ${ticketData.client_name}</p>
+                                    ${ticketData.location_name ? `<p style="margin: 5px 0;"><strong>Ubicación:</strong> ${ticketData.location_name}</p>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${ticketData.equipment_details ? `
+                                <div style="margin-bottom: 15px;">
+                                    <h5 style="color: #2980b9; margin-bottom: 8px;">Equipo</h5>
+                                    <p style="margin: 5px 0;"><strong>Modelo:</strong> ${ticketData.equipment_details.model || 'N/A'}</p>
+                                    <p style="margin: 5px 0;"><strong>Marca:</strong> ${ticketData.equipment_details.brand || 'N/A'}</p>
+                                    ${ticketData.equipment_details.serial_number ? `<p style="margin: 5px 0;"><strong>Serie:</strong> ${ticketData.equipment_details.serial_number}</p>` : ''}
+                                </div>
+                            ` : ''}
+                            
+                            ${ticketData.description ? `
+                                <div style="margin-bottom: 15px;">
+                                    <h5 style="color: #2980b9; margin-bottom: 8px;">Descripción del Problema</h5>
+                                    <p style="margin: 5px 0; line-height: 1.6;">${ticketData.description}</p>
+                                </div>
+                            ` : ''}
+                            
+                            ${ticketData.notes && ticketData.notes.length > 0 ? `
+                                <div style="margin-bottom: 15px;">
+                                    <h5 style="color: #2980b9; margin-bottom: 8px;">Trabajo Realizado (${ticketData.notes.length} notas)</h5>
+                                    ${ticketData.notes.slice(0, 3).map(note => `
+                                        <div style="background: #f8f9fa; padding: 10px; border-left: 3px solid #2980b9; margin-bottom: 10px;">
+                                            <p style="margin: 0; font-size: 12px; color: #666;">
+                                                ${note.created_by} - ${this.formatDate(note.created_at)}
+                                            </p>
+                                            <p style="margin: 5px 0 0 0;">${note.note_text}</p>
+                                        </div>
+                                    `).join('')}
+                                    ${ticketData.notes.length > 3 ? `<p style="color: #666; font-size: 14px;">... y ${ticketData.notes.length - 3} notas más en el PDF</p>` : ''}
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    // Vista previa genérica
+                    contentHTML = `
+                        <div style="padding: 20px;">
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                                <h4 style="margin: 0 0 10px 0;">${report.type || 'Reporte'}</h4>
+                                <p style="margin: 5px 0;">
+                                    <strong>Generado:</strong> ${this.formatDate(report.createdAt)} ${this.formatTime(report.createdAt)}
+                                </p>
+                                <p style="margin: 5px 0;">
+                                    <strong>Estado:</strong> ${this.getStatusText(report.status)}
+                                </p>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; max-height: 400px; overflow-y: auto;">
+                                <pre style="margin: 0; font-family: monospace; font-size: 12px; white-space: pre-wrap;">${JSON.stringify(report.data || report, null, 2)}</pre>
+                            </div>
+                        </div>
+                    `;
+                }
+                
                 modal.innerHTML = `
-                    <div class="base-modal-content base-modal-large">
+                    <div class="base-modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
                         <div class="base-modal-header">
                             <h2>
-                                <i data-lucide="file-text"></i>
-                                Vista Previa del Reporte
+                                <i data-lucide="eye"></i>
+                                Vista Previa del Informe
                             </h2>
                             <button class="base-modal-close" onclick="document.getElementById('view-report-modal').remove()">
                                 <i data-lucide="x"></i>
                             </button>
                         </div>
-                        <div class="base-modal-body">
-                            <div class="report-preview-container">
-                                <div class="report-preview-header">
-                                    <h3>${report.type}</h3>
-                                    <p>Generado: ${this.formatDate(report.createdAt)} ${this.formatTime(report.createdAt)}</p>
-                                    <span class="report-status-badge ${report.status}">${this.getStatusText(report.status)}</span>
-                                </div>
-                                <div class="report-preview-content">
-                                    <pre>${JSON.stringify(report.data || report, null, 2)}</pre>
-                                </div>
-                            </div>
+                        <div class="base-modal-body" style="max-height: 60vh; overflow-y: auto;">
+                            ${contentHTML}
                         </div>
                         <div class="base-modal-footer">
                             <button class="base-btn base-btn-secondary" onclick="document.getElementById('view-report-modal').remove()">
+                                <i data-lucide="x"></i>
                                 Cerrar
                             </button>
-                            <button class="base-btn base-btn-primary" onclick="reportsManager.downloadReport(${reportId})">
+                            <button class="base-btn base-btn-primary" onclick="window.reportsManager.downloadReport(${reportId}); document.getElementById('view-report-modal').remove();">
                                 <i data-lucide="download"></i>
                                 Descargar PDF
                             </button>
@@ -1093,13 +1189,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 document.body.appendChild(modal);
                 
+                // Hacer visible el modal
+                setTimeout(() => {
+                    modal.classList.add('active');
+                }, 10);
+                
+                // Inicializar iconos de Lucide
                 if (window.lucide) {
                     window.lucide.createIcons();
                 }
                 
+                console.log('✅ Modal de vista previa creado');
+                
             } catch (error) {
-                console.error('Error visualizando reporte:', error);
-                this.showNotification('Error al visualizar el reporte', 'error');
+                console.error('❌ Error visualizando reporte:', error);
+                this.showNotification('Error al visualizar el reporte: ' + error.message, 'error');
             }
         }
     }
