@@ -2354,113 +2354,833 @@ document.addEventListener('DOMContentLoaded', () => {
 // GLOBAL FUNCTIONS - Disponibles desde HTML onclick
 // ============================================================================
 
-// Funciones para abrir modales (deben estar fuera de DOMContentLoaded)
-window.createQuote = function() {
-    console.log('📋 Opening new quote modal...');
+// ============================================================================
+// MODALES - Funciones para crear/editar cotizaciones y facturas
+// ============================================================================
+
+// Función para crear/editar cotización
+window.createQuote = async function(quoteId = null) {
+    console.log('📋 Opening quote modal...', quoteId ? `Edit ID: ${quoteId}` : 'New');
     const modal = document.getElementById('quote-modal');
-    if (modal) {
-        modal.classList.add('active');
-        const title = document.getElementById('quote-modal-title');
-        if (title) title.textContent = 'Nueva Cotización';
-        const form = document.getElementById('quote-form');
-        if (form) form.reset();
-        // Inicializar iconos de Lucide
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    } else {
+    const form = document.getElementById('quote-form');
+    const title = document.getElementById('quote-modal-title');
+    
+    if (!modal) {
         console.error('❌ Modal quote-modal no encontrado');
+        return;
     }
+    
+    // Actualizar título
+    if (title) title.textContent = quoteId ? 'Editar Cotización' : 'Nueva Cotización';
+    
+    // Renderizar formulario
+    await renderQuoteForm(form, quoteId);
+    
+    // Mostrar modal (usar clase is-open según CSS)
+    modal.classList.add('is-open', 'active');
+    modal.style.display = 'flex';
+    
+    // Inicializar iconos de Lucide
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    
+    console.log('✅ Quote modal opened');
 };
 
-window.createInvoice = function() {
-    console.log('🧾 Opening new invoice modal...');
+// Función para crear/editar factura
+window.createInvoice = async function(invoiceId = null) {
+    console.log('🧾 Opening invoice modal...', invoiceId ? `Edit ID: ${invoiceId}` : 'New');
     const modal = document.getElementById('invoice-modal');
-    if (modal) {
-        modal.classList.add('active');
-        const title = document.getElementById('invoice-modal-title');
-        if (title) title.textContent = 'Nueva Factura';
-        const form = document.getElementById('invoice-form');
-        if (form) form.reset();
-        // Inicializar iconos de Lucide
-        if (typeof lucide !== 'undefined') lucide.createIcons();
-    } else {
+    const form = document.getElementById('invoice-form');
+    const title = document.getElementById('invoice-modal-title');
+    
+    if (!modal) {
         console.error('❌ Modal invoice-modal no encontrado');
+        return;
     }
+    
+    // Actualizar título
+    if (title) title.textContent = invoiceId ? 'Editar Factura' : 'Nueva Factura';
+    
+    // Renderizar formulario
+    await renderInvoiceForm(form, invoiceId);
+    
+    // Mostrar modal (usar clase is-open según CSS)
+    modal.classList.add('is-open', 'active');
+    modal.style.display = 'flex';
+    
+    // Inicializar iconos de Lucide
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    
+    console.log('✅ Invoice modal opened');
 };
 
-window.createExpense = function() {
-    console.log('💸 Opening new expense modal...');
-    alert('🚧 Modal de gastos en desarrollo');
+// Renderizar formulario de cotización
+async function renderQuoteForm(formElement, quoteId = null) {
+    if (!formElement) return;
+    
+    // Obtener clientes directamente desde API
+    let clients = [];
+    try {
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/clients`);
+        if (response.ok) {
+            const result = await response.json();
+            clients = result.data || [];
+        }
+    } catch (error) {
+        console.error('Error loading clients:', error);
+    }
+    
+    formElement.innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Cliente *
+                    </label>
+                    <select id="quote-client" name="client_id" required 
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">Seleccionar cliente...</option>
+                        ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Número de Cotización *
+                    </label>
+                    <input type="text" id="quote-number" name="quote_number" required
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="Ej: COT-2025-001">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción *
+                </label>
+                <textarea id="quote-description" name="description" rows="3" required
+                          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Descripción de la cotización..."></textarea>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Monto Total *
+                    </label>
+                    <input type="number" id="quote-total" name="total" required step="0.01" min="0"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Estado
+                    </label>
+                    <select id="quote-status" name="status"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="pending">Pendiente</option>
+                        <option value="approved">Aprobada</option>
+                        <option value="rejected">Rechazada</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Fecha
+                </label>
+                <input type="date" id="quote-date" name="quote_date"
+                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                       value="${new Date().toISOString().split('T')[0]}">
+            </div>
+        </div>
+    `;
+    
+    // Si es edición, cargar datos
+    if (quoteId) {
+        try {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/quotes/${quoteId}`);
+            if (response.ok) {
+                const result = await response.json();
+                const quote = result.data;
+                document.getElementById('quote-client').value = quote.client_id || '';
+                document.getElementById('quote-number').value = quote.quote_number || '';
+                document.getElementById('quote-description').value = quote.description || '';
+                document.getElementById('quote-total').value = quote.total || '';
+                document.getElementById('quote-status').value = quote.status || 'pending';
+                document.getElementById('quote-date').value = quote.quote_date?.split('T')[0] || '';
+            }
+        } catch (error) {
+            console.error('Error loading quote data:', error);
+        }
+    }
+    
+    // Event handler para submit
+    formElement.onsubmit = async (e) => {
+        e.preventDefault();
+        await handleQuoteSubmit(quoteId);
+    };
+}
+
+// Renderizar formulario de factura
+async function renderInvoiceForm(formElement, invoiceId = null) {
+    if (!formElement) return;
+    
+    // Obtener clientes directamente desde API
+    let clients = [];
+    try {
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/clients`);
+        if (response.ok) {
+            const result = await response.json();
+            clients = result.data || [];
+        }
+    } catch (error) {
+        console.error('Error loading clients:', error);
+    }
+    
+    formElement.innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Cliente *
+                    </label>
+                    <select id="invoice-client" name="client_id" required 
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">Seleccionar cliente...</option>
+                        ${clients.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Número de Factura *
+                    </label>
+                    <input type="text" id="invoice-number" name="invoice_number" required
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="Ej: F-2025-001">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    Descripción *
+                </label>
+                <textarea id="invoice-description" name="description" rows="3" required
+                          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Descripción de la factura..."></textarea>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Monto Total *
+                    </label>
+                    <input type="number" id="invoice-total" name="total" required step="0.01" min="0"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Estado
+                    </label>
+                    <select id="invoice-status" name="status"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="pending">Pendiente</option>
+                        <option value="paid">Pagada</option>
+                        <option value="cancelled">Cancelada</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de Emisión
+                    </label>
+                    <input type="date" id="invoice-date" name="issue_date"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           value="${new Date().toISOString().split('T')[0]}">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha de Vencimiento
+                    </label>
+                    <input type="date" id="invoice-due-date" name="due_date"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Si es edición, cargar datos
+    if (invoiceId) {
+        try {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/invoices/${invoiceId}`);
+            if (response.ok) {
+                const result = await response.json();
+                const invoice = result.data;
+                document.getElementById('invoice-client').value = invoice.client_id || '';
+                document.getElementById('invoice-number').value = invoice.invoice_number || '';
+                document.getElementById('invoice-description').value = invoice.description || '';
+                document.getElementById('invoice-total').value = invoice.total || '';
+                document.getElementById('invoice-status').value = invoice.status || 'pending';
+                document.getElementById('invoice-date').value = invoice.issue_date?.split('T')[0] || '';
+                document.getElementById('invoice-due-date').value = invoice.due_date?.split('T')[0] || '';
+            }
+        } catch (error) {
+            console.error('Error loading invoice data:', error);
+        }
+    }
+    
+    // Event handler para submit
+    formElement.onsubmit = async (e) => {
+        e.preventDefault();
+        await handleInvoiceSubmit(invoiceId);
+    };
+}
+
+// Handler para submit de cotización
+async function handleQuoteSubmit(quoteId = null) {
+    try {
+        const data = {
+            client_id: document.getElementById('quote-client').value,
+            quote_number: document.getElementById('quote-number').value,
+            description: document.getElementById('quote-description').value,
+            total: parseFloat(document.getElementById('quote-total').value),
+            status: document.getElementById('quote-status').value,
+            quote_date: document.getElementById('quote-date').value
+        };
+        
+        console.log('Submitting quote data:', data);
+        
+        const url = quoteId ? 
+            `${window.API_URL}/quotes/${quoteId}` : 
+            `${window.API_URL}/quotes`;
+        const method = quoteId ? 'PUT' : 'POST';
+        
+        const response = await window.authManager.authenticatedFetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        showNotification(
+            quoteId ? 'Cotización actualizada exitosamente' : 'Cotización creada exitosamente', 
+            'success'
+        );
+        closeQuoteModal();
+        
+        // Recargar cotizaciones si la función existe
+        if (typeof window.loadQuotes === 'function') {
+            await window.loadQuotes();
+        }
+    } catch (error) {
+        console.error('Error saving quote:', error);
+        showNotification('Error al guardar la cotización: ' + error.message, 'error');
+    }
+}
+
+// Handler para submit de factura
+async function handleInvoiceSubmit(invoiceId = null) {
+    try {
+        const data = {
+            client_id: document.getElementById('invoice-client').value,
+            invoice_number: document.getElementById('invoice-number').value,
+            description: document.getElementById('invoice-description').value,
+            total: parseFloat(document.getElementById('invoice-total').value),
+            status: document.getElementById('invoice-status').value,
+            issue_date: document.getElementById('invoice-date').value,
+            due_date: document.getElementById('invoice-due-date').value
+        };
+        
+        console.log('Submitting invoice data:', data);
+        
+        const url = invoiceId ? 
+            `${window.API_URL}/invoices/${invoiceId}` : 
+            `${window.API_URL}/invoices`;
+        const method = invoiceId ? 'PUT' : 'POST';
+        
+        const response = await window.authManager.authenticatedFetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        showNotification(
+            invoiceId ? 'Factura actualizada exitosamente' : 'Factura creada exitosamente', 
+            'success'
+        );
+        closeInvoiceModal();
+        
+        // Recargar facturas si la función existe
+        if (typeof window.loadInvoices === 'function') {
+            await window.loadInvoices();
+        }
+    } catch (error) {
+        console.error('Error saving invoice:', error);
+        showNotification('Error al guardar la factura: ' + error.message, 'error');
+    }
+}
+
+// Renderizar formulario de gasto
+async function renderExpenseForm(formElement, expenseId = null) {
+    if (!formElement) return;
+    
+    // Obtener categorías de gastos desde API
+    let categories = [];
+    try {
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/expense-categories`);
+        if (response.ok) {
+            const result = await response.json();
+            categories = result.data || [];
+        }
+    } catch (error) {
+        console.error('Error loading categories:', error);
+    }
+    
+    formElement.innerHTML = `
+        <div class="space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i data-lucide="calendar" class="w-4 h-4 inline"></i>
+                        Fecha *
+                    </label>
+                    <input type="date" id="expense-date" name="expense_date" required
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           value="${new Date().toISOString().split('T')[0]}">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i data-lucide="tag" class="w-4 h-4 inline"></i>
+                        Categoría *
+                    </label>
+                    <select id="expense-category" name="category_id" required
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="">Seleccionar categoría...</option>
+                        ${categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">
+                    <i data-lucide="file-text" class="w-4 h-4 inline"></i>
+                    Descripción *
+                </label>
+                <textarea id="expense-description" name="description" rows="3" required
+                          class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="Descripción detallada del gasto..."></textarea>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i data-lucide="dollar-sign" class="w-4 h-4 inline"></i>
+                        Monto *
+                    </label>
+                    <input type="number" id="expense-amount" name="amount" required step="0.01" min="0"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="0.00">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i data-lucide="building" class="w-4 h-4 inline"></i>
+                        Proveedor
+                    </label>
+                    <input type="text" id="expense-supplier" name="supplier"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="Nombre del proveedor">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i data-lucide="list" class="w-4 h-4 inline"></i>
+                        Tipo de Referencia
+                    </label>
+                    <select id="expense-reference-type" name="reference_type"
+                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                        <option value="general">General</option>
+                        <option value="ticket">Ticket</option>
+                        <option value="purchase_order">Orden de Compra</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        <i data-lucide="hash" class="w-4 h-4 inline"></i>
+                        ID de Referencia
+                    </label>
+                    <input type="number" id="expense-reference-id" name="reference_id"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                           placeholder="ID del ticket u orden">
+                </div>
+            </div>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="info" class="w-5 h-5 text-blue-400"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            Los gastos pueden estar asociados a tickets específicos o ser gastos generales de operación.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Si es edición, cargar datos
+    if (expenseId) {
+        try {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/expenses/${expenseId}`);
+            if (response.ok) {
+                const result = await response.json();
+                const expense = result.data;
+                document.getElementById('expense-date').value = expense.expense_date?.split('T')[0] || '';
+                document.getElementById('expense-category').value = expense.category_id || '';
+                document.getElementById('expense-description').value = expense.description || '';
+                document.getElementById('expense-amount').value = expense.amount || '';
+                document.getElementById('expense-supplier').value = expense.supplier || '';
+                document.getElementById('expense-reference-type').value = expense.reference_type || 'general';
+                document.getElementById('expense-reference-id').value = expense.reference_id || '';
+            }
+        } catch (error) {
+            console.error('Error loading expense data:', error);
+        }
+    }
+    
+    // Event handler para submit
+    formElement.onsubmit = async (e) => {
+        e.preventDefault();
+        await handleExpenseSubmit(expenseId);
+    };
+    
+    // Re-inicializar iconos de Lucide
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
+// Handler para submit de gasto
+async function handleExpenseSubmit(expenseId = null) {
+    try {
+        const data = {
+            expense_date: document.getElementById('expense-date').value,
+            category_id: parseInt(document.getElementById('expense-category').value),
+            description: document.getElementById('expense-description').value,
+            amount: parseFloat(document.getElementById('expense-amount').value),
+            supplier: document.getElementById('expense-supplier').value || null,
+            reference_type: document.getElementById('expense-reference-type').value,
+            reference_id: document.getElementById('expense-reference-id').value ? 
+                         parseInt(document.getElementById('expense-reference-id').value) : null
+        };
+        
+        console.log('Submitting expense data:', data);
+        
+        const url = expenseId ? 
+            `${window.API_URL}/expenses/${expenseId}` : 
+            `${window.API_URL}/expenses`;
+        const method = expenseId ? 'PUT' : 'POST';
+        
+        const response = await window.authManager.authenticatedFetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `HTTP ${response.status}`);
+        }
+        
+        showNotification(
+            expenseId ? 'Gasto actualizado exitosamente' : 'Gasto creado exitosamente', 
+            'success'
+        );
+        closeExpenseModal();
+        
+        // Recargar gastos si la función existe
+        if (typeof window.loadExpenses === 'function') {
+            await window.loadExpenses();
+        }
+    } catch (error) {
+        console.error('Error saving expense:', error);
+        showNotification('Error al guardar el gasto: ' + error.message, 'error');
+    }
+}
+
+window.createExpense = async function(expenseId = null) {
+    console.log('💸 Opening expense modal...', expenseId ? `Edit ID: ${expenseId}` : 'New');
+    const modal = document.getElementById('expense-modal');
+    const form = document.getElementById('expense-form');
+    const title = document.getElementById('expense-modal-title');
+    
+    if (!modal) {
+        console.error('❌ Modal expense-modal no encontrado');
+        return;
+    }
+    
+    // Actualizar título
+    if (title) title.textContent = expenseId ? 'Editar Gasto' : 'Nuevo Gasto';
+    
+    // Renderizar formulario
+    await renderExpenseForm(form, expenseId);
+    
+    // Mostrar modal (usar clase is-open según CSS)
+    modal.classList.add('is-open', 'active');
+    modal.style.display = 'flex';
+    
+    // Inicializar iconos de Lucide
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    
+    console.log('✅ Expense modal opened');
 };
 
 // Funciones para cerrar modales
 window.closeQuoteModal = function() {
+    console.log('❌ Closing quote modal');
     const modal = document.getElementById('quote-modal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('is-open', 'active');
+        modal.style.display = 'none';
+        const form = document.getElementById('quote-form');
+        if (form) form.reset();
+    }
 };
 
 window.closeInvoiceModal = function() {
+    console.log('❌ Closing invoice modal');
     const modal = document.getElementById('invoice-modal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('is-open', 'active');
+        modal.style.display = 'none';
+        const form = document.getElementById('invoice-form');
+        if (form) form.reset();
+    }
 };
 
 window.closeExpenseModal = function() {
+    console.log('❌ Closing expense modal');
     const modal = document.getElementById('expense-modal');
-    if (modal) modal.classList.remove('active');
+    if (modal) {
+        modal.classList.remove('is-open', 'active');
+        modal.style.display = 'none';
+        const form = document.getElementById('expense-form');
+        if (form) form.reset();
+    }
 };
 
 // Funciones CRUD para botones de tablas
 window.viewQuote = async function(id) {
     console.log('👁️ Viewing quote:', id);
-    alert('Ver cotización #' + id + ' - en desarrollo');
+    try {
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/quotes/${id}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        const quote = result.data;
+        
+        // Función auxiliar para formatear fechas
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-CL');
+        };
+        
+        // Función auxiliar para formatear moneda
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0
+            }).format(amount || 0);
+        };
+        
+        const details = `
+Cotización: ${quote.quote_number || 'N/A'}
+Cliente: ${quote.client_name || 'N/A'}
+Fecha: ${formatDate(quote.quote_date)}
+Total: ${formatCurrency(quote.total)}
+Estado: ${quote.status}
+Descripción: ${quote.description || 'Sin descripción'}
+        `;
+        alert(details.trim());
+    } catch (error) {
+        console.error('Error viewing quote:', error);
+        showNotification('Error al cargar la cotización', 'error');
+    }
 };
 
 window.editQuote = async function(id) {
     console.log('✏️ Editing quote:', id);
-    alert('Editar cotización #' + id + ' - en desarrollo');
+    await createQuote(id);
 };
 
 window.deleteQuote = async function(id) {
     if (!confirm('¿Está seguro de que desea eliminar esta cotización?')) {
         return;
     }
-    console.log('🗑️ Deleting quote:', id);
-    alert('Eliminar cotización #' + id + ' - en desarrollo');
+    try {
+        console.log('🗑️ Deleting quote:', id);
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/quotes/${id}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        showNotification('Cotización eliminada exitosamente', 'success');
+        
+        // Recargar cotizaciones si la función existe
+        if (typeof window.loadQuotes === 'function') {
+            await window.loadQuotes();
+        }
+    } catch (error) {
+        console.error('Error deleting quote:', error);
+        showNotification('Error al eliminar la cotización', 'error');
+    }
 };
 
 window.viewInvoice = async function(id) {
     console.log('👁️ Viewing invoice:', id);
-    alert('Ver factura #' + id + ' - en desarrollo');
+    try {
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/invoices/${id}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        const invoice = result.data;
+        
+        // Función auxiliar para formatear fechas
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-CL');
+        };
+        
+        // Función auxiliar para formatear moneda
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0
+            }).format(amount || 0);
+        };
+        
+        const details = `
+Factura: ${invoice.invoice_number || 'N/A'}
+Cliente: ${invoice.client_name || 'N/A'}
+Fecha Emisión: ${formatDate(invoice.issue_date)}
+Fecha Vencimiento: ${formatDate(invoice.due_date)}
+Total: ${formatCurrency(invoice.total)}
+Estado: ${invoice.status}
+Descripción: ${invoice.description || 'Sin descripción'}
+        `;
+        alert(details.trim());
+    } catch (error) {
+        console.error('Error viewing invoice:', error);
+        showNotification('Error al cargar la factura', 'error');
+    }
 };
 
 window.editInvoice = async function(id) {
     console.log('✏️ Editing invoice:', id);
-    alert('Editar factura #' + id + ' - en desarrollo');
+    await createInvoice(id);
 };
 
 window.deleteInvoice = async function(id) {
     if (!confirm('¿Está seguro de que desea eliminar esta factura?')) {
         return;
     }
-    console.log('🗑️ Deleting invoice:', id);
-    alert('Eliminar factura #' + id + ' - en desarrollo');
+    try {
+        console.log('🗑️ Deleting invoice:', id);
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/invoices/${id}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        showNotification('Factura eliminada exitosamente', 'success');
+        
+        // Recargar facturas si la función existe
+        if (typeof window.loadInvoices === 'function') {
+            await window.loadInvoices();
+        }
+    } catch (error) {
+        console.error('Error deleting invoice:', error);
+        showNotification('Error al eliminar la factura', 'error');
+    }
 };
 
 window.viewExpense = async function(id) {
     console.log('👁️ Viewing expense:', id);
-    alert('Ver gasto #' + id + ' - en desarrollo');
+    try {
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/expenses/${id}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const result = await response.json();
+        const expense = result.data;
+        
+        // Función auxiliar para formatear fechas
+        const formatDate = (dateString) => {
+            if (!dateString) return '-';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-CL');
+        };
+        
+        // Función auxiliar para formatear moneda
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('es-CL', {
+                style: 'currency',
+                currency: 'CLP',
+                minimumFractionDigits: 0
+            }).format(amount || 0);
+        };
+        
+        const details = `
+Gasto ID: ${expense.id}
+Fecha: ${formatDate(expense.expense_date || expense.date)}
+Categoría: ${expense.category_name || 'Sin categoría'}
+Descripción: ${expense.description || 'Sin descripción'}
+Monto: ${formatCurrency(expense.amount)}
+Proveedor: ${expense.supplier || 'No especificado'}
+Tipo: ${expense.reference_type || 'General'}
+        `;
+        alert(details.trim());
+    } catch (error) {
+        console.error('Error viewing expense:', error);
+        showNotification('Error al cargar el gasto', 'error');
+    }
 };
 
 window.editExpense = async function(id) {
     console.log('✏️ Editing expense:', id);
-    alert('Editar gasto #' + id + ' - en desarrollo');
+    await createExpense(id);
 };
 
 window.deleteExpense = async function(id) {
     if (!confirm('¿Está seguro de que desea eliminar este gasto?')) {
         return;
     }
-    console.log('🗑️ Deleting expense:', id);
-    alert('Eliminar gasto #' + id + ' - en desarrollo');
+    try {
+        console.log('🗑️ Deleting expense:', id);
+        const response = await window.authManager.authenticatedFetch(`${window.API_URL}/expenses/${id}`, {
+            method: 'DELETE'
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        showNotification('Gasto eliminado exitosamente', 'success');
+        
+        // Recargar gastos si la función existe
+        if (typeof window.loadExpenses === 'function') {
+            await window.loadExpenses();
+        }
+    } catch (error) {
+        console.error('Error deleting expense:', error);
+        showNotification('Error al eliminar el gasto', 'error');
+    }
 };
 
 // ============================================================================

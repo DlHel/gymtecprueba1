@@ -3923,62 +3923,102 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
 
 // Endpoint 6: KPIs Mejorados (actualizaci�n del existente)
 app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
-    console.log('?? Solicitando KPIs mejorados del dashboard...');
+    console.log('📊 Solicitando KPIs mejorados del dashboard...');
     
     const queries = [
         // KPIs originales
         new Promise((resolve, reject) => {
             db.all('SELECT COUNT(*) as total FROM Clients', [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'total_clients', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query Clients:', err.message);
+                    resolve({ metric: 'total_clients', value: 0 });
+                } else {
+                    console.log('✅ Clients:', rows[0].total);
+                    resolve({ metric: 'total_clients', value: rows[0].total });
+                }
             });
         }),
         new Promise((resolve, reject) => {
             db.all('SELECT COUNT(*) as total FROM Equipment', [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'total_equipment', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query Equipment:', err.message);
+                    resolve({ metric: 'total_equipment', value: 0 });
+                } else {
+                    console.log('✅ Equipment:', rows[0].total);
+                    resolve({ metric: 'total_equipment', value: rows[0].total });
+                }
             });
         }),
         new Promise((resolve, reject) => {
             db.all(`SELECT COUNT(*) as total FROM Tickets WHERE status NOT IN ('Cerrado', 'Completado')`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'active_tickets', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query Tickets activos:', err.message);
+                    resolve({ metric: 'active_tickets', value: 0 });
+                } else {
+                    console.log('✅ Tickets activos:', rows[0].total);
+                    resolve({ metric: 'active_tickets', value: rows[0].total });
+                }
             });
         }),
         new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Tickets WHERE priority = 'Cr�tica' AND status NOT IN ('Cerrado', 'Completado')`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'critical_tickets', value: rows[0].total });
+            db.all(`SELECT COUNT(*) as total FROM Tickets WHERE priority = 'Crítica' AND status NOT IN ('Cerrado', 'Completado')`, [], (err, rows) => {
+                if (err) {
+                    console.error('❌ Error en query Tickets críticos:', err.message);
+                    resolve({ metric: 'critical_tickets', value: 0 });
+                } else {
+                    console.log('✅ Tickets críticos:', rows[0].total);
+                    resolve({ metric: 'critical_tickets', value: rows[0].total });
+                }
             });
         }),
         new Promise((resolve, reject) => {
             db.all(`SELECT COUNT(*) as total FROM SpareParts WHERE current_stock <= minimum_stock`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'low_stock_items', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query SpareParts:', err.message);
+                    resolve({ metric: 'low_stock_items', value: 0 });
+                } else {
+                    console.log('✅ Stock bajo:', rows[0].total);
+                    resolve({ metric: 'low_stock_items', value: rows[0].total });
+                }
             });
         }),
         
         // Nuevos KPIs
         new Promise((resolve, reject) => {
             db.all(`SELECT COUNT(*) as total FROM Contracts WHERE status = 'Active' AND end_date >= CURDATE()`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'active_contracts', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query Contracts:', err.message);
+                    resolve({ metric: 'active_contracts', value: 0 });
+                } else {
+                    console.log('✅ Contratos activos:', rows[0].total);
+                    resolve({ metric: 'active_contracts', value: rows[0].total });
+                }
             });
         }),
         new Promise((resolve, reject) => {
             db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'Manager', 'Admin')`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'active_staff', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query Users:', err.message);
+                    resolve({ metric: 'active_staff', value: 0 });
+                } else {
+                    console.log('✅ Personal activo:', rows[0].total);
+                    resolve({ metric: 'active_staff', value: rows[0].total });
+                }
             });
         }),
         new Promise((resolve, reject) => {
             db.all(`SELECT COUNT(DISTINCT user_id) as total FROM Attendance WHERE DATE(check_in) = CURDATE()`, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'attendance_today', value: rows[0].total });
+                if (err) {
+                    console.error('❌ Error en query Attendance:', err.message);
+                    resolve({ metric: 'attendance_today', value: 0 });
+                } else {
+                    console.log('✅ Asistencia hoy:', rows[0].total);
+                    resolve({ metric: 'attendance_today', value: rows[0].total });
+                }
             });
         }),
         
-        // Datos para gr�ficos
+        // Datos para gráficos
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
@@ -3988,8 +4028,13 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
                 GROUP BY status
                 ORDER BY count DESC
             `, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'tickets_by_status', value: rows });
+                if (err) {
+                    console.error('❌ Error en query tickets por estado:', err.message);
+                    resolve({ metric: 'tickets_by_status', value: [] });
+                } else {
+                    console.log('✅ Tickets por estado:', rows.length, 'estados');
+                    resolve({ metric: 'tickets_by_status', value: rows });
+                }
             });
         }),
         new Promise((resolve, reject) => {
@@ -4000,10 +4045,15 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
                 FROM Tickets
                 WHERE status NOT IN ('Cerrado', 'Completado')
                 GROUP BY priority
-                ORDER BY FIELD(priority, 'Cr�tica', 'Alta', 'Media', 'Baja')
+                ORDER BY FIELD(priority, 'Crítica', 'Alta', 'Media', 'Baja')
             `, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'tickets_by_priority', value: rows });
+                if (err) {
+                    console.error('❌ Error en query tickets por prioridad:', err.message);
+                    resolve({ metric: 'tickets_by_priority', value: [] });
+                } else {
+                    console.log('✅ Tickets por prioridad:', rows.length, 'prioridades');
+                    resolve({ metric: 'tickets_by_priority', value: rows });
+                }
             });
         }),
         new Promise((resolve, reject) => {
@@ -4019,20 +4069,36 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
                 ORDER BY ticket_count DESC
                 LIMIT 10
             `, [], (err, rows) => {
-                if (err) reject(err);
-                else resolve({ metric: 'technician_workload', value: rows });
+                if (err) {
+                    console.error('❌ Error en query carga de técnicos:', err.message);
+                    resolve({ metric: 'technician_workload', value: [] });
+                } else {
+                    console.log('✅ Carga de técnicos:', rows.length, 'técnicos');
+                    resolve({ metric: 'technician_workload', value: rows });
+                }
             });
         })
     ];
     
-    Promise.all(queries)
+    Promise.allSettled(queries)
         .then(results => {
             const kpis = {};
-            results.forEach(result => {
-                kpis[result.metric] = result.value;
+            let successCount = 0;
+            let errorCount = 0;
+            
+            results.forEach((result, index) => {
+                if (result.status === 'fulfilled') {
+                    kpis[result.value.metric] = result.value.value;
+                    successCount++;
+                } else {
+                    console.error(`❌ Query ${index} falló:`, result.reason);
+                    errorCount++;
+                }
             });
             
-            console.log('? KPIs mejorados calculados:', Object.keys(kpis).length, 'm�tricas');
+            console.log(`✅ KPIs mejorados calculados: ${successCount} éxitos, ${errorCount} errores`);
+            console.log('📊 Datos finales:', JSON.stringify(kpis, null, 2));
+            
             res.json({
                 message: 'success',
                 data: kpis,
@@ -4040,7 +4106,8 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
             });
         })
         .catch(error => {
-            console.error('? Error calculando KPIs mejorados (dashboard) - devolviendo valores por defecto:', error && error.message || error);
+            // Esto no debería suceder con allSettled, pero por si acaso
+            console.error('❌ Error inesperado calculando KPIs mejorados:', error && error.message || error);
             const defaultKpis = {
                 total_clients: 0,
                 total_equipment: 0,

@@ -365,22 +365,23 @@
     <!-- Modal Cotización -->
     <div id="quote-modal" class="base-modal">
         <div class="base-modal-content base-modal-large">
-            <div class="modal-header">
-                <h3 id="quote-modal-title">Nueva Cotización</h3>
-                <button class="modal-close" onclick="closeQuoteModal()" aria-label="Cerrar modal de cotización" title="Cerrar modal">
+            <div class="base-modal-header">
+                <h3 id="quote-modal-title" class="base-modal-title">Nueva Cotización</h3>
+                <button type="button" class="base-modal-close" onclick="closeQuoteModal()" aria-label="Cerrar modal" title="Cerrar modal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body">
-                <form id="quote-form" class="financial-form">
+            <div class="base-modal-body">
+                <form id="quote-form">
                     <!-- Formulario de cotización se cargará dinámicamente -->
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closeQuoteModal()">
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeQuoteModal()">
                     Cancelar
                 </button>
-                <button type="submit" form="quote-form" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <button type="submit" form="quote-form" class="btn-primary">
+                    <i data-lucide="save" class="w-4 h-4"></i>
                     Guardar Cotización
                 </button>
             </div>
@@ -390,23 +391,50 @@
     <!-- Modal Factura -->
     <div id="invoice-modal" class="base-modal">
         <div class="base-modal-content base-modal-large">
-            <div class="modal-header">
-                <h3 id="invoice-modal-title">Nueva Factura</h3>
-                <button class="modal-close" onclick="closeInvoiceModal()" aria-label="Cerrar modal de factura" title="Cerrar modal">
+            <div class="base-modal-header">
+                <h3 id="invoice-modal-title" class="base-modal-title">Nueva Factura</h3>
+                <button type="button" class="base-modal-close" onclick="closeInvoiceModal()" aria-label="Cerrar modal" title="Cerrar modal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body">
-                <form id="invoice-form" class="financial-form">
+            <div class="base-modal-body">
+                <form id="invoice-form">
                     <!-- Formulario de factura se cargará dinámicamente -->
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closeInvoiceModal()">
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeInvoiceModal()">
                     Cancelar
                 </button>
-                <button type="submit" form="invoice-form" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <button type="submit" form="invoice-form" class="btn-primary">
+                    <i data-lucide="save" class="w-4 h-4"></i>
                     Guardar Factura
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gasto -->
+    <div id="expense-modal" class="base-modal">
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 id="expense-modal-title" class="base-modal-title">Nuevo Gasto</h3>
+                <button type="button" class="base-modal-close" onclick="closeExpenseModal()" aria-label="Cerrar modal" title="Cerrar modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <form id="expense-form">
+                    <!-- Formulario de gasto se cargará dinámicamente -->
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeExpenseModal()">
+                    Cancelar
+                </button>
+                <button type="submit" form="expense-form" class="btn-primary">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Guardar Gasto
                 </button>
             </div>
         </div>
@@ -415,13 +443,13 @@
     <!-- Modal Período de Nómina -->
     <div id="payroll-period-modal" class="base-modal">
         <div class="base-modal-content base-modal-medium">
-            <div class="modal-header">
-                <h3 id="payroll-period-modal-title">Nuevo Período de Nómina</h3>
-                <button class="modal-close" onclick="closePayrollPeriodModal()" aria-label="Cerrar modal" title="Cerrar modal">
+            <div class="base-modal-header">
+                <h3 id="payroll-period-modal-title" class="base-modal-title">Nuevo Período de Nómina</h3>
+                <button type="button" class="base-modal-close" onclick="closePayrollPeriodModal()" aria-label="Cerrar modal" title="Cerrar modal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="base-modal-body">
                 <form id="payroll-period-form" class="space-y-4">
                     <div>
                         <label for="period-name" class="block text-sm font-medium mb-1">
@@ -467,11 +495,11 @@
                     </div>
                 </form>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closePayrollPeriodModal()">
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" onclick="closePayrollPeriodModal()">
                     Cancelar
                 </button>
-                <button type="submit" form="payroll-period-form" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                <button type="submit" form="payroll-period-form" class="btn-primary">
                     <i data-lucide="save" class="w-4 h-4"></i>
                     Crear Período
                 </button>
@@ -482,13 +510,13 @@
     <!-- Modal Detalle de Liquidación -->
     <div id="liquidation-detail-modal" class="base-modal">
         <div class="base-modal-content base-modal-large">
-            <div class="modal-header">
-                <h3 id="liquidation-detail-title">Liquidación de Sueldo</h3>
-                <button class="modal-close" onclick="closeLiquidationDetailModal()" aria-label="Cerrar modal" title="Cerrar modal">
+            <div class="base-modal-header">
+                <h3 id="liquidation-detail-title" class="base-modal-title">Liquidación de Sueldo</h3>
+                <button type="button" class="base-modal-close" onclick="closeLiquidationDetailModal()" aria-label="Cerrar modal" title="Cerrar modal">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="base-modal-body">
                 <div id="liquidation-detail-content">
                     <!-- El contenido se cargará dinámicamente -->
                     <div class="text-center py-8">
@@ -497,11 +525,11 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors" onclick="closeLiquidationDetailModal()">
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeLiquidationDetailModal()">
                     Cerrar
                 </button>
-                <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="exportLiquidationPDF()">
+                <button type="button" class="btn-primary" onclick="exportLiquidationPDF()">
                     <i data-lucide="download" class="w-4 h-4"></i>
                     Descargar PDF
                 </button>
