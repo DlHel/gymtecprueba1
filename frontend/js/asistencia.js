@@ -818,11 +818,34 @@ document.addEventListener('DOMContentLoaded', () => {
                 userNameElement.textContent = `${state.currentUser.name} (${state.currentUser.role})`;
             }
             
+            // Configurar UI según rol
+            const userRole = window.authManager.getUserRole();
+            
             // Mostrar tab de gestión si es admin/manager
-            if (['Admin', 'Manager'].includes(state.currentUser.role)) {
+            if (['Admin', 'Manager'].includes(userRole)) {
                 document.querySelectorAll('.admin-only').forEach(el => {
                     el.style.display = '';
                 });
+            }
+            
+            // Si es técnico, ocultar tabs innecesarios (solo mostrar reloj + mis asistencias)
+            if (userRole === 'Technician') {
+                console.log('👷 Usuario técnico detectado - mostrando vista limitada');
+                
+                // Ocultar tabs innecesarios
+                const tabsToHide = ['schedule', 'overtime', 'leave', 'management'];
+                tabsToHide.forEach(tabName => {
+                    const tabButton = document.querySelector(`[data-tab="${tabName}"]`);
+                    if (tabButton) {
+                        tabButton.style.display = 'none';
+                    }
+                });
+                
+                // Mensaje informativo para técnicos
+                const scheduleInfo = document.getElementById('schedule-info');
+                if (scheduleInfo) {
+                    scheduleInfo.textContent = 'Marca tu entrada y salida usando los botones';
+                }
             }
             
             // Iniciar reloj

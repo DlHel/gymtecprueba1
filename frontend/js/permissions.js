@@ -55,7 +55,7 @@ window.PERMISSIONS = {
             label: 'Personal'
         },
         'asistencia.html': {
-            roles: ['Admin', 'Manager'],
+            roles: ['Admin', 'Manager', 'Technician'],
             label: 'Control de Asistencia'
         },
         'reportes.html': {
