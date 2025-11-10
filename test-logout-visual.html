@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Logout - Gymtec ERP</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 { color: #333; }
+        .success { color: #16a34a; }
+        .info { color: #0284c7; }
+        .user-list {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .user-card {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+        }
+        .user-card:hover {
+            border-color: #3b82f6;
+            cursor: pointer;
+        }
+        .user-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .user-credentials {
+            font-family: monospace;
+            background: #1e293b;
+            color: #22c55e;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        .user-role {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .role-admin { background: #fee2e2; color: #991b1b; }
+        .role-manager { background: #dbeafe; color: #1e40af; }
+        .role-technician { background: #fef3c7; color: #92400e; }
+        .role-client { background: #e0e7ff; color: #3730a3; }
+        .feature {
+            padding: 8px 12px;
+            margin: 5px;
+            background: #f1f5f9;
+            border-radius: 5px;
+            display: inline-block;
+            font-size: 13px;
+        }
+        button {
+            background: #3b82f6;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>🧪 Test del Sistema de Logout</h1>
+        <p class="info">✅ <strong>Logout agregado exitosamente en todas las páginas</strong></p>
+        
+        <h2>📋 Cambios Implementados:</h2>
+        <div class="feature">✅ Botón "Cerrar Sesión" en el menú lateral</div>
+        <div class="feature">✅ Información del usuario visible (nombre + rol)</div>
+        <div class="feature">✅ Avatar con iniciales del usuario</div>
+        <div class="feature">✅ Confirmación antes de cerrar sesión</div>
+        <div class="feature">✅ Funciona en todas las páginas automáticamente</div>
+    </div>
+
+    <div class="card">
+        <h2>👥 Usuarios Disponibles para Prueba</h2>
+        <p>Haz clic en cualquier usuario para copiar sus credenciales:</p>
+        
+        <div class="user-list">
+            <div class="user-card" onclick="copyCredentials('admin', 'admin123')">
+                <div class="user-name">1️⃣ Administrador</div>
+                <span class="user-role role-admin">ADMIN</span>
+                <div class="user-credentials">
+                    Username: admin<br>
+                    Password: admin123
+                </div>
+                <p style="margin-top: 10px; font-size: 13px; color: #64748b;">
+                    ✅ Ve 15 enlaces en el menú<br>
+                    ✅ Acceso total al sistema<br>
+                    ✅ Puede ver Configuración
+                </p>
+            </div>
+
+            <div class="user-card" onclick="copyCredentials('manager', 'manager123')">
+                <div class="user-name">2️⃣ Gerente</div>
+                <span class="user-role role-manager">MANAGER</span>
+                <div class="user-credentials">
+                    Username: manager<br>
+                    Password: manager123
+                </div>
+                <p style="margin-top: 10px; font-size: 13px; color: #64748b;">
+                    ✅ Ve 14 enlaces (sin Configuración)<br>
+                    ✅ Puede gestionar Finanzas, Personal<br>
+                    ❌ NO puede cambiar configuración del sistema
+                </p>
+            </div>
+
+            <div class="user-card" onclick="copyCredentials('tecnico', 'tecnico123')">
+                <div class="user-name">3️⃣ Técnico</div>
+                <span class="user-role role-technician">TECHNICIAN</span>
+                <div class="user-credentials">
+                    Username: tecnico<br>
+                    Password: tecnico123
+                </div>
+                <p style="margin-top: 10px; font-size: 13px; color: #64748b;">
+                    ✅ Ve 6 enlaces solamente<br>
+                    ✅ Solo operaciones básicas<br>
+                    ❌ NO tiene acceso a Finanzas/Personal
+                </p>
+            </div>
+
+            <div class="user-card" onclick="copyCredentials('cliente', 'cliente123')">
+                <div class="user-name">4️⃣ Cliente</div>
+                <span class="user-role role-client">CLIENT</span>
+                <div class="user-credentials">
+                    Username: cliente<br>
+                    Password: cliente123
+                </div>
+                <p style="margin-top: 10px; font-size: 13px; color: #64748b;">
+                    ✅ Ve 3 enlaces mínimos<br>
+                    ✅ Solo sus propios tickets<br>
+                    ❌ Acceso muy limitado
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>🚀 Cómo Probar</h2>
+        <ol>
+            <li>Asegúrate que los servidores estén corriendo</li>
+            <li>Abre: <a href="http://localhost:8080/login.html" target="_blank"><strong>http://localhost:8080/login.html</strong></a></li>
+            <li>Usa las credenciales de cualquier usuario de arriba</li>
+            <li>Una vez dentro, verás:
+                <ul>
+                    <li>👤 Tu nombre y rol en la parte inferior del menú</li>
+                    <li>🚪 Botón rojo "Cerrar Sesión" encima del botón "Minimizar Menú"</li>
+                    <li>📋 Menú filtrado según tu rol</li>
+                </ul>
+            </li>
+            <li>Haz clic en "Cerrar Sesión" para probar que funciona</li>
+            <li>Prueba con diferentes roles para ver las diferencias</li>
+        </ol>
+        
+        <button onclick="window.open('http://localhost:8080/login.html', '_blank')">
+            🚀 Abrir Sistema Ahora
+        </button>
+    </div>
+
+    <div class="card">
+        <h2>📝 Ubicación del Botón de Logout</h2>
+        <p>El botón se encuentra en <strong>TODAS las páginas</strong> que cargan el menú:</p>
+        <ul>
+            <li>✅ index.html (Dashboard)</li>
+            <li>✅ clientes.html</li>
+            <li>✅ equipos.html</li>
+            <li>✅ tickets.html</li>
+            <li>✅ planificador.html</li>
+            <li>✅ contratos.html</li>
+            <li>✅ inventario.html</li>
+            <li>✅ modelos.html</li>
+            <li>✅ finanzas.html</li>
+            <li>✅ personal.html</li>
+            <li>✅ asistencia.html</li>
+            <li>✅ reportes.html</li>
+            <li>✅ configuracion.html</li>
+            <li>✅ notifications-dashboard.html</li>
+        </ul>
+        <p class="success"><strong>Total: 100% de las páginas ahora tienen logout</strong></p>
+    </div>
+
+    <script>
+        function copyCredentials(username, password) {
+            const text = `Username: ${username}\nPassword: ${password}`;
+            navigator.clipboard.writeText(text).then(() => {
+                alert(`✅ Credenciales copiadas:\n\n${text}\n\nAhora puedes pegarlas en el login`);
+            }).catch(() => {
+                alert(`Credenciales:\n\nUsername: ${username}\nPassword: ${password}`);
+            });
+        }
+    </script>
+</body>
+</html>

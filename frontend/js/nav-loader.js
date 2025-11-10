@@ -24,6 +24,12 @@ document.addEventListener("DOMContentLoaded", () => {
             // Filtrar menú según permisos del usuario
             filterMenuByRole();
             
+            // Mostrar información del usuario
+            displayUserInfo();
+            
+            // Configurar logout
+            setupLogout();
+            
             // Configurar la navegaciÃ³n despuÃ©s de cargar el menÃº
             setupNavigation();
             
@@ -166,6 +172,72 @@ document.addEventListener("DOMContentLoaded", () => {
                 section.remove();
             }
         });
+    }
+
+    function displayUserInfo() {
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
+            return;
+        }
+
+        const user = window.authManager.getUser();
+        const role = window.authManager.getUserRole();
+        
+        if (!user) return;
+
+        // Actualizar avatar con iniciales
+        const avatarElement = document.getElementById('user-avatar-initials');
+        if (avatarElement && user.username) {
+            const initials = user.username.substring(0, 2).toUpperCase();
+            avatarElement.textContent = initials;
+        }
+
+        // Actualizar nombre de usuario
+        const nameElement = document.getElementById('user-display-name');
+        if (nameElement) {
+            nameElement.textContent = user.username;
+        }
+
+        // Actualizar rol
+        const roleElement = document.getElementById('user-display-role');
+        if (roleElement && role) {
+            const roleNames = {
+                'Admin': 'Administrador',
+                'Manager': 'Gerente',
+                'Technician': 'Técnico',
+                'Client': 'Cliente'
+            };
+            roleElement.textContent = roleNames[role] || role;
+        }
+
+        console.log('✅ Información de usuario mostrada:', user.username, role);
+    }
+
+    function setupLogout() {
+        const logoutBtn = document.getElementById('logout-btn');
+        if (!logoutBtn) {
+            console.warn('⚠️ Botón de logout no encontrado');
+            return;
+        }
+
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            
+            if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+                console.log('🚪 Cerrando sesión...');
+                
+                // Usar el método de authManager para logout
+                if (window.authManager && typeof window.authManager.logout === 'function') {
+                    window.authManager.logout();
+                } else {
+                    // Fallback manual
+                    localStorage.removeItem('gymtec_token');
+                    localStorage.removeItem('gymtec_user');
+                    window.location.href = 'login.html';
+                }
+            }
+        });
+
+        console.log('✅ Botón de logout configurado');
     }
 
     function setActiveNavLink() {

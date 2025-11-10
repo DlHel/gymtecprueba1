@@ -25,9 +25,29 @@
         <a href="configuracion.html" class="nav-link flex items-center px-4 py-2.5 text-sm font-medium rounded-lg"><i data-lucide="settings" class="sidebar-icon"></i> <span class="sidebar-text">Configuración</span></a>
     </nav>
     <div class="px-4 py-4 border-t border-slate-200">
+        <!-- User Profile Section -->
+        <div class="mb-3 px-4 py-3 bg-slate-50 rounded-lg">
+            <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center text-white text-sm font-semibold">
+                    <span id="user-avatar-initials">U</span>
+                </div>
+                <div class="flex-1 min-w-0 sidebar-text">
+                    <p class="text-sm font-medium text-slate-800 truncate" id="user-display-name">Usuario</p>
+                    <p class="text-xs text-slate-500 truncate" id="user-display-role">Rol</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Logout Button -->
+        <button id="logout-btn" class="flex items-center w-full px-4 py-2.5 text-sm font-medium rounded-lg text-red-600 hover:bg-red-50 mb-2">
+            <i data-lucide="log-out" class="sidebar-icon"></i>
+            <span class="sidebar-text">Cerrar Sesión</span>
+        </button>
+        
+        <!-- Minimize Button -->
         <button id="sidebar-toggle" class="hidden lg:flex items-center w-full px-4 py-2.5 text-sm font-medium rounded-lg text-slate-600 hover:bg-slate-100">
             <i data-lucide="chevrons-left" class="sidebar-icon"></i>
             <span class="sidebar-text">Minimizar Menú</span>
         </button>
     </div>
-</aside> 
+</aside>
