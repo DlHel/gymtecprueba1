@@ -509,23 +509,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (currentPage === 'personal.html' || document.getElementById('users-table-body')) {
         console.log('🚀 Inicializando Personal Manager...');
         
-        // ✅ TEMPORAL: Configurar token de desarrollo si no existe
-        if (!localStorage.getItem('gymtec_token')) {
-            console.log('⚠️ No hay token, configurando token de desarrollo...');
-            const devToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwidXNlcm5hbWUiOiJhZG1pbiIsImVtYWlsIjoiYWRtaW5AZ3ltdGVjLmNvbSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1ODM5NzA3MCwiZXhwIjoxNzU4NDgzNDcwfQ.G0KRAZ9sj4frpnZW9qQupD7-NWqmzsL_wfF2POeWMMw';
-            const devUser = {
-                id: 1,
-                username: 'admin',
-                email: 'admin@gymtec.com',
-                role: 'Admin'
-            };
-            localStorage.setItem('gymtec_token', devToken);
-            localStorage.setItem('gymtec_user', JSON.stringify(devUser));
-            console.log('✅ Token de desarrollo configurado');
-        }
-        
         // ✅ CRÍTICO: Verificación de autenticación PRIMERA
-        if (!window.AuthManager || !window.AuthManager.isAuthenticated()) {
+        if (!window.authManager || !window.authManager.isAuthenticated()) {
             console.log('❌ Usuario no autenticado en personal, redirigiendo a login...');
             window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname + window.location.search);
             return;
