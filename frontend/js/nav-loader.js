@@ -246,6 +246,10 @@ document.addEventListener("DOMContentLoaded", () => {
                             </span>
                         </div>
                         <div class="py-2">
+                            <button id="change-password-btn-header" class="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                                <i data-lucide="key" class="w-4 h-4 mr-3"></i>
+                                Cambiar Contraseña
+                            </button>
                             <button id="logout-btn-header" class="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
                                 <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>
                                 Cerrar Sesión
@@ -286,6 +290,20 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         });
 
+        // Configurar botón de cambiar contraseña
+        const changePasswordBtn = document.getElementById('change-password-btn-header');
+        if (changePasswordBtn) {
+            changePasswordBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                userDropdown.classList.add('hidden'); // Cerrar dropdown
+                if (typeof window.openChangePasswordModal === 'function') {
+                    window.openChangePasswordModal();
+                } else {
+                    console.error('❌ Función openChangePasswordModal no encontrada');
+                }
+            });
+        }
+        
         // Configurar botón de logout del dropdown
         const logoutBtnHeader = document.getElementById('logout-btn-header');
         if (logoutBtnHeader) {
