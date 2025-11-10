@@ -6,9 +6,11 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
     
-    console.log('✅ Usuario autenticado, cargando módulo de equipo...');    const API_URL = window.API_URL || 'http://localhost:3000/api';
+    console.log('✅ Usuario autenticado, cargando módulo de equipo...');
+    
+    const API_URL = window.API_URL || 'http://localhost:3000/api';
     const mainContent = document.getElementById('main-content');
-    const pageTitle = document.getElementById('page-title');
+    const pageTitle = document.querySelector('header h1'); // Actualizado para nuevo header
     const backButton = document.querySelector('header a');
 
     const state = {
@@ -39,7 +41,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            pageTitle.textContent = `${equipment.type} - ${equipment.model || equipment.name}`;
+            if (pageTitle) {
+                pageTitle.textContent = `${equipment.type} - ${equipment.model || equipment.name}`;
+            }
 
             const formatDate = (dateString) => {
                 return dateString ? new Date(dateString).toLocaleDateString('es-CL') : 'N/A';
@@ -327,8 +331,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // NUEVO: Soportar modo crear y modo editar
             if (!equipmentId) {
                 console.log('Modo CREAR EQUIPO - No se proporcionó ID de equipo');
-                // Cambiar título de la página
-                document.getElementById('page-title').textContent = 'Crear Nuevo Equipo';
+                // Cambiar título de la página en el header
+                const headerTitle = document.querySelector('header h1');
+                if (headerTitle) {
+                    headerTitle.textContent = 'Crear Nuevo Equipo';
+                }
                 
                 // Renderizar formulario de creación
                 render.createEquipmentForm();
