@@ -21,9 +21,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const menuHTML = await response.text();
             menuPlaceholder.innerHTML = menuHTML;
             
-            // Filtrar menú según permisos del usuario
-            filterMenuByRole();
-            
             // Configurar la navegaciÃ³n despuÃ©s de cargar el menÃº
             setupNavigation();
             
@@ -101,71 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (typeof lucide !== 'undefined') {
             lucide.createIcons();
         }
-    }
-
-    function filterMenuByRole() {
-        // Verificar que exista el sistema de permisos y el usuario esté autenticado
-        if (!window.PERMISSIONS || !window.authManager || !window.authManager.isAuthenticated()) {
-            console.warn('⚠️ Sistema de permisos no disponible o usuario no autenticado');
-            return;
-        }
-
-        const userRole = window.authManager.getUserRole();
-        if (!userRole) {
-            console.warn('⚠️ No se pudo obtener el rol del usuario');
-            return;
-        }
-
-        console.log(`🔒 Filtrando menú para rol: ${userRole}`);
-
-        const navLinks = document.querySelectorAll("#main-nav .nav-link");
-        let removedCount = 0;
-
-        navLinks.forEach(link => {
-            const href = link.getAttribute("href");
-            if (!href) return;
-
-            const page = href.split('/').pop();
-            
-            // Verificar si el usuario tiene acceso a esta página
-            if (!window.PERMISSIONS.canAccessPage(page, userRole)) {
-                link.remove();
-                removedCount++;
-                console.log(`  ❌ Removido: ${page}`);
-            } else {
-                console.log(`  ✅ Permitido: ${page}`);
-            }
-        });
-
-        // Limpiar separadores vacíos (si una sección quedó sin elementos)
-        cleanEmptySections();
-
-        console.log(`✅ Menú filtrado: ${removedCount} enlaces removidos`);
-    }
-
-    function cleanEmptySections() {
-        const nav = document.getElementById('main-nav');
-        if (!nav) return;
-
-        const sections = nav.querySelectorAll('p.text-xs.font-semibold.text-slate-400');
-        sections.forEach(section => {
-            let nextElement = section.nextElementSibling;
-            let hasLinks = false;
-
-            // Verificar si hay enlaces después de este separador
-            while (nextElement && !nextElement.classList.contains('text-xs')) {
-                if (nextElement.classList.contains('nav-link')) {
-                    hasLinks = true;
-                    break;
-                }
-                nextElement = nextElement.nextElementSibling;
-            }
-
-            // Si no hay enlaces, remover el separador
-            if (!hasLinks) {
-                section.remove();
-            }
-        });
     }
 
     function setActiveNavLink() {

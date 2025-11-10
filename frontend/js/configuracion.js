@@ -6,44 +6,16 @@
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 Configuración: Iniciando módulo...');
     
-    // ✅ PROTECCIÓN DE AUTENTICACIÓN SIMPLIFICADA Y ROBUSTA
-    if (!window.authManager) {
-        console.error('❌ window.authManager no existe, redirigiendo...');
+    // ✅ PROTECCIÓN: Verificar autenticación
+    if (!window.authManager || !window.authManager.isAuthenticated()) {
+        console.error('❌ No autenticado, redirigiendo...');
         window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname);
         return;
     }
     
-    if (!window.authManager.isAuthenticated()) {
-        console.log('❌ Usuario no autenticado, redirigiendo...');
-        window.location.href = '/login.html?return=' + encodeURIComponent(window.location.pathname);
-        return;
-    }
-    
-    console.log('✅ Usuario autenticado, verificando permisos...');
-
-    // Verificar permisos de administrador de forma más robusta
-    try {
-        const user = window.authManager.getUser();
-        console.log('👤 Usuario obtenido:', user);
-        
-        const userRole = user?.role?.toLowerCase(); // ✅ SOLUCIÓN: Convertir a minúsculas
-        console.log('👑 Rol del usuario (normalizado):', userRole);
-        
-        // Para configuración, permitir admin y manager (case-insensitive)
-        if (!userRole) {
-            console.warn('⚠️ No se pudo obtener el rol del usuario, permitiendo acceso temporal');
-            // Permitir continuar, pero mostrar warning
-        } else if (userRole !== 'admin' && userRole !== 'manager') {
-            console.warn('⚠️ Usuario sin permisos para configuración, rol:', userRole);
-            alert('No tienes permisos para acceder a la configuración del sistema');
-            window.location.href = '/index.html';
-            return;
-        } else {
-            console.log('✅ Permisos verificados correctamente, rol:', userRole);
-        }
-    } catch (error) {
-        console.error('❌ Error verificando permisos, pero permitiendo acceso:', error);
-        // No redirigir, permitir continuar con warning
+    // ✅ PROTECCIÓN: Verificar permisos de la página
+    if (!window.checkPagePermissions()) {
+        return; // checkPagePermissions ya maneja la redirección
     }
     
     console.log('✅ Cargando módulo de configuración...');

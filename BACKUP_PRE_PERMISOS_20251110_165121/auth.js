@@ -67,42 +67,6 @@ class AuthManager {
     }
 
     /**
-     * Verificar si el usuario es Manager
-     */
-    isManager() {
-        return this.hasRole('Manager');
-    }
-
-    /**
-     * Verificar si el usuario es Technician
-     */
-    isTechnician() {
-        return this.hasRole('Technician');
-    }
-
-    /**
-     * Verificar si el usuario es Client
-     */
-    isClient() {
-        return this.hasRole('Client');
-    }
-
-    /**
-     * Verificar si el usuario tiene permisos administrativos (Admin o Manager)
-     */
-    isAdminOrManager() {
-        return this.hasRole(['Admin', 'Manager']);
-    }
-
-    /**
-     * Obtener el rol del usuario actual
-     */
-    getUserRole() {
-        const user = this.getUser();
-        return user ? user.role : null;
-    }
-
-    /**
      * Obtener headers de autorizaciÃ³n para fetch
      */
     getAuthHeaders() {
