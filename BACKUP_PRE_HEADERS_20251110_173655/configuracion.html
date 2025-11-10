@@ -6,7 +6,6 @@
     <title>Configuración - Gymtec ERP</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script>lucide.createIcons();</script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
@@ -113,12 +112,6 @@
             display: block;
         }
     </style>
-
-<style>
-.header-gradient {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
-}
-</style>
 </head>
 <body>
     <div class="flex h-screen">
@@ -126,33 +119,16 @@
         <div id="menu-placeholder"></div>
 
         <div class="flex-1 flex flex-col overflow-y-auto">
-                        <!-- Header Profesional -->
-            <header class="header-gradient shadow-lg border-b border-gray-200/20">
-                <div class="max-w-7xl mx-auto px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <!-- Botón toggle móvil -->
-                            <button id="mobile-sidebar-toggle" title="Abrir menú de navegación" aria-label="Abrir menú de navegación" class="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 backdrop-blur-sm">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                                </svg>
-                            </button>
-                            
-                            <!-- Logo/Icono del módulo -->
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-white/10 backdrop-blur-sm">
-                                <i data-lucide="settings" class="w-6 h-6 text-white"></i>
-                            </div>
-                            
-                            <!-- Título y subtítulo -->
-                            <div>
-                                <h1 class="text-2xl font-bold text-white tracking-tight">Configuración</h1>
-                                <p class="text-slate-200 text-sm font-medium">Ajustes y parámetros del sistema</p>
-                            </div>
-                        </div>
-                        
-                        <!-- User Info -->
-                        <div id="user-info" class="user-info"></div>
+            <header class="flex-shrink-0 bg-white border-b border-slate-200">
+                <div class="flex items-center justify-between p-4">
+                    <div class="flex items-center space-x-3">
+                        <i data-lucide="settings" class="w-6 h-6 text-blue-600"></i>
+                        <h1 class="text-2xl font-semibold text-slate-800">Configuración del Sistema</h1>
                     </div>
+                    <button id="save-all-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i data-lucide="save" class="w-4 h-4 inline mr-2"></i>
+                        Guardar Cambios
+                    </button>
                 </div>
             </header>
             

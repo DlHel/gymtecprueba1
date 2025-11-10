@@ -1,0 +1,33 @@
+<!-- Header corporativo profesional -->
+<header class="header-gradient shadow-lg border-b border-gray-200/20">
+    <div class="max-w-7xl mx-auto px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <!-- Botón toggle móvil -->
+                <button id="mobile-sidebar-toggle" title="Abrir menú de navegación" aria-label="Abrir menú de navegación" class="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 backdrop-blur-sm">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
+                </button>
+                
+                <!-- Logo/Icono empresarial -->
+                <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-white/10 backdrop-blur-sm">
+                    <i data-lucide="[MODULE_ICON]" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white tracking-tight">[MODULE_TITLE]</h1>
+                    <p class="text-slate-200 text-sm font-medium">[MODULE_SUBTITLE]</p>
+                </div>
+            </div>
+            
+            <!-- User Info (se carga dinámicamente) -->
+            <div id="user-info" class="user-info"></div>
+        </div>
+    </div>
+</header>
+
+<style>
+.header-gradient {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+}
+</style>

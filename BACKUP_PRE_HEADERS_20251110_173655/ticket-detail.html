@@ -8,16 +8,9 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/ticket-detail.css">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script>lucide.createIcons();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-<style>
-.header-gradient {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
-}
-</style>
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen">
@@ -27,32 +20,38 @@
         <!-- Contenedor principal -->
         <div class="flex-1 flex flex-col">
             <!-- Header -->
-                        <!-- Header Profesional -->
-            <header class="header-gradient shadow-lg border-b border-gray-200/20">
-                <div class="max-w-7xl mx-auto px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <!-- Botón toggle móvil -->
-                            <button id="mobile-sidebar-toggle" title="Abrir menú de navegación" aria-label="Abrir menú de navegación" class="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 backdrop-blur-sm">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                                </svg>
-                            </button>
-                            
-                            <!-- Logo/Icono del módulo -->
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-white/10 backdrop-blur-sm">
-                                <i data-lucide="file-text" class="w-6 h-6 text-white"></i>
-                            </div>
-                            
-                            <!-- Título y subtítulo -->
-                            <div>
-                                <h1 class="text-2xl font-bold text-white tracking-tight">Detalle de Ticket</h1>
-                                <p class="text-slate-200 text-sm font-medium">Seguimiento de orden de servicio</p>
-                            </div>
+            <header class="app-header">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                        <a href="tickets.html" class="p-2 rounded-md hover:bg-gray-200 transition-colors" title="Volver a Tickets">
+                            <i data-lucide="arrow-left" class="h-5 w-5"></i>
+                        </a>
+                        <h1 id="page-title" class="text-xl font-bold text-gray-800">Detalle del Ticket</h1>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <!-- Atajos de teclado -->
+                        <div class="hidden md:flex items-center space-x-2 text-sm text-gray-500">
+                            <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+S</kbd>
+                            <span>Guardar</span>
+                            <kbd class="px-2 py-1 bg-gray-100 rounded text-xs">Ctrl+P</kbd>
+                            <span>Imprimir</span>
                         </div>
-                        
-                        <!-- User Info -->
-                        <div id="user-info" class="user-info"></div>
+                        <!-- Acciones principales -->
+                        <div class="flex items-center space-x-2">
+                            <button id="print-ticket-btn" class="p-2 rounded-md hover:bg-gray-200 transition-colors" title="Imprimir ticket (Ctrl+P)">
+                                <i data-lucide="printer" class="h-5 w-5"></i>
+                            </button>
+                            <button id="edit-ticket-btn" class="btn-primary" title="Editar ticket">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                                Editar
+                            </button>
+                        </div>
+                        <div class="user-info">
+                            Felipe Maturana (Admin)
+                        </div>
                     </div>
                 </div>
             </header>

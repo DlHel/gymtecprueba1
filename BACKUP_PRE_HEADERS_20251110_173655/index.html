@@ -8,13 +8,6 @@
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/dashboard.css">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script>lucide.createIcons();</script>
-
-<style>
-.header-gradient {
-    background: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
-}
-</style>
 </head>
 <body>
     <div class="flex h-screen">
@@ -24,32 +17,19 @@
         <!-- Contenido principal -->
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Header -->
-                        <!-- Header Profesional -->
-            <header class="header-gradient shadow-lg border-b border-gray-200/20">
-                <div class="max-w-7xl mx-auto px-6 py-4">
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center space-x-4">
-                            <!-- Botón toggle móvil -->
-                            <button id="mobile-sidebar-toggle" title="Abrir menú de navegación" aria-label="Abrir menú de navegación" class="lg:hidden p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors duration-200 backdrop-blur-sm">
-                                <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-                                </svg>
-                            </button>
-                            
-                            <!-- Logo/Icono del módulo -->
-                            <div class="flex items-center justify-center w-12 h-12 rounded-lg bg-white/10 backdrop-blur-sm">
-                                <i data-lucide="layout-dashboard" class="w-6 h-6 text-white"></i>
-                            </div>
-                            
-                            <!-- Título y subtítulo -->
-                            <div>
-                                <h1 class="text-2xl font-bold text-white tracking-tight">Dashboard Principal</h1>
-                                <p class="text-slate-200 text-sm font-medium">Centro de control y monitoreo</p>
-                            </div>
+            <header class="app-header">
+                <div class="w-full mx-auto px-4 py-3 flex justify-between items-center">
+                    <div class="flex items-center space-x-4">
+                        <button id="mobile-sidebar-toggle" class="lg:hidden p-2 rounded-md hover:bg-gray-200" title="Abrir menú de navegación" aria-label="Abrir menú de navegación">
+                            <i data-lucide="menu" class="h-6 w-6"></i>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-800">Dashboard Principal</h1>
+                        <p class="text-sm text-gray-600 ml-4">Centro de control y monitoreo en tiempo real</p>
+                    </div>
+                    <div class="user-info">
+                        <div id="user-info">
+                            <!-- La información del usuario se cargará aquí -->
                         </div>
-                        
-                        <!-- User Info -->
-                        <div id="user-info" class="user-info"></div>
                     </div>
                 </div>
             </header>
