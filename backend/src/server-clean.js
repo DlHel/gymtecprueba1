@@ -349,7 +349,7 @@ app.post('/api/users', authenticateToken, async (req, res) => {
                 // Insertar usuario
                 const insertSql = `
                     INSERT INTO Users (username, email, password_hash, role, status, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+                    VALUES (?, ?, ?, ?, ?, NOW(), NOW())
                 `;
 
                 const userStatus = status || 'active';
@@ -421,7 +421,7 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
         let updateFields = [username, email, role, status || 'active'];
         let updateSql = `
             UPDATE Users 
-            SET username = ?, email = ?, role = ?, status = ?, updated_at = datetime('now')
+            SET username = ?, email = ?, role = ?, status = ?, updated_at = NOW()
         `;
 
         if (password && password.trim() !== '') {
