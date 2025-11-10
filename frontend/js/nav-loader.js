@@ -184,60 +184,138 @@ document.addEventListener("DOMContentLoaded", () => {
         
         if (!user) return;
 
-        // Actualizar avatar con iniciales
-        const avatarElement = document.getElementById('user-avatar-initials');
-        if (avatarElement && user.username) {
-            const initials = user.username.substring(0, 2).toUpperCase();
-            avatarElement.textContent = initials;
+        // Buscar el contenedor de user-info en el header
+        let userInfoContainer = document.getElementById('user-info');
+        
+        // Si no existe, buscar en otros lugares comunes del header
+        if (!userInfoContainer) {
+            userInfoContainer = document.querySelector('.user-info');
+        }
+        
+        // Si aún no existe, buscar el header y agregarlo
+        if (!userInfoContainer) {
+            const header = document.querySelector('header');
+            if (header) {
+                const headerContent = header.querySelector('.flex.justify-between');
+                if (headerContent) {
+                    const userDiv = document.createElement('div');
+                    userDiv.className = 'user-info';
+                    userDiv.id = 'user-info';
+                    headerContent.appendChild(userDiv);
+                    userInfoContainer = userDiv;
+                }
+            }
         }
 
-        // Actualizar nombre de usuario
-        const nameElement = document.getElementById('user-display-name');
-        if (nameElement) {
-            nameElement.textContent = user.username;
-        }
-
-        // Actualizar rol
-        const roleElement = document.getElementById('user-display-role');
-        if (roleElement && role) {
-            const roleNames = {
-                'Admin': 'Administrador',
-                'Manager': 'Gerente',
-                'Technician': 'Técnico',
-                'Client': 'Cliente'
-            };
-            roleElement.textContent = roleNames[role] || role;
-        }
-
-        console.log('✅ Información de usuario mostrada:', user.username, role);
-    }
-
-    function setupLogout() {
-        const logoutBtn = document.getElementById('logout-btn');
-        if (!logoutBtn) {
-            console.warn('⚠️ Botón de logout no encontrado');
+        if (!userInfoContainer) {
+            console.warn('⚠️ No se encontró contenedor para user-info en el header');
             return;
         }
 
-        logoutBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            
-            if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-                console.log('🚪 Cerrando sesión...');
-                
-                // Usar el método de authManager para logout
-                if (window.authManager && typeof window.authManager.logout === 'function') {
-                    window.authManager.logout();
-                } else {
-                    // Fallback manual
-                    localStorage.removeItem('gymtec_token');
-                    localStorage.removeItem('gymtec_user');
-                    window.location.href = 'login.html';
-                }
+        // Traducir rol
+        const roleNames = {
+            'Admin': 'Administrador',
+            'Manager': 'Gerente',
+            'Technician': 'Técnico',
+            'Client': 'Cliente'
+        };
+        const roleName = roleNames[role] || role;
+        const initials = user.username.substring(0, 2).toUpperCase();
+
+        // Crear el HTML del componente de usuario
+        userInfoContainer.innerHTML = `
+            <div class="flex items-center space-x-3">
+                <div class="hidden md:block text-right">
+                    <p class="text-sm font-medium text-gray-800">${user.username}</p>
+                    <p class="text-xs text-gray-500">${roleName}</p>
+                </div>
+                <div class="relative">
+                    <button id="user-menu-button" class="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors">
+                        <div class="w-9 h-9 rounded-full bg-sky-600 flex items-center justify-center text-white text-sm font-semibold">
+                            ${initials}
+                        </div>
+                        <i data-lucide="chevron-down" class="w-4 h-4 text-gray-600"></i>
+                    </button>
+                    <!-- Dropdown Menu -->
+                    <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                        <div class="px-4 py-3 border-b border-gray-200">
+                            <p class="text-sm font-medium text-gray-900">${user.username}</p>
+                            <p class="text-xs text-gray-500">${user.email || ''}</p>
+                            <span class="inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full bg-sky-100 text-sky-800">
+                                ${roleName}
+                            </span>
+                        </div>
+                        <div class="py-2">
+                            <button id="logout-btn-header" class="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                                <i data-lucide="log-out" class="w-4 h-4 mr-3"></i>
+                                Cerrar Sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Inicializar iconos de Lucide para los nuevos elementos
+        if (typeof lucide !== 'undefined') {
+            lucide.createIcons();
+        }
+
+        // Setup del dropdown
+        setupUserDropdown();
+
+        console.log('✅ Información de usuario mostrada en header:', user.username, role);
+    }
+
+    function setupUserDropdown() {
+        const userMenuButton = document.getElementById('user-menu-button');
+        const userDropdown = document.getElementById('user-dropdown');
+        
+        if (!userMenuButton || !userDropdown) return;
+
+        // Toggle dropdown
+        userMenuButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            userDropdown.classList.toggle('hidden');
+        });
+
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            if (!userMenuButton.contains(e.target) && !userDropdown.contains(e.target)) {
+                userDropdown.classList.add('hidden');
             }
         });
 
-        console.log('✅ Botón de logout configurado');
+        // Configurar botón de logout del dropdown
+        const logoutBtnHeader = document.getElementById('logout-btn-header');
+        if (logoutBtnHeader) {
+            logoutBtnHeader.addEventListener('click', (e) => {
+                e.preventDefault();
+                handleLogout();
+            });
+        }
+    }
+
+    function setupLogout() {
+        // Esta función ahora es manejada por setupUserDropdown
+        // Se mantiene por compatibilidad pero ya no es necesaria
+        console.log('✅ Sistema de logout configurado (en header)');
+    }
+
+    function handleLogout() {
+        if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
+            console.log('🚪 Cerrando sesión...');
+            
+            // Usar el método de authManager para logout
+            if (window.authManager && typeof window.authManager.logout === 'function') {
+                window.authManager.logout();
+            } else {
+                // Fallback manual
+                localStorage.removeItem('gymtec_token');
+                localStorage.removeItem('gymtec_user');
+                window.location.href = 'login.html';
+            }
+        }
     }
 
     function setActiveNavLink() {
