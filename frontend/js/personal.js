@@ -25,9 +25,26 @@ class PersonalManager {
     }
 
     setupEventListeners() {
+        console.log('🔧 Configurando event listeners...');
+        
         // Botones principales
-        document.getElementById('add-user-btn').addEventListener('click', () => this.openUserModal());
-        document.getElementById('refresh-users').addEventListener('click', () => this.loadUsers());
+        const addUserBtn = document.getElementById('add-user-btn');
+        const refreshBtn = document.getElementById('refresh-users');
+        
+        if (!addUserBtn) {
+            console.error('❌ Botón add-user-btn no encontrado en el DOM');
+            return;
+        }
+        
+        console.log('✅ Botón add-user-btn encontrado, agregando listener...');
+        addUserBtn.addEventListener('click', () => {
+            console.log('🖱️ Click en Nuevo Usuario detectado');
+            this.openUserModal();
+        });
+        
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => this.loadUsers());
+        }
 
         // Modales - usar base-modal-close para cerrar
         document.querySelectorAll('.base-modal-close').forEach(btn => {
@@ -225,11 +242,20 @@ class PersonalManager {
     }
 
     openUserModal(user = null) {
+        console.log('📝 Abriendo modal de usuario...', user ? 'EDITAR' : 'NUEVO');
+        
         this.currentUser = user;
         const modal = document.getElementById('user-modal');
         const form = document.getElementById('user-form');
         const title = document.getElementById('modal-title');
         const passwordField = document.getElementById('password');
+
+        if (!modal) {
+            console.error('❌ Modal user-modal no encontrado en el DOM');
+            return;
+        }
+
+        console.log('✅ Modal encontrado, configurando...');
 
         if (user) {
             title.textContent = 'Editar Usuario';
@@ -248,6 +274,7 @@ class PersonalManager {
 
         this.updateRolePermissions(user ? user.role : '');
         modal.classList.add('active');
+        console.log('✅ Modal activado, clase "active" agregada');
     }
 
     closeUserModal() {
