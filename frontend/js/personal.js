@@ -273,12 +273,12 @@ class PersonalManager {
         }
 
         this.updateRolePermissions(user ? user.role : '');
-        modal.classList.add('active');
-        console.log('✅ Modal activado, clase "active" agregada');
+        modal.classList.add('is-open');
+        console.log('✅ Modal activado, clase "is-open" agregada');
     }
 
     closeUserModal() {
-        document.getElementById('user-modal').classList.remove('active');
+        document.getElementById('user-modal').classList.remove('is-open');
         this.currentUser = null;
     }
 
@@ -457,11 +457,11 @@ class PersonalManager {
     openConfirmModal(message, action) {
         document.getElementById('confirm-message').textContent = message;
         this.confirmAction = action;
-        document.getElementById('confirm-modal').classList.add('active');
+        document.getElementById('confirm-modal').classList.add('is-open');
     }
 
     closeConfirmModal() {
-        document.getElementById('confirm-modal').classList.remove('active');
+        document.getElementById('confirm-modal').classList.remove('is-open');
         this.confirmAction = null;
     }
 
