@@ -305,33 +305,17 @@
             
             console.log('✅ Usuario autenticado, inicializando página de modelos...');
 
-            // El menú se carga automáticamente via nav-loader.js
-            // No necesitamos llamar loadNavigation() manualmente
-            
             // Inicializar los iconos de Lucide
             lucide.createIcons();
             
-            // Inicializar el manager de modelos después de que el DOM esté listo
-            // Aumentar el tiempo de espera para asegurar que el menú se haya cargado
-            setTimeout(() => {
-                if (typeof ModelosManager !== 'undefined') {
-                    // Verificar que los elementos necesarios existan
-                    const requiredElements = ['models-grid', 'loading-models', 'empty-state'];
-                    const missingElements = requiredElements.filter(id => !document.getElementById(id));
-                    
-                    if (missingElements.length > 0) {
-                        console.warn('⚠️ Algunos elementos no están disponibles:', missingElements);
-                        console.warn('⚠️ Reintentando inicialización en 200ms...');
-                        setTimeout(() => {
-                            window.modelosManager = new ModelosManager();
-                        }, 200);
-                    } else {
-                        window.modelosManager = new ModelosManager();
-                    }
-                } else {
-                    console.error('❌ ModelosManager no está disponible');
-                }
-            }, 200);
+            // Inicializar el manager de modelos
+            if (typeof window.ModelosManager !== 'undefined') {
+                console.log('✅ Inicializando ModelosManager...');
+                window.modelosManager = new window.ModelosManager();
+            } else {
+                console.error('❌ ModelosManager no está disponible');
+                console.error('Verifica que js/modelos.js se haya cargado correctamente');
+            }
         });
     </script>
 </body>

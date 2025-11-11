@@ -1,14 +1,6 @@
 // Mantenedor de Modelos de Equipos - Gymtec ERP
-document.addEventListener('DOMContentLoaded', () => {
-    // ✅ CRÍTICO: Verificación de autenticación REACTIVADA
-    if (!window.authManager || !window.authManager.isAuthenticated()) {
-        console.log('❌ Usuario no autenticado en modelos, redirigiendo a login...');
-        window.authManager.redirectToLogin();
-        return;
-    }
 
-    console.log('✅ Usuario autenticado, cargando módulo de modelos...');
-
+// ✅ Definir la clase globalmente ANTES del DOMContentLoaded
 class ModelosManager {
     constructor() {
         this.models = [];
@@ -752,29 +744,29 @@ class ModelosManager {
             notification.remove();
         }, 5000);
     }
-}
+} // Fin clase ModelosManager
 
-// Inicialización manual desde modelos.html
-// No inicializar automáticamente para evitar problemas de timing
+// ✅ Exponer la clase globalmente
+window.ModelosManager = ModelosManager;
 
-// Estilos CSS para la animación
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideIn {
-        from {
-            transform: translateX(100%);
-            opacity: 0;
+// Inyectar estilos CSS para las animaciones al cargar el script
+(function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
         }
-        to {
-            transform: translateX(0);
-            opacity: 1;
+        
+        .modal-open {
+            overflow: hidden;
         }
-    }
-    
-    .modal-open {
-        overflow: hidden;
-    }
-`;
-document.head.appendChild(style);
-
-}); // Fin DOMContentLoaded
+    `;
+    document.head.appendChild(style);
+})();

@@ -184,27 +184,6 @@ class DashboardManager {
                 icon: 'package',
                 color: 'yellow',
                 link: 'inventario.html'
-            },
-            {
-                title: 'Contratos Activos',
-                value: this.kpis.active_contracts || 0,
-                icon: 'file-text',
-                color: 'purple',
-                link: 'contratos.html'
-            },
-            {
-                title: 'Personal Activo',
-                value: this.kpis.active_staff || 0,
-                icon: 'user-check',
-                color: 'indigo',
-                link: 'personal.html'
-            },
-            {
-                title: 'Asistencia Hoy',
-                value: this.kpis.attendance_today || 0,
-                icon: 'clock',
-                color: 'teal',
-                link: 'asistencia.html'
             }
         ];
 
@@ -218,22 +197,40 @@ class DashboardManager {
     }
 
     createKPICard(kpi) {
-        const card = document.createElement('div');
-        card.className = 'kpi-card cursor-pointer hover:shadow-lg transition-shadow';
-        if (kpi.link) {
-            card.onclick = () => window.location.href = kpi.link;
-        }
+        const card = document.createElement('a');
+        card.href = kpi.link || '#';
+        card.className = 'bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md hover:border-indigo-300 transition-all duration-200 group block';
+        
+        const colorClasses = {
+            blue: 'from-blue-500 to-blue-600',
+            green: 'from-green-500 to-green-600',
+            orange: 'from-orange-500 to-orange-600',
+            red: 'from-red-500 to-red-600',
+            yellow: 'from-amber-500 to-amber-600',
+            purple: 'from-purple-500 to-purple-600',
+            indigo: 'from-indigo-500 to-indigo-600',
+            teal: 'from-teal-500 to-teal-600'
+        };
+
+        const iconColorClasses = {
+            blue: 'text-blue-600 bg-blue-50',
+            green: 'text-green-600 bg-green-50',
+            orange: 'text-orange-600 bg-orange-50',
+            red: 'text-red-600 bg-red-50',
+            yellow: 'text-amber-600 bg-amber-50',
+            purple: 'text-purple-600 bg-purple-50',
+            indigo: 'text-indigo-600 bg-indigo-50',
+            teal: 'text-teal-600 bg-teal-50'
+        };
         
         card.innerHTML = `
-            <div class="kpi-header">
-                <div class="kpi-icon kpi-${kpi.color}">
-                    <i data-lucide="${kpi.icon}"></i>
+            <div class="flex items-center justify-between mb-2">
+                <div class="w-10 h-10 rounded-lg ${iconColorClasses[kpi.color]} flex items-center justify-center">
+                    <i data-lucide="${kpi.icon}" class="w-5 h-5"></i>
                 </div>
-                <div class="kpi-info">
-                    <h3 class="kpi-title">${kpi.title}</h3>
-                </div>
+                <span class="text-2xl font-bold text-gray-900">${kpi.value}</span>
             </div>
-            <div class="kpi-value">${kpi.value}</div>
+            <p class="text-xs font-medium text-gray-600">${kpi.title}</p>
         `;
         return card;
     }

@@ -652,24 +652,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Setup Event Listeners
     const setupEventListeners = () => {
+        // Verificar que todos los elementos existan antes de agregar listeners
+        if (!elements.prevMonthBtn || !elements.nextMonthBtn || !elements.addTaskBtn) {
+            console.error('❌ Elementos del calendario no encontrados');
+            console.error('prevMonthBtn:', elements.prevMonthBtn);
+            console.error('nextMonthBtn:', elements.nextMonthBtn);
+            console.error('addTaskBtn:', elements.addTaskBtn);
+            throw new Error('Elementos del DOM no encontrados para planificador');
+        }
+
         elements.prevMonthBtn.addEventListener('click', handlers.prevMonth);
         elements.nextMonthBtn.addEventListener('click', handlers.nextMonth);
         elements.addTaskBtn.addEventListener('click', handlers.addTask);
-        elements.closeModalBtn.addEventListener('click', handlers.closeModal);
-        elements.cancelBtn.addEventListener('click', handlers.closeModal);
-        elements.taskForm.addEventListener('submit', handlers.submitTask);
+        
+        if (elements.closeModalBtn) {
+            elements.closeModalBtn.addEventListener('click', handlers.closeModal);
+        }
+        if (elements.cancelBtn) {
+            elements.cancelBtn.addEventListener('click', handlers.closeModal);
+        }
+        if (elements.taskForm) {
+            elements.taskForm.addEventListener('submit', handlers.submitTask);
+        }
 
         // Botones de vista
-        elements.viewMonthBtn.addEventListener('click', () => ui.switchView('month'));
-        elements.viewWeekBtn.addEventListener('click', () => ui.switchView('week'));
-        elements.viewTasksBtn.addEventListener('click', () => ui.switchView('tasks'));
+        if (elements.viewMonthBtn) {
+            elements.viewMonthBtn.addEventListener('click', () => ui.switchView('month'));
+        }
+        if (elements.viewWeekBtn) {
+            elements.viewWeekBtn.addEventListener('click', () => ui.switchView('week'));
+        }
+        if (elements.viewTasksBtn) {
+            elements.viewTasksBtn.addEventListener('click', () => ui.switchView('tasks'));
+        }
 
         // Cerrar modal al hacer click fuera
-        elements.taskModal.addEventListener('click', (e) => {
-            if (e.target === elements.taskModal) {
-                ui.closeTaskModal();
-            }
-        });
+        if (elements.taskModal) {
+            elements.taskModal.addEventListener('click', (e) => {
+                if (e.target === elements.taskModal) {
+                    ui.closeTaskModal();
+                }
+            });
+        }
     };
 
     // Inicialización

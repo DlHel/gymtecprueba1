@@ -335,6 +335,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const headerTitle = document.querySelector('header h1');
                 if (headerTitle) {
                     headerTitle.textContent = 'Crear Nuevo Equipo';
+                } else {
+                    console.warn('⚠️ No se encontró elemento header h1');
                 }
                 
                 // Renderizar formulario de creación
