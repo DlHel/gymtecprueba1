@@ -2755,7 +2755,7 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
                 COALESCE(NULLIF(e.type, ''), 'Equipment') as type,
                 COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
                 COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
-                COALESCE(NULLIF(e.serial_number, ''), 'S/N no disponible') as serial_number,
+                COALESCE(NULLIF(e.serial_number, ''), e.custom_id, 'N/A') as serial_number,
                 e.custom_id,
                 COALESCE(em.category, 'Sin categoría') as category,
                 CASE 
