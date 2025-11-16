@@ -769,16 +769,40 @@ document.addEventListener('DOMContentLoaded', () => {
             // Mapear campos especiales para equipos
             if (modalElem.id === 'equipment-modal') {
                 console.log('📋 Configurando modal de equipo con datos:', data);
+                
+                // Cargar modelos de equipos si no están cargados
+                const modelSelect = form.querySelector('#equipment-model-id');
+                if (modelSelect && modelSelect.options.length === 1) {
+                    try {
+                        console.log('📥 Cargando modelos de equipos...');
+                        const response = await window.authManager.authenticatedFetch(`${API_URL}/models`);
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const result = await response.json();
+                        const models = result.data || result;
+                        
+                        console.log(`✅ Modelos cargados: ${models.length}`);
+                        
+                        // Limpiar y llenar el select
+                        modelSelect.innerHTML = '<option value="">Seleccione un modelo...</option>';
+                        models.forEach(model => {
+                            const option = document.createElement('option');
+                            option.value = model.id;
+                            option.textContent = `${model.name} - ${model.brand || 'Sin marca'}`;
+                            modelSelect.appendChild(option);
+                        });
+                    } catch (error) {
+                        console.error('❌ Error cargando modelos:', error);
+                        modelSelect.innerHTML = '<option value="">Error cargando modelos</option>';
+                    }
+                }
+                
                 if (data.id) {
                     console.log('✏️ Modo edición de equipo');
                     // Es edición de equipo - mapear campos correctamente
                     const fieldMapping = {
                         'id': 'id',
                         'location_id': 'location_id', 
-                        'type': 'type',
-                        'name': 'name',
-                        'brand': 'brand',
-                        'model': 'model',
+                        'model_id': 'model_id',
                         'serial_number': 'serial_number',
                         'acquisition_date': 'acquisition_date',
                         'notes': 'notes'

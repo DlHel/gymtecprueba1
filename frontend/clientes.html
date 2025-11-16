@@ -240,36 +240,15 @@
                     <input type="hidden" name="id">
                     <input type="hidden" name="location_id">
                     
-                    <div class="base-form-group">
-                        <label for="equipment-type" class="base-form-label">Tipo de Equipo <span class="required" aria-label="requerido">*</span></label>
-                        <select id="equipment-type" name="type" class="base-form-input" required aria-describedby="equipment-type-help">
-                            <option value="">Seleccione un tipo</option>
-                            <option value="Cardio">Cardio</option>
-                            <option value="Fuerza">Fuerza</option>
-                            <option value="Funcional">Funcional</option>
-                            <option value="Accesorio">Accesorio</option>
-                            <option value="Rehabilitación">Rehabilitación</option>
-                            <option value="Aquático">Aquático</option>
-                            <option value="Otro">Otro</option>
+                    <div class="base-form-group full-width">
+                        <label for="equipment-model-id" class="base-form-label">Modelo de Equipo <span class="required" aria-label="requerido">*</span></label>
+                        <select id="equipment-model-id" name="model_id" class="base-form-input" required aria-describedby="equipment-model-help">
+                            <option value="">Seleccione un modelo...</option>
+                            <!-- Se llenan dinámicamente desde /api/models -->
                         </select>
-                        <div id="equipment-type-help" class="form-help-text">
-                            Seleccione la categoría que mejor describe el tipo de equipo
+                        <div id="equipment-model-help" class="form-help-text">
+                            Seleccione el modelo del catálogo. El tipo, marca y nombre se heredan automáticamente.
                         </div>
-                    </div>
-                    
-                    <div class="base-form-group">
-                        <label class="base-form-label">Nombre del Equipo <span class="required">*</span></label>
-                        <input type="text" name="name" placeholder="Ej: Trotadora, Prensa" class="base-form-input" required>
-                    </div>
-                    
-                    <div class="base-form-group">
-                        <label for="equipment-brand" class="base-form-label">Marca</label>
-                        <input type="text" id="equipment-brand" name="brand" class="base-form-input" placeholder="Ej: Life Fitness, Technogym">
-                    </div>
-                    
-                    <div class="base-form-group">
-                        <label for="equipment-model" class="base-form-label">Modelo</label>
-                        <input type="text" id="equipment-model" name="model" class="base-form-input" placeholder="Ingrese el modelo del equipo">
                     </div>
                     
                     <div class="base-form-group full-width">

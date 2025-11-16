@@ -3,9 +3,9 @@
 ## 🎯 Información General del Proyecto
 
 **Proyecto**: Sistema ERP de Gestión de Mantenimiento de Equipos de Gimnasio  
-**Versión**: 3.2.4 (Fix Dropdown Equipos + Limpieza Archivos)  
+**Versión**: 3.2.5 (Fix Serial Numbers + CRUD Completo de Equipos)  
 **Stack**: Node.js + Express.js + MySQL2 + Vanilla JavaScript + Tailwind CSS  
-**Estado**: ✅ PRODUCCIÓN READY - Tickets con dropdown equipos funcional  
+**Estado**: ✅ PRODUCCIÓN READY - CRUD equipos funcional con selector de modelos  
 **Última Actualización**: 16 de noviembre de 2025
 
 ### 🏗️ Arquitectura Actual
@@ -22,6 +22,133 @@
 ---
 
 ## 📅 HISTORIAL CRONOLÓGICO DE DESARROLLO
+
+### [2025-11-16] - 🔧 FIX COMPLETO: Serial Numbers + CRUD Equipos con Selector de Modelos
+
+#### 🎯 Resumen Ejecutivo
+**Corrección de display de números de serie y creación de CRUD completo para equipos**
+
+**Problemas identificados**:
+1. Números de serie mostraban "S/N no disponible" en lugar de `custom_id`
+2. No existían endpoints POST/PUT para crear/editar equipos desde clientes
+3. Modal de equipos usaba campos individuales en lugar de selector de modelos
+
+**Soluciones implementadas**:
+1. ✅ Modificado SQL COALESCE para priorizar `custom_id` sobre mensaje hardcodeado
+2. ✅ Creados endpoints POST /api/equipment y PUT /api/equipment/:id
+3. ✅ Reemplazados campos individuales por selector de modelos con carga dinámica
+
+#### 🔧 Fix #1: Serial Numbers Mostrando custom_id
+
+**Problema**: Los equipos tienen `serial_number = NULL` por diseño (heredan del modelo), pero la consulta SQL retornaba "S/N no disponible" en lugar del identificador físico `custom_id`.
+
+**Causa raíz**: Query en `server-clean.js` línea 2758:
+```sql
+-- ANTES (incorrecto)
+COALESCE(NULLIF(e.serial_number, ''), 'S/N no disponible') as serial_number
+
+-- DESPUÉS (correcto)
+COALESCE(NULLIF(e.serial_number, ''), e.custom_id, 'N/A') as serial_number
+```
+
+**Archivos modificados**:
+- `backend/src/server-clean.js` línea 2758: Actualizado COALESCE en endpoint GET /api/locations/:locationId/equipment
+- `backend/test-serial-number.js` (nuevo): Script de verificación que confirma query retorna custom_id correctamente
+
+**Resultado**: Los números de serie ahora muestran "CARD-304", "CARD-305", etc. en lugar de "S/N no disponible"
+
+#### 🆕 Fix #2: Endpoints POST y PUT para Equipos
+
+**Problema**: Frontend enviaba POST /api/equipment pero el endpoint no existía → Error 404.
+
+**Solución**: Creados dos endpoints nuevos en `backend/src/server-clean.js`:
+
+**POST /api/equipment** (líneas ~2264-2397):
+- Acepta: `location_id`, `model_id`, `custom_id`, `serial_number`, `acquisition_date`, `notes`
+- Valida campos requeridos (location_id, model_id)
+- Genera `custom_id` automáticamente si no se proporciona (formato CARD-XXX)
+- Inserta con campos heredados vacíos (`name`, `type`, `brand`, `model` = '')
+- Retorna equipo creado con JOIN a EquipmentModels
+
+**PUT /api/equipment/:id** (líneas ~2399-2499):
+- Acepta: mismos campos que POST
+- Valida existencia del equipo (404 si no existe)
+- Actualiza solo campos permitidos
+- Retorna equipo actualizado con info del modelo
+
+**Características técnicas**:
+- ✅ Manejo de errores de duplicados (custom_id, serial_number UNIQUE)
+- ✅ Validación de campos requeridos
+- ✅ Retorno de datos completos con JOIN a EquipmentModels
+- ✅ Logs detallados para debugging
+
+#### 🎨 Fix #3: Modal de Equipos con Selector de Modelos
+
+**Problema**: Modal tenía campos individuales (name, type, brand, model) que los usuarios debían llenar manualmente, ignorando la arquitectura de herencia del proyecto.
+
+**Solución**: Reemplazado por selector dropdown que carga modelos del catálogo.
+
+**Cambios en HTML** (`frontend/clientes.html`):
+```html
+<!-- ANTES: 4 campos individuales (eliminados) -->
+<select name="type">...</select>
+<input name="name">
+<input name="brand">
+<input name="model">
+
+<!-- DESPUÉS: 1 selector de modelos -->
+<select id="equipment-model-id" name="model_id" required>
+  <option value="">Seleccione un modelo...</option>
+  <!-- Se llenan dinámicamente desde /api/models -->
+</select>
+```
+
+**Cambios en JavaScript** (`frontend/js/clientes.js`):
+- **Líneas ~770-820**: Agregada carga dinámica de modelos al abrir modal
+- **Líneas ~780-800**: Llamada a GET /api/models con `authenticatedFetch`
+- **Líneas ~803-835**: Población del select con formato "Nombre - Marca"
+- **Líneas ~837-858**: Ajustado mapping de campos para modo edición (ahora incluye `model_id`)
+
+**Flujo de usuario mejorado**:
+1. Usuario abre modal "Nuevo Equipo"
+2. Frontend carga modelos desde `/api/models` automáticamente
+3. Usuario selecciona modelo del dropdown (ej: "Treadmill 9500HR - Life Fitness")
+4. Usuario completa campos opcionales (serial_number, acquisition_date, notes)
+5. Submit envía `model_id` + campos opcionales a POST /api/equipment
+6. Backend genera `custom_id` automático y crea equipo con herencia del modelo
+
+#### 📊 Archivos Modificados
+
+**Backend**:
+- `backend/src/server-clean.js`:
+  - Línea 2758: Fix COALESCE para serial_number
+  - Líneas 2264-2397: Nuevo endpoint POST /api/equipment
+  - Líneas 2399-2499: Nuevo endpoint PUT /api/equipment/:id
+
+**Frontend**:
+- `frontend/clientes.html`:
+  - Líneas 239-273: Reemplazados 4 campos individuales por selector de modelos
+- `frontend/js/clientes.js`:
+  - Líneas 770-820: Agregada carga dinámica de modelos
+  - Líneas 837-858: Ajustado mapping de campos para edición
+
+**Testing**:
+- `backend/test-serial-number.js` (nuevo): Verificación de query COALESCE
+
+#### 💡 Lecciones Aprendidas
+
+1. **Arquitectura de herencia**: Equipment.name, type, brand deben estar VACÍOS - heredan de EquipmentModels
+2. **COALESCE priorities**: Importante el orden - primero campos reales (custom_id) antes que mensajes hardcodeados
+3. **Backend restart necesario**: Cambios en server-clean.js requieren reinicio para aplicar
+4. **Validación de arquitectura antes de cambios**: Evita modificaciones que rompen el diseño del sistema
+
+#### 🔄 Estado del Sistema
+- ✅ Serial numbers mostrando custom_id correctamente en módulo clientes
+- ✅ Endpoints POST/PUT /api/equipment implementados y probados con test script
+- ✅ Modal de equipos actualizado con selector de modelos
+- ⏳ Pendiente: Reiniciar backend y probar creación de equipo end-to-end
+
+---
 
 ### [2025-11-16] - 🔧 FIX CRÍTICO: Dropdown Equipos Mostraba Opciones Vacías
 

@@ -2248,6 +2248,253 @@ app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
     });
 });
 
+// ===================================================================
+// CRUD DE EQUIPOS
+// ===================================================================
+
+// POST crear nuevo equipo
+app.post('/api/equipment', authenticateToken, (req, res) => {
+    const { 
+        location_id, 
+        model_id, 
+        custom_id, 
+        serial_number, 
+        acquisition_date,
+        notes 
+    } = req.body;
+    
+    // Validaciones básicas
+    if (!location_id) {
+        return res.status(400).json({ 
+            error: 'location_id es requerido',
+            code: 'MISSING_LOCATION'
+        });
+    }
+    
+    if (!model_id) {
+        return res.status(400).json({ 
+            error: 'model_id es requerido',
+            code: 'MISSING_MODEL'
+        });
+    }
+    
+    // Generar custom_id si no se proporciona
+    let finalCustomId = custom_id;
+    
+    const insertEquipment = (customIdValue) => {
+        const sql = `INSERT INTO Equipment 
+                     (location_id, model_id, custom_id, serial_number, acquisition_date, notes, name, type, brand, model, created_at, updated_at) 
+                     VALUES (?, ?, ?, ?, ?, ?, '', '', '', '', NOW(), NOW())`;
+        
+        const params = [
+            parseInt(location_id),
+            parseInt(model_id),
+            customIdValue,
+            serial_number || null,
+            acquisition_date || null,
+            notes || null
+        ];
+        
+        db.run(sql, params, function(err) {
+            if (err) {
+                console.error('❌ Error creando equipo:', err.message);
+                
+                // Manejo de errores específicos
+                if (err.message.includes('UNIQUE') || err.code === 'ER_DUP_ENTRY') {
+                    return res.status(409).json({ 
+                        error: 'Ya existe un equipo con ese custom_id o serial_number',
+                        code: 'DUPLICATE_EQUIPMENT'
+                    });
+                }
+                
+                return res.status(500).json({ 
+                    error: 'Error al crear equipo: ' + err.message,
+                    code: 'EQUIPMENT_CREATE_ERROR'
+                });
+            }
+            
+            const equipmentId = this.lastID;
+            console.log(`✅ Equipo creado exitosamente, ID: ${equipmentId}`);
+            
+            // Obtener el equipo recién creado con información del modelo
+            const selectSql = `
+                SELECT 
+                    e.id,
+                    e.custom_id,
+                    e.serial_number,
+                    e.location_id,
+                    e.model_id,
+                    e.acquisition_date,
+                    e.notes,
+                    COALESCE(NULLIF(e.name, ''), em.name) as name,
+                    COALESCE(NULLIF(e.type, ''), em.type) as type,
+                    COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
+                    COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
+                    em.name as model_name
+                FROM Equipment e
+                LEFT JOIN EquipmentModels em ON e.model_id = em.id
+                WHERE e.id = ?
+            `;
+            
+            db.get(selectSql, [equipmentId], (err, row) => {
+                if (err) {
+                    console.error('❌ Error obteniendo equipo creado:', err.message);
+                    return res.status(500).json({ 
+                        error: 'Equipo creado pero error al recuperar datos',
+                        code: 'EQUIPMENT_RETRIEVE_ERROR',
+                        data: { id: equipmentId }
+                    });
+                }
+                
+                res.status(201).json({
+                    message: 'Equipo creado exitosamente',
+                    data: row
+                });
+            });
+        });
+    };
+    
+    // Si no hay custom_id, generar uno automáticamente
+    if (!finalCustomId) {
+        // Buscar el último custom_id de la ubicación para generar el siguiente
+        const findMaxSql = `
+            SELECT custom_id 
+            FROM Equipment 
+            WHERE location_id = ? AND custom_id LIKE 'CARD-%'
+            ORDER BY CAST(SUBSTRING(custom_id, 6) AS UNSIGNED) DESC 
+            LIMIT 1
+        `;
+        
+        db.get(findMaxSql, [location_id], (err, row) => {
+            if (err) {
+                console.error('❌ Error buscando último custom_id:', err.message);
+                return res.status(500).json({ 
+                    error: 'Error al generar custom_id',
+                    code: 'CUSTOM_ID_ERROR'
+                });
+            }
+            
+            let nextNumber = 1;
+            if (row && row.custom_id) {
+                const match = row.custom_id.match(/CARD-(\d+)/);
+                if (match) {
+                    nextNumber = parseInt(match[1]) + 1;
+                }
+            }
+            
+            finalCustomId = `CARD-${nextNumber}`;
+            console.log(`🔢 Custom ID generado automáticamente: ${finalCustomId}`);
+            insertEquipment(finalCustomId);
+        });
+    } else {
+        insertEquipment(finalCustomId);
+    }
+});
+
+// PUT actualizar equipo existente
+app.put('/api/equipment/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    const { 
+        location_id, 
+        model_id, 
+        custom_id, 
+        serial_number, 
+        acquisition_date,
+        notes 
+    } = req.body;
+    
+    // Validaciones básicas
+    if (!location_id || !model_id) {
+        return res.status(400).json({ 
+            error: 'location_id y model_id son requeridos',
+            code: 'MISSING_REQUIRED_FIELDS'
+        });
+    }
+    
+    const sql = `UPDATE Equipment 
+                 SET location_id = ?, 
+                     model_id = ?, 
+                     custom_id = ?, 
+                     serial_number = ?, 
+                     acquisition_date = ?, 
+                     notes = ?,
+                     updated_at = NOW()
+                 WHERE id = ?`;
+    
+    const params = [
+        parseInt(location_id),
+        parseInt(model_id),
+        custom_id || null,
+        serial_number || null,
+        acquisition_date || null,
+        notes || null,
+        parseInt(id)
+    ];
+    
+    db.run(sql, params, function(err) {
+        if (err) {
+            console.error('❌ Error actualizando equipo:', err.message);
+            
+            if (err.message.includes('UNIQUE') || err.code === 'ER_DUP_ENTRY') {
+                return res.status(409).json({ 
+                    error: 'Ya existe un equipo con ese custom_id o serial_number',
+                    code: 'DUPLICATE_EQUIPMENT'
+                });
+            }
+            
+            return res.status(500).json({ 
+                error: 'Error al actualizar equipo: ' + err.message,
+                code: 'EQUIPMENT_UPDATE_ERROR'
+            });
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ 
+                error: 'Equipo no encontrado',
+                code: 'EQUIPMENT_NOT_FOUND'
+            });
+        }
+        
+        console.log(`✅ Equipo ${id} actualizado exitosamente`);
+        
+        // Obtener el equipo actualizado con información del modelo
+        const selectSql = `
+            SELECT 
+                e.id,
+                e.custom_id,
+                e.serial_number,
+                e.location_id,
+                e.model_id,
+                e.acquisition_date,
+                e.notes,
+                COALESCE(NULLIF(e.name, ''), em.name) as name,
+                COALESCE(NULLIF(e.type, ''), em.type) as type,
+                COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
+                COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
+                em.name as model_name
+            FROM Equipment e
+            LEFT JOIN EquipmentModels em ON e.model_id = em.id
+            WHERE e.id = ?
+        `;
+        
+        db.get(selectSql, [id], (err, row) => {
+            if (err) {
+                console.error('❌ Error obteniendo equipo actualizado:', err.message);
+                return res.status(500).json({ 
+                    error: 'Equipo actualizado pero error al recuperar datos',
+                    code: 'EQUIPMENT_RETRIEVE_ERROR',
+                    data: { id: id }
+                });
+            }
+            
+            res.json({
+                message: 'Equipo actualizado exitosamente',
+                data: row
+            });
+        });
+    });
+});
+
 // DELETE note from equipment
 app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
     const { noteId } = req.params;
