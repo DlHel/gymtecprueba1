@@ -2327,7 +2327,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
                     e.acquisition_date,
                     e.notes,
                     COALESCE(NULLIF(e.name, ''), em.name) as name,
-                    COALESCE(NULLIF(e.type, ''), em.type) as type,
+                    COALESCE(NULLIF(e.type, ''), em.category) as type,
                     COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
                     COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
                     em.name as model_name
@@ -2468,7 +2468,7 @@ app.put('/api/equipment/:id', authenticateToken, (req, res) => {
                 e.acquisition_date,
                 e.notes,
                 COALESCE(NULLIF(e.name, ''), em.name) as name,
-                COALESCE(NULLIF(e.type, ''), em.type) as type,
+                COALESCE(NULLIF(e.type, ''), em.category) as type,
                 COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
                 COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
                 em.name as model_name
