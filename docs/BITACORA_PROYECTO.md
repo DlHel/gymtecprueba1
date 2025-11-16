@@ -3,10 +3,10 @@
 ## 🎯 Información General del Proyecto
 
 **Proyecto**: Sistema ERP de Gestión de Mantenimiento de Equipos de Gimnasio  
-**Versión**: 3.2.3 (Dashboard Moderno con KPIs Compactos + Tailwind CSS)  
+**Versión**: 3.2.4 (Fix Dropdown Equipos + Limpieza Archivos)  
 **Stack**: Node.js + Express.js + MySQL2 + Vanilla JavaScript + Tailwind CSS  
-**Estado**: ✅ PRODUCCIÓN READY - Dashboard Moderno Completamente Funcional  
-**Última Actualización**: 11 de noviembre de 2025
+**Estado**: ✅ PRODUCCIÓN READY - Tickets con dropdown equipos funcional  
+**Última Actualización**: 16 de noviembre de 2025
 
 ### 🏗️ Arquitectura Actual
 - **Backend**: Express.js REST API con autenticación JWT (Puerto 3000)
@@ -22,6 +22,93 @@
 ---
 
 ## 📅 HISTORIAL CRONOLÓGICO DE DESARROLLO
+
+### [2025-11-16] - 🔧 FIX CRÍTICO: Dropdown Equipos Mostraba Opciones Vacías
+
+#### 🎯 Resumen del Problema
+El dropdown de equipos en el modal de nuevo ticket mostraba opciones pero sin texto visible. El usuario reportó que los equipos "se cargan pero no se ven".
+
+#### 🔍 Diagnóstico
+- **Síntoma inicial**: Dropdown aparece vacío visualmente (pero con 857 opciones cargadas)
+- **Primera hipótesis (incorrecta)**: Problema de CSS - texto blanco sobre fondo blanco
+- **Pruebas realizadas**:
+  - ✅ Agregado `color: #1e293b` a `.base-form-input`
+  - ✅ Agregado estilos específicos para `option` elements
+  - ✅ Cache busting con `?v=2` en style.css
+  - ❌ Ninguna funcionó - el problema persistió
+
+#### ✅ Causa Real Encontrada
+Al revisar los datos del backend se descubrió:
+```javascript
+// Log de consola mostró:
+{id: 256, name: '', type: null, brand: null, model: null, ...}
+{id: 512, name: '', type: null, brand: null, model: null, ...}
+```
+
+**El campo `name` en la tabla Equipment estaba VACÍO** - por eso las opciones no tenían texto.
+
+#### 🛠️ Solución Implementada
+1. Modificar `populateSelect()` para aceptar función `formatLabel` personalizada
+2. Usar combinación de campos: `model_name + serial_number (o custom_id o #id)`
+3. Formato final: **"Nombre del Modelo - Serial"** (ej: "Trotadora ProForm - SN123456")
+
+#### 📊 Archivos Modificados
+- `frontend/js/tickets.js`: 
+  - Función `populateSelect()` con parámetro `formatLabel`
+  - Función `fetchEquipment()` con formato personalizado para equipos
+- `frontend/css/style.css`: Mejorados estilos de select (color explícito)
+- `frontend/tickets.html`: Cache busting en CSS
+
+#### 💡 Lección Aprendida
+No asumir que los problemas visuales son siempre CSS. Verificar PRIMERO los datos que llegan del backend antes de modificar estilos.
+
+---
+
+### [2025-11-16] - 🧹 LIMPIEZA MASIVA: Eliminación de 200+ Archivos Obsoletos
+
+#### 🎯 Objetivo
+Limpiar el repositorio de archivos de prueba, debug y backups antiguos que saturaban el proyecto.
+
+#### 📦 Archivos Eliminados (157 archivos)
+- **Backend** (113 archivos):
+  - `check-*.js` (30 archivos de verificación)
+  - `test-*.js` (45 archivos de pruebas)
+  - `debug-*.js` (8 archivos de debugging)
+  - `fix-*.js` / `fix-*.py` (7 archivos de correcciones)
+  - `migrate-*.js` (10 archivos de migraciones antiguas)
+  - `seed-*.js`, `populate-*.js`, `generate-*.js` (13 archivos)
+  
+- **Frontend** (6 archivos):
+  - `dashboard-test.html`, `dashboard-refactored.html`
+  - `header-template.html`, `quick-test.js`
+  - `notifications-dashboard-clean.html`, `notifications-dashboard-corporate.html`
+
+- **Root** (8 archivos):
+  - `test-*.js`, `test-*.html` (5 archivos)
+  - Scripts obsoletos: `update-headers.js`, `apply-db-indexes.ps1`
+  - `QUICK_REFERENCE.md`
+
+- **Backups completos** (3 carpetas eliminadas):
+  - `BACKUP_PRE_HEADERS_20251110_173655/`
+  - `BACKUP_PRE_LIMPIEZA_20251106_113843/`
+  - `BACKUP_PRE_PERMISOS_20251110_165121/`
+
+#### 📁 Reorganización Documentación (33 archivos movidos)
+Movidos de root → `docs/`:
+- Análisis y reportes: `ANALISIS_*.md`
+- Estado del proyecto: `ESTADO_*.md`
+- Implementaciones: `IMPLEMENTACION_*.md`, `FIX_*.md`
+- Guías: `GUIA_*.md`
+- Resúmenes: `RESUMEN_*.md`
+
+#### 📊 Impacto
+- **Total de cambios**: 194 archivos
+- **Líneas eliminadas**: 47,608
+- **Líneas agregadas**: 47
+- **Espacio liberado**: ~15 MB
+- **Estructura**: Proyecto más limpio y profesional
+
+---
 
 ### [2025-11-11] - 🎨 DASHBOARD MODERNO: KPIs Compactos + Tailwind CSS Integration
 
