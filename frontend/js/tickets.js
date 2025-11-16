@@ -559,7 +559,7 @@ function renderTickets(tickets) {
     }
 }
 
-function populateSelect(selectElement, items, { placeholder, valueKey = 'id', nameKey = 'name' }) {
+function populateSelect(selectElement, items, { placeholder, valueKey = 'id', nameKey = 'name', formatLabel = null }) {
     if (!selectElement) return;
     
     selectElement.innerHTML = '';
@@ -571,7 +571,14 @@ function populateSelect(selectElement, items, { placeholder, valueKey = 'id', na
     items.forEach(item => {
         const option = document.createElement('option');
         option.value = item[valueKey];
-        option.textContent = item[nameKey];
+        
+        // Si hay función de formateo personalizado, usarla
+        if (formatLabel) {
+            option.textContent = formatLabel(item);
+        } else {
+            option.textContent = item[nameKey];
+        }
+        
         selectElement.appendChild(option);
     });
 }
@@ -666,18 +673,20 @@ async function fetchLocations(clientId) {
         state.locations = result.data || [];
         console.log('Filtered locations for client', clientId, ':', state.locations);
         
-        // Usar namespace para elementos DOM
-        const { locationSelect } = window.ticketsElements || {};
+        // Buscar el elemento directamente
+        const locationSelect = document.querySelector('[name="location_id"]');
         if (locationSelect) {
             populateSelect(locationSelect, state.locations, { placeholder: 'Seleccione una sede' });
             locationSelect.disabled = false;
+        } else {
+            console.error('❌ LOCATIONS: No se encontró el select location_id');
         }
     } catch (error) {
         console.error('Error fetching locations:', error);
         state.locations = [];
         
-        // Usar namespace para elementos DOM
-        const { locationSelect } = window.ticketsElements || {};
+        // Buscar el elemento directamente
+        const locationSelect = document.querySelector('[name="location_id"]');
         if (locationSelect) {
             populateSelect(locationSelect, [], { placeholder: 'Error al cargar sedes' });
             locationSelect.disabled = false;
@@ -693,18 +702,34 @@ async function fetchEquipment(locationId) {
         const result = await response.json();
         state.equipment = result.data || [];
         
-        // Usar namespace para elementos DOM
-        const { equipmentSelect } = window.ticketsElements || {};
+        console.log('🔍 EQUIPOS: Cargados', state.equipment.length, 'equipos para sede', locationId);
+        console.log('🔍 EQUIPOS: Primer equipo:', state.equipment[0]);
+        console.log('🔍 EQUIPOS: Segundo equipo:', state.equipment[1]);
+        console.log('🔍 EQUIPOS: Tercer equipo:', state.equipment[2]);
+        
+        // Buscar el elemento directamente
+        const equipmentSelect = document.querySelector('[name="equipment_id"]');
         if (equipmentSelect) {
-            populateSelect(equipmentSelect, state.equipment, { placeholder: 'Seleccione un equipo' });
+            // Formato personalizado: mostrar model_name + serial_number (o ID si no hay serial)
+            populateSelect(equipmentSelect, state.equipment, { 
+                placeholder: 'Seleccione un equipo',
+                formatLabel: (eq) => {
+                    const modelName = eq.model_name || eq.type || 'Sin modelo';
+                    const identifier = eq.serial_number || eq.custom_id || `#${eq.id}`;
+                    return `${modelName} - ${identifier}`;
+                }
+            });
             equipmentSelect.disabled = false;
+            console.log('✅ EQUIPOS: Dropdown poblado con', state.equipment.length, 'equipos');
+        } else {
+            console.error('❌ EQUIPOS: No se encontró el select equipment_id');
         }
     } catch (error) {
         console.error('Error fetching equipment:', error);
         state.equipment = [];
         
-        // Usar namespace para elementos DOM
-        const { equipmentSelect } = window.ticketsElements || {};
+        // Buscar el elemento directamente
+        const equipmentSelect = document.querySelector('[name="equipment_id"]');
         if (equipmentSelect) {
             populateSelect(equipmentSelect, [], { placeholder: 'Error al cargar equipos' });
             equipmentSelect.disabled = false;

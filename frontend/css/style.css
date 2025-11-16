@@ -1215,6 +1215,16 @@ video {
     font-size: 0.875rem;
     transition: all 0.2s ease;
     background-color: #ffffff;
+    color: #1e293b;
+}
+
+/* Estilos para opciones de select */
+.base-form-input option,
+.base-form-select option,
+select option {
+    background-color: #ffffff;
+    color: #1e293b;
+    padding: 0.5rem;
 }
 
 .base-form-input:focus,
