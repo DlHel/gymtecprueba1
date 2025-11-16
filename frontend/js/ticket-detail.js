@@ -1498,8 +1498,8 @@ function renderSpareParts() {
         sparePartsList.innerHTML = html;
     }
     
-    // Verificar alertas de stock bajo
-    renderStockAlerts();
+    // Alertas de stock bajo NO se muestran en tickets (pertenecen al módulo de inventario)
+    // renderStockAlerts(); // DESHABILITADO - solo relevante en módulo de inventario
     
     setTimeout(() => lucide.createIcons(), 10);
     console.log('✅ Repuestos renderizados');
