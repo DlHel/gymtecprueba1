@@ -4840,16 +4840,10 @@ async function showUnifiedSparePartModal() {
                                 </div>
                             </div>
                             
-                            <div class="grid grid-cols-2 gap-4">
-                                <div class="base-form-group">
-                                    <label class="base-form-label">Cantidad a Utilizar <span class="required">*</span></label>
-                                    <input type="number" id="quantity-use" name="quantity_used" class="base-form-input" min="1" placeholder="1">
-                                    <small class="text-gray-500 text-xs" id="stock-info"></small>
-                                </div>
-                                <div class="base-form-group">
-                                    <label class="base-form-label">Costo Unitario <span class="required">*</span></label>
-                                    <input type="number" id="unit-cost" name="unit_cost" class="base-form-input" step="0.01" placeholder="0.00">
-                                </div>
+                            <div class="base-form-group">
+                                <label class="base-form-label">Cantidad a Utilizar <span class="required">*</span></label>
+                                <input type="number" id="quantity-use" name="quantity_used" class="base-form-input" min="1" value="1">
+                                <small class="text-gray-500 text-xs" id="stock-info"></small>
                             </div>
                             
                             <div class="base-form-group">
@@ -4892,7 +4886,7 @@ async function showUnifiedSparePartModal() {
                             <div class="grid grid-cols-2 gap-4">
                                 <div class="base-form-group">
                                     <label class="base-form-label">Cantidad Necesaria <span class="required">*</span></label>
-                                    <input type="number" id="quantity-request" name="quantity_needed" class="base-form-input" min="1" placeholder="1">
+                                    <input type="number" id="quantity-request" name="quantity_needed" class="base-form-input" min="1" value="1">
                                 </div>
                                 <div class="base-form-group">
                                     <label class="base-form-label">Prioridad <span class="required">*</span></label>
@@ -5060,7 +5054,6 @@ async function submitUnifiedUseSpare(modal) {
     
     const sparePartId = formData.get('spare_part_id');
     const quantityUsed = parseInt(formData.get('quantity_used'));
-    const unitCost = parseFloat(formData.get('unit_cost'));
     const notes = formData.get('notes');
     const billToClient = formData.get('bill_to_client') === 'on';
     
@@ -5072,11 +5065,6 @@ async function submitUnifiedUseSpare(modal) {
     
     if (!quantityUsed || quantityUsed < 1) {
         showNotification('La cantidad debe ser mayor a 0', 'error');
-        return;
-    }
-    
-    if (!unitCost || unitCost < 0) {
-        showNotification('El costo unitario es requerido', 'error');
         return;
     }
     
@@ -5099,7 +5087,6 @@ async function submitUnifiedUseSpare(modal) {
             body: JSON.stringify({
                 spare_part_id: parseInt(sparePartId),
                 quantity_used: quantityUsed,
-                unit_cost: unitCost,
                 notes: notes || '',
                 bill_to_client: billToClient
             })
@@ -5272,11 +5259,7 @@ async function showAddSparePartModal() {
                         <div class="grid grid-cols-2 gap-4">
                             <div class="base-form-group">
                                 <label class="base-form-label">Cantidad Utilizada <span class="required">*</span></label>
-                                <input type="number" name="quantity_used" class="base-form-input" required min="1" placeholder="1">
-                            </div>
-                            <div class="base-form-group">
-                                <label class="base-form-label">Costo Unitario <span class="required">*</span></label>
-                                <input type="number" name="unit_cost" class="base-form-input" step="0.01" placeholder="0.00" required>
+                                <input type="number" name="quantity_used" class="base-form-input" required min="1" value="1">
                             </div>
                         </div>
                         <div class="base-form-group">
@@ -5580,7 +5563,6 @@ async function submitSparePartForm(button) {
     const data = {
         spare_part_id: parseInt(formData.get('spare_part_id')),
         quantity_used: parseInt(formData.get('quantity_used')),
-        unit_cost: parseFloat(formData.get('unit_cost')) || 0,
         notes: formData.get('notes') || null,
         bill_to_client: formData.get('bill_to_client') === 'on'
     };
