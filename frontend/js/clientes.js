@@ -746,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- Lógica de Modales Modernos ---
      const modals = {
-        open: (modalElem, title, data = {}) => {
+        open: async (modalElem, title, data = {}) => {
             console.log('Abriendo modal:', modalElem, title, data);
             
             if (!modalElem) {
@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         console.log('Abriendo modal de editar cliente');
                         console.log('Modal element:', dom.modals.client);
                         console.log('Current client:', state.currentClient);
-                        modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
+                        await modals.open(dom.modals.client, 'Editar Cliente', state.currentClient);
                     }
                     if (targetButton.matches('.delete-client-btn')) {
                         const clientId = targetButton.dataset.clientId;
@@ -1107,20 +1107,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     if (targetButton.matches('#add-client-btn-empty') || targetButton.id === 'add-client-btn-empty') {
                         console.log('🔘 Abriendo modal de primer cliente desde panel vacío');
-                        modals.open(dom.modals.client, 'Nuevo Cliente');
+                        await modals.open(dom.modals.client, 'Nuevo Cliente');
                     }
                     if (targetButton.matches('.add-location-btn')) {
-                        modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
+                        await modals.open(dom.modals.location, 'Nueva Sede', { client_id: state.currentClient.id });
                     }
                     if (targetButton.matches('.edit-location-btn')) {
                         console.log('Abriendo modal de editar sede');
                         const location = await api.getLocation(targetButton.dataset.locationId);
-                        modals.open(dom.modals.location, 'Editar Sede', location);
+                        await modals.open(dom.modals.location, 'Editar Sede', location);
                     }
                     if (targetButton.matches('.add-equipment-btn')) {
                         const locationId = targetButton.dataset.locationId;
                         console.log('🔧 Abriendo modal de nuevo equipo para location_id:', locationId);
-                        modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: locationId });
+                        await modals.open(dom.modals.equipment, 'Nuevo Equipo', { location_id: locationId });
                     }
                     if (targetButton.matches('.edit-equipment-btn')) {
                         const equipmentId = targetButton.dataset.equipmentId;
@@ -1129,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (equipment.acquisition_date) {
                             equipment.acquisition_date = equipment.acquisition_date.split('T')[0];
                         }
-                        modals.open(dom.modals.equipment, 'Editar Equipo', equipment);
+                        await modals.open(dom.modals.equipment, 'Editar Equipo', equipment);
                     }
                     if (targetButton.matches('.delete-equipment-btn')) {
                         const equipmentId = targetButton.dataset.equipmentId;
