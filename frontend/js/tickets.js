@@ -1531,7 +1531,7 @@ function renderFilteredEquipment(equipment) {
     
     // Agrupar equipos por categoría
     const groupedEquipment = equipment.reduce((groups, equip) => {
-        const category = equip.category_name || 'Sin categoría';
+        const category = equip.category || 'Sin categoría';
         if (!groups[category]) {
             groups[category] = [];
         }
@@ -1874,7 +1874,7 @@ function filterEquipment() {
     // Filtrar por categoría
     if (selectedCategory) {
         filteredEquipment = filteredEquipment.filter(equip => 
-            equip.category_name === selectedCategory
+            equip.category === selectedCategory
         );
     }
     
@@ -1963,12 +1963,12 @@ function updateSelectedEquipmentPreview() {
     
     let html = '';
     state.gimnacion.selectedEquipment.forEach(equip => {
-        const categoryColor = getCategoryColor(equip.category_name);
+        const categoryColor = getCategoryColor(equip.category);
         html += `
             <div class="flex items-center bg-green-50 border border-green-200 rounded-lg px-3 py-2 text-sm">
                 <span class="font-medium text-green-800 mr-2">${equip.name}</span>
                 <span class="px-2 py-1 text-xs rounded-full ${categoryColor} mr-2">
-                    ${equip.category_name || 'Sin categoría'}
+                    ${equip.category || 'Sin categoría'}
                 </span>
                 <button type="button" class="text-green-600 hover:text-green-800 ml-auto" onclick="removeEquipmentFromSelection(${equip.id})" title="Quitar equipo">
                     <i data-lucide="x" class="w-4 h-4"></i>

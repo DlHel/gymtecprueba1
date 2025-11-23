@@ -23,9 +23,8 @@ router.get('/locations/:locationId/equipment', authenticateToken, async (req, re
                 e.type,
                 e.brand,
                 e.model,
-                e.serial_number,
-                e.activo,
-                em.category,
+                e.serial_number,`r`n                e.custom_id,
+                em.category as category_name,
                 em.subcategory,
                 CASE 
                     WHEN ce.equipment_id IS NOT NULL THEN true 
