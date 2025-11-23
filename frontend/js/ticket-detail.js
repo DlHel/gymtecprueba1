@@ -1780,38 +1780,6 @@ function updateTabCounters() {
 
 // === ATAJOS DE TECLADO ===
 function setupKeyboardShortcuts() {
-    document.addEventListener('keydown', (e) => {
-        // Ctrl+S - Guardar (editar ticket)
-        if (e.ctrlKey && e.key === 's') {
-            e.preventDefault();
-            if (state.currentTicket) {
-                editTicket(state.currentTicket.id);
-            }
-        }
-        
-        // Ctrl+P - Imprimir
-        if (e.ctrlKey && e.key === 'p') {
-            e.preventDefault();
-            printTicket();
-        }
-        
-        // Ctrl+N - Agregar nota rápida
-        if (e.ctrlKey && e.key === 'n') {
-            e.preventDefault();
-            const noteTextarea = document.getElementById('new-note-text');
-            if (noteTextarea) {
-                noteTextarea.focus();
-            }
-        }
-        
-        // Escape para cerrar modales
-        if (e.key === 'Escape') {
-            const modals = document.querySelectorAll('.base-modal');
-            modals.forEach(modal => modal.remove());
-        }
-    });
-}
-
 // === EVENT LISTENERS ===
 function setupEventListeners() {
     // Botón de editar ticket

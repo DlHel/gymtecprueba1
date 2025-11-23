@@ -1426,7 +1426,7 @@ function switchGimnacionTab(tabName) {
 /**
  * Manejar cambio de cliente en gimnación
  */
-async function onGimnacionClientChange(event) {
+// DUPLICADO ELIMINADO - async function onGimnacionClientChange(event) {
     const clientId = event.target.value;
     const { gimnacionForm, equipmentScopeContainer } = window.ticketsElements || {};
     
