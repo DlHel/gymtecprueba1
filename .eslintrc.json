@@ -20,6 +20,7 @@
     "no-undef": "error",
     "prefer-const": "error",
     "no-var": "error",
+    "radix": ["error", "always"],
     
     // Security Rules (Critical for this project)
     "no-eval": "error",
