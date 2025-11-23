@@ -33,7 +33,7 @@ router.get('/locations/:locationId/equipment', authenticateToken, async (req, re
             FROM Equipment e
             LEFT JOIN EquipmentModels em ON e.model_id = em.id
             LEFT JOIN Contract_Equipment ce ON e.id = ce.equipment_id AND ce.contract_id = ?
-            WHERE e.location_id = ? AND e.activo = true
+            WHERE e.location_id = ?
             ORDER BY e.name
         `;
         

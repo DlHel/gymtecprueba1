@@ -35,7 +35,7 @@ router.get('/', async (req, res) => {
             COUNT(DISTINCT t.id) as active_tickets
         FROM Locations l
         LEFT JOIN Clients c ON l.client_id = c.id
-        LEFT JOIN Equipment e ON l.id = e.location_id AND e.activo = 1
+        LEFT JOIN Equipment e ON l.id = e.location_id
         LEFT JOIN Tickets t ON e.id = t.equipment_id AND t.status IN ('open', 'in_progress')
         WHERE 1=1`;
         
@@ -113,7 +113,7 @@ router.get('/:id', async (req, res) => {
             COUNT(DISTINCT CASE WHEN t.priority = 'critical' THEN t.id END) as critical_tickets
         FROM Locations l
         LEFT JOIN Clients c ON l.client_id = c.id
-        LEFT JOIN Equipment e ON l.id = e.location_id AND e.activo = 1
+        LEFT JOIN Equipment e ON l.id = e.location_id
         LEFT JOIN Tickets t ON e.id = t.equipment_id AND t.status IN ('open', 'in_progress')
         WHERE l.id = ?
         GROUP BY l.id`;
@@ -303,7 +303,7 @@ router.delete('/:id', async (req, res) => {
         const { id } = req.params;
         
         // Verificar si hay equipos asociados
-        const checkEquipmentSql = 'SELECT COUNT(*) as count FROM Equipment WHERE location_id = ? AND activo = 1';
+        const checkEquipmentSql = 'SELECT COUNT(*) as count FROM Equipment WHERE location_id = ?';
         
         db.get(checkEquipmentSql, [id], (err, row) => {
             if (err) {
@@ -373,7 +373,7 @@ router.get('/:id/equipment', async (req, res) => {
         FROM Equipment e
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
         LEFT JOIN Tickets t ON e.id = t.equipment_id AND t.status = 'open'
-        WHERE e.location_id = ? AND e.activo = 1`;
+        WHERE e.location_id = ?`;
         
         const params = [id];
         
@@ -432,7 +432,7 @@ router.get('/:id/stats', async (req, res) => {
             AVG(CASE WHEN t.status = 'completed' AND t.completed_at IS NOT NULL 
                 THEN (julianday(t.completed_at) - julianday(t.created_at)) * 24 END) as avg_resolution_time_hours
         FROM Locations l
-        LEFT JOIN Equipment e ON l.id = e.location_id AND e.activo = 1
+        LEFT JOIN Equipment e ON l.id = e.location_id
         LEFT JOIN Tickets t ON e.id = t.equipment_id
         WHERE l.id = ?
         GROUP BY l.id`;
