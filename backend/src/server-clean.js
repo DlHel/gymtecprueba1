@@ -4,6 +4,8 @@ const path = require('path');
 const multer = require('multer');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const sharp = require('sharp');
+const nodemailer = require('nodemailer');
 
 console.log('🚀🚀🚀 CARGANDO server-clean.js - INICIO DEL ARCHIVO 🚀🚀🚀');
 
@@ -108,6 +110,37 @@ const uploadManuals = multer({
             return cb(null, true);
         } else {
             cb(new Error('Solo se permiten documentos PDF, DOC y DOCX'));
+        }
+    }
+});
+
+
+// Configuración para reportes PDF
+const storageReports = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = path.join(__dirname, '../uploads/reports/');
+        // Asegurar que el directorio existe (node < 10 no tiene recursive: true en mkdirSync, pero asumimos entorno moderno)
+        const fs = require('fs');
+        if (!fs.existsSync(dir)){
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        // Usar el nombre original o generar uno seguro
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        cb(null, 'report-' + uniqueSuffix + '.pdf');
+    }
+});
+
+const uploadReports = multer({ 
+    storage: storageReports,
+    limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype === 'application/pdf') {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos PDF'));
         }
     }
 });
@@ -808,44 +841,138 @@ app.delete('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
 // ===================================================================
 
 // GET system settings
+// GET system settings
 app.get('/api/system-settings', authenticateToken, requireRole(['Admin']), (req, res) => {
     const sql = 'SELECT * FROM SystemSettings ORDER BY setting_key';
     
     db.all(sql, [], (err, rows) => {
         if (err) {
             console.error('❌ Error getting system settings:', err);
-            // Return default settings as fallback
-            res.json({ 
-                data: [
-                    { setting_key: 'company_name', setting_value: 'Gymtec ERP', description: 'Nombre de la empresa' },
-                    { setting_key: 'notifications_enabled', setting_value: 'true', description: 'Notificaciones habilitadas' },
-                    { setting_key: 'session_timeout', setting_value: '8', description: 'Tiempo de sesión en horas' },
-                    { setting_key: 'auto_backup', setting_value: 'true', description: 'Respaldo automático' },
-                    { setting_key: 'maintenance_interval', setting_value: '30', description: 'Intervalo de mantenimiento en días' }
-                ]
-            });
+            res.status(500).json({ error: 'Error retrieving settings' });
             return;
         }
         
-        console.log('✅ System settings found:', rows.length, 'items');
-        res.json({ data: rows });
+        console.log('📊 Raw settings from DB:', rows.length);
+
+        // Transform flat key-value pairs to nested object
+        const settings = {
+            company: {},
+            workSchedule: { days: {} },
+            security: {},
+            maintenance: {},
+            integrations: {}
+        };
+
+        rows.forEach(row => {
+            const key = row.setting_key;
+            const value = row.setting_value;
+
+            // Parse boolean and numbers
+            let parsedValue = value;
+            if (value === 'true') parsedValue = true;
+            else if (value === 'false') parsedValue = false;
+            else if (!isNaN(value) && value.trim() !== '') parsedValue = Number(value);
+
+            // Assign to nested object
+            if (key.startsWith('company.')) {
+                settings.company[key.split('.')[1]] = parsedValue;
+            } else if (key.startsWith('workSchedule.days.')) {
+                settings.workSchedule.days[key.split('.')[2]] = parsedValue;
+            } else if (key.startsWith('workSchedule.')) {
+                settings.workSchedule[key.split('.')[1]] = parsedValue;
+            } else if (key.startsWith('security.')) {
+                settings.security[key.split('.')[1]] = parsedValue;
+            } else if (key.startsWith('maintenance.')) {
+                settings.maintenance[key.split('.')[1]] = parsedValue;
+            } else if (key.startsWith('integrations.')) {
+                settings.integrations[key.split('.')[1]] = parsedValue;
+            }
+        });
+        
+        console.log('✅ System settings retrieved from DB');
+        res.json({ data: settings });
     });
 });
 
 // PUT update system settings
-app.put('/api/system-settings', authenticateToken, requireRole(['Admin']), (req, res) => {
+app.put('/api/system-settings', authenticateToken, requireRole(['Admin']), async (req, res) => {
     const settings = req.body;
     
-    if (!Array.isArray(settings)) {
-        return res.status(400).json({ error: 'Settings must be an array' });
+    if (!settings || typeof settings !== 'object') {
+        return res.status(400).json({ error: 'Invalid settings format' });
+    }
+
+    // Helper to flatten object to array of {key, value}
+    const flatSettings = [];
+    
+    // Company
+    if (settings.company) {
+        Object.keys(settings.company).forEach(k => flatSettings.push({ key: `company.${k}`, value: settings.company[k] }));
     }
     
-    // For now, just return success (settings can be stored in localStorage on frontend)
-    console.log('✅ System settings updated (localStorage mode):', settings.length, 'settings');
-    res.json({ 
-        message: 'Settings updated successfully',
-        data: settings
-    });
+    // Work Schedule
+    if (settings.workSchedule) {
+        const { days, ...rest } = settings.workSchedule;
+        Object.keys(rest).forEach(k => flatSettings.push({ key: `workSchedule.${k}`, value: rest[k] }));
+        if (days) {
+            Object.keys(days).forEach(k => flatSettings.push({ key: `workSchedule.days.${k}`, value: days[k] }));
+        }
+    }
+    
+    // Security
+    if (settings.security) {
+        Object.keys(settings.security).forEach(k => flatSettings.push({ key: `security.${k}`, value: settings.security[k] }));
+    }
+    
+    // Maintenance
+    if (settings.maintenance) {
+        Object.keys(settings.maintenance).forEach(k => flatSettings.push({ key: `maintenance.${k}`, value: settings.maintenance[k] }));
+    }
+    
+    // Integrations
+    if (settings.integrations) {
+        Object.keys(settings.integrations).forEach(k => flatSettings.push({ key: `integrations.${k}`, value: settings.integrations[k] }));
+    }
+
+    // Update in DB using transaction
+    let connection;
+    try {
+        // Get connection from pool
+        connection = await db.db.pool.getConnection();
+        
+        // Start transaction
+        await connection.beginTransaction();
+
+        const stmtSql = 'INSERT INTO SystemSettings (setting_key, setting_value, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP';
+        
+        for (const item of flatSettings) {
+            await connection.query(stmtSql, [item.key, String(item.value)]);
+        }
+
+        // Commit
+        await connection.commit();
+
+        console.log('✅ System settings updated in DB');
+        res.json({ 
+            message: 'Settings updated successfully',
+            data: settings
+        });
+
+    } catch (error) {
+        console.error('❌ Error updating settings:', error);
+        
+        // Rollback
+        if (connection) {
+            await connection.rollback();
+        }
+
+        res.status(500).json({ error: 'Error saving settings: ' + error.message });
+    } finally {
+        // Release connection
+        if (connection) {
+            connection.release();
+        }
+    }
 });
 
 // ===================================================================
@@ -1992,15 +2119,51 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
     }
     
     try {
+        // Compresión de imagen con Sharp
+        let processedPhotoData = photo_data;
+        let processedSize = file_size;
+        
+        try {
+            // Verificar si es una imagen base64 válida
+            if (photo_data.includes('base64,')) {
+                const base64Data = photo_data.split(';base64,').pop();
+                const imgBuffer = Buffer.from(base64Data, 'base64');
+                
+                console.log(`🔄 Comprimiendo imagen (${(imgBuffer.length / 1024).toFixed(2)} KB)...`);
+                
+                const compressedBuffer = await sharp(imgBuffer)
+                    .resize(1280, 1280, { 
+                        fit: 'inside',
+                        withoutEnlargement: true 
+                    })
+                    .jpeg({ quality: 80, mozjpeg: true }) // Convertir siempre a JPEG optimizado
+                    .toBuffer();
+                
+                processedPhotoData = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`;
+                processedSize = compressedBuffer.length;
+                
+                console.log(`✅ Imagen comprimida: ${(processedSize / 1024).toFixed(2)} KB (Ahorro: ${((1 - processedSize/imgBuffer.length)*100).toFixed(1)}%)`);
+                
+                // Actualizar mime_type a jpeg ya que convertimos todo
+                mime_type = 'image/jpeg';
+                if (file_name && !file_name.toLowerCase().endsWith('.jpg') && !file_name.toLowerCase().endsWith('.jpeg')) {
+                    file_name = file_name.split('.')[0] + '.jpg';
+                }
+            }
+        } catch (sharpError) {
+            console.error('⚠️ Error al comprimir imagen, usando original:', sharpError);
+            // Continuar con la imagen original si falla la compresión
+        }
+
         const sql = `INSERT INTO TicketPhotos 
                      (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
         const params = [
             parseInt(ticketId), 
-            photo_data, 
+            processedPhotoData, 
             file_name || 'foto.jpg', 
             mime_type, 
-            file_size || 0, 
+            processedSize || 0, 
             description || null, 
             photo_type || 'Otros'
         ];
@@ -3774,7 +3937,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
             db.all(`
                 SELECT COUNT(DISTINCT user_id) as total 
                 FROM Attendance 
-                WHERE DATE(check_in) = CURDATE()
+                WHERE date = CURDATE()
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'attendance_today', value: rows[0].total });
@@ -3877,7 +4040,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             db.all(`
                 SELECT COALESCE(SUM(amount), 0) as total 
                 FROM Expenses 
-                WHERE DATE(expense_date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                WHERE date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'expenses_this_month', value: Math.round(rows[0].total) });
@@ -3889,7 +4052,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             db.all(`
                 SELECT COUNT(*) as total, COALESCE(SUM(amount), 0) as total_amount
                 FROM Expenses 
-                WHERE approval_status = 'Pending'
+                WHERE status = 'Pendiente'
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ 
@@ -3904,7 +4067,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             db.all(`
                 SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
                 FROM Invoices 
-                WHERE payment_status = 'Pending'
+                WHERE status IN ('Enviada', 'Vencida')
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ 
@@ -3919,7 +4082,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
             db.all(`
                 SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
                 FROM Quotes 
-                WHERE status IN ('Draft', 'Sent')
+                WHERE status IN ('Borrador', 'Enviada')
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ 
@@ -3938,7 +4101,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
                     COALESCE(SUM(e.amount), 0) as total_amount
                 FROM ExpenseCategories ec
                 LEFT JOIN Expenses e ON e.category_id = ec.id 
-                    AND DATE(e.expense_date) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                    AND e.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
                 GROUP BY ec.id, ec.name
                 ORDER BY total_amount DESC
                 LIMIT 5
@@ -6912,6 +7075,125 @@ app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manag
     });
 });
 
+// GET - Vista global de asistencia para Admin/Manager (NUEVO)
+app.get('/api/attendance/all', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+    const { user_id, date_from, date_to, status, limit = 100 } = req.query;
+    
+    // Query principal con información del usuario
+    let sql = `
+        SELECT 
+            a.id,
+            a.user_id,
+            a.date,
+            a.check_in_time,
+            a.check_out_time,
+            a.worked_hours,
+            a.scheduled_hours,
+            a.is_late,
+            a.late_minutes,
+            a.status,
+            u.username,
+            u.email,
+            u.role_id,
+            ws.name as schedule_name,
+            ws.weekly_hours
+        FROM Attendance a
+        JOIN Users u ON a.user_id = u.id
+        LEFT JOIN EmployeeSchedules es ON es.user_id = u.id 
+            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
+            AND es.is_active = 1
+        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
+        WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    // Filtros
+    if (user_id) {
+        sql += ' AND a.user_id = ?';
+        params.push(user_id);
+    }
+    
+    if (date_from) {
+        sql += ' AND a.date >= ?';
+        params.push(date_from);
+    }
+    
+    if (date_to) {
+        sql += ' AND a.date <= ?';
+        params.push(date_to);
+    }
+    
+    if (status) {
+        sql += ' AND a.status = ?';
+        params.push(status);
+    }
+    
+    sql += ' ORDER BY a.date DESC, u.username LIMIT ?';
+    params.push(parseInt(limit));
+    
+    // Obtener registros
+    db.all(sql, params, (err, attendances) => {
+        if (err) {
+            console.error('❌ Error obteniendo asistencias globales:', err);
+            return res.status(500).json({ message: 'error', error: 'Error al obtener asistencias' });
+        }
+        
+        // Obtener agregaciones
+        let summarySQL = `
+            SELECT 
+                COUNT(DISTINCT user_id) as total_users,
+                COUNT(*) as total_records,
+                SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_count,
+                SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_count,
+                SUM(CASE WHEN status = 'late' THEN 1 ELSE 0 END) as late_count,
+                SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as total_lates,
+                SUM(late_minutes) as total_late_minutes,
+                SUM(worked_hours) as total_worked_hours,
+                AVG(worked_hours) as avg_worked_hours
+            FROM Attendance
+            WHERE 1=1
+        `;
+        
+        const summaryParams = [];
+        
+        if (user_id) {
+            summarySQL += ' AND user_id = ?';
+            summaryParams.push(user_id);
+        }
+        
+        if (date_from) {
+            summarySQL += ' AND date >= ?';
+            summaryParams.push(date_from);
+        }
+        
+        if (date_to) {
+            summarySQL += ' AND date <= ?';
+            summaryParams.push(date_to);
+        }
+        
+        if (status) {
+            summarySQL += ' AND status = ?';
+            summaryParams.push(status);
+        }
+        
+        db.get(summarySQL, summaryParams, (err, summary) => {
+            if (err) {
+                console.error('❌ Error obteniendo resumen:', err);
+                return res.json({ message: 'success', data: attendances, summary: null });
+            }
+            
+            console.log(`✅ Asistencias globales obtenidas: ${attendances.length} registros`);
+            res.json({ 
+                message: 'success', 
+                data: attendances,
+                summary: summary || {},
+                filters: { user_id, date_from, date_to, status, limit }
+            });
+        });
+    });
+});
+
 // POST - Marcar entrada (check-in)
 app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
     const { location, notes } = req.body;
@@ -7510,6 +7792,429 @@ try {
 } catch (error) {
     console.warn(' No se pudieron cargar rutas de n�mina:', error.message);
 }
+
+// ===================================================================
+// GESTIÓN DE PERÍODOS DE NÓMINA
+// ===================================================================
+
+// GET - Listar todos los períodos de nómina
+app.get('/api/payroll-periods', authenticateToken, requireRole(['Admin', 'Manager', 'Finance']), async (req, res) => {
+    try {
+        const sql = `
+            SELECT 
+                pp.*,
+                u1.username as closed_by_name,
+                u2.username as approved_by_name
+            FROM PayrollPeriods pp
+            LEFT JOIN Users u1 ON pp.closed_by = u1.id
+            LEFT JOIN Users u2 ON pp.approved_by = u2.id
+            ORDER BY pp.start_date DESC
+        `;
+        
+        db.all(sql, [], (err, periods) => {
+            if (err) {
+                console.error('❌ Error obteniendo períodos:', err);
+                return res.status(500).json({ message: 'error', error: err.message });
+            }
+            
+            console.log(`✅ Períodos de nómina obtenidos: ${periods.length}`);
+            res.json({ message: 'success', data: periods });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/payroll-periods:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
+// POST - Cerrar período actual
+app.post('/api/payroll-periods/close-current', authenticateToken, requireRole(['Admin', 'Manager']), async (req, res) => {
+    try {
+        const { period_name, start_date, end_date, notes } = req.body;
+        const user_id = req.user.id;
+        
+        // Validar que no exista un período cerrado para esas fechas
+        const checkSql = `
+            SELECT * FROM PayrollPeriods 
+            WHERE (start_date <= ? AND end_date >= ?) 
+               OR (start_date <= ? AND end_date >= ?)
+               OR (start_date >= ? AND end_date <= ?)
+        `;
+        
+        db.get(checkSql, [start_date, start_date, end_date, end_date, start_date, end_date], async (err, existing) => {
+            if (err) {
+                console.error('❌ Error verificando período:', err);
+                return res.status(500).json({ message: 'error', error: err.message });
+            }
+            
+            if (existing) {
+                return res.status(400).json({ 
+                    message: 'error', 
+                    error: 'Ya existe un período que se solapa con estas fechas' 
+                });
+            }
+            
+            // Calcular estadísticas del período
+            const statsSql = `
+                SELECT 
+                    COUNT(DISTINCT user_id) as total_employees,
+                    SUM(worked_hours) as total_hours,
+                    SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as total_absences,
+                    SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as total_late
+                FROM Attendance
+                WHERE date >= ? AND date <= ?
+            `;
+            
+            db.get(statsSql, [start_date, end_date], (err, stats) => {
+                if (err) {
+                    console.error('❌ Error calculando estadísticas:', err);
+                    return res.status(500).json({ message: 'error', error: err.message });
+                }
+                
+                // Calcular horas extras del período
+                const overtimeSql = `
+                    SELECT SUM(hours) as total_overtime
+                    FROM Overtime
+                    WHERE date >= ? AND date <= ? AND status = 'approved'
+                `;
+                
+                db.get(overtimeSql, [start_date, end_date], (err, overtime) => {
+                    if (err) {
+                        console.error('❌ Error calculando horas extras:', err);
+                        return res.status(500).json({ message: 'error', error: err.message });
+                    }
+                    
+                    // Crear período
+                    const insertSql = `
+                        INSERT INTO PayrollPeriods (
+                            period_name, start_date, end_date, status,
+                            total_employees, total_hours_worked, total_overtime_hours,
+                            total_absences, total_late_arrivals,
+                            closed_by, closed_at, notes
+                        ) VALUES (?, ?, ?, 'closed', ?, ?, ?, ?, ?, ?, datetime('now'), ?)
+                    `;
+                    
+                    const params = [
+                        period_name,
+                        start_date,
+                        end_date,
+                        stats.total_employees || 0,
+                        parseFloat(stats.total_hours || 0).toFixed(2),
+                        parseFloat(overtime.total_overtime || 0).toFixed(2),
+                        stats.total_absences || 0,
+                        stats.total_late || 0,
+                        user_id,
+                        notes || null
+                    ];
+                    
+                    db.run(insertSql, params, function(err) {
+                        if (err) {
+                            console.error('❌ Error creando período:', err);
+                            return res.status(500).json({ message: 'error', error: err.message });
+                        }
+                        
+                        const periodId = this.lastID;
+                        
+                        // Asignar período a registros de asistencia
+                        const updateAttendanceSql = `
+                            UPDATE Attendance 
+                            SET payroll_period_id = ?
+                            WHERE date >= ? AND date <= ?
+                        `;
+                        
+                        db.run(updateAttendanceSql, [periodId, start_date, end_date], (err) => {
+                            if (err) {
+                                console.error('⚠️ Error asignando asistencias al período:', err);
+                            }
+                            
+                            // Asignar período a horas extras aprobadas
+                            const updateOvertimeSql = `
+                                UPDATE Overtime 
+                                SET payroll_period_id = ?
+                                WHERE date >= ? AND date <= ? AND status = 'approved'
+                            `;
+                            
+                            db.run(updateOvertimeSql, [periodId, start_date, end_date], (err) => {
+                                if (err) {
+                                    console.error('⚠️ Error asignando horas extras al período:', err);
+                                }
+                                
+                                console.log(`✅ Período ${period_name} cerrado exitosamente (ID: ${periodId})`);
+                                res.json({ 
+                                    message: 'success', 
+                                    data: { 
+                                        id: periodId, 
+                                        period_name,
+                                        total_employees: stats.total_employees || 0,
+                                        total_hours: parseFloat(stats.total_hours || 0).toFixed(2)
+                                    } 
+                                });
+                            });
+                        });
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/payroll-periods/close-current:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
+// PATCH - Aprobar período
+app.patch('/api/payroll-periods/:id/approve', authenticateToken, requireRole(['Admin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        const { notes } = req.body;
+        const user_id = req.user.id;
+        
+        // Verificar que el período esté cerrado
+        const checkSql = 'SELECT * FROM PayrollPeriods WHERE id = ?';
+        
+        db.get(checkSql, [id], (err, period) => {
+            if (err) {
+                console.error('❌ Error verificando período:', err);
+                return res.status(500).json({ message: 'error', error: err.message });
+            }
+            
+            if (!period) {
+                return res.status(404).json({ message: 'error', error: 'Período no encontrado' });
+            }
+            
+            if (period.status !== 'closed') {
+                return res.status(400).json({ 
+                    message: 'error', 
+                    error: 'Solo se pueden aprobar períodos cerrados' 
+                });
+            }
+            
+            // Aprobar período
+            const updateSql = `
+                UPDATE PayrollPeriods
+                SET status = 'approved',
+                    approved_by = ?,
+                    approved_at = datetime('now'),
+                    notes = COALESCE(?, notes)
+                WHERE id = ?
+            `;
+            
+            db.run(updateSql, [user_id, notes, id], (err) => {
+                if (err) {
+                    console.error('❌ Error aprobando período:', err);
+                    return res.status(500).json({ message: 'error', error: err.message });
+                }
+                
+                console.log(`✅ Período ${id} aprobado por usuario ${user_id}`);
+                res.json({ message: 'success', data: { id, status: 'approved' } });
+            });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/payroll-periods/:id/approve:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
+// PATCH - Rechazar período
+app.patch('/api/payroll-periods/:id/reject', authenticateToken, requireRole(['Admin']), (req, res) => {
+    try {
+        const { id } = req.params;
+        const { rejection_reason } = req.body;
+        
+        if (!rejection_reason) {
+            return res.status(400).json({ 
+                message: 'error', 
+                error: 'Debe proporcionar una razón de rechazo' 
+            });
+        }
+        
+        // Verificar que el período exista
+        const checkSql = 'SELECT * FROM PayrollPeriods WHERE id = ?';
+        
+        db.get(checkSql, [id], (err, period) => {
+            if (err) {
+                console.error('❌ Error verificando período:', err);
+                return res.status(500).json({ message: 'error', error: err.message });
+            }
+            
+            if (!period) {
+                return res.status(404).json({ message: 'error', error: 'Período no encontrado' });
+            }
+            
+            // Rechazar período y liberar registros
+            const updatePeriodSql = `
+                UPDATE PayrollPeriods
+                SET status = 'rejected',
+                    rejection_reason = ?
+                WHERE id = ?
+            `;
+            
+            db.run(updatePeriodSql, [rejection_reason, id], (err) => {
+                if (err) {
+                    console.error('❌ Error rechazando período:', err);
+                    return res.status(500).json({ message: 'error', error: err.message });
+                }
+                
+                // Liberar registros de asistencia
+                const freeAttendanceSql = 'UPDATE Attendance SET payroll_period_id = NULL WHERE payroll_period_id = ?';
+                db.run(freeAttendanceSql, [id], (err) => {
+                    if (err) {
+                        console.error('⚠️ Error liberando asistencias:', err);
+                    }
+                    
+                    // Liberar horas extras
+                    const freeOvertimeSql = 'UPDATE Overtime SET payroll_period_id = NULL WHERE payroll_period_id = ?';
+                    db.run(freeOvertimeSql, [id], (err) => {
+                        if (err) {
+                            console.error('⚠️ Error liberando horas extras:', err);
+                        }
+                        
+                        console.log(`✅ Período ${id} rechazado. Registros liberados para corrección.`);
+                        res.json({ message: 'success', data: { id, status: 'rejected' } });
+                    });
+                });
+            });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/payroll-periods/:id/reject:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
+// GET - Obtener detalles de un período
+app.get('/api/payroll-periods/:id/details', authenticateToken, requireRole(['Admin', 'Manager', 'Finance']), (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Obtener información del período
+        const periodSql = `
+            SELECT 
+                pp.*,
+                u1.username as closed_by_name,
+                u2.username as approved_by_name
+            FROM PayrollPeriods pp
+            LEFT JOIN Users u1 ON pp.closed_by = u1.id
+            LEFT JOIN Users u2 ON pp.approved_by = u2.id
+            WHERE pp.id = ?
+        `;
+        
+        db.get(periodSql, [id], (err, period) => {
+            if (err) {
+                console.error('❌ Error obteniendo período:', err);
+                return res.status(500).json({ message: 'error', error: err.message });
+            }
+            
+            if (!period) {
+                return res.status(404).json({ message: 'error', error: 'Período no encontrado' });
+            }
+            
+            // Obtener resumen por empleado
+            const summarySql = `
+                SELECT 
+                    u.id as user_id,
+                    u.username,
+                    COUNT(DISTINCT a.date) as days_worked,
+                    SUM(a.worked_hours) as hours_worked,
+                    SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absences,
+                    SUM(CASE WHEN a.is_late = 1 THEN 1 ELSE 0 END) as late_arrivals,
+                    COALESCE(SUM(ot.hours), 0) as overtime_hours,
+                    COALESCE(SUM(ot.total_amount), 0) as overtime_amount
+                FROM Users u
+                LEFT JOIN Attendance a ON u.id = a.user_id AND a.payroll_period_id = ?
+                LEFT JOIN Overtime ot ON u.id = ot.user_id AND ot.payroll_period_id = ? AND ot.status = 'approved'
+                WHERE u.is_active = 1
+                GROUP BY u.id, u.username
+                HAVING days_worked > 0 OR overtime_hours > 0
+            `;
+            
+            db.all(summarySql, [id, id], (err, summary) => {
+                if (err) {
+                    console.error('❌ Error obteniendo resumen:', err);
+                    return res.json({ message: 'success', data: { period, summary: [] } });
+                }
+                
+                res.json({ message: 'success', data: { period, summary } });
+            });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/payroll-periods/:id/details:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
+// GET - Exportar período a CSV
+app.get('/api/payroll-periods/:id/export', authenticateToken, requireRole(['Admin', 'Finance']), (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        // Verificar que el período esté aprobado
+        const checkSql = 'SELECT * FROM PayrollPeriods WHERE id = ?';
+        
+        db.get(checkSql, [id], (err, period) => {
+            if (err) {
+                console.error('❌ Error verificando período:', err);
+                return res.status(500).json({ message: 'error', error: err.message });
+            }
+            
+            if (!period) {
+                return res.status(404).json({ message: 'error', error: 'Período no encontrado' });
+            }
+            
+            if (period.status !== 'approved') {
+                return res.status(403).json({ 
+                    message: 'error', 
+                    error: 'Solo se pueden exportar períodos aprobados' 
+                });
+            }
+            
+            // Obtener datos para exportación
+            const exportSql = `
+                SELECT 
+                    u.id as user_id,
+                    u.username,
+                    u.email,
+                    COUNT(DISTINCT a.date) as dias_trabajados,
+                    COALESCE(SUM(a.worked_hours), 0) as horas_regulares,
+                    COALESCE(SUM(ot.hours), 0) as horas_extras,
+                    COALESCE(SUM(ot.total_amount), 0) as monto_horas_extras,
+                    SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as ausencias,
+                    SUM(CASE WHEN a.is_late = 1 THEN 1 ELSE 0 END) as llegadas_tardes,
+                    SUM(a.late_minutes) as minutos_tarde_total
+                FROM Users u
+                LEFT JOIN Attendance a ON u.id = a.user_id AND a.payroll_period_id = ?
+                LEFT JOIN Overtime ot ON u.id = ot.user_id AND ot.payroll_period_id = ? AND ot.status = 'approved'
+                WHERE u.is_active = 1
+                GROUP BY u.id, u.username, u.email
+                HAVING dias_trabajados > 0 OR horas_extras > 0
+                ORDER BY u.username
+            `;
+            
+            db.all(exportSql, [id, id], (err, data) => {
+                if (err) {
+                    console.error('❌ Error obteniendo datos de exportación:', err);
+                    return res.status(500).json({ message: 'error', error: err.message });
+                }
+                
+                // Generar CSV
+                let csv = 'Usuario,Email,Días Trabajados,Horas Regulares,Horas Extras,Monto HH.EE,Ausencias,Tardanzas,Min. Tarde\n';
+                
+                data.forEach(row => {
+                    csv += `"${row.username}","${row.email}",${row.dias_trabajados},${parseFloat(row.horas_regulares).toFixed(2)},`;
+                    csv += `${parseFloat(row.horas_extras).toFixed(2)},${parseFloat(row.monto_horas_extras).toFixed(0)},`;
+                    csv += `${row.ausencias},${row.llegadas_tardes},${row.minutos_tarde_total || 0}\n`;
+                });
+                
+                // Enviar como descarga
+                res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+                res.setHeader('Content-Disposition', `attachment; filename="nomina_${period.period_name.replace(/ /g, '_')}.csv"`);
+                res.send('\uFEFF' + csv); // BOM para UTF-8
+                
+                console.log(`✅ Período ${id} exportado exitosamente`);
+            });
+        });
+    } catch (error) {
+        console.error('❌ Error en /api/payroll-periods/:id/export:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
 
 // ===================================================================
 // INICIALIZACIÓN DEL SERVIDOR
@@ -8480,15 +9185,139 @@ app.get('/api/informes/:id', authenticateToken, (req, res) => {
 });
 
 // Marcar como enviado
-app.patch('/api/informes/:id/enviar', authenticateToken, (req, res) => {
-    const sql = 'UPDATE InformesTecnicos SET sent_to_client = TRUE, sent_at = CURRENT_TIMESTAMP, client_email = ? WHERE id = ?';
+// Subir PDF generado
+app.post('/api/informes/:id/pdf', authenticateToken, uploadReports.single('pdf'), (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ message: 'error', error: 'No se subió ningún archivo PDF' });
+    }
     
-    db.run(sql, [req.body.client_email, req.params.id], function(err) {
-        if (err) return res.status(500).json({ message: 'error', error: err.message });
-        if (this.changes === 0) return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
-        console.log('✅ Informe ' + req.params.id + ' marcado como enviado');
-        res.json({ message: 'success', data: { id: req.params.id, sent: true } });
+    const informeId = req.params.id;
+    const filename = req.file.filename;
+    
+    // Actualizar registro con el nombre del archivo físico
+    const sql = 'UPDATE InformesTecnicos SET filename = ? WHERE id = ?';
+    
+    db.run(sql, [filename, informeId], function(err) {
+        if (err) {
+            console.error('❌ Error actualizando informe con PDF:', err);
+            return res.status(500).json({ message: 'error', error: err.message });
+        }
+        
+        console.log(`✅ PDF subido para informe ${informeId}: ${filename}`);
+        res.json({ 
+            message: 'success', 
+            data: { 
+                id: informeId, 
+                filename: filename,
+                path: `/uploads/reports/${filename}`
+            } 
+        });
     });
+});
+
+// Marcar como enviado y ENVIAR CORREO REAL
+app.patch('/api/informes/:id/enviar', authenticateToken, async (req, res) => {
+    const informeId = req.params.id;
+    const { client_email } = req.body;
+    
+    if (!client_email) {
+        return res.status(400).json({ message: 'error', error: 'Email del cliente es requerido' });
+    }
+
+    try {
+        // 1. Obtener datos del informe para el correo
+        const informe = await new Promise((resolve, reject) => {
+            const sql = `
+                SELECT i.*, t.title as ticket_title, c.name as client_name 
+                FROM InformesTecnicos i 
+                LEFT JOIN Tickets t ON i.ticket_id = t.id 
+                LEFT JOIN Clients c ON t.client_id = c.id 
+                WHERE i.id = ?
+            `;
+            db.get(sql, [informeId], (err, row) => {
+                if (err) reject(err);
+                else if (!row) reject(new Error('Informe no encontrado'));
+                else resolve(row);
+            });
+        });
+
+        // 2. Configurar transporte de correo
+        // Si no hay variables de entorno, usar configuración de prueba o error
+        if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+            console.warn('⚠️ SMTP no configurado. Simulando envío.');
+            // Simulación (fallback a comportamiento anterior)
+            const sql = 'UPDATE InformesTecnicos SET sent_to_client = TRUE, sent_at = CURRENT_TIMESTAMP, client_email = ? WHERE id = ?';
+            db.run(sql, [client_email, informeId], function(err) {
+                if (err) return res.status(500).json({ message: 'error', error: err.message });
+                res.json({ message: 'success', warning: 'SMTP no configurado, envío simulado', data: { id: informeId, sent: true } });
+            });
+            return;
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST,
+            port: process.env.SMTP_PORT || 587,
+            secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+            auth: {
+                user: process.env.SMTP_USER,
+                pass: process.env.SMTP_PASS,
+            },
+        });
+
+        // 3. Preparar adjunto
+        const pdfPath = path.join(__dirname, '../uploads/reports/', informe.filename);
+        const attachments = [];
+        
+        const fs = require('fs');
+        if (fs.existsSync(pdfPath)) {
+            attachments.push({
+                filename: `Informe_Tecnico_${informe.ticket_id}.pdf`,
+                path: pdfPath
+            });
+        } else {
+            console.warn(`⚠️ PDF no encontrado en disco: ${pdfPath}`);
+        }
+
+        // 4. Enviar correo
+        const mailOptions = {
+            from: process.env.SMTP_FROM || '"GymTec ERP" <noreply@gymtecerp.com>',
+            to: client_email,
+            subject: `Informe Técnico - Ticket #${informe.ticket_id} - ${informe.client_name}`,
+            text: `Estimado cliente,\n\nAdjunto encontrará el informe técnico correspondiente al servicio realizado (Ticket #${informe.ticket_id}).\n\nAtentamente,\nEquipo GymTec`,
+            html: `
+                <div style="font-family: Arial, sans-serif; color: #333;">
+                    <h2>Informe Técnico de Servicio</h2>
+                    <p>Estimado cliente,</p>
+                    <p>Adjunto encontrará el informe técnico detallado correspondiente al servicio realizado.</p>
+                    <ul>
+                        <li><strong>Ticket:</strong> #${informe.ticket_id}</li>
+                        <li><strong>Título:</strong> ${informe.ticket_title}</li>
+                        <li><strong>Fecha:</strong> ${new Date().toLocaleDateString()}</li>
+                    </ul>
+                    <p>Si tiene alguna duda, por favor contáctenos.</p>
+                    <br>
+                    <p>Atentamente,<br><strong>Equipo GymTec</strong></p>
+                </div>
+            `,
+            attachments: attachments
+        };
+
+        await transporter.sendMail(mailOptions);
+        console.log(`📧 Correo enviado a ${client_email}`);
+
+        // 5. Actualizar estado en BD
+        const sqlUpdate = 'UPDATE InformesTecnicos SET sent_to_client = TRUE, sent_at = CURRENT_TIMESTAMP, client_email = ? WHERE id = ?';
+        
+        db.run(sqlUpdate, [client_email, informeId], function(err) {
+            if (err) return res.status(500).json({ message: 'error', error: err.message });
+            console.log('✅ Informe ' + informeId + ' marcado como enviado');
+            res.json({ message: 'success', data: { id: informeId, sent: true } });
+        });
+
+    } catch (error) {
+        console.error('❌ Error enviando correo:', error);
+        res.status(500).json({ message: 'error', error: 'Error al enviar correo: ' + error.message });
+    }
 });
 
 // ===================================================================

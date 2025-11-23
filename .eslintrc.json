@@ -1,7 +1,7 @@
 {
   "env": {
     "browser": true,
-    "es2021": true,
+    "es2024": true,
     "node": true,
     "jquery": false
   },
@@ -9,8 +9,8 @@
     "eslint:recommended"
   ],
   "parserOptions": {
-    "ecmaVersion": 2021,
-    "sourceType": "script"
+    "ecmaVersion": "latest",
+    "sourceType": "module"
   },
   "rules": {
     // Code Quality Rules
@@ -18,8 +18,8 @@
     "no-debugger": "warn", 
     "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
     "no-undef": "error",
-    "prefer-const": "warn",
-    "no-var": "warn",
+    "prefer-const": "error",
+    "no-var": "error",
     
     // Security Rules (Critical for this project)
     "no-eval": "error",
@@ -35,7 +35,7 @@
     "semi": ["error", "always"],
     "quotes": ["warn", "single", { "avoidEscape": true }],
     "indent": ["warn", 2],
-    "comma-dangle": ["warn", "es5"],
+    "comma-dangle": ["warn", "only-multiline"],
     
     // Error Prevention
     "no-unreachable": "error",

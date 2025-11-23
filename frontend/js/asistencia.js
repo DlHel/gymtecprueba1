@@ -1196,13 +1196,154 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         },
 
+        // ============= VISTA GLOBAL DE ASISTENCIA (NUEVO) =============
+        async loadAllUsersAttendance(filters = {}) {
+            try {
+                const params = new URLSearchParams();
+                if (filters.user_id) params.append('user_id', filters.user_id);
+                if (filters.date_from) params.append('date_from', filters.date_from);
+                if (filters.date_to) params.append('date_to', filters.date_to);
+                if (filters.status) params.append('status', filters.status);
+                params.append('limit', filters.limit || 100);
+
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/attendance/all?${params.toString()}`);
+                if (!response.ok) throw new Error('Error loading global attendance');
+                const result = await response.json();
+
+                const attendances = result.data || [];
+                const summary = result.summary || {};
+                
+                // Actualizar resumen
+                this.updateGlobalSummary(summary);
+                
+                // Renderizar tabla
+                this.renderGlobalAttendanceTable(attendances);
+                
+                // Actualizar contador
+                document.getElementById('global-attendance-count').textContent = 
+                    `Mostrando ${attendances.length} registros`;
+                    
+                console.log('✅ Cargada asistencia global:', attendances.length, 'registros');
+            } catch (error) {
+                console.error('Error loading global attendance:', error);
+                ui.showError('Error al cargar asistencia global');
+            }
+        },
+
+        updateGlobalSummary(summary) {
+            document.getElementById('global-summary-users').textContent = summary.total_users || 0;
+            document.getElementById('global-summary-present').textContent = summary.present_count || 0;
+            document.getElementById('global-summary-absent').textContent = summary.absent_count || 0;
+            document.getElementById('global-summary-late').textContent = summary.total_lates || 0;
+            document.getElementById('global-summary-hours').textContent = 
+                `${parseFloat(summary.total_worked_hours || 0).toFixed(1)}h`;
+        },
+
+        renderGlobalAttendanceTable(attendances) {
+            const tbody = document.getElementById('global-attendance-table-body');
+            if (!tbody) return;
+
+            if (attendances.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-4 text-center text-gray-500">No hay registros para mostrar</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = attendances.map(att => {
+                const date = new Date(att.date).toLocaleDateString('es-CL');
+                const checkIn = att.check_in_time ? new Date(att.check_in_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '-';
+                const checkOut = att.check_out_time ? new Date(att.check_out_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '-';
+                const hours = att.worked_hours ? `${parseFloat(att.worked_hours).toFixed(1)}h` : '-';
+                
+                let statusBadge = '';
+                if (att.status === 'present') statusBadge = '<span class="status-badge status-present">Presente</span>';
+                else if (att.status === 'absent') statusBadge = '<span class="status-badge status-absent">Ausente</span>';
+                else if (att.status === 'late') statusBadge = '<span class="status-badge status-late">Tarde</span>';
+                else if (att.status === 'excused') statusBadge = '<span class="status-badge status-approved">Justificado</span>';
+                
+                const lateMinutes = att.is_late && att.late_minutes > 0 ? `${att.late_minutes} min` : '-';
+
+                return `
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${att.username || 'Usuario'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${checkIn}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${checkOut}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${hours}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${att.is_late ? 'text-red-600 font-semibold' : 'text-gray-600'}">${lateMinutes}</td>
+                    </tr>
+                `;
+            }).join('');
+        },
+
+        async loadUsers() {
+            try {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/users`);
+                if (!response.ok) throw new Error('Error loading users');
+                const result = await response.json();
+
+                const users = result.data || [];
+                const userSelect = document.getElementById('filter-global-user');
+                if (!userSelect) return;
+
+                // Poblar dropdown de usuarios
+                userSelect.innerHTML = '<option value="">Todos los usuarios</option>' +
+                    users.map(user => `<option value="${user.id}">${user.username} (${user.role})</option>`).join('');
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        },
+
+        exportAttendanceToCSV() {
+            const table = document.getElementById('global-attendance-table-body');
+            if (!table || table.children.length === 0) {
+                ui.showError('No hay datos para exportar');
+                return;
+            }
+
+            // Construir CSV
+            let csv = 'Usuario,Fecha,Entrada,Salida,Horas,Estado,Tardanza\n';
+            
+            Array.from(table.children).forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 7) {
+                    // Extraer texto de cada celda, manejando los badges HTML
+                    const rowData = Array.from(cells).map((cell, idx) => {
+                        if (idx === 5) { // Estado column
+                            const badge = cell.querySelector('.status-badge');
+                            return badge ? `"${badge.textContent.trim()}"` : '"-"';
+                        }
+                        return `"${cell.textContent.trim()}"`;
+                    });
+                    csv += rowData.join(',') + '\n';
+                }
+            });
+
+            // Descargar archivo
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            const timestamp = new Date().toISOString().split('T')[0];
+            
+            link.setAttribute('href', url);
+            link.setAttribute('download', `asistencia_global_${timestamp}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            ui.showSuccess('CSV exportado correctamente');
+        },
+
         // Cargar todo el panel de gestión
         async loadManagementPanel() {
             await Promise.all([
                 this.loadAdminStats(),
                 this.loadPendingOvertime(),
                 this.loadShifts(),
-                this.loadPendingLeave()
+                this.loadPendingLeave(),
+                this.loadUsers(),
+                this.loadAllUsersAttendance()
             ]);
         }
     };
@@ -1221,6 +1362,38 @@ document.addEventListener('DOMContentLoaded', () => {
     if (managementTab) {
         managementTab.addEventListener('click', () => {
             adminFunctions.loadManagementPanel();
+        });
+    }
+
+    // Event listeners para vista global de asistencia (Admin)
+    const applyGlobalFiltersBtn = document.getElementById('apply-global-filters-btn');
+    if (applyGlobalFiltersBtn) {
+        applyGlobalFiltersBtn.addEventListener('click', () => {
+            const filters = {
+                user_id: document.getElementById('filter-global-user').value,
+                date_from: document.getElementById('filter-global-date-from').value,
+                date_to: document.getElementById('filter-global-date-to').value,
+                status: document.getElementById('filter-global-status').value
+            };
+            adminFunctions.loadAllUsersAttendance(filters);
+        });
+    }
+
+    const clearGlobalFiltersBtn = document.getElementById('clear-global-filters-btn');
+    if (clearGlobalFiltersBtn) {
+        clearGlobalFiltersBtn.addEventListener('click', () => {
+            document.getElementById('filter-global-user').value = '';
+            document.getElementById('filter-global-date-from').value = '';
+            document.getElementById('filter-global-date-to').value = '';
+            document.getElementById('filter-global-status').value = '';
+            adminFunctions.loadAllUsersAttendance();
+        });
+    }
+
+    const exportCSVBtn = document.getElementById('export-attendance-csv-btn');
+    if (exportCSVBtn) {
+        exportCSVBtn.addEventListener('click', () => {
+            adminFunctions.exportAttendanceToCSV();
         });
     }
 

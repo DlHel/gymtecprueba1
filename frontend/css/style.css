@@ -2357,3 +2357,14 @@ body.modal-open {
     margin: 0.125rem;
   }
 }
+/* Estilos para Notificaciones Toast */
+#toast-container {
+    pointer-events: none; /* Permite hacer clic a través del contenedor */
+}
+
+#toast-container > div {
+    pointer-events: auto; /* Reactiva los clics en las notificaciones */
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+    backdrop-filter: blur(8px);
+}
+

@@ -1,0 +1,25 @@
+
+> gymtec@1.0.0 lint
+> eslint "frontend/js/**/*.js" "backend/src/**/*.js"
+
+
+Oops! Something went wrong! :(
+
+ESLint: 8.57.1
+
+Error: .eslintrc.json:
+	Configuration for rule "comma-dangle" is invalid:
+	Value "es5" should be equal to one of the allowed values.
+	Value "es5" should be object.
+	Value "es5" should match exactly one schema in oneOf.
+
+    at ConfigValidator.validateRuleOptions (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\@eslint\eslintrc\dist\eslintrc.cjs:2048:23)
+    at C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\@eslint\eslintrc\dist\eslintrc.cjs:2103:18
+    at Array.forEach (<anonymous>)
+    at ConfigValidator.validateRules (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\@eslint\eslintrc\dist\eslintrc.cjs:2100:34)
+    at ConfigValidator.validateConfigArray (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\@eslint\eslintrc\dist\eslintrc.cjs:2226:18)
+    at CascadingConfigArrayFactory._finalizeConfigArray (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\@eslint\eslintrc\dist\eslintrc.cjs:3985:23)
+    at CascadingConfigArrayFactory.getConfigArrayForFile (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\@eslint\eslintrc\dist\eslintrc.cjs:3791:21)
+    at FileEnumerator._iterateFilesRecursive (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\eslint\lib\cli-engine\file-enumerator.js:450:49)
+    at _iterateFilesRecursive.next (<anonymous>)
+    at FileEnumerator.iterateFiles (C:\Users\felip\OneDrive\Desktop\desa\g\gymtecprueba1\node_modules\eslint\lib\cli-engine\file-enumerator.js:299:49)

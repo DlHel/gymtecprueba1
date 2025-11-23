@@ -20,19 +20,29 @@
                     throw new Error('No se pudieron cargar los datos del ticket');
                 }
                 
-                // 2. Generar PDF
-                const filename = await this.generateInformePDF(informeData);
+                // 2. Generar PDF (ahora devuelve { filename, blob })
+                const { filename, blob } = await this.generateInformePDF(informeData);
                 
                 // 3. Registrar informe en el servidor
-                await this.saveInformeRecord({
+                const informeRegistrado = await this.saveInformeRecord({
                     ticket_id: ticketId,
                     filename: filename,
                     notas_adicionales: informeData.notasAdicionales || ''
                 });
+
+                if (informeRegistrado && informeRegistrado.id) {
+                    // 4. Subir el archivo PDF al servidor
+                    await this.uploadInformePDF(informeRegistrado.id, blob, filename);
+                    
+                    // 5. Preguntar si enviar por correo
+                    if (confirm(`Informe generado exitosamente.\n¿Desea enviarlo por correo al cliente (${informeData.cliente.contacto})?`)) {
+                        await this.sendInformeEmail(informeRegistrado.id, informeData.cliente.contacto); // Usando contacto como email temporalmente, idealmente usar email real
+                    } else {
+                        this.showNotification('Informe generado y guardado correctamente', 'success');
+                    }
+                }
                 
-                this.showNotification('Informe técnico generado exitosamente', 'success');
                 await this.loadReportsHistory();
-                
                 return filename;
                 
             } catch (error) {
@@ -349,7 +359,9 @@
                 const filename = `Informe_tecnico_${informe.ticketId}_${Date.now()}.pdf`;
                 doc.save(filename);
                 
-                return filename;
+                // Retornar filename y blob para subirlo
+                const blob = doc.output('blob');
+                return { filename, blob };
                 
             } catch (error) {
                 console.error('Error generando PDF:', error);
@@ -415,6 +427,53 @@
             } catch (error) {
                 console.error('Error registrando informe:', error);
                 return null;
+            }
+        };
+
+        // Subir PDF al servidor
+        ReportsManager.prototype.uploadInformePDF = async function(informeId, pdfBlob, filename) {
+            try {
+                const formData = new FormData();
+                formData.append('pdf', pdfBlob, filename);
+
+                const response = await authenticatedFetch(`${API_URL}/informes/${informeId}/pdf`, {
+                    method: 'POST',
+                    body: formData // No setear Content-Type, fetch lo hace con boundary
+                });
+
+                if (!response.ok) throw new Error('Error subiendo PDF');
+                console.log('✅ PDF subido al servidor');
+                return true;
+            } catch (error) {
+                console.error('Error subiendo PDF:', error);
+                this.showNotification('Error al subir respaldo del PDF', 'warning');
+                return false;
+            }
+        };
+
+        // Enviar informe por correo
+        ReportsManager.prototype.sendInformeEmail = async function(informeId, email) {
+            try {
+                // Pedir email si no viene (o confirmar)
+                const clientEmail = prompt("Ingrese el correo del cliente para enviar el informe:", email || "");
+                if (!clientEmail) return;
+
+                this.showNotification('Enviando correo...', 'info');
+
+                const response = await authenticatedFetch(`${API_URL}/informes/${informeId}/enviar`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ client_email: clientEmail })
+                });
+
+                if (response.ok) {
+                    this.showNotification('Correo enviado exitosamente', 'success');
+                } else {
+                    throw new Error('Error del servidor al enviar correo');
+                }
+            } catch (error) {
+                console.error('Error enviando correo:', error);
+                this.showNotification('No se pudo enviar el correo', 'error');
             }
         };
         
