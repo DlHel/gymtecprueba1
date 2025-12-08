@@ -246,15 +246,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     days: {}
                 },
                 security: {
-                    passwordMinLength: parseInt(elements.passwordMinLength?.value) || 8,
-                    sessionTimeout: parseInt(elements.sessionTimeout?.value) || 30,
-                    maxLoginAttempts: parseInt(elements.maxLoginAttempts?.value) || 3
+                    passwordMinLength: parseInt(elements.passwordMinLength?.value, 10) || 8,
+                    sessionTimeout: parseInt(elements.sessionTimeout?.value, 10) || 30,
+                    maxLoginAttempts: parseInt(elements.maxLoginAttempts?.value, 10) || 3
                 },
                 maintenance: {
                     autoMaintenance: elements.autoMaintenance?.checked || false,
-                    defaultInterval: parseInt(elements.defaultInterval?.value) || 30,
-                    slaCritical: parseInt(elements.slaCritical?.value) || 4,
-                    slaNormal: parseInt(elements.slaNormal?.value) || 24
+                    defaultInterval: parseInt(elements.defaultInterval?.value, 10) || 30,
+                    slaCritical: parseInt(elements.slaCritical?.value, 10) || 4,
+                    slaNormal: parseInt(elements.slaNormal?.value, 10) || 24
                 },
                 integrations: {
                     whatsappIntegration: elements.whatsappIntegration?.checked || false,

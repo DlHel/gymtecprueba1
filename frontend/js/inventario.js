@@ -807,7 +807,7 @@ class InventoryManager {
                 order.items.forEach(item => {
                     // Solo agregar si no está ya en la lista (evitar duplicados)
                     const existing = Array.from(document.querySelectorAll('#order-items-container .order-item select[name="spare_part_id"]'))
-                        .some(select => parseInt(select.value) === item.spare_part_id);
+                        .some(select => parseInt(select.value, 10) === item.spare_part_id);
                     
                     if (!existing) {
                         this.addOrderItemWithData(item);
@@ -1058,11 +1058,11 @@ class InventoryManager {
         const data = {
             item_name: formData.get('name'),
             item_code: formData.get('sku'),
-            category_id: parseInt(formData.get('category')) || null,
-            current_stock: parseInt(formData.get('current_stock')) || 0,
-            minimum_stock: parseInt(formData.get('min_stock')) || 0,
+            category_id: parseInt(formData.get('category', 10)) || null,
+            current_stock: parseInt(formData.get('current_stock', 10)) || 0,
+            minimum_stock: parseInt(formData.get('min_stock', 10)) || 0,
             unit_cost: parseFloat(formData.get('unit_price')) || 0,
-            location_id: parseInt(formData.get('location')) || null,
+            location_id: parseInt(formData.get('location', 10)) || null,
             description: formData.get('description') || null,
             unit_of_measure: formData.get('unit_of_measure') || 'unit',
             is_critical: formData.get('is_critical') === 'on' ? 1 : 0
@@ -1119,8 +1119,8 @@ class InventoryManager {
             
             if (sparePartId && quantity) {
                 items.push({
-                    spare_part_id: parseInt(sparePartId),
-                    quantity: parseInt(quantity),
+                    spare_part_id: parseInt(sparePartId, 10),
+                    quantity: parseInt(quantity, 10),
                     unit_price: parseFloat(unitPrice) || 0
                 });
             }

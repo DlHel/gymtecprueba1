@@ -83,7 +83,7 @@ router.get('/', async (req, res) => {
         ORDER BY created_at DESC
         LIMIT ? OFFSET ?`;
         
-        params.push(parseInt(limit), parseInt(offset));
+        params.push(parseInt(limit, 10), parseInt(offset, 10));
         
         const notifications = await db.allAsync(sql, params);
         
@@ -107,8 +107,8 @@ router.get('/', async (req, res) => {
             data: notifications,
             metadata: {
                 total: notifications.length,
-                limit: parseInt(limit),
-                offset: parseInt(offset),
+                limit: parseInt(limit, 10),
+                offset: parseInt(offset, 10),
                 stats: {
                     total: statsResult?.total || 0,
                     sent: statsResult?.sent || 0,
@@ -494,7 +494,7 @@ router.get('/queue', async (req, res) => {
         }
         
         sql += ' ORDER BY nq.created_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        params.push(parseInt(limit, 10), parseInt(offset, 10));
         
         const queue = await db.allAsync(sql, params);
         
@@ -524,8 +524,8 @@ router.get('/queue', async (req, res) => {
                     acc[stat.status] = stat.count;
                     return acc;
                 }, {}),
-                limit: parseInt(limit),
-                offset: parseInt(offset)
+                limit: parseInt(limit, 10),
+                offset: parseInt(offset, 10)
             }
         });
         
@@ -681,7 +681,7 @@ router.get('/logs', async (req, res) => {
         }
         
         sql += ' ORDER BY nl.sent_at DESC LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), parseInt(offset));
+        params.push(parseInt(limit, 10), parseInt(offset, 10));
         
         const logs = await db.allAsync(sql, params);
         
@@ -701,8 +701,8 @@ router.get('/logs', async (req, res) => {
             data: logs,
             metadata: {
                 total: logs.length,
-                limit: parseInt(limit),
-                offset: parseInt(offset)
+                limit: parseInt(limit, 10),
+                offset: parseInt(offset, 10)
             }
         });
         

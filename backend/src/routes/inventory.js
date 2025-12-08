@@ -125,9 +125,9 @@ router.get('/', authenticateToken, async (req, res) => {
         sql += ' ORDER BY i.item_name ASC';
         
         // Paginación
-        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         sql += ' LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), offset);
+        params.push(parseInt(limit, 10), offset);
         
         const inventory = await db.all(sql, params);
         
@@ -175,10 +175,10 @@ router.get('/', authenticateToken, async (req, res) => {
             message: 'success',
             data: inventory || [],
             pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
+                page: parseInt(page, 10),
+                limit: parseInt(limit, 10),
                 total: total,
-                totalPages: Math.ceil(total / parseInt(limit))
+                totalPages: Math.ceil(total / parseInt(limit, 10))
             },
             summary: {
                 totalItems: total,
@@ -568,7 +568,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             return dateB - dateA;
         });
         
-        const limitedData = allData.slice(0, parseInt(limit));
+        const limitedData = allData.slice(0, parseInt(limit, 10));
         
         res.json({
             message: 'success',
@@ -1582,7 +1582,7 @@ router.post('/requests/:id/reject', authenticateToken, async (req, res) => {
         res.json({
             message: 'Solicitud rechazada exitosamente',
             data: {
-                request_id: parseInt(requestId),
+                request_id: parseInt(requestId, 10),
                 status: 'rechazada',
                 rejection_reason: rejection_reason.trim(),
                 rejected_by: req.user?.username || `User #${req.user?.id}`,

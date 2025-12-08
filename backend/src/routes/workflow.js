@@ -428,7 +428,7 @@ async function calculateTicketSLA(ticketId) {
         const slaHours = {};
         slaConfig.forEach(config => {
             const priority = config.setting_key.replace('sla_default_', '').replace('_hours', '');
-            slaHours[priority] = parseInt(config.setting_value);
+            slaHours[priority] = parseInt(config.setting_value, 10);
         });
         
         // Obtener ticket

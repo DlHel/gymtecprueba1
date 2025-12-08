@@ -643,8 +643,8 @@ router.delete('/tickets/:ticketId/checklist/items/:itemId', authenticateToken, (
                 res.json({ 
                     message: 'Item de checklist eliminado exitosamente',
                     data: { 
-                        itemId: parseInt(itemId),
-                        ticketId: parseInt(ticketId),
+                        itemId: parseInt(itemId, 10),
+                        ticketId: parseInt(ticketId, 10),
                         deleted: true 
                     },
                     metadata: { 

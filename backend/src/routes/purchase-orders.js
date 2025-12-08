@@ -91,7 +91,7 @@ router.get('/', authenticateToken, async (req, res) => {
         }
         
         sql += ' GROUP BY po.id ORDER BY po.order_date DESC LIMIT ?';
-        params.push(parseInt(limit));
+        params.push(parseInt(limit, 10));
         
         const orders = await db.all(sql, params);
         
@@ -236,13 +236,13 @@ router.post('/', authenticateToken, async (req, res) => {
         let orderNumber = 'PO-001';
         
         if (lastOrder && lastOrder.order_number) {
-            const lastNum = parseInt(lastOrder.order_number.split('-')[1]);
+            const lastNum = parseInt(lastOrder.order_number.split('-', 10)[1]);
             orderNumber = `PO-${String(lastNum + 1).padStart(3, '0')}`;
         }
         
         // Calcular total
         const total_amount = items.reduce((sum, item) => 
-            sum + (parseFloat(item.unit_cost) * parseInt(item.quantity)), 0
+            sum + (parseFloat(item.unit_cost) * parseInt(item.quantity, 10)), 0
         );
         
         // Insertar orden
@@ -272,7 +272,7 @@ router.post('/', authenticateToken, async (req, res) => {
                 quantity_received, unit_cost, total_cost
             ) VALUES (?, ?, ?, 0, ?, ?)`;
             
-            const itemTotal = parseFloat(item.unit_cost) * parseInt(item.quantity);
+            const itemTotal = parseFloat(item.unit_cost) * parseInt(item.quantity, 10);
             
             await db.run(itemSQL, [
                 orderId,
@@ -363,7 +363,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
                     quantity_received, unit_cost, total_cost
                 ) VALUES (?, ?, ?, 0, ?, ?)`;
                 
-                const itemTotal = parseFloat(item.unit_price || 0) * parseInt(item.quantity || 0);
+                const itemTotal = parseFloat(item.unit_price || 0) * parseInt(item.quantity || 0, 10);
                 
                 await db.runAsync(itemSQL, [
                     id,
@@ -380,7 +380,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
         res.json({
             message: 'Orden de compra actualizada exitosamente',
             data: {
-                id: parseInt(id),
+                id: parseInt(id, 10),
                 supplier,
                 items_count: items ? items.length : 0
             }

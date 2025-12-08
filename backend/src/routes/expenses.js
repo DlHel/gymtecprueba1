@@ -60,7 +60,7 @@ router.get('/', authenticateToken, (req, res) => {
     }
     
     sql += ` ORDER BY e.date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -77,8 +77,8 @@ router.get('/', authenticateToken, (req, res) => {
             message: 'success',
             data: rows,
             total: rows.length,
-            offset: parseInt(offset),
-            limit: parseInt(limit)
+            offset: parseInt(offset, 10),
+            limit: parseInt(limit, 10)
         });
     });
 });

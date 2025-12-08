@@ -1346,7 +1346,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('✅ Cliente eliminado exitosamente:', result);
             
             // Actualizar el estado eliminando el cliente del array
-            state.clients = state.clients.filter(client => client.id !== parseInt(clientId));
+            state.clients = state.clients.filter(client => client.id !== parseInt(clientId, 10));
             console.log('🔄 Estado actualizado, clientes restantes:', state.clients.length);
             
             // Mostrar mensaje de éxito

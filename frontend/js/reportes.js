@@ -703,7 +703,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            const ticketId = parseInt(ticketSelect.value);
+            const ticketId = parseInt(ticketSelect.value, 10);
             const notasAdicionales = notasTextarea?.value || '';
 
             try {

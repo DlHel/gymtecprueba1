@@ -54,8 +54,8 @@ function createSparePartModal(spareParts) {
     quantityInput.addEventListener('input', () => {
         const selectedOption = select.selectedOptions[0];
         if (selectedOption) {
-            const stock = parseInt(selectedOption.dataset.stock);
-            const quantity = parseInt(quantityInput.value);
+            const stock = parseInt(selectedOption.dataset.stock, 10);
+            const quantity = parseInt(quantityInput.value, 10);
             
             if (quantity > stock) {
                 quantityInput.setCustomValidity(`Stock insuficiente. Disponible: ${stock}`);
@@ -428,8 +428,8 @@ async function submitSparePartForm(button) {
     const formData = new FormData(form);
     
     const data = {
-        spare_part_id: parseInt(formData.get('spare_part_id')),
-        quantity_used: parseInt(formData.get('quantity_used')),
+        spare_part_id: parseInt(formData.get('spare_part_id', 10)),
+        quantity_used: parseInt(formData.get('quantity_used', 10)),
         unit_cost: formData.get('unit_cost') ? parseFloat(formData.get('unit_cost')) : null,
         notes: formData.get('notes') || null
     };

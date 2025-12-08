@@ -549,8 +549,8 @@ router.get('/rules', (req, res) => {
 
 router.get('/violations', async (req, res) => {
     try {
-        const limit = parseInt(req.query.limit) || 50;
-        const offset = parseInt(req.query.offset) || 0;
+        const limit = parseInt(req.query.limit, 10) || 50;
+        const offset = parseInt(req.query.offset, 10) || 0;
         
         const sql = `
             SELECT 
@@ -743,7 +743,7 @@ router.get('/dashboard', async (req, res) => {
 router.get('/trends', async (req, res) => {
     try {
         const db = req.app.locals.db;
-        const days = parseInt(req.query.days) || 7;
+        const days = parseInt(req.query.days, 10) || 7;
         
         const sql = `
             SELECT 

@@ -1889,7 +1889,7 @@ function filterEquipment() {
 function toggleEquipmentSelection(event) {
     const card = event.currentTarget;
     const equipmentData = JSON.parse(card.dataset.equipment);
-    const equipmentId = parseInt(card.dataset.equipmentId);
+    const equipmentId = parseInt(card.dataset.equipmentId, 10);
     
     const isSelected = state.gimnacion.selectedEquipment.some(selected => selected.id === equipmentId);
     
@@ -2022,7 +2022,7 @@ function selectAllEquipment() {
     
     equipmentCards.forEach(card => {
         const equipmentData = JSON.parse(card.dataset.equipment);
-        const equipmentId = parseInt(card.dataset.equipmentId);
+        const equipmentId = parseInt(card.dataset.equipmentId, 10);
         
         const isAlreadySelected = state.gimnacion.selectedEquipment.some(selected => selected.id === equipmentId);
         
@@ -2504,8 +2504,8 @@ async function handleGimnacionSubmit(event) {
         const ticketData = {
             title: formData.get('title'),
             description: formData.get('description'),
-            client_id: parseInt(formData.get('client_id')),
-            location_id: parseInt(formData.get('location_id')),
+            client_id: parseInt(formData.get('client_id', 10)),
+            location_id: parseInt(formData.get('location_id', 10)),
             contract_id: formData.get('contract_id') || null,
             priority: formData.get('priority'),
             ticket_type: 'gimnacion',

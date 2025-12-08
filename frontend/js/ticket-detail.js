@@ -4155,8 +4155,8 @@ function initializeActionButtons() {
             e.preventDefault();
             e.stopPropagation();
             
-            const noteIds = btn.dataset.noteIds ? btn.dataset.noteIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
-            const photoIds = btn.dataset.photoIds ? btn.dataset.photoIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
+            const noteIds = btn.dataset.noteIds ? btn.dataset.noteIds.split(',').filter(id => id).map(id => parseInt(id, 10)) : [];
+            const photoIds = btn.dataset.photoIds ? btn.dataset.photoIds.split(',').filter(id => id).map(id => parseInt(id, 10)) : [];
             
             console.log('✏️ Botón editar clickeado:', { noteIds, photoIds });
             editActivityGroup(noteIds, photoIds);
@@ -4169,8 +4169,8 @@ function initializeActionButtons() {
             e.preventDefault();
             e.stopPropagation();
             
-            const noteIds = btn.dataset.noteIds ? btn.dataset.noteIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
-            const photoIds = btn.dataset.photoIds ? btn.dataset.photoIds.split(',').filter(id => id).map(id => parseInt(id)) : [];
+            const noteIds = btn.dataset.noteIds ? btn.dataset.noteIds.split(',').filter(id => id).map(id => parseInt(id, 10)) : [];
+            const photoIds = btn.dataset.photoIds ? btn.dataset.photoIds.split(',').filter(id => id).map(id => parseInt(id, 10)) : [];
             
             console.log('🗑️ Botón eliminar clickeado:', { noteIds, photoIds });
             deleteActivityGroup(noteIds, photoIds);
@@ -4947,7 +4947,7 @@ async function showUnifiedSparePartModal() {
             } else {
                 // Repuesto disponible → Registrar uso
                 const selectedOption = selector.selectedOptions[0];
-                const stock = parseInt(selectedOption.dataset.stock);
+                const stock = parseInt(selectedOption.dataset.stock, 10);
                 const cost = parseFloat(selectedOption.dataset.cost) || 0;
                 const name = selectedOption.dataset.name;
                 
@@ -4975,8 +4975,8 @@ async function showUnifiedSparePartModal() {
             quantityUseInput.addEventListener('input', () => {
                 const selectedOption = selector.selectedOptions[0];
                 if (selectedOption && selectedOption.value !== '' && selectedOption.value !== 'NOT_FOUND') {
-                    const stock = parseInt(selectedOption.dataset.stock);
-                    const quantity = parseInt(quantityUseInput.value);
+                    const stock = parseInt(selectedOption.dataset.stock, 10);
+                    const quantity = parseInt(quantityUseInput.value, 10);
                     
                     if (quantity > stock) {
                         quantityUseInput.setCustomValidity(`Stock insuficiente. Disponible: ${stock}`);
@@ -5021,7 +5021,7 @@ async function submitUnifiedUseSpare(modal) {
     const formData = new FormData(form);
     
     const sparePartId = formData.get('spare_part_id');
-    const quantityUsed = parseInt(formData.get('quantity_used'));
+    const quantityUsed = parseInt(formData.get('quantity_used', 10));
     const notes = formData.get('notes');
     const billToClient = formData.get('bill_to_client') === 'on';
     
@@ -5053,7 +5053,7 @@ async function submitUnifiedUseSpare(modal) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                spare_part_id: parseInt(sparePartId),
+                spare_part_id: parseInt(sparePartId, 10),
                 quantity_used: quantityUsed,
                 notes: notes || '',
                 bill_to_client: billToClient
@@ -5099,7 +5099,7 @@ async function submitUnifiedRequestSpare(modal) {
     const formData = new FormData(form);
     
     const sparePartName = formData.get('spare_part_name');
-    const quantityNeeded = parseInt(formData.get('quantity_needed'));
+    const quantityNeeded = parseInt(formData.get('quantity_needed', 10));
     const priority = formData.get('priority');
     const description = formData.get('description');
     const justification = formData.get('justification');
@@ -5265,8 +5265,8 @@ async function showAddSparePartModal() {
         quantityInput.addEventListener('input', () => {
             const selectedOption = select.selectedOptions[0];
             if (selectedOption) {
-                const stock = parseInt(selectedOption.dataset.stock);
-                const quantity = parseInt(quantityInput.value);
+                const stock = parseInt(selectedOption.dataset.stock, 10);
+                const quantity = parseInt(quantityInput.value, 10);
                 
                 if (quantity > stock) {
                     quantityInput.setCustomValidity(`Stock insuficiente. Disponible: ${stock}`);
@@ -5398,7 +5398,7 @@ async function submitSparePartRequest(form, modal) {
     const requestData = {
         ticket_id: state.currentTicket.id,
         spare_part_name: formData.get('spare_part_name'),
-        quantity_needed: parseInt(formData.get('quantity_needed')),
+        quantity_needed: parseInt(formData.get('quantity_needed', 10)),
         priority: formData.get('priority'),
         description: formData.get('description'),
         justification: formData.get('justification'),
@@ -5529,8 +5529,8 @@ async function submitSparePartForm(button) {
     const formData = new FormData(form);
     
     const data = {
-        spare_part_id: parseInt(formData.get('spare_part_id')),
-        quantity_used: parseInt(formData.get('quantity_used')),
+        spare_part_id: parseInt(formData.get('spare_part_id', 10)),
+        quantity_used: parseInt(formData.get('quantity_used', 10)),
         notes: formData.get('notes') || null,
         bill_to_client: formData.get('bill_to_client') === 'on'
     };

@@ -520,7 +520,7 @@ app.delete('/api/users/:id', authenticateToken, (req, res) => {
     const userId = req.params.id;
 
     // No permitir eliminar al propio usuario
-    if (parseInt(userId) === req.user.id) {
+    if (parseInt(userId, 10) === req.user.id) {
         return res.status(400).json({ 
             error: 'No puedes eliminar tu propio usuario' 
         });
@@ -748,7 +748,7 @@ app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
 
 // PUT update maintenance task
 app.put('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
-    const taskId = parseInt(req.params.id);
+    const taskId = parseInt(req.params.id, 10);
     const { 
         title, 
         description,
@@ -806,7 +806,7 @@ app.put('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
 
 // DELETE maintenance task
 app.delete('/api/maintenance-tasks/:id', authenticateToken, (req, res) => {
-    const taskId = parseInt(req.params.id);
+    const taskId = parseInt(req.params.id, 10);
     
     const sql = 'DELETE FROM MaintenanceTasks WHERE id = ?';
     
@@ -1992,7 +1992,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
                  (ticket_id, note, note_type, author, is_internal, created_at) 
                  VALUES (?, ?, ?, ?, ?, NOW())`;
     const params = [
-        parseInt(ticketId), 
+        parseInt(ticketId, 10), 
         note.trim(), 
         note_type || 'General', 
         author || (req.user ? req.user.username : 'Sistema'), 
@@ -2159,7 +2159,7 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
                      (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
                      VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
         const params = [
-            parseInt(ticketId), 
+            parseInt(ticketId, 10), 
             processedPhotoData, 
             file_name || 'foto.jpg', 
             mime_type, 
@@ -2285,7 +2285,7 @@ app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => 
     
     const file_size = filename ? Math.round(photo_data.length * 0.75) : 0; // Aproximación del tamaño real
     const params = [
-        parseInt(equipmentId), 
+        parseInt(equipmentId, 10), 
         photo_data, 
         filename || 'foto.jpg', 
         mime_type, 
@@ -2387,7 +2387,7 @@ app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
                  VALUES (?, ?, ?, ?, NOW())`;
     
     const params = [
-        parseInt(equipmentId), 
+        parseInt(equipmentId, 10), 
         note.trim(), 
         note_type || 'General',
         req.user.username || 'Sistema'
@@ -2450,8 +2450,8 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
                      VALUES (?, ?, ?, ?, ?, ?, '', '', '', '', NOW(), NOW())`;
         
         const params = [
-            parseInt(location_id),
-            parseInt(model_id),
+            parseInt(location_id, 10),
+            parseInt(model_id, 10),
             customIdValue,
             serial_number || null,
             acquisition_date || null,
@@ -2541,7 +2541,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
             if (row && row.custom_id) {
                 const match = row.custom_id.match(/CARD-(\d+)/);
                 if (match) {
-                    nextNumber = parseInt(match[1]) + 1;
+                    nextNumber = parseInt(match[1], 10) + 1;
                 }
             }
             
@@ -2585,13 +2585,13 @@ app.put('/api/equipment/:id', authenticateToken, (req, res) => {
                  WHERE id = ?`;
     
     const params = [
-        parseInt(location_id),
-        parseInt(model_id),
+        parseInt(location_id, 10),
+        parseInt(model_id, 10),
         custom_id || null,
         serial_number || null,
         acquisition_date || null,
         notes || null,
-        parseInt(id)
+        parseInt(id, 10)
     ];
     
     db.run(sql, params, function(err) {
@@ -3191,8 +3191,8 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
                 message: 'success',
                 data: rows,
                 metadata: {
-                    locationId: parseInt(locationId),
-                    contractId: contractId ? parseInt(contractId) : null,
+                    locationId: parseInt(locationId, 10),
+                    contractId: contractId ? parseInt(contractId, 10) : null,
                     totalEquipment: rows.length,
                     contractEquipment: rows.filter(r => r.is_in_contract).length
                 }
@@ -3846,7 +3846,7 @@ app.get('/api/dashboard/kpis', authenticateToken, (req, res) => {
 
 // Endpoint para obtener actividad reciente
 app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit, 10) || 10;
     console.log(`📋 Solicitando actividad reciente (límite: ${limit})...`);
     
     const sql = `
@@ -5338,7 +5338,7 @@ app.get('/api/expenses', authenticateToken, (req, res) => {
     }
     
     sql += ` ORDER BY e.date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -5355,8 +5355,8 @@ app.get('/api/expenses', authenticateToken, (req, res) => {
             message: 'success',
             data: rows,
             total: rows.length,
-            offset: parseInt(offset),
-            limit: parseInt(limit)
+            offset: parseInt(offset, 10),
+            limit: parseInt(limit, 10)
         });
     });
 });
@@ -6024,7 +6024,7 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     }
     
     sql += ` ORDER BY q.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -6041,8 +6041,8 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
             message: 'success',
             data: rows,
             total: rows.length,
-            offset: parseInt(offset),
-            limit: parseInt(limit)
+            offset: parseInt(offset, 10),
+            limit: parseInt(limit, 10)
         });
     });
 });
@@ -6330,7 +6330,7 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     }
     
     sql += ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(parseInt(limit, 10), parseInt(offset, 10));
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -6347,8 +6347,8 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
             message: 'success',
             data: rows,
             total: rows.length,
-            offset: parseInt(offset),
-            limit: parseInt(limit)
+            offset: parseInt(offset, 10),
+            limit: parseInt(limit, 10)
         });
     });
 });
@@ -7130,7 +7130,7 @@ app.get('/api/attendance/all', authenticateToken, requireRole(['Admin', 'Manager
     }
     
     sql += ' ORDER BY a.date DESC, u.username LIMIT ?';
-    params.push(parseInt(limit));
+    params.push(parseInt(limit, 10));
     
     // Obtener registros
     db.all(sql, params, (err, attendances) => {
@@ -7247,7 +7247,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
             if (schedule && schedule.scheduled_start) {
                 const scheduledStart = new Date();
                 const [hours, minutes] = schedule.scheduled_start.split(':');
-                scheduledStart.setHours(parseInt(hours), parseInt(minutes), 0);
+                scheduledStart.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
                 
                 const tolerance = (schedule.tolerance_minutes || 15) * 60 * 1000;
                 const diff = now - scheduledStart;
@@ -8673,7 +8673,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
             if (schedule && schedule.scheduled_start) {
                 const scheduledStart = new Date();
                 const [hours, minutes] = schedule.scheduled_start.split(':');
-                scheduledStart.setHours(parseInt(hours), parseInt(minutes), 0);
+                scheduledStart.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
                 
                 const tolerance = (schedule.tolerance_minutes || 15) * 60 * 1000;
                 const diff = now - scheduledStart;

@@ -535,7 +535,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         const formData = new FormData(e.target);
         const contractData = {
-            client_id: parseInt(formData.get('client_id')),
+            client_id: parseInt(formData.get('client_id', 10)),
             status: formData.get('status'),
             start_date: formData.get('start_date'),
             end_date: formData.get('end_date'),

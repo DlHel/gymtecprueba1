@@ -61,9 +61,9 @@ router.get('/', async (req, res) => {
         ORDER BY l.name ASC`;
         
         // Paginación
-        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const offset = (parseInt(page, 10) - 1) * parseInt(limit, 10);
         sql += ' LIMIT ? OFFSET ?';
-        params.push(parseInt(limit), offset);
+        params.push(parseInt(limit, 10), offset);
         
         db.all(sql, params, (err, rows) => {
             if (err) {
@@ -78,8 +78,8 @@ router.get('/', async (req, res) => {
                 message: 'success',
                 data: rows,
                 metadata: {
-                    page: parseInt(page),
-                    limit: parseInt(limit),
+                    page: parseInt(page, 10),
+                    limit: parseInt(limit, 10),
                     total: rows.length
                 }
             });

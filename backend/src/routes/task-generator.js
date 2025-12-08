@@ -310,7 +310,7 @@ router.get('/contracts/:contractId/task-generation-preview', authenticateToken, 
                 },
                 equipment_count: equipment.length,
                 tasks_to_generate: taskPreview.length,
-                months_ahead: parseInt(months_ahead),
+                months_ahead: parseInt(months_ahead, 10),
                 task_preview: taskPreview
             }
         });
