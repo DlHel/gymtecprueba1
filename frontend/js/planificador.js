@@ -613,10 +613,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const taskData = {
                 title: formData.get('title'),
                 type: formData.get('type'),
-                equipment_id: parseInt(formData.get('equipment_id', 10)) || null,
+                equipment_id: parseInt(formData.get('equipment_id'), 10) || null,
                 scheduled_date: formData.get('scheduled_date'),
                 scheduled_time: formData.get('scheduled_time'),
-                technician_id: parseInt(formData.get('technician_id', 10)) || null,
+                technician_id: parseInt(formData.get('technician_id'), 10) || null,
                 notes: formData.get('notes'),
                 status: 'pending'
             };

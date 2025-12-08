@@ -225,7 +225,7 @@ async function showUnifiedSparePartModal() {
             } else {
                 // Repuesto disponible → Registrar uso
                 const selectedOption = selector.selectedOptions[0];
-                const stock = parseInt(selectedOption.dataset.stock);
+                const stock = parseInt(selectedOption.dataset.stock, 10);
                 const cost = parseFloat(selectedOption.dataset.cost) || 0;
                 const name = selectedOption.dataset.name;
                 
@@ -253,8 +253,8 @@ async function showUnifiedSparePartModal() {
             quantityUseInput.addEventListener('input', () => {
                 const selectedOption = selector.selectedOptions[0];
                 if (selectedOption && selectedOption.value !== '' && selectedOption.value !== 'NOT_FOUND') {
-                    const stock = parseInt(selectedOption.dataset.stock);
-                    const quantity = parseInt(quantityUseInput.value);
+                    const stock = parseInt(selectedOption.dataset.stock, 10);
+                    const quantity = parseInt(quantityUseInput.value, 10);
                     
                     if (quantity > stock) {
                         quantityUseInput.setCustomValidity(`Stock insuficiente. Disponible: ${stock}`);
@@ -299,7 +299,7 @@ async function submitUnifiedUseSpare(modal) {
     const formData = new FormData(form);
     
     const sparePartId = formData.get('spare_part_id');
-    const quantityUsed = parseInt(formData.get('quantity_used'));
+    const quantityUsed = parseInt(formData.get('quantity_used', 10));
     const unitCost = parseFloat(formData.get('unit_cost'));
     const notes = formData.get('notes');
     const billToClient = formData.get('bill_to_client') === 'on';
@@ -337,7 +337,7 @@ async function submitUnifiedUseSpare(modal) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                spare_part_id: parseInt(sparePartId),
+                spare_part_id: parseInt(sparePartId, 10),
                 quantity_used: quantityUsed,
                 unit_cost: unitCost,
                 notes: notes || '',
@@ -384,7 +384,7 @@ async function submitUnifiedRequestSpare(modal) {
     const formData = new FormData(form);
     
     const sparePartName = formData.get('spare_part_name');
-    const quantityNeeded = parseInt(formData.get('quantity_needed'));
+    const quantityNeeded = parseInt(formData.get('quantity_needed', 10));
     const priority = formData.get('priority');
     const description = formData.get('description');
     const justification = formData.get('justification');

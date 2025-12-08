@@ -2874,13 +2874,13 @@ async function handleExpenseSubmit(expenseId = null) {
     try {
         const data = {
             expense_date: document.getElementById('expense-date').value,
-            category_id: parseInt(document.getElementById('expense-category', 10).value),
+            category_id: parseInt(document.getElementById('expense-category').value, 10),
             description: document.getElementById('expense-description').value,
             amount: parseFloat(document.getElementById('expense-amount').value),
             supplier: document.getElementById('expense-supplier').value || null,
             reference_type: document.getElementById('expense-reference-type').value,
             reference_id: document.getElementById('expense-reference-id').value ? 
-                         parseInt(document.getElementById('expense-reference-id', 10).value) : null
+                         parseInt(document.getElementById('expense-reference-id').value, 10) : null
         };
         
         console.log('Submitting expense data:', data);

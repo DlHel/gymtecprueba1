@@ -49,8 +49,8 @@ router.get('/locations/:locationId/equipment', authenticateToken, async (req, re
                 message: 'success',
                 data: rows,
                 metadata: {
-                    locationId: parseInt(locationId),
-                    contractId: contractId ? parseInt(contractId) : null,
+                    locationId: parseInt(locationId, 10),
+                    contractId: contractId ? parseInt(contractId, 10) : null,
                     totalEquipment: rows.length,
                     contractEquipment: rows.filter(r => r.is_in_contract).length
                 }

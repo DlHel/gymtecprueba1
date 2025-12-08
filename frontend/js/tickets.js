@@ -2504,8 +2504,8 @@ async function handleGimnacionSubmit(event) {
         const ticketData = {
             title: formData.get('title'),
             description: formData.get('description'),
-            client_id: parseInt(formData.get('client_id', 10)),
-            location_id: parseInt(formData.get('location_id', 10)),
+            client_id: parseInt(formData.get('client_id'), 10),
+            location_id: parseInt(formData.get('location_id'), 10),
             contract_id: formData.get('contract_id') || null,
             priority: formData.get('priority'),
             ticket_type: 'gimnacion',

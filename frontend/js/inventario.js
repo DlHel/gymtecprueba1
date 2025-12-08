@@ -1058,11 +1058,11 @@ class InventoryManager {
         const data = {
             item_name: formData.get('name'),
             item_code: formData.get('sku'),
-            category_id: parseInt(formData.get('category', 10)) || null,
-            current_stock: parseInt(formData.get('current_stock', 10)) || 0,
-            minimum_stock: parseInt(formData.get('min_stock', 10)) || 0,
+            category_id: parseInt(formData.get('category'), 10) || null,
+            current_stock: parseInt(formData.get('current_stock'), 10) || 0,
+            minimum_stock: parseInt(formData.get('min_stock'), 10) || 0,
             unit_cost: parseFloat(formData.get('unit_price')) || 0,
-            location_id: parseInt(formData.get('location', 10)) || null,
+            location_id: parseInt(formData.get('location'), 10) || null,
             description: formData.get('description') || null,
             unit_of_measure: formData.get('unit_of_measure') || 'unit',
             is_critical: formData.get('is_critical') === 'on' ? 1 : 0

@@ -128,7 +128,7 @@ async function generateAttendanceForUser(connection, user, startDate, endDate) {
                         user_id: user.id,
                         date: currentDate.toISOString().split('T')[0],
                         start_time: checkOutTime,
-                        end_time: addMinutes(checkOutTime, parseInt(overtimeHours * 60)),
+                        end_time: addMinutes(checkOutTime, parseInt(overtimeHours * 60, 10)),
                         hours: parseFloat(overtimeHours),
                         type: dayOfWeek === 6 ? 'sunday' : 'regular',
                         multiplier: dayOfWeek === 6 ? 1.8 : 1.5,

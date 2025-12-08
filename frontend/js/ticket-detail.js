@@ -5021,7 +5021,7 @@ async function submitUnifiedUseSpare(modal) {
     const formData = new FormData(form);
     
     const sparePartId = formData.get('spare_part_id');
-    const quantityUsed = parseInt(formData.get('quantity_used', 10));
+    const quantityUsed = parseInt(formData.get('quantity_used'), 10);
     const notes = formData.get('notes');
     const billToClient = formData.get('bill_to_client') === 'on';
     
@@ -5099,7 +5099,7 @@ async function submitUnifiedRequestSpare(modal) {
     const formData = new FormData(form);
     
     const sparePartName = formData.get('spare_part_name');
-    const quantityNeeded = parseInt(formData.get('quantity_needed', 10));
+    const quantityNeeded = parseInt(formData.get('quantity_needed'), 10);
     const priority = formData.get('priority');
     const description = formData.get('description');
     const justification = formData.get('justification');
@@ -5398,7 +5398,7 @@ async function submitSparePartRequest(form, modal) {
     const requestData = {
         ticket_id: state.currentTicket.id,
         spare_part_name: formData.get('spare_part_name'),
-        quantity_needed: parseInt(formData.get('quantity_needed', 10)),
+        quantity_needed: parseInt(formData.get('quantity_needed'), 10),
         priority: formData.get('priority'),
         description: formData.get('description'),
         justification: formData.get('justification'),
@@ -5529,8 +5529,8 @@ async function submitSparePartForm(button) {
     const formData = new FormData(form);
     
     const data = {
-        spare_part_id: parseInt(formData.get('spare_part_id', 10)),
-        quantity_used: parseInt(formData.get('quantity_used', 10)),
+        spare_part_id: parseInt(formData.get('spare_part_id'), 10),
+        quantity_used: parseInt(formData.get('quantity_used'), 10),
         notes: formData.get('notes') || null,
         bill_to_client: formData.get('bill_to_client') === 'on'
     };

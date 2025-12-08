@@ -52,7 +52,7 @@ function makeRequest(port, path) {
         const [, portNum] = port.split(':');
         const options = {
             hostname: 'localhost',
-            port: parseInt(portNum),
+            port: parseInt(portNum, 10),
             path: path,
             method: 'GET'
         };

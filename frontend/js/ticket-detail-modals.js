@@ -428,8 +428,8 @@ async function submitSparePartForm(button) {
     const formData = new FormData(form);
     
     const data = {
-        spare_part_id: parseInt(formData.get('spare_part_id', 10)),
-        quantity_used: parseInt(formData.get('quantity_used', 10)),
+        spare_part_id: parseInt(formData.get('spare_part_id'), 10),
+        quantity_used: parseInt(formData.get('quantity_used'), 10),
         unit_cost: formData.get('unit_cost') ? parseFloat(formData.get('unit_cost')) : null,
         notes: formData.get('notes') || null
     };
