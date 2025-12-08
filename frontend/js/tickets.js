@@ -1342,54 +1342,6 @@ function closeGimnacionModal() {
     // Limpiar estado
     state.gimnacion.selectedEquipment = [];
     state.gimnacion.selectedTemplate = null;
-    
-    console.log('✅ GIMNACION: Modal cerrado');
-}
-
-/**
- * Manejar cambio de cliente en gimnación
- */
-async function onGimnacionClientChange(event) {
-    const clientId = event.target.value;
-    const gimnacionForm = document.getElementById('gimnacion-form');
-    
-    if (!gimnacionForm) return;
-    
-    const locationSelect = gimnacionForm.querySelector('[name="location_id"]');
-    const equipmentContainer = document.getElementById('equipment-scope-container');
-    
-    if (!locationSelect || !equipmentContainer) return;
-    
-    // Limpiar ubicaciones
-    locationSelect.innerHTML = '<option value="">Seleccione una sede</option>';
-    
-    // Limpiar equipos
-    equipmentContainer.innerHTML = '<p class="text-gray-500 text-center py-4 col-span-full">Seleccione una sede para ver los equipos</p>';
-    
-    if (!clientId) return;
-    
-    try {
-        // Cargar ubicaciones del cliente
-        const locations = await fetchLocationsByClient(clientId);
-        
-        locations.forEach(location => {
-            const option = document.createElement('option');
-            option.value = location.id;
-            option.textContent = location.name;
-            locationSelect.appendChild(option);
-        });
-        
-    } catch (error) {
-        console.error('❌ GIMNACION: Error cargando ubicaciones:', error);
-    }
-}
-
-/**
- * Cambiar pestaña activa en modal gimnación
- */
-function switchGimnacionTab(tabName) {
-    const gimnacionModal = document.getElementById('gimnacion-modal');
-    
     if (!gimnacionModal) {
         console.warn('⚠️ GIMNACION: Modal no encontrado para cambio de pestaña');
         return;

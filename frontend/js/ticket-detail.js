@@ -1778,8 +1778,6 @@ function updateTabCounters() {
 // === NAVEGACIÓN DE PESTAÑAS ===
 // Función removida - ya no tenemos pestañas
 
-// === ATAJOS DE TECLADO ===
-function setupKeyboardShortcuts() {
 // === EVENT LISTENERS ===
 function setupEventListeners() {
     // Botón de editar ticket
@@ -3281,10 +3279,10 @@ async function handleUnifiedSubmit() {
     
     try {
         // Mostrar estado de carga
-        const interface = document.querySelector('.unified-comment-interface-modern');
+        const commentInterface = document.querySelector('.unified-comment-interface-modern');
         const statusContainer = document.getElementById('composer-status');
         
-        interface.classList.add('loading');
+        commentInterface.classList.add('loading');
         if (statusContainer) {
             statusContainer.classList.remove('hidden');
             statusContainer.querySelector('.status-text').textContent = 'Enviando comentario...';
@@ -3326,10 +3324,10 @@ async function handleUnifiedSubmit() {
         showToast('❌ Error al enviar el comentario', 'error');
     } finally {
         // Remover estado de carga
-        const interface = document.querySelector('.unified-comment-interface-modern');
+        const commentInterface = document.querySelector('.unified-comment-interface-modern');
         const statusContainer = document.getElementById('composer-status');
         
-        interface.classList.remove('loading');
+        commentInterface.classList.remove('loading');
         if (statusContainer) {
             statusContainer.classList.add('hidden');
         }
