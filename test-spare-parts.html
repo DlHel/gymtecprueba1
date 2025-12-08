@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Gestión de Repuestos</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .test-section { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px; 
+        }
+        .test-button { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 5px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        .test-button:hover { 
+            background: #0056b3; 
+        }
+        #test-results { 
+            background: white; 
+            border: 1px solid #ddd; 
+            padding: 15px; 
+            margin-top: 20px; 
+            border-radius: 5px; 
+            min-height: 100px; 
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Test de Gestión de Repuestos</h1>
+    
+    <div class="test-section">
+        <h2>Endpoints del Backend</h2>
+        <p>Prueba los endpoints de la API para gestión de repuestos:</p>
+        
+        <button class="test-button" onclick="testGetSpareParts()">
+            📦 GET /api/inventory/spare-parts
+        </button>
+        
+        <button class="test-button" onclick="testGetAlerts()">
+            ⚠️ GET /api/inventory/spare-parts/alerts
+        </button>
+        
+        <button class="test-button" onclick="testSparePartRequest()">
+            📝 POST /api/inventory/spare-part-requests
+        </button>
+        
+        <button class="test-button" onclick="testOrderRequest()">
+            🛒 POST /api/inventory/spare-parts/1/request-order
+        </button>
+    </div>
+    
+    <div class="test-section">
+        <h2>Funcionalidad del Frontend</h2>
+        <p>Estos botones requieren que estés en la página de ticket-detail:</p>
+        
+        <button class="test-button" onclick="window.open('ticket-detail.html?id=1', '_blank')">
+            🎫 Abrir Ticket Detail (ID: 1)
+        </button>
+        
+        <button class="test-button" onclick="testNotification()">
+            📢 Test Notificaciones
+        </button>
+    </div>
+    
+    <div id="test-results">
+        <p><em>Los resultados de las pruebas aparecerán aquí...</em></p>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:3000/api';
+        
+        function log(message) {
+            const results = document.getElementById('test-results');
+            results.innerHTML += `<p><strong>${new Date().toLocaleTimeString()}:</strong> ${message}</p>`;
+            results.scrollTop = results.scrollHeight;
+        }
+        
+        async function testGetSpareParts() {
+            try {
+                log('🔄 Probando GET /api/inventory/spare-parts...');
+                const response = await fetch(`${API_URL}/inventory/spare-parts`);
+                const data = await response.json();
+                log(`✅ Éxito: ${data.data?.length || 0} repuestos encontrados`);
+                log(`📊 Datos: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function testGetAlerts() {
+            try {
+                log('🔄 Probando GET /api/inventory/spare-parts/alerts...');
+                const response = await fetch(`${API_URL}/inventory/spare-parts/alerts`);
+                const data = await response.json();
+                log(`✅ Éxito: ${data.data?.length || 0} alertas de stock bajo`);
+                log(`📊 Datos: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function testSparePartRequest() {
+            try {
+                log('🔄 Probando POST /api/inventory/spare-part-requests...');
+                const testData = {
+                    ticket_id: 1,
+                    spare_part_name: 'Correa de transmisión TEST',
+                    quantity_needed: 2,
+                    priority: 'media',
+                    description: 'Correa para trotadora Life Fitness',
+                    justification: 'Necesaria para completar reparación del ticket',
+                    requested_by: 'Usuario Test'
+                };
+                
+                const response = await fetch(`${API_URL}/inventory/spare-part-requests`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                log(`✅ Éxito: Solicitud creada con ID ${data.data?.id}`);
+                log(`📊 Datos: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        async function testOrderRequest() {
+            try {
+                log('🔄 Probando POST /api/inventory/spare-parts/1/request-order...');
+                const testData = {
+                    ticket_id: 1,
+                    requested_by: 'Usuario Test'
+                };
+                
+                const response = await fetch(`${API_URL}/inventory/spare-parts/1/request-order`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(testData)
+                });
+                
+                const data = await response.json();
+                log(`✅ Éxito: Orden solicitada con ID ${data.data?.id}`);
+                log(`📊 Datos: ${JSON.stringify(data, null, 2)}`);
+            } catch (error) {
+                log(`❌ Error: ${error.message}`);
+            }
+        }
+        
+        function testNotification() {
+            // Simular la función de notificación
+            if (typeof showNotification === 'function') {
+                showNotification('Esta es una notificación de prueba', 'success');
+                log('✅ Notificación mostrada (si estás en ticket-detail)');
+            } else {
+                log('⚠️ Función showNotification no disponible (necesitas estar en ticket-detail)');
+            }
+        }
+        
+        // Auto-test al cargar la página
+        window.addEventListener('load', () => {
+            log('🚀 Página de pruebas cargada. Haz clic en los botones para probar la funcionalidad.');
+        });
+    </script>
+</body>
+</html>

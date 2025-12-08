@@ -104,7 +104,7 @@ const validateLocation = (locationData) => {
     }
     
     // Validar que client_id sea un número
-    if (locationData.client_id && isNaN(parseInt(locationData.client_id))) {
+    if (locationData.client_id && isNaN(parseInt(locationData.client_id, 10))) {
         errors.push('El ID del cliente debe ser un número válido');
     }
     
@@ -147,7 +147,7 @@ const validateEquipment = (equipmentData) => {
     }
     
     // Validar que location_id sea un número
-    if (equipmentData.location_id && isNaN(parseInt(equipmentData.location_id))) {
+    if (equipmentData.location_id && isNaN(parseInt(equipmentData.location_id, 10))) {
         errors.push('El ID de la ubicación debe ser un número válido');
     }
     
