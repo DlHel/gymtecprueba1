@@ -413,9 +413,13 @@ class EquipmentDrawer {
                     };
                     
                     const ticketsHtml = tickets.map(t => `
-                        <div class="equipment-ticket-item">
+                        <a href="ticket-detail.html?id=${t.id}" class="equipment-ticket-item equipment-ticket-link" title="Click para ver detalles del ticket #${t.id}">
+                            <div class="equipment-ticket-header">
+                                <span class="equipment-ticket-id">#${t.id}</span>
+                                <span class="equipment-ticket-type equipment-ticket-type-${(t.ticket_type || 'individual').toLowerCase()}">${t.ticket_type || 'Individual'}</span>
+                            </div>
                             <div class="equipment-ticket-title">${t.title}</div>
-                            <div class="equipment-ticket-description">${t.description}</div>
+                            ${t.description ? `<div class="equipment-ticket-description">${t.description.substring(0, 100)}${t.description.length > 100 ? '...' : ''}</div>` : ''}
                             <div class="equipment-ticket-meta">
                                 <span>
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -426,23 +430,14 @@ class EquipmentDrawer {
                                     </svg>
                                     ${formatDate(t.created_at)}
                                 </span>
-                                <span>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"></path>
-                                        <path d="M13 13l6 6"></path>
-                                    </svg>
-                                    Estado: ${t.status}
+                                <span class="equipment-ticket-status equipment-ticket-status-${(t.status || 'pending').toLowerCase().replace(/\s+/g, '-')}">
+                                    ${t.status || 'Pendiente'}
                                 </span>
-                                <span>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="10"></circle>
-                                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                                    </svg>
-                                    Prioridad: ${t.priority}
+                                <span class="equipment-ticket-priority equipment-ticket-priority-${(t.priority || 'medium').toLowerCase()}">
+                                    ${t.priority || 'Media'}
                                 </span>
                             </div>
-                        </div>
+                        </a>
                     `).join('');
                     ticketsList.innerHTML = ticketsHtml;
                 }

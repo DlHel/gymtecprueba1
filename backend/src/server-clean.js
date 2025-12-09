@@ -2695,19 +2695,52 @@ app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
 // GET all tickets for a specific equipment
 app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => {
     const { equipmentId } = req.params;
+    
+    // Buscar tickets de dos fuentes:
+    // 1. Tickets individuales donde equipment_id = equipmentId
+    // 2. Tickets de gimnación que incluyan este equipo en ticket_equipment_scope
     const sql = `
-        SELECT 
-            t.*,
+        SELECT DISTINCT
+            t.id,
+            t.title,
+            t.description,
+            t.status,
+            t.priority,
+            t.ticket_type,
+            t.created_at,
+            t.updated_at,
             c.name as client_name,
-            l.name as location_name
+            l.name as location_name,
+            'individual' as source
         FROM tickets t
         LEFT JOIN clients c ON t.client_id = c.id
         LEFT JOIN locations l ON t.location_id = l.id
         WHERE t.equipment_id = ?
-        ORDER BY t.created_at DESC
+        
+        UNION
+        
+        SELECT DISTINCT
+            t.id,
+            t.title,
+            t.description,
+            t.status,
+            t.priority,
+            t.ticket_type,
+            t.created_at,
+            t.updated_at,
+            c.name as client_name,
+            l.name as location_name,
+            'gimnacion' as source
+        FROM tickets t
+        INNER JOIN ticket_equipment_scope tes ON t.id = tes.ticket_id
+        LEFT JOIN clients c ON t.client_id = c.id
+        LEFT JOIN locations l ON t.location_id = l.id
+        WHERE tes.equipment_id = ?
+        
+        ORDER BY created_at DESC
     `;
     
-    db.all(sql, [equipmentId], (err, rows) => {
+    db.all(sql, [equipmentId, equipmentId], (err, rows) => {
         if (err) {
             console.error('❌ Error fetching equipment tickets:', err.message);
             res.status(500).json({ 
