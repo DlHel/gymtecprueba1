@@ -1329,10 +1329,11 @@ function setupGimnacionEventListeners() {
 }
 
 /**
- * Cerrar modal de gimnación
+ * Cerrar modal de gimnación (versión unificada con limpieza completa)
  */
 function closeGimnacionModal() {
     const gimnacionModal = document.getElementById('gimnacion-modal');
+    const gimnacionForm = document.getElementById('gimnacion-form');
     
     if (!gimnacionModal) {
         console.warn('⚠️ GIMNACION: Modal no encontrado para cerrar');
@@ -1343,11 +1344,58 @@ function closeGimnacionModal() {
     gimnacionModal.classList.remove('is-open');
     document.body.classList.remove('modal-open');
     
+    // Limpiar formulario
+    if (gimnacionForm) {
+        gimnacionForm.reset();
+    }
+    
+    // Ocultar contenedores de checklist
+    const checklistPreviewContainer = document.getElementById('checklist-preview-container');
+    const checklistEditableContainer = document.getElementById('checklist-editable-container');
+    
+    if (checklistPreviewContainer) {
+        checklistPreviewContainer.classList.add('hidden');
+    }
+    if (checklistEditableContainer) {
+        checklistEditableContainer.classList.add('hidden');
+    }
+    
+    // Limpiar editor de checklist si existe
+    if (window.checklistEditor && typeof window.checklistEditor.cancel === 'function') {
+        window.checklistEditor.cancel();
+    }
+    if (typeof cancelTemplateEdit === 'function') {
+        cancelTemplateEdit();
+    }
+    
+    // Ocultar editor de template
+    const templateEditor = document.getElementById('template-editor');
+    if (templateEditor) {
+        templateEditor.classList.add('hidden');
+    }
+    
+    // Limpiar selector de template
+    const templateSelect = document.getElementById('checklist-template-select');
+    if (templateSelect) {
+        templateSelect.value = '';
+    }
+    
     // Limpiar estado
     state.gimnacion.selectedEquipment = [];
     state.gimnacion.selectedTemplate = null;
     
-    console.log('✅ GIMNACION: Modal cerrado correctamente');
+    // Actualizar/ocultar resumen de equipos seleccionados
+    const selectedSummary = document.getElementById('selected-equipment-summary');
+    const selectedCount = document.getElementById('selected-count');
+    
+    if (selectedSummary) {
+        selectedSummary.classList.add('hidden');
+    }
+    if (selectedCount) {
+        selectedCount.textContent = '0';
+    }
+    
+    console.log('✅ GIMNACION: Modal cerrado y limpiado completamente');
 }
 
 /**
@@ -2355,96 +2403,6 @@ function getChecklistData() {
     return checklistItems;
 }
 
-/**
- * Cerrar modal de gimnación
- */
-function closeGimnacionModal() {
-    const { gimnacionModal, gimnacionForm, checklistPreviewContainer, checklistEditableContainer } = window.ticketsElements || {};
-    
-    if (gimnacionModal) {
-        gimnacionModal.classList.remove('is-open');
-        
-        // Limpiar formulario
-        if (gimnacionForm) {
-            gimnacionForm.reset();
-        }
-        
-        // Ocultar contenedores de checklist
-        if (checklistPreviewContainer) {
-            checklistPreviewContainer.classList.add('hidden');
-        }
-        if (checklistEditableContainer) {
-            checklistEditableContainer.classList.add('hidden');
-        }
-        
-        // Limpiar editor de checklist
-        if (window.checklistEditor) {
-            window.checklistEditor.cancel();
-        }
-        
-        // Ocultar editor de template
-        const templateEditor = document.getElementById('template-editor');
-        if (templateEditor) {
-            templateEditor.classList.add('hidden');
-        }
-        
-        // Limpiar selector de template
-        const templateSelect = document.getElementById('checklist-template-select');
-        if (templateSelect) {
-            templateSelect.value = '';
-        }
-        
-        // Limpiar estado
-        state.gimnacion.selectedEquipment = [];
-        state.gimnacion.selectedTemplate = null;
-        
-        // Actualizar resumen de equipos seleccionados
-        const selectedSummary = document.getElementById('selected-equipment-summary');
-        const selectedCount = document.getElementById('selected-count');
-        
-        if (selectedSummary) {
-            selectedSummary.classList.add('hidden');
-        }
-        if (selectedCount) {
-            selectedCount.textContent = '0';
-        }
-        
-        console.log('✅ GIMNACION: Modal cerrado y limpiado completamente');
-    }
-}
-
-/**
- * Cerrar modal de gimnación
- */
-function closeGimnacionModal() {
-    const { gimnacionModal, gimnacionForm } = window.ticketsElements || {};
-    
-    if (gimnacionModal) {
-        gimnacionModal.classList.remove('is-open');
-        
-        // Limpiar formulario
-        if (gimnacionForm) {
-            gimnacionForm.reset();
-        }
-        
-        // Limpiar editor de checklist
-        if (typeof cancelTemplateEdit === 'function') {
-            cancelTemplateEdit();
-        }
-        
-        // Limpiar estado
-        state.gimnacion.selectedEquipment = [];
-        state.gimnacion.selectedTemplate = null;
-        
-        // Ocultar resumen de equipos seleccionados
-        const summary = document.getElementById('selected-equipment-summary');
-        if (summary) {
-            summary.classList.add('hidden');
-        }
-        
-        console.log('✅ GIMNACION: Modal cerrado y estado limpiado');
-    }
-}
 async function handleGimnacionSubmit(event) {
     event.preventDefault();
     
