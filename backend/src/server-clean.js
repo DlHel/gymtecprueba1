@@ -2373,7 +2373,7 @@ app.get('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
 // POST add note to equipment
 app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
     const { equipmentId } = req.params;
-    const { note, note_type } = req.body;
+    const { note } = req.body;
     
     if (!note || note.trim() === '') {
         return res.status(400).json({ 
@@ -2382,14 +2382,14 @@ app.post('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
         });
     }
     
+    // Schema: id, equipment_id, note, author, created_at
     const sql = `INSERT INTO equipmentnotes 
-                 (equipment_id, note, note_type, author, created_at) 
-                 VALUES (?, ?, ?, ?, NOW())`;
+                 (equipment_id, note, author, created_at) 
+                 VALUES (?, ?, ?, NOW())`;
     
     const params = [
         parseInt(equipmentId, 10), 
         note.trim(), 
-        note_type || 'General',
         req.user.username || 'Sistema'
     ];
     
