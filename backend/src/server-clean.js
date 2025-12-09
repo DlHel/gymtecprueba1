@@ -2732,7 +2732,7 @@ app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => 
             l.name as location_name,
             'gimnacion' as source
         FROM tickets t
-        INNER JOIN ticket_equipment_scope tes ON t.id = tes.ticket_id
+        INNER JOIN TicketEquipmentScope tes ON t.id = tes.ticket_id
         LEFT JOIN clients c ON t.client_id = c.id
         LEFT JOIN locations l ON t.location_id = l.id
         WHERE tes.equipment_id = ?
