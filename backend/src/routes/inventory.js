@@ -310,6 +310,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
             reorder_point,
             reorder_quantity,
             unit_cost,
+            unit_price,
             location_id,
             primary_supplier_id,
             alternative_supplier_id,
@@ -334,15 +335,28 @@ router.put('/:id', authenticateToken, async (req, res) => {
         UPDATE Inventory SET
             item_name = ?, description = ?, category_id = ?, unit_of_measure = ?,
             minimum_stock = ?, maximum_stock = ?, reorder_point = ?, reorder_quantity = ?,
-            unit_cost = ?, location_id = ?, primary_supplier_id = ?, alternative_supplier_id = ?,
+            unit_cost = ?, unit_price = ?, location_id = ?, primary_supplier_id = ?, alternative_supplier_id = ?,
             lead_time_days = ?, shelf_life_days = ?, is_critical = ?, updated_at = NOW()
         WHERE id = ?`;
         
         const params = [
-            item_name, description, category_id, unit_of_measure,
-            minimum_stock, maximum_stock, reorder_point, reorder_quantity,
-            unit_cost, location_id, primary_supplier_id, alternative_supplier_id,
-            lead_time_days, shelf_life_days, is_critical, id
+            item_name ?? existingItem.item_name,
+            description ?? existingItem.description ?? null,
+            category_id ?? existingItem.category_id ?? null,
+            unit_of_measure ?? existingItem.unit_of_measure ?? 'unit',
+            minimum_stock ?? existingItem.minimum_stock ?? 0,
+            maximum_stock ?? existingItem.maximum_stock ?? 999999.99,
+            reorder_point ?? existingItem.reorder_point ?? 0,
+            reorder_quantity ?? existingItem.reorder_quantity ?? 0,
+            unit_cost ?? existingItem.unit_cost ?? 0,
+            unit_price ?? existingItem.unit_price ?? 0,
+            location_id ?? existingItem.location_id ?? null,
+            primary_supplier_id ?? existingItem.primary_supplier_id ?? null,
+            alternative_supplier_id ?? existingItem.alternative_supplier_id ?? null,
+            lead_time_days ?? existingItem.lead_time_days ?? 0,
+            shelf_life_days ?? existingItem.shelf_life_days ?? null,
+            is_critical !== undefined ? is_critical : (existingItem.is_critical ?? 0),
+            id
         ];
         
         await db.run(sql, params);
