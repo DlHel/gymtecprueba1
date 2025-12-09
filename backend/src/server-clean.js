@@ -2792,8 +2792,8 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
             });
         }
         
-        // Verificar que el repuesto existe y tiene stock
-        db.get('SELECT id, name, sku, current_stock FROM spareparts WHERE id = ?', [spare_part_id], (err, sparePart) => {
+        // Verificar que el repuesto existe y tiene stock - incluir precio
+        db.get('SELECT id, name, sku, current_stock, unit_price FROM spareparts WHERE id = ?', [spare_part_id], (err, sparePart) => {
             if (err) {
                 console.error('❌ Error verificando repuesto:', err.message);
                 return res.status(500).json({ 
@@ -2884,9 +2884,10 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                 `${notes || 'Uso de repuesto'} - Stock disponible: ${actualUsedQty}. Faltante: ${shortageQty} (solicitado)` :
                 notes || 'Uso de repuesto';
             
-            // Usar unit_cost del frontend o 0 si no se proporciona (tabla SpareParts no tiene columna de precio)
-            const finalUnitCost = unit_cost && unit_cost > 0 ? unit_cost : 0;
-            console.log(`💰 Precio unitario: ${finalUnitCost} (fuente: ${unit_cost && unit_cost > 0 ? 'frontend' : 'default 0'})`);
+            // Usar unit_cost del frontend o precio del catálogo si está disponible
+            const catalogPrice = parseFloat(sparePart.unit_price) || 0;
+            const finalUnitCost = unit_cost && unit_cost > 0 ? unit_cost : catalogPrice;
+            console.log(`💰 Precio unitario: ${finalUnitCost} (fuente: ${unit_cost && unit_cost > 0 ? 'frontend' : catalogPrice > 0 ? 'catálogo' : 'sin precio'})`);
             
             db.run(insertSql, [ticketId, spare_part_id, actualUsedQty, finalUnitCost, usageNotes], function(err) {
                 if (err) {
