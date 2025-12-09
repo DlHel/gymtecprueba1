@@ -2914,6 +2914,44 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                     
                     console.log(`✅ Stock actualizado: ${sparePart.name} - usado: ${actualUsedQty}, nuevo stock: ${availableStock - actualUsedQty}`);
                     
+                    // 🆕 REGISTRAR MOVIMIENTO EN INVENTARIO (InventoryTransactions)
+                    const newStock = availableStock - actualUsedQty;
+                    const transactionSql = `
+                        INSERT INTO InventoryTransactions (
+                            spare_part_id,
+                            transaction_type,
+                            quantity,
+                            quantity_before,
+                            quantity_after,
+                            reference_type,
+                            reference_id,
+                            performed_by,
+                            notes,
+                            transaction_date
+                        ) VALUES (?, 'Salida', ?, ?, ?, 'Ticket', ?, ?, ?, NOW())
+                    `;
+                    
+                    const transactionNotes = notes ? 
+                        `Uso en ticket #${ticketId}: ${notes}` : 
+                        `Uso en ticket #${ticketId}`;
+                    
+                    db.run(transactionSql, [
+                        spare_part_id,
+                        actualUsedQty,
+                        availableStock,
+                        newStock,
+                        ticketId,
+                        req.user.id,
+                        transactionNotes
+                    ], function(transErr) {
+                        if (transErr) {
+                            console.error('⚠️ Error registrando movimiento de inventario:', transErr.message);
+                            // No revertimos, solo loggeamos - el stock ya fue actualizado
+                        } else {
+                            console.log(`📊 Movimiento de inventario registrado - ID: ${this.lastID}, Tipo: Salida, Cantidad: ${actualUsedQty}`);
+                        }
+                    });
+                    
                     // 🆕 Si hay faltante, crear solicitud de compra automáticamente
                     if (shortageQty > 0) {
                         console.log(`📋 Creando solicitud de compra por ${shortageQty} unidades faltantes...`);
@@ -3005,9 +3043,9 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                         });
                         
                         function createExpenseIfNeeded() {
-                            // CREAR EXPENSE AUTOMÁTICAMENTE si bill_to_client = true
-                            if (bill_to_client && unit_cost && unit_cost > 0) {
-                                const totalCost = actualUsedQty * unit_cost;
+                            // CREAR EXPENSE AUTOMÁTICAMENTE si bill_to_client = true y hay costo
+                            if (bill_to_client && finalUnitCost > 0) {
+                                const totalCost = actualUsedQty * finalUnitCost;
                                 const expenseDescription = `Repuesto: ${sparePart.name} (${actualUsedQty} ${actualUsedQty > 1 ? 'unidades' : 'unidad'}) - ${ticket.title}`;
                                 
                                 // Obtener o crear categoría "Repuestos"
