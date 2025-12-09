@@ -1334,14 +1334,28 @@ function setupGimnacionEventListeners() {
 function closeGimnacionModal() {
     const gimnacionModal = document.getElementById('gimnacion-modal');
     
-    if (gimnacionModal) {
-        gimnacionModal.classList.remove('is-open');
-        document.body.classList.remove('modal-open');
+    if (!gimnacionModal) {
+        console.warn('⚠️ GIMNACION: Modal no encontrado para cerrar');
+        return;
     }
+    
+    // Quitar clases de apertura
+    gimnacionModal.classList.remove('is-open');
+    document.body.classList.remove('modal-open');
     
     // Limpiar estado
     state.gimnacion.selectedEquipment = [];
     state.gimnacion.selectedTemplate = null;
+    
+    console.log('✅ GIMNACION: Modal cerrado correctamente');
+}
+
+/**
+ * Cambiar pestaña activa en modal gimnación
+ */
+function switchGimnacionTab(tabName) {
+    const gimnacionModal = document.getElementById('gimnacion-modal');
+    
     if (!gimnacionModal) {
         console.warn('⚠️ GIMNACION: Modal no encontrado para cambio de pestaña');
         return;
@@ -1619,7 +1633,7 @@ function setupEquipmentTableEventListeners() {
                 checkbox.checked = isChecked;
             });
             
-            updateEquipmentSummary();
+            updateAllEquipmentUI();
             console.log('🔄 GIMNACION: Selección masiva:', isChecked ? 'todos' : 'ninguno');
         });
     }
@@ -1654,7 +1668,7 @@ function setupEquipmentTableEventListeners() {
             });
             
             updateSelectAllCheckbox();
-            updateEquipmentSummary();
+            updateAllEquipmentUI();
             console.log(`🔄 GIMNACION: Categoría ${category}:`, isChecked ? 'seleccionada' : 'deseleccionada');
         });
     });
@@ -1682,7 +1696,7 @@ function setupEquipmentTableEventListeners() {
             // Actualizar checkbox de categoría
             updateCategoryCheckbox(category);
             updateSelectAllCheckbox();
-            updateEquipmentSummary();
+            updateAllEquipmentUI();
             
             console.log(`🔄 GIMNACION: Equipo ${equipmentData.name}:`, isChecked ? 'seleccionado' : 'deseleccionado');
         });
@@ -1744,11 +1758,12 @@ function updateSelectAllCheckbox() {
 }
 
 /**
- * Actualizar resumen de equipos seleccionados
+ * Actualizar resumen visual de equipos seleccionados (versión con card visual)
+ * Diferente de updateEquipmentCounter() que solo actualiza el número
  */
-function updateEquipmentSummary() {
+function updateEquipmentSummaryCard() {
     const selectedCount = state.gimnacion.selectedEquipment.length;
-    console.log(`📊 GIMNACION: ${selectedCount} equipos seleccionados`);
+    console.log(`📊 GIMNACION: ${selectedCount} equipos seleccionados (card)`);
     
     // Actualizar contador en la UI si existe
     const summaryElement = document.getElementById('selected-equipment-summary');
@@ -1874,7 +1889,7 @@ function toggleEquipmentSelection(event) {
     }
     
     // Actualizar contadores y vista previa
-    updateEquipmentSummary();
+    updateAllEquipmentUI();
     updateSelectedEquipmentPreview();
     
     // Regenerar iconos
@@ -1884,9 +1899,9 @@ function toggleEquipmentSelection(event) {
 }
 
 /**
- * Actualizar resumen de equipos seleccionados
+ * Actualizar contador de equipos seleccionados (solo número)
  */
-function updateEquipmentSummary() {
+function updateEquipmentCounter() {
     const selectedCount = document.getElementById('selected-count');
     
     if (!selectedCount) return;
@@ -1895,6 +1910,17 @@ function updateEquipmentSummary() {
     selectedCount.textContent = count;
     
     console.log('📋 GIMNACION: Equipos seleccionados:', count);
+}
+
+/**
+ * Función unificada que actualiza toda la UI de equipos seleccionados
+ * Llama a las funciones individuales de actualización para mantener consistencia
+ */
+function updateAllEquipmentUI() {
+    updateEquipmentSummaryCard();  // Actualiza card visual verde
+    updateEquipmentCounter();      // Actualiza contador numérico
+    updateSelectedEquipmentPreview(); // Actualiza lista preview
+    updateSelectAllCheckbox();     // Actualiza checkbox "seleccionar todo"
 }
 
 /**
@@ -1958,7 +1984,7 @@ function removeEquipmentFromSelection(equipmentId) {
         if (checkIcon) checkIcon.remove();
     }
     
-    updateEquipmentSummary();
+    updateAllEquipmentUI();
     updateSelectedEquipmentPreview();
 }
 
@@ -1991,7 +2017,7 @@ function selectAllEquipment() {
         }
     });
     
-    updateEquipmentSummary();
+    updateAllEquipmentUI();
     updateSelectedEquipmentPreview();
     
     if (window.lucide) {
@@ -2023,7 +2049,7 @@ function deselectAllEquipment() {
     });
     
     state.gimnacion.selectedEquipment = [];
-    updateEquipmentSummary();
+    updateAllEquipmentUI();
     updateSelectedEquipmentPreview();
 }
 
