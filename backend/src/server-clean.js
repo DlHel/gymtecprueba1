@@ -2270,7 +2270,7 @@ app.get('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
 // POST upload photo for equipment
 app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
     const { equipmentId } = req.params;
-    const { photo_data, mime_type, filename, description, photo_type } = req.body;
+    const { photo_data, mime_type, filename } = req.body;
     
     if (!photo_data || !mime_type) {
         return res.status(400).json({ 
@@ -2279,9 +2279,10 @@ app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => 
         });
     }
     
+    // Schema: id, equipment_id, photo_data, file_name, mime_type, file_size, created_at
     const sql = `INSERT INTO equipmentphotos 
-                 (equipment_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`;
+                 (equipment_id, photo_data, file_name, mime_type, file_size, created_at) 
+                 VALUES (?, ?, ?, ?, ?, NOW())`;
     
     const file_size = filename ? Math.round(photo_data.length * 0.75) : 0; // Aproximación del tamaño real
     const params = [
@@ -2289,9 +2290,7 @@ app.post('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => 
         photo_data, 
         filename || 'foto.jpg', 
         mime_type, 
-        file_size, 
-        description || null, 
-        photo_type || 'Otros'
+        file_size
     ];
     
     db.run(sql, params, function(err) {
