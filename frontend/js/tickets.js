@@ -1527,6 +1527,7 @@ function renderEquipmentScope(equipment) {
 
 /**
  * Renderizar equipos filtrados en formato tabla agrupada por categorías
+ * Diseño mejorado con grupos visuales distintivos
  */
 function renderFilteredEquipment(equipment) {
     const equipmentContainer = document.getElementById('equipment-scope-container');
@@ -1552,86 +1553,127 @@ function renderFilteredEquipment(equipment) {
         groups[category].push(equip);
         return groups;
     }, {});
+
+    // Colores distintivos para cada categoría
+    const categoryStyles = {
+        'Cardio': { 
+            bg: 'bg-gradient-to-r from-blue-500 to-blue-600', 
+            badge: 'bg-blue-100 text-blue-800',
+            light: 'bg-blue-50',
+            icon: 'activity'
+        },
+        'Fuerza': { 
+            bg: 'bg-gradient-to-r from-red-500 to-red-600', 
+            badge: 'bg-red-100 text-red-800',
+            light: 'bg-red-50',
+            icon: 'dumbbell'
+        },
+        'Funcional': { 
+            bg: 'bg-gradient-to-r from-green-500 to-green-600', 
+            badge: 'bg-green-100 text-green-800',
+            light: 'bg-green-50',
+            icon: 'target'
+        },
+        'Accesorios': { 
+            bg: 'bg-gradient-to-r from-yellow-500 to-yellow-600', 
+            badge: 'bg-yellow-100 text-yellow-800',
+            light: 'bg-yellow-50',
+            icon: 'tool'
+        },
+        'default': { 
+            bg: 'bg-gradient-to-r from-gray-500 to-gray-600', 
+            badge: 'bg-gray-100 text-gray-800',
+            light: 'bg-gray-50',
+            icon: 'box'
+        }
+    };
     
     let html = `
-        <div class="equipment-table-container">
-            <table class="w-full border-collapse text-sm">
-                <thead class="bg-gray-50 sticky top-0">
-                    <tr class="border-b border-gray-200">
-                        <th class="text-left p-2 font-semibold text-gray-700 w-8">
-                            <input type="checkbox" id="select-all-equipment" class="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500">
-                        </th>
-                        <th class="text-left p-2 font-semibold text-gray-700">Equipo</th>
-                        <th class="text-left p-2 font-semibold text-gray-700">Categoría</th>
-                    </tr>
-                </thead>
-                <tbody>
+        <div class="equipment-groups-container space-y-4">
+            <!-- Barra de selección global -->
+            <div class="flex items-center justify-between bg-white border border-gray-200 rounded-lg p-3 shadow-sm">
+                <div class="flex items-center gap-3">
+                    <input type="checkbox" id="select-all-equipment" 
+                           class="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 cursor-pointer">
+                    <label for="select-all-equipment" class="text-sm font-medium text-gray-700 cursor-pointer">
+                        Seleccionar todos los equipos
+                    </label>
+                </div>
+                <div id="selected-count-badge" class="px-3 py-1 text-sm font-semibold bg-green-100 text-green-800 rounded-full">
+                    <span id="selected-count">0</span> seleccionados
+                </div>
+            </div>
     `;
     
-    // Renderizar cada categoría
+    // Renderizar cada categoría como un grupo visual
     Object.keys(groupedEquipment).sort().forEach(category => {
         const categoryEquipment = groupedEquipment[category];
-        const categoryColor = getCategoryColor(category);
+        const style = categoryStyles[category] || categoryStyles['default'];
         const categoryId = category.toLowerCase().replace(/\s+/g, '-');
         const allCategorySelected = categoryEquipment.every(equip => 
             state.gimnacion.selectedEquipment.some(selected => selected.id === equip.id)
         );
         
-        // Header de categoría
         html += `
-            <tr class="category-header bg-gray-50 border-t-2 border-gray-300">
-                <td class="p-2">
-                    <input type="checkbox" 
-                           id="select-category-${categoryId}" 
-                           class="category-checkbox w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
-                           data-category="${category}"
-                           ${allCategorySelected ? 'checked' : ''}>
-                </td>
-                <td colspan="2" class="p-2">
-                    <div class="flex items-center">
-                        <span class="font-semibold text-gray-800 mr-3">${category}</span>
-                        <span class="px-2 py-1 text-xs rounded-full ${categoryColor}">
+            <!-- Grupo de categoría: ${category} -->
+            <div class="category-group border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow" data-category="${category}">
+                <!-- Header de categoría con color distintivo -->
+                <div class="category-header ${style.bg} p-3 cursor-pointer">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <input type="checkbox" 
+                                   id="select-category-${categoryId}" 
+                                   class="category-checkbox w-5 h-5 text-white bg-white/20 border-white/50 rounded focus:ring-white cursor-pointer"
+                                   data-category="${category}"
+                                   ${allCategorySelected ? 'checked' : ''}>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="${style.icon}" class="h-5 w-5 text-white"></i>
+                                <span class="font-bold text-white text-lg">${category}</span>
+                            </div>
+                        </div>
+                        <span class="px-3 py-1 text-sm font-semibold bg-white/20 text-white rounded-full backdrop-blur-sm">
                             ${categoryEquipment.length} equipo${categoryEquipment.length !== 1 ? 's' : ''}
                         </span>
                     </div>
-                </td>
-            </tr>
+                </div>
+                
+                <!-- Lista de equipos de la categoría -->
+                <div class="category-equipment-list divide-y divide-gray-100">
         `;
         
         // Equipos de la categoría
-        categoryEquipment.forEach(equip => {
+        categoryEquipment.forEach((equip, index) => {
             const isSelected = state.gimnacion.selectedEquipment.some(selected => selected.id === equip.id);
             
             html += `
-                <tr class="equipment-row border-b border-gray-100 hover:bg-green-50 transition-colors ${
-                    isSelected ? 'bg-green-50' : ''
-                }" data-category="${category}">
-                    <td class="p-2">
+                    <div class="equipment-row flex items-center gap-4 p-3 ${isSelected ? style.light : 'bg-white'} hover:${style.light} transition-colors cursor-pointer"
+                         data-category="${category}">
                         <input type="checkbox" 
-                               class="equipment-checkbox w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500"
+                               class="equipment-checkbox w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
                                data-equipment-id="${equip.id}"
                                data-equipment='${JSON.stringify(equip)}'
                                ${isSelected ? 'checked' : ''}>
-                    </td>
-                    <td class="p-2">
-                        <div class="font-medium text-gray-900 text-sm">${equip.name}</div>
-                        <div class="text-xs text-gray-500">${equip.model_name || 'Sin modelo'} • ${equip.serial_number || 'S/N no disponible'}</div>
-                    </td>
-                    <td class="p-2">
-                        <span class="px-2 py-1 text-xs rounded-full ${categoryColor}">
-                            ${category}
-                        </span>
-                    </td>
-                </tr>
+                        <div class="flex-1 min-w-0">
+                            <div class="font-medium text-gray-900 truncate">${equip.name}</div>
+                            <div class="text-xs text-gray-500">${equip.model_name || 'Sin modelo'} • S/N: ${equip.serial_number || 'No disponible'}</div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-md ${style.badge}">
+                                <i data-lucide="check" class="h-3 w-3 mr-1 ${isSelected ? '' : 'hidden'}"></i>
+                                ${isSelected ? 'Seleccionado' : category}
+                            </span>
+                        </div>
+                    </div>
             `;
         });
+        
+        html += `
+                </div>
+            </div>
+        `;
     });
     
-    html += `
-                </tbody>
-            </table>
-        </div>
-    `;
+    html += `</div>`;
     
     equipmentContainer.innerHTML = html;
     
