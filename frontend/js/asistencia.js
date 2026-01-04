@@ -319,9 +319,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 const today = new Date().getDay();
                 const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
                 const dayName = days[today];
-                const enabled = schedule[`${dayName}_enabled`];
                 const start = schedule[`${dayName}_start`];
                 const end = schedule[`${dayName}_end`];
+                // Usar _start como indicador de enabled
+                const enabled = start && start !== null && start !== '';
                 
                 if (enabled) {
                     scheduleInfo.textContent = `Tu horario hoy: ${start} - ${end}`;
@@ -406,10 +407,11 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
 
             days.forEach(day => {
-                const enabled = schedule[`${day.key}_enabled`];
                 const start = schedule[`${day.key}_start`];
                 const end = schedule[`${day.key}_end`];
-                const breakDuration = schedule[`${day.key}_break_duration`];
+                const breakDuration = schedule[`${day.key}_break_duration`] || schedule.break_minutes;
+                // Usar _start como indicador de día habilitado
+                const enabled = start && start !== null && start !== '';
 
                 html += `
                     <div class="border border-gray-200 rounded-lg p-4 ${enabled ? 'bg-blue-50' : 'bg-gray-50'}">

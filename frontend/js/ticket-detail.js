@@ -4738,7 +4738,7 @@ async function showUnifiedSparePartModal() {
     
     try {
         // Cargar repuestos disponibles
-        const response = await authenticatedFetch(`${API_URL}/inventory/spare-parts`);
+        const response = await authenticatedFetch(`${API_URL}/inventory`);
         if (!response.ok) {
             throw new Error('Error al cargar repuestos');
         }
@@ -4779,14 +4779,16 @@ async function showUnifiedSparePartModal() {
                                 <label class="base-form-label">Repuesto</label>
                                 <select id="spare-part-selector" name="spare_part_id" class="base-form-input">
                                     <option value="">Seleccionar repuesto disponible...</option>
-                                    ${spareParts.filter(part => part.current_stock > 0).map(part => `
+                                    ${spareParts.filter(part => part.current_stock > 0).map(part => {
+                                        const partName = part.name || part.item_name || 'Sin nombre';
+                                        return `
                                         <option value="${part.id}" 
                                                 data-stock="${part.current_stock}" 
                                                 data-cost="${part.unit_cost || 0}"
-                                                data-name="${part.name}">
-                                            ${part.name} (${part.sku}) - Stock: ${part.current_stock}
+                                                data-name="${partName}">
+                                            ${partName} (${part.sku || part.item_code || 'N/A'}) - Stock: ${part.current_stock}
                                         </option>
-                                    `).join('')}
+                                    `}).join('')}
                                     <option value="NOT_FOUND" style="background: #FEF3C7; font-weight: bold;">
                                         ⚠️ No encuentro el repuesto - Solicitar compra
                                     </option>

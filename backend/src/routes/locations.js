@@ -363,15 +363,15 @@ router.get('/:id/equipment', async (req, res) => {
         const { id } = req.params;
         const { status, category } = req.query;
         
+        // Usar columnas directas de Equipment en lugar de JOIN a EquipmentModels
         let sql = `
         SELECT 
             e.*,
-            em.name as model_name,
-            em.brand as model_brand,
-            em.category as model_category,
+            e.model as model_name,
+            e.brand as model_brand,
+            e.type as model_category,
             COUNT(DISTINCT t.id) as open_tickets
         FROM Equipment e
-        LEFT JOIN EquipmentModels em ON e.model_id = em.id
         LEFT JOIN Tickets t ON e.id = t.equipment_id AND t.status = 'open'
         WHERE e.location_id = ?`;
         
@@ -383,7 +383,7 @@ router.get('/:id/equipment', async (req, res) => {
         }
         
         if (category) {
-            sql += ' AND em.category = ?';
+            sql += ' AND e.type = ?';
             params.push(category);
         }
         
@@ -394,13 +394,14 @@ router.get('/:id/equipment', async (req, res) => {
                 console.error('❌ Error al obtener equipos de ubicación:', err);
                 return res.status(500).json({ 
                     error: 'Error interno del servidor',
-                    code: 'DB_ERROR'
+                    code: 'DB_ERROR',
+                    details: err.message
                 });
             }
             
             res.json({
                 message: 'success',
-                data: rows
+                data: rows || []
             });
         });
     } catch (error) {

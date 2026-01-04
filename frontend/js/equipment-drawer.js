@@ -118,7 +118,8 @@ class EquipmentDrawer {
                 throw new Error('Error al cargar el equipo');
             }
 
-            const equipo = await response.json();
+            const result = await response.json();
+            const equipo = result.data || result;
             
             // Generar contenido del drawer
             const content = await this.generateEquipmentContent(equipo);
@@ -357,7 +358,8 @@ class EquipmentDrawer {
     async loadNotes(equipmentId) {
         try {
             const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/notes`);
-            const notas = await response.json();
+            const result = await response.json();
+            const notas = result.data || result || [];
             
             const notesList = document.getElementById('notesList-drawer');
             if (notesList) {
@@ -401,7 +403,8 @@ class EquipmentDrawer {
     async loadTickets(equipmentId) {
         try {
             const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/tickets`);
-            const tickets = await response.json();
+            const result = await response.json();
+            const tickets = result.data || result || [];
             
             const ticketsList = document.getElementById('ticketsList-drawer');
             if (ticketsList) {
@@ -770,7 +773,8 @@ class EquipmentDrawer {
     async loadPhotos(equipmentId) {
         try {
             const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/photos`);
-            const photos = await response.json();
+            const result = await response.json();
+            const photos = result.data || result || [];
             
             const photosGallery = document.getElementById('photosGallery-drawer');
             if (photosGallery) {

@@ -61,11 +61,10 @@ const authenticateToken = (req, res, next) => {
 router.get('/', authenticateToken, async (req, res) => {
     try {
         const { 
-            category_id, 
-            location_id, 
-            supplier_id,
+            category, 
+            location, 
+            supplier,
             low_stock_only, 
-            critical_only,
             search,
             page = 1, 
             limit = 50 
@@ -74,50 +73,42 @@ router.get('/', authenticateToken, async (req, res) => {
         let sql = `
         SELECT 
             i.*,
-            ic.name as category_name,
-            l.name as location_name,
-            ps.company_name as primary_supplier_name,
-            as_sup.company_name as alternative_supplier_name,
+            i.category as category_name,
+            i.location as location_name,
+            i.supplier as primary_supplier_name,
             CASE 
                 WHEN i.current_stock <= i.minimum_stock THEN 'low'
-                WHEN i.current_stock >= i.maximum_stock THEN 'overstock'
                 ELSE 'normal'
             END as stock_status,
-            (i.current_stock * i.average_cost) as total_value
+            (i.current_stock * COALESCE(i.unit_cost, 0)) as total_value
         FROM Inventory i
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
-        LEFT JOIN Locations l ON i.location_id = l.id
-        LEFT JOIN Suppliers ps ON i.primary_supplier_id = ps.id
-        LEFT JOIN Suppliers as_sup ON i.alternative_supplier_id = as_sup.id
-        WHERE i.is_active = 1`;
+        WHERE 1=1`;
+
         
         const params = [];
         
-        if (category_id) {
-            sql += ' AND i.category_id = ?';
-            params.push(category_id);
+        if (category) {
+            sql += ' AND i.category = ?';
+            params.push(category);
         }
         
-        if (location_id) {
-            sql += ' AND i.location_id = ?';
-            params.push(location_id);
+        if (location) {
+            sql += ' AND i.location = ?';
+            params.push(location);
         }
         
-        if (supplier_id) {
-            sql += ' AND (i.primary_supplier_id = ? OR i.alternative_supplier_id = ?)';
-            params.push(supplier_id, supplier_id);
+        if (supplier) {
+            sql += ' AND i.supplier LIKE ?';
+            params.push(`%${supplier}%`);
         }
         
         if (low_stock_only === 'true') {
             sql += ' AND i.current_stock <= i.minimum_stock';
         }
         
-        if (critical_only === 'true') {
-            sql += ' AND i.is_critical = 1';
-        }
         
         if (search) {
-            sql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.description LIKE ?)';
+            sql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.notes LIKE ?)';
             const searchTerm = `%${search}%`;
             params.push(searchTerm, searchTerm, searchTerm);
         }
@@ -129,41 +120,43 @@ router.get('/', authenticateToken, async (req, res) => {
         sql += ' LIMIT ? OFFSET ?';
         params.push(parseInt(limit, 10), offset);
         
+        // DEBUG: Log SQL and params
+        console.log('📦 INVENTORY DEBUG - SQL:', sql);
+        console.log('📦 INVENTORY DEBUG - Params:', params);
+        console.log('📦 INVENTORY DEBUG - Param count:', params.length);
+        
         const inventory = await db.all(sql, params);
         
         // Contar total para paginación
         let countSql = `
         SELECT COUNT(*) as total 
         FROM Inventory i 
-        WHERE i.is_active = 1`;
+        WHERE 1=1`;
         
         const countParams = [];
         
-        if (category_id) {
-            countSql += ' AND i.category_id = ?';
-            countParams.push(category_id);
+        if (category) {
+            countSql += ' AND i.category = ?';
+            countParams.push(category);
         }
         
-        if (location_id) {
-            countSql += ' AND i.location_id = ?';
-            countParams.push(location_id);
+        if (location) {
+            countSql += ' AND i.location = ?';
+            countParams.push(location);
         }
         
-        if (supplier_id) {
-            countSql += ' AND (i.primary_supplier_id = ? OR i.alternative_supplier_id = ?)';
-            countParams.push(supplier_id, supplier_id);
+        if (supplier) {
+            countSql += ' AND i.supplier LIKE ?';
+            countParams.push(`%${supplier}%`);
         }
         
         if (low_stock_only === 'true') {
             countSql += ' AND i.current_stock <= i.minimum_stock';
         }
         
-        if (critical_only === 'true') {
-            countSql += ' AND i.is_critical = 1';
-        }
         
         if (search) {
-            countSql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.description LIKE ?)';
+            countSql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.notes LIKE ?)';
             const searchTerm = `%${search}%`;
             countParams.push(searchTerm, searchTerm, searchTerm);
         }

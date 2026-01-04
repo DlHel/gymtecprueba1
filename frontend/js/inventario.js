@@ -373,8 +373,8 @@ class InventoryManager {
                 <div class="inventory-item-card">
                     <div class="inventory-item-header">
                         <div>
-                            <h4 class="inventory-item-name">${item.item_name || 'Sin nombre'}</h4>
-                            <div class="inventory-item-sku">SKU: ${item.item_code || 'N/A'}</div>
+                            <h4 class="inventory-item-name">${item.name || item.item_name || 'Sin nombre'}</h4>
+                            <div class="inventory-item-sku">SKU: ${item.sku || item.item_code || 'N/A'}</div>
                         </div>
                         <div class="inventory-item-status ${status.class}">${status.text}</div>
                     </div>
@@ -951,7 +951,7 @@ class InventoryManager {
             this.data.spareParts.forEach(part => {
                 const option = document.createElement('option');
                 option.value = part.id;
-                option.textContent = `${part.name} (Stock: ${part.current_stock})`;
+                option.textContent = `${part.name || part.item_name} (Stock: ${part.current_stock})`;
                 select.appendChild(option);
             });
         });
@@ -1056,16 +1056,10 @@ class InventoryManager {
             : `${this.apiBaseUrl}/inventory`;
         
         const data = {
-            item_name: formData.get('name'),
-            item_code: formData.get('sku'),
-            category_id: parseInt(formData.get('category'), 10) || null,
+            name: formData.get('name'),
+            sku: formData.get('sku'),
             current_stock: parseInt(formData.get('current_stock'), 10) || 0,
-            minimum_stock: parseInt(formData.get('min_stock'), 10) || 0,
-            unit_cost: parseFloat(formData.get('unit_price')) || 0,
-            location_id: parseInt(formData.get('location'), 10) || null,
-            description: formData.get('description') || null,
-            unit_of_measure: formData.get('unit_of_measure') || 'unit',
-            is_critical: formData.get('is_critical') === 'on' ? 1 : 0
+            min_stock: parseInt(formData.get('min_stock'), 10) || 0
         };
         
         try {

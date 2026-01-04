@@ -1,24 +1,11 @@
 /**
- * Sistema de AutenticaciÃ³n Frontend - Gymtec ERP
- * Maneja tokens        const response = await fetch(url, {
-            ...options,
-            headers
-        });
-
-        // Si recibimos 401 o 403, el token expiró o es inválido
-        if (response.status === 401 || response.status === 403) {
-            console.warn(`🔒 Token expirado o inválido (${response.status}), haciendo logout automático...`);
-            this.logout();
-            window.location.href = '/login.html';
-            throw new Error('Sesión expirada');
-        }
-
-        return response;ciÃ³n de sesiones y redirecciones
+ * Sistema de Autenticación Frontend - Gymtec ERP
+ * Maneja tokens, gestión de sesiones y redirecciones
  */
 
 class AuthManager {
     constructor() {
-        this.apiUrl = window.API_URL || 'http://localhost:3000/api';
+        this.apiUrl = window.API_URL || '/api';
         this.tokenKey = 'gymtec_token';
         this.userKey = 'gymtec_user';
         this.rememberKey = 'gymtec_remember';
@@ -40,14 +27,14 @@ class AuthManager {
     }
 
     /**
-     * Verificar si el usuario estÃ¡ autenticado
+     * Verificar si el usuario está autenticado
      */
     isAuthenticated() {
         return !!this.getToken();
     }
 
     /**
-     * Verificar si el usuario tiene un rol especÃ­fico
+     * Verificar si el usuario tiene un rol específico
      */
     hasRole(role) {
         const user = this.getUser();
@@ -63,35 +50,35 @@ class AuthManager {
      * Verificar si el usuario es administrador
      */
     isAdmin() {
-        return this.hasRole('Admin');
+        return this.hasRole('admin') || this.hasRole('Admin');
     }
 
     /**
      * Verificar si el usuario es Manager
      */
     isManager() {
-        return this.hasRole('Manager');
+        return this.hasRole('manager') || this.hasRole('Manager');
     }
 
     /**
      * Verificar si el usuario es Technician
      */
     isTechnician() {
-        return this.hasRole('Technician');
+        return this.hasRole('technician') || this.hasRole('Technician');
     }
 
     /**
      * Verificar si el usuario es Client
      */
     isClient() {
-        return this.hasRole('Client');
+        return this.hasRole('client') || this.hasRole('Client');
     }
 
     /**
      * Verificar si el usuario tiene permisos administrativos (Admin o Manager)
      */
     isAdminOrManager() {
-        return this.hasRole(['Admin', 'Manager']);
+        return this.isAdmin() || this.isManager();
     }
 
     /**
@@ -103,7 +90,7 @@ class AuthManager {
     }
 
     /**
-     * Obtener headers de autorizaciÃ³n para fetch
+     * Obtener headers de autorización para fetch
      */
     getAuthHeaders() {
         const token = this.getToken();
@@ -111,7 +98,7 @@ class AuthManager {
     }
 
     /**
-     * Realizar fetch con autenticaciÃ³n automÃ¡tica
+     * Realizar fetch con autenticación automática
      */
     async authenticatedFetch(url, options = {}) {
         const headers = {
@@ -125,96 +112,77 @@ class AuthManager {
             headers
         });
 
-        // Si recibimos 401, el token expirÃ³ o es invÃ¡lido
+        // Si recibimos 401, el token expiró o es inválido
         if (response.status === 401) {
-            console.warn('ðŸ”’ Token expirado o invÃ¡lido (401), haciendo logout automÃ¡tico...');
+            console.warn('🔒 Token expirado o inválido (401), haciendo logout automático...');
             this.logout();
-            window.location.href = '/login.html';
-            throw new Error('SesiÃ³n expirada');
+            throw new Error('Sesión expirada');
         }
 
         return response;
     }
 
     /**
-     * Verificar token con el servidor
+     * Verificar token con el servidor - SIMPLIFICADO para evitar bucles
      */
     async verifyToken() {
         if (!this.isAuthenticated()) {
-            console.log('ðŸ” verifyToken: No hay token, usuario no autenticado');
+            console.log('🔐 verifyToken: No hay token');
             return false;
         }
 
         try {
-            console.log('ðŸ” verifyToken: Verificando token con servidor...');
+            console.log('🔐 verifyToken: Verificando token...');
             const response = await fetch(`${this.apiUrl}/auth/verify`, {
                 headers: this.getAuthHeaders()
             });
 
-            console.log('ðŸ” verifyToken: Respuesta del servidor:', response.status);
-
             if (response.ok) {
                 const data = await response.json();
-                console.log('âœ… verifyToken: Token vÃ¡lido, usuario:', data.user?.username);
-                // Actualizar datos del usuario si es necesario
+                console.log('✅ verifyToken: Token válido');
                 localStorage.setItem(this.userKey, JSON.stringify(data.user));
                 return true;
             } else if (response.status === 401 || response.status === 403) {
-                // Solo hacer logout si el token es realmente invÃ¡lido (401/403)
-                console.warn('âŒ verifyToken: Token invÃ¡lido o expirado, haciendo logout');
-                this.logout();
+                console.warn('❌ verifyToken: Token inválido');
+                // Limpiar token pero NO redireccionar aquí
+                localStorage.removeItem(this.tokenKey);
+                localStorage.removeItem(this.userKey);
                 return false;
             } else {
-                // Para otros errores (500, timeout, etc), no hacer logout automÃ¡tico
-                console.warn('âš ï¸ verifyToken: Error del servidor, pero manteniendo sesiÃ³n:', response.status);
-                return false; // Retornar false pero NO hacer logout
+                // Error del servidor - mantener sesión
+                console.warn('⚠️ verifyToken: Error del servidor, manteniendo sesión');
+                return true; // Permitir acceso si hay error del servidor
             }
         } catch (error) {
-            // Para errores de red, NO hacer logout automÃ¡tico
-            console.warn('âš ï¸ verifyToken: Error de red, manteniendo sesiÃ³n:', error.message);
-            return false; // Retornar false pero NO hacer logout
+            // Error de red - permitir acceso
+            console.warn('⚠️ verifyToken: Error de red, permitiendo acceso');
+            return true;
         }
     }
 
     /**
-     * Proteger pÃ¡gina - redireccionar a login si no estÃ¡ autenticado
+     * Proteger página - SIMPLIFICADO para evitar bucles
      */
     async protectPage(requiredRole = null) {
-        console.log('ðŸ” protectPage: Iniciando protecciÃ³n de pÃ¡gina...');
+        console.log('🔒 protectPage: Verificando acceso...');
         
         // Si no hay token, redireccionar a login
         if (!this.isAuthenticated()) {
-            console.log('âŒ protectPage: No hay token, redirigiendo a login');
+            console.log('❌ protectPage: No hay token');
             this.redirectToLogin();
             return false;
         }
 
-        console.log('âœ… protectPage: Token presente, verificando con servidor...');
-
-        // Verificar token con el servidor
-        const isValid = await this.verifyToken();
-        if (isValid === false) {
-            // Solo redireccionar si verifyToken retornÃ³ false Y el usuario ya no estÃ¡ autenticado
-            // (esto significa que se hizo logout automÃ¡tico por token invÃ¡lido)
-            if (!this.isAuthenticated()) {
-                console.log('âŒ protectPage: Token invÃ¡lido, redirigiendo a login');
-                this.redirectToLogin();
-                return false;
-            } else {
-                // Si el token sigue presente pero la verificaciÃ³n fallÃ³ (error de red),
-                // permitir el acceso pero mostrar warning
-                console.warn('âš ï¸ protectPage: Error de red verificando token, pero permitiendo acceso');
-            }
-        }
+        console.log('✅ protectPage: Token presente');
 
         // Verificar rol si es requerido
         if (requiredRole && !this.hasRole(requiredRole)) {
-            console.warn('âŒ protectPage: Rol insuficiente');
+            console.warn('❌ protectPage: Rol insuficiente');
             this.showUnauthorized();
             return false;
         }
 
-        console.log('âœ… protectPage: Acceso permitido');
+        console.log('✅ protectPage: Acceso permitido');
         return true;
     }
 
@@ -223,18 +191,16 @@ class AuthManager {
      */
     redirectToLogin() {
         const currentPage = window.location.pathname;
-        console.log('ðŸš¨ REDIRECT TO LOGIN LLAMADO desde:', currentPage);
+        console.log('🚨 redirectToLogin desde:', currentPage);
         
-        // PREVENIR BUCLES DE REDIRECCIÃ“N
+        // PREVENIR BUCLES
         if (currentPage.includes('login.html')) {
-            console.log('âš ï¸ Ya estamos en login, evitando bucle');
+            console.log('⚠️ Ya estamos en login');
             return;
         }
         
-        // Delay para evitar redirecciones demasiado rÃ¡pidas
         setTimeout(() => {
             const returnUrl = encodeURIComponent(currentPage + window.location.search);
-            console.log('ðŸ”„ Redirigiendo a login con return URL:', returnUrl);
             window.location.href = `login.html?return=${returnUrl}`;
         }, 100);
     }
@@ -250,7 +216,7 @@ class AuthManager {
                         <i data-lucide="shield-alert" class="w-16 h-16 mx-auto text-red-500"></i>
                     </div>
                     <h1 class="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h1>
-                    <p class="text-gray-600 mb-6">No tienes permisos para acceder a esta pÃ¡gina.</p>
+                    <p class="text-gray-600 mb-6">No tienes permisos para acceder a esta página.</p>
                     <button onclick="window.location.href='index.html'" class="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg">
                         Volver al Dashboard
                     </button>
@@ -263,12 +229,11 @@ class AuthManager {
     }
 
     /**
-     * Cerrar sesiÃ³n
+     * Cerrar sesión
      */
     async logout() {
         const token = this.getToken();
         
-        // Notificar al servidor (opcional)
         if (token) {
             try {
                 await fetch(`${this.apiUrl}/auth/logout`, {
@@ -285,21 +250,15 @@ class AuthManager {
         localStorage.removeItem(this.userKey);
         localStorage.removeItem(this.rememberKey);
 
-        // Redireccionar a login CON PROTECCIÃ“N ANTI-BUCLE
+        // Redireccionar a login
         const currentPage = window.location.pathname;
-        if (currentPage.includes('login.html')) {
-            console.log('âš ï¸ Ya estamos en login despuÃ©s de logout');
-            return;
-        }
-        
-        console.log('ðŸ”„ Logout: Redirigiendo a login');
-        setTimeout(() => {
+        if (!currentPage.includes('login.html')) {
             window.location.href = 'login.html';
-        }, 100);
+        }
     }
 
     /**
-     * Cambiar contraseÃ±a
+     * Cambiar contraseña
      */
     async changePassword(currentPassword, newPassword) {
         const response = await this.authenticatedFetch(`${this.apiUrl}/auth/change-password`, {
@@ -312,14 +271,14 @@ class AuthManager {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.error || 'Error cambiando contraseÃ±a');
+            throw new Error(error.error || 'Error cambiando contraseña');
         }
 
         return await response.json();
     }
 
     /**
-     * Obtener informaciÃ³n del usuario para mostrar en la UI
+     * Obtener información del usuario para mostrar en la UI
      */
     getUserDisplayInfo() {
         const user = this.getUser();
@@ -334,12 +293,8 @@ class AuthManager {
         };
     }
 
-    /**
-     * Obtener iniciales del usuario
-     */
     getUserInitials(username) {
         if (!username) return '??';
-        
         const parts = username.split(' ');
         if (parts.length >= 2) {
             return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -347,22 +302,20 @@ class AuthManager {
         return username.substring(0, 2).toUpperCase();
     }
 
-    /**
-     * Obtener color segÃºn el rol
-     */
     getRoleColor(role) {
         const colors = {
+            'admin': 'bg-red-500',
             'Admin': 'bg-red-500',
-            'Supervisor': 'bg-blue-500',
-            'Tecnico': 'bg-green-500',
-            'Cliente': 'bg-gray-500'
+            'manager': 'bg-blue-500',
+            'Manager': 'bg-blue-500',
+            'technician': 'bg-green-500',
+            'Technician': 'bg-green-500',
+            'client': 'bg-gray-500',
+            'Client': 'bg-gray-500'
         };
         return colors[role] || 'bg-gray-500';
     }
 
-    /**
-     * Renderizar informaciÃ³n del usuario en el header
-     */
     renderUserInfo(containerId = 'user-info') {
         const container = document.getElementById(containerId);
         if (!container) return;
@@ -387,65 +340,47 @@ class AuthManager {
                     </button>
                     <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
                         <a href="#" onclick="authManager.showChangePasswordModal()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
-                            <i data-lucide="key" class="w-4 h-4 inline mr-2"></i>Cambiar ContraseÃ±a
+                            <i data-lucide="key" class="w-4 h-4 inline mr-2"></i>Cambiar Contraseña
                         </a>
                         <hr class="my-2">
                         <a href="#" onclick="authManager.logout()" class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50">
-                            <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>Cerrar SesiÃ³n
+                            <i data-lucide="log-out" class="w-4 h-4 inline mr-2"></i>Cerrar Sesión
                         </a>
                     </div>
                 </div>
             </div>
         `;
 
-        // Event listener para el menÃº desplegable
         document.getElementById('user-menu-btn').addEventListener('click', () => {
-            const menu = document.getElementById('user-menu');
-            menu.classList.toggle('hidden');
+            document.getElementById('user-menu').classList.toggle('hidden');
         });
 
-        // Cerrar menÃº al hacer clic fuera
         document.addEventListener('click', (e) => {
             const menu = document.getElementById('user-menu');
             const btn = document.getElementById('user-menu-btn');
-            if (!btn.contains(e.target) && !menu.contains(e.target)) {
+            if (btn && menu && !btn.contains(e.target) && !menu.contains(e.target)) {
                 menu.classList.add('hidden');
             }
         });
 
-        // Inicializar iconos
         if (window.lucide) {
             lucide.createIcons();
         }
     }
 
-    /**
-     * Mostrar modal para cambiar contraseÃ±a
-     */
     showChangePasswordModal() {
-        // Implementar modal de cambio de contraseÃ±a
-        console.log('Mostrar modal de cambio de contraseÃ±a');
-        // Esta funcionalidad se puede implementar mÃ¡s adelante
+        console.log('Mostrar modal de cambio de contraseña');
     }
 }
 
 // Crear instancia global
 window.authManager = new AuthManager();
-
-// Compatibilidad con cÃ³digo que usa AuthManager (mayÃºscula)
 window.AuthManager = window.authManager;
 
-/**
- * FunciÃ³n de utilidad para proteger pÃ¡ginas
- * Usar al inicio de cada pÃ¡gina que requiera autenticaciÃ³n
- */
 window.protectPage = async function(requiredRole = null) {
     return await window.authManager.protectPage(requiredRole);
 };
 
-/**
- * FunciÃ³n de utilidad para fetch autenticado
- */
 window.authenticatedFetch = async function(url, options = {}) {
     return await window.authManager.authenticatedFetch(url, options);
 };

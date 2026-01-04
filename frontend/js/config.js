@@ -1,76 +1,64 @@
-// ConfiguraciÃ³n automÃ¡tica de API URL
+// Configuración automática de API URL para Gymtec ERP
+// Detecta automáticamente el entorno y configura la URL correcta
+
 const getApiUrl = () => {
     const hostname = window.location.hostname;
     const port = window.location.port;
     const protocol = window.location.protocol;
     
-    console.log('Detectando entorno:', { hostname, port, protocol });
+    // Producción VPS - usa proxy Nginx
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const isCodespaces = hostname.includes('github.dev') || 
+                         hostname.includes('githubpreview.dev') ||
+                         hostname.includes('codespaces.github.com');
     
-    // Detectar si estamos en GitHub Codespaces
-    if (hostname.includes('github.dev') || 
-        hostname.includes('githubpreview.dev') ||
-        hostname.includes('app.github.dev') ||
-        hostname.includes('codespaces.github.com')) {
-        
-        // En Codespaces, construir URL del backend
-        const baseUrl = `${protocol}//${hostname}`;
-        // Si estamos en puerto 8080, cambiar a 3000 para el backend
-        if (port === '8080') {
-            const backendUrl = baseUrl.replace('-8080', '-3000') + '/api';
-            console.log('Codespaces - Frontend en 8080, backend en:', backendUrl);
-            return backendUrl;
-        }
-        // Si estamos en puerto 3000, usar la misma URL
-        if (port === '3000') {
-            console.log('Codespaces - Ya en backend:', baseUrl);
-            return baseUrl + '/api';
-        }
-        // Por defecto en Codespaces, intentar puerto 3000
-        const backendUrl = baseUrl.replace(/:\d+/, '') + ':3000/api';
-        console.log('Codespaces - URL por defecto:', backendUrl);
-        return backendUrl;
+    // Si es producción (no localhost, no codespaces) → usar proxy /api
+    if (!isLocalhost && !isCodespaces) {
+        console.log('🌐 Entorno: Producción VPS - Usando proxy /api');
+        return '/api';
     }
     
-    // Entorno local
+    // GitHub Codespaces
+    if (isCodespaces) {
+        const baseUrl = `${protocol}//${hostname}`;
+        if (port === '8080') {
+            const backendUrl = baseUrl.replace('-8080', '-3000') + '/api';
+            console.log('☁️ Entorno: Codespaces - Backend:', backendUrl);
+            return backendUrl;
+        }
+        console.log('☁️ Entorno: Codespaces - URL:', baseUrl + '/api');
+        return baseUrl + '/api';
+    }
+    
+    // Desarrollo local
     if (port === '8080') {
-        console.log('Local - Frontend en 8080, backend en localhost:3000');
+        console.log('💻 Entorno: Local - Frontend 8080, Backend 3000');
         return 'http://localhost:3000/api';
     }
     
     if (port === '3000') {
-        console.log('Local - Backend en 3000, usando ruta relativa');
+        console.log('💻 Entorno: Local - Backend directo');
         return '/api';
     }
     
-    // Por defecto
-    console.log('Por defecto - localhost:3000');
+    console.log('💻 Entorno: Local - Por defecto localhost:3000');
     return 'http://localhost:3000/api';
 };
 
 const API_URL = getApiUrl();
-console.log('ðŸ”— API URL configurada:', API_URL);
+console.log('🔧 API URL configurada:', API_URL);
 
-// ConfiguraciÃ³n de lÃ­mites de archivos (debe coincidir con backend)
+// Límites de archivos
 const FILE_LIMITS = {
-    // LÃ­mites en bytes
-    IMAGE_MAX_SIZE: 5 * 1024 * 1024,      // 5MB - mismo que backend
-    MANUAL_MAX_SIZE: 10 * 1024 * 1024,    // 10MB - mismo que backend
-    
-    // LÃ­mites formateados para mostrar al usuario
+    IMAGE_MAX_SIZE: 5 * 1024 * 1024,      // 5MB
+    MANUAL_MAX_SIZE: 10 * 1024 * 1024,    // 10MB
     IMAGE_MAX_SIZE_TEXT: '5MB',
     MANUAL_MAX_SIZE_TEXT: '10MB'
 };
 
-console.log('ðŸ“ LÃ­mites de archivos configurados:', FILE_LIMITS);
-
 // Hacer disponible globalmente
-window.config = {
-    API_URL,
-    FILE_LIMITS
-};
-
-// TambiÃ©n crear las variables globales directas para compatibilidad
+window.config = { API_URL, FILE_LIMITS };
 window.API_URL = API_URL;
 window.FILE_LIMITS = FILE_LIMITS;
 
-console.log('âš™ï¸ ConfiguraciÃ³n disponible globalmente:', window.config); 
+console.log('✅ Configuración cargada correctamente');

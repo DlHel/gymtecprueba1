@@ -83,7 +83,9 @@ async function initializeDB() {
 // Wrapper para ejecutar queries con manejo de errores
 async function query(sql, params = []) {
     try {
-        const [results] = await pool.execute(sql, params);
+        // Usar pool.query() en lugar de pool.execute() para mayor compatibilidad
+        // execute() es más estricto con prepared statements y puede fallar con queries complejas
+        const [results] = await pool.query(sql, params);
         return results;
     } catch (error) {
         console.error('❌ Error ejecutando query MySQL:', error.message);
