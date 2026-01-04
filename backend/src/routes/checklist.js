@@ -435,7 +435,11 @@ router.put('/tickets/:ticketId/checklist/items/:itemId', (req, res) => {
             }
             
             // Actualizar item
-            const completedAt = is_completed ? new Date().toISOString() : null;
+            // Formato fecha compatible con MySQL: 'YYYY-MM-DD HH:MM:SS'
+            const now = new Date();
+            const completedAt = is_completed 
+                ? `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`
+                : null;
             const completedBy = is_completed ? (req.user?.username || req.user?.id || 'Sistema') : null;
             
             db.run(`

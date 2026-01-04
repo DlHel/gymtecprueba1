@@ -1764,8 +1764,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
             
             console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
             
-            // Obtener notas del ticket (UPPERCASE para MySQL)
-            const notesSql = `SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC`;
+            // Obtener notas del ticket (usar ticketnotes donde se guardan)
+            const notesSql = `SELECT * FROM ticketnotes WHERE ticket_id = ? ORDER BY created_at DESC`;
             
             db.all(notesSql, [ticketId], (notesErr, notes) => {
                 if (notesErr) {
@@ -1775,8 +1775,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                 
                 console.log(`📝 Encontradas ${notes ? notes.length : 0} notas para ticket ${ticketId}`);
                 
-                // Obtener checklist del ticket (UPPERCASE para MySQL)
-                const checklistSql = `SELECT * FROM TicketChecklist WHERE ticket_id = ? ORDER BY created_at DESC`;
+                // Obtener checklist del ticket (usar ticketchecklists)
+                const checklistSql = `SELECT * FROM ticketchecklists WHERE ticket_id = ? ORDER BY created_at DESC`;
                 
                 db.all(checklistSql, [ticketId], (checklistErr, checklist) => {
                     if (checklistErr) {
@@ -1786,34 +1786,54 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                     
                     console.log(`📋 Encontradas ${checklist ? checklist.length : 0} tareas de checklist para ticket ${ticketId}`);
                     
-                    // Estructurar respuesta completa con TODOS los datos
-                    const detailedTicket = {
-                        ...ticket,
-                        photos: photos || [],
-                        notes: notes || [],
-                        checklist: checklist || [],
-                        activities: [], // Mantenemos actividades vacío por ahora
-                        metadata: {
-                            photos_count: photos ? photos.length : 0,
-                            notes_count: notes ? notes.length : 0,
-                            checklist_count: checklist ? checklist.length : 0,
-                            activities_count: 0,
-                            last_updated: ticket.updated_at,
-                            created_date: ticket.created_at
+                    // Obtener repuestos usados del ticket
+                    const sparePartsSql = `
+                        SELECT tsp.*, sp.name as spare_part_name, sp.sku as spare_part_sku
+                        FROM TicketSpareParts tsp
+                        LEFT JOIN SpareParts sp ON tsp.spare_part_id = sp.id
+                        WHERE tsp.ticket_id = ?
+                        ORDER BY tsp.used_at DESC
+                    `;
+                    
+                    db.all(sparePartsSql, [ticketId], (sparePartsErr, spareParts) => {
+                        if (sparePartsErr) {
+                            console.log('⚠️ Error obteniendo spare_parts (continuando sin repuestos):', sparePartsErr.message);
+                            spareParts = [];
                         }
-                    };
+                        
+                        console.log(`🔧 Encontrados ${spareParts ? spareParts.length : 0} repuestos para ticket ${ticketId}`);
                     
-                    console.log(`✅ Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}`);
-                    
-                    return res.json({
-                        success: true,
-                        message: "success", 
-                        data: detailedTicket
-                    });
-                });
-            });
-        });
-    });
+                        // Estructurar respuesta completa con TODOS los datos
+                        const detailedTicket = {
+                            ...ticket,
+                            photos: photos || [],
+                            notes: notes || [],
+                            checklist: checklist || [],
+                            spare_parts: spareParts || [], // ✅ NUEVO: Agregar repuestos
+                            activities: [], // Mantenemos actividades vacío por ahora
+                            metadata: {
+                                photos_count: photos ? photos.length : 0,
+                                notes_count: notes ? notes.length : 0,
+                                checklist_count: checklist ? checklist.length : 0,
+                                spare_parts_count: spareParts ? spareParts.length : 0,
+                                activities_count: 0,
+                                last_updated: ticket.updated_at,
+                                created_date: ticket.created_at
+                            }
+                        };
+                        
+                        console.log(`✅ Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}, Repuestos: ${detailedTicket.metadata.spare_parts_count}`);
+                        
+                        return res.json({
+                            success: true,
+                            message: "success", 
+                            data: detailedTicket
+                        });
+                    }); // cierre spare_parts callback
+                }); // cierre checklist callback
+            }); // cierre notes callback
+        }); // cierre photos callback
+    }); // cierre ticket callback
 });
 
 // POST new ticket
@@ -2088,7 +2108,8 @@ app.get('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
 // POST new photo for ticket
 app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) => {
     const { ticketId } = req.params;
-    const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
+    // Usar let para permitir modificación durante compresión de imagen
+    let { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
     
     console.log(`📸 Solicitud de subir foto al ticket ${ticketId}:`, {
         file_name,
@@ -2207,7 +2228,38 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
     }
 });
 
-// DELETE a ticket photo
+// DELETE a ticket photo (ruta alternativa con ticketId para compatibilidad frontend)
+app.delete('/api/tickets/:ticketId/photos/:photoId', authenticateToken, (req, res) => {
+    const { photoId, ticketId } = req.params;
+    
+    console.log(`🗑️ Eliminando foto ${photoId} del ticket ${ticketId}`);
+    
+    const sql = 'DELETE FROM TicketPhotos WHERE id = ? AND ticket_id = ?';
+    db.run(sql, [photoId, ticketId], function(err) {
+        if (err) {
+            console.error('❌ Error eliminando foto de ticket:', err.message);
+            return res.status(500).json({ 
+                error: 'Error al eliminar foto del ticket',
+                code: 'PHOTO_DELETE_ERROR'
+            });
+        }
+        
+        if (this.changes === 0) {
+            return res.status(404).json({ 
+                error: "Foto no encontrada",
+                code: 'PHOTO_NOT_FOUND'
+            });
+        }
+        
+        console.log(`✅ Foto ${photoId} eliminada del ticket ${ticketId}`);
+        res.json({ 
+            message: "Foto eliminada exitosamente", 
+            changes: this.changes 
+        });
+    });
+});
+
+// DELETE a ticket photo (ruta legacy sin ticketId)
 app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
     const { photoId } = req.params;
     

@@ -508,16 +508,11 @@ function setupToolbarButtons() {
         console.warn('⚠️ No se encontró el botón "Adjuntar"');
     }
     
-    // Botón "Fotos" - Abrir selector de archivos directamente
+    // Botón "Fotos" - YA CONFIGURADO en initUnifiedInterface (evitar duplicados)
+    // NO agregar event listener aquí para evitar doble apertura del file dialog
     const attachPhotosBtn = document.getElementById('attach-photos-btn');
     if (attachPhotosBtn) {
-        attachPhotosBtn.addEventListener('click', () => {
-            const fileInput = document.getElementById('unified-file-input');
-            if (fileInput) {
-                fileInput.click();
-            }
-        });
-        console.log('📷 Botón "Fotos" configurado');
+        console.log('📷 Botón "Fotos" existe - event listener configurado en initUnifiedInterface');
     } else {
         console.warn('⚠️ No se encontró el botón "Fotos"');
     }

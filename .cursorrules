@@ -22,6 +22,11 @@
 - **Base de Datos**: MySQL2 con Connection Pool.
 - **Seguridad**: Validar inputs, sanitizar SQL, manejar errores globalmente.
 
+### Base de Datos (MySQL)
+- **Nombres de Tablas**: SIEMPRE usar `PascalCase` (ej: `Tickets`, `EquipmentNotes`, `TicketPhotos`).
+- **Consistencia**: Las queries SQL deben usar exactamente el mismo case que las tablas.
+- **Evitar Duplicados**: No crear tablas con nombres similares en diferente case (ej: `tickets` vs `Tickets`).
+
 ### Frontend (Vanilla JS)
 - **Modularidad**: Un archivo JS por página/módulo.
 - **DOM**: `querySelector`, `addEventListener`, manipulación directa eficiente.
