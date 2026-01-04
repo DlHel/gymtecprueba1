@@ -737,15 +737,20 @@ class EquipmentDrawer {
             const response = await authenticatedFetch(`${API_URL}/models/${equipo.model_id}/main-photo`);
             
             if (response.ok) {
-                const photoData = await response.json();
+                const result = await response.json();
+                const photoInfo = result.data || result;
+                
+                // El backend devuelve { data: { url: 'data:...', fileName: '...' } }
+                // Usar la URL completa que ya incluye el data URI
+                const photoUrl = photoInfo.url || `data:${photoInfo.mime_type || 'image/jpeg'};base64,${photoInfo.photo_data || ''}`;
                 
                 // Mostrar la sección y cargar la foto
                 modelPhotoSection.style.display = 'block';
                 modelPhotoContainer.innerHTML = `
-                    <img src="data:${photoData.mime_type};base64,${photoData.photo_data}" 
+                    <img src="${photoUrl}" 
                          alt="Foto del modelo ${equipo.model_name || equipo.model}" 
                          class="equipment-model-photo"
-                         onclick="equipmentDrawer.viewPhoto('${photoData.photo_data}', '${photoData.mime_type}')"
+                         onclick="equipmentDrawer.viewFullPhoto('${photoUrl}')"
                          title="Click para ver en tamaño completo">
                 `;
             } else {
@@ -909,6 +914,41 @@ class EquipmentDrawer {
             reader.readAsDataURL(file);
             reader.onload = () => resolve(reader.result);
             reader.onerror = error => reject(error);
+        });
+    }
+
+    // Ver foto usando URL completa (para fotos de modelo)
+    viewFullPhoto(photoUrl) {
+        // Crear modal para ver la foto
+        const modal = document.createElement('div');
+        modal.className = 'photo-modal';
+        modal.innerHTML = `
+            <div class="photo-modal-content">
+                <button class="photo-modal-close">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <img src="${photoUrl}" alt="Foto del modelo">
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        
+        // Mostrar modal
+        setTimeout(() => modal.classList.add('active'), 10);
+
+        // Event listeners para cerrar
+        const closeBtn = modal.querySelector('.photo-modal-close');
+        const closeModal = () => {
+            modal.classList.remove('active');
+            setTimeout(() => document.body.removeChild(modal), 300);
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
         });
     }
 

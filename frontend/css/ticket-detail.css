@@ -4923,3 +4923,192 @@
         padding: 0 2rem;
     }
 }
+
+/* =============================================================================
+   RESPONSIVO TICKET DETAIL - REGLAS FINALES
+   Estas reglas tienen máxima prioridad por estar al final del archivo
+   ============================================================================= */
+
+/* Tablet grande - cambiar a una columna */
+@media (max-width: 1024px) {
+    .ticket-unified-layout {
+        grid-template-columns: 1fr !important;
+        gap: 1rem !important;
+        padding: 1rem !important;
+    }
+    
+    .ticket-sidebar-content {
+        order: -1;
+    }
+    
+    .ticket-main-content {
+        padding-right: 0;
+    }
+    
+    /* Toolbar del compositor - adaptable */
+    .composer-toolbar {
+        flex-wrap: wrap;
+    }
+    
+    .toolbar-section.right {
+        margin-top: 0.5rem;
+        width: 100%;
+    }
+    
+    .send-options {
+        width: 100%;
+        justify-content: space-between;
+    }
+}
+
+/* Tablet - ajustes adicionales */
+@media (max-width: 768px) {
+    .ticket-unified-layout {
+        padding: 0.75rem !important;
+        gap: 0.75rem !important;
+        min-height: auto !important;
+    }
+    
+    /* Header compacto */
+    .ticket-detail-header-improved .header-info {
+        grid-template-columns: 1fr !important;
+        gap: 0.5rem;
+    }
+    
+    /* Toolbar más compacta */
+    .composer-toolbar {
+        padding: 0.5rem;
+    }
+    
+    .toolbar-section.left {
+        flex-wrap: wrap;
+        gap: 0.25rem;
+    }
+    
+    .toolbar-action-btn .action-label {
+        display: none;
+    }
+    
+    /* Botón enviar más compacto */
+    .send-btn {
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .send-shortcut {
+        display: none;
+    }
+    
+    /* Cards más compactas */
+    .ticket-section-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .ticket-section-body {
+        padding: 1rem;
+    }
+    
+    .ticket-section-title {
+        font-size: 1rem;
+    }
+    
+    /* Selector de tipo de comentario */
+    .comment-type-selector {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .comment-type-label {
+        display: none;
+    }
+    
+    /* Botones más pequeños */
+    .ticket-action-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+}
+
+/* Móvil pequeño */
+@media (max-width: 480px) {
+    .ticket-unified-layout {
+        padding: 0.5rem !important;
+        gap: 0.5rem !important;
+    }
+    
+    /* Ocultar elementos secundarios para ganar espacio */
+    .toolbar-format-btn {
+        display: none;
+    }
+    
+    .toolbar-divider {
+        display: none;
+    }
+    
+    /* Solo mostrar botones básicos en móvil */
+    .toolbar-section.left {
+        gap: 0.5rem;
+    }
+    
+    /* Textarea más compacto */
+    .composer-textarea {
+        min-height: 60px;
+        font-size: 14px;
+    }
+    
+    /* Drop zone más compacta */
+    .drop-zone-elegant {
+        padding: 1rem;
+    }
+    
+    .drop-zone-content {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .drop-icon-container {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .drop-text {
+        text-align: center;
+    }
+    
+    /* Card headers muy compactos */
+    .ticket-section-header {
+        padding: 0.5rem 0.75rem;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+    
+    .ticket-section-actions {
+        width: 100%;
+    }
+    
+    .ticket-section-actions button {
+        width: 100%;
+    }
+    
+    /* Stats en columnas apiladas */
+    .ticket-stats-vertical .stat-item {
+        padding: 0.5rem;
+    }
+    
+    /* Notas más compactas */
+    .unified-activity-header {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    /* Controles de estado en vertical */
+    .ticket-status-controls {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .ticket-status-controls button {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+    }
+}
