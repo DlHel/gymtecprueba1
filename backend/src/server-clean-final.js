@@ -1326,9 +1326,11 @@ app.delete("/api/locations/:id", authenticateToken, (req, res) => {
     });
 });
 
-// GET all equipment
+// GET all equipment (con filtro opcional por location_id)
 app.get('/api/equipment', authenticateToken, (req, res) => {
-    const sql = `
+    const { location_id } = req.query;
+    
+    let sql = `
         SELECT 
             e.id,
             e.name,
@@ -1349,17 +1351,27 @@ app.get('/api/equipment', authenticateToken, (req, res) => {
         LEFT JOIN Locations l ON e.location_id = l.id
         LEFT JOIN Clients c ON l.client_id = c.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
-        ORDER BY e.name
     `;
     
-    db.all(sql, [], (err, rows) => {
+    let params = [];
+    
+    // Filtrar por location_id si se proporciona
+    if (location_id) {
+        sql += ` WHERE e.location_id = ?`;
+        params.push(location_id);
+        console.log(`🔍 Filtrando equipos por sede ID: ${location_id}`);
+    }
+    
+    sql += ` ORDER BY e.name`;
+    
+    db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error getting all equipment:', err.message);
+            console.error('❌ Error getting equipment:', err.message);
             res.status(500).json({"error": "Error al obtener equipos: " + err.message});
             return;
         }
         
-        console.log('✅ All equipment found:', rows.length, 'items');
+        console.log(`✅ Equipment found: ${rows.length} items${location_id ? ` (sede ${location_id})` : ' (todos)'}`);
         res.json({ 
             message: 'success',
             data: rows || []
