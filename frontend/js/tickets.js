@@ -739,7 +739,7 @@ async function fetchEquipment(locationId) {
 
 async function fetchEquipmentModels() {
     try {
-        const response = await authenticatedFetch(`${API_URL}/equipment-models`);
+        const response = await authenticatedFetch(`${API_URL}/models`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -910,8 +910,16 @@ async function handleNewEquipmentSubmit(e) {
     const form = e.target;
     const body = Object.fromEntries(new FormData(form));
     
-    // El modelo es opcional, si no se selecciona, enviar null
-    if (!body.model_id) body.model_id = null;
+    // Validar campos requeridos
+    if (!body.location_id) {
+        alert('Error: Debe seleccionar una sede primero.');
+        return;
+    }
+    
+    if (!body.model_id) {
+        alert('Error: Debe seleccionar un modelo de equipo.');
+        return;
+    }
 
     try {
         const response = await authenticatedFetch(`${API_URL}/equipment`, {
@@ -919,8 +927,14 @@ async function handleNewEquipmentSubmit(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to create equipment');
-        const newEquipment = await response.json();
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error ${response.status} al crear equipo`);
+        }
+        
+        const result = await response.json();
+        const newEquipment = result.data || result;
 
         // Obtener referencia desde window.ticketsElements
         const equipmentSelect = window.ticketsElements?.equipmentSelect;
@@ -938,7 +952,7 @@ async function handleNewEquipmentSubmit(e) {
 
     } catch (error) {
         console.error('Error creating new equipment:', error);
-        alert('Error al crear el equipo.');
+        alert(`Error al crear el equipo: ${error.message}`);
     }
 }
 
