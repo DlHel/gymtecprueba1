@@ -1045,11 +1045,33 @@ async function openModal(modalId, data = {}) {
      // Lógica específica para el modal de añadir cliente
     else if (modalId === 'add-client-modal') {
         const form = document.getElementById('add-client-modal-form');
-        form.reset();
+        if (form) form.reset();
     }
-    else if (modalId === 'add-location-modal' || modalId === 'add-equipment-modal') {
-        const form = document.getElementById(`${modalId}-form`);
-        form.reset();
+    else if (modalId === 'add-location-modal') {
+        const form = document.getElementById('add-location-modal-form');
+        if (form) {
+            form.reset();
+            // Pasar el client_id actual del ticket al formulario de nueva sede
+            const clientSelect = document.querySelector('#ticket-form [name="client_id"]');
+            const clientIdInput = form.querySelector('[name="client_id"]');
+            if (clientSelect && clientIdInput) {
+                clientIdInput.value = clientSelect.value;
+            }
+        }
+    }
+    else if (modalId === 'add-equipment-modal') {
+        const form = document.getElementById('add-equipment-modal-form');
+        if (form) {
+            form.reset();
+            // Pasar el location_id actual del ticket al formulario de nuevo equipo
+            const locationSelect = document.querySelector('#ticket-form [name="location_id"]');
+            const locationIdInput = form.querySelector('[name="location_id"]');
+            if (locationSelect && locationIdInput) {
+                locationIdInput.value = locationSelect.value;
+            }
+            // Cargar modelos de equipos si no están cargados
+            fetchEquipmentModels();
+        }
     }
 
     if (modalId === 'ticket-modal') {
