@@ -1090,6 +1090,30 @@ async function openModal(modalId, data = {}) {
     lucide.createIcons(); // Refrescar iconos por si hay nuevos en el modal
 }
 
+// Función para cerrar modales
+function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (!modal) {
+        console.error(`Modal with id ${modalId} not found.`);
+        return;
+    }
+    
+    // Remover clases de apertura
+    modal.classList.remove('is-open');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+    
+    // Si es el modal principal de tickets, remover clase del body
+    if (modalId === 'ticket-modal') {
+        document.body.classList.remove('modal-open');
+    }
+    
+    console.log(`Modal ${modalId} cerrado`);
+}
+
+// Hacer closeModal global para que funcione con onclick en HTML
+window.closeModal = closeModal;
+
 // Helper function to map field names to their HTML IDs
 function getFieldId(fieldName) {
     const fieldMapping = {
