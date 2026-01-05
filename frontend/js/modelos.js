@@ -655,10 +655,10 @@ class ModelosManager {
         const submitText = document.getElementById('submit-text');
         const submitSpinner = document.getElementById('submit-spinner');
         
-        // Mostrar loading
-        submitBtn.disabled = true;
-        submitText.textContent = 'Guardando...';
-        submitSpinner.classList.remove('hidden');
+        // Mostrar loading (con verificación de null)
+        if (submitBtn) submitBtn.disabled = true;
+        if (submitText) submitText.textContent = 'Guardando...';
+        if (submitSpinner) submitSpinner.classList.remove('hidden');
         
         try {
             // Convertir FormData a objeto JSON para envío
@@ -704,10 +704,10 @@ class ModelosManager {
             console.error('Error al guardar modelo:', error);
             this.showNotification('Error al guardar el modelo: ' + error.message, 'error');
         } finally {
-            // Ocultar loading
-            submitBtn.disabled = false;
-            submitText.textContent = 'Guardar Modelo';
-            submitSpinner.classList.add('hidden');
+            // Ocultar loading (con verificación de null)
+            if (submitBtn) submitBtn.disabled = false;
+            if (submitText) submitText.textContent = 'Guardar Modelo';
+            if (submitSpinner) submitSpinner.classList.add('hidden');
         }
     }
 
