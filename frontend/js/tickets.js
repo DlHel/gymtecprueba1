@@ -2660,19 +2660,7 @@ async function fetchEquipmentByLocation(locationId) {
     }
 }
 
-function closeModal(modalId) {
-    const modal = document.getElementById(modalId);
-    if (modalId === 'ticket-modal') {
-        modal.classList.remove('is-open');
-        setTimeout(() => {
-            modal.classList.add('hidden');
-        }, 300); // Esperar a que termine la animación
-    } else {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-    }
-    document.body.classList.remove('modal-open');
-}
+// closeModal ya está definida arriba - esta función duplicada fue eliminada
 
 async function deleteItem(resource, id, callback) {
     if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
