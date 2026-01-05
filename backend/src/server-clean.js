@@ -3296,7 +3296,8 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
         const { locationId } = req.params;
         const { contractId } = req.query;
         
-        // Query usando columnas directas de Equipment (sin JOIN a EquipmentModels)
+        // Query con JOIN a EquipmentModels para obtener type/brand/model
+        // Usa COALESCE para tomar del modelo si el equipo no tiene el campo
         let sql = `
             SELECT 
                 e.id,
@@ -3305,13 +3306,16 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
                 e.custom_id,
                 e.location_id,
                 e.model_id,
-                e.brand,
-                e.model as model_name,
-                e.type as model_type,
-                e.brand as manufacturer,
+                COALESCE(NULLIF(e.type, ''), m.category) as type,
+                COALESCE(NULLIF(e.brand, ''), m.brand) as brand,
+                COALESCE(NULLIF(e.model, ''), m.name) as model,
+                m.category as model_type,
+                m.name as model_name,
+                m.brand as manufacturer,
                 l.name as location_name,
                 c.name as client_name
             FROM Equipment e
+            LEFT JOIN EquipmentModels m ON e.model_id = m.id
             LEFT JOIN Locations l ON e.location_id = l.id
             LEFT JOIN Clients c ON l.client_id = c.id
             WHERE e.location_id = ?
