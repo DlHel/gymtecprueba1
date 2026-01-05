@@ -1074,17 +1074,19 @@ async function openModal(modalId, data = {}) {
         }
     }
 
+    // Mostrar el modal - aplicar a TODOS los modales
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    
     if (modalId === 'ticket-modal') {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
         document.body.classList.add('modal-open');
-        setTimeout(() => {
-            modal.classList.add('is-open');
-        }, 10); // Pequeño delay para que la animación funcione
-    } else {
-        modal.classList.remove('hidden');
-        modal.classList.add('flex');
     }
+    
+    // Añadir is-open con delay para permitir la animación de opacidad
+    setTimeout(() => {
+        modal.classList.add('is-open');
+    }, 10);
+    
     lucide.createIcons(); // Refrescar iconos por si hay nuevos en el modal
 }
 
