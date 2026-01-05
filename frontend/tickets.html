@@ -579,116 +579,124 @@
     </div>
 
     <!-- Modal para Crear Cliente (integrado desde clientes.html) -->
-    <div id="add-client-modal" class="base-modal modal-nested fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden">
-        <div class="relative mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
-            <div class="flex justify-between items-center pb-3 border-b">
-                <h3 class="text-2xl font-semibold">Crear Nuevo Cliente</h3>
-                <button id="add-client-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200" aria-label="Cerrar modal de nuevo cliente" title="Cerrar modal">
+    <div id="add-client-modal" class="base-modal modal-nested hidden">
+        <div class="base-modal-content modal-medium">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">Crear Nuevo Cliente</h3>
+                <button type="button" class="base-modal-close" onclick="closeModal('add-client-modal')" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <form id="add-client-modal-form" class="mt-5 space-y-4">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="new-client-name" class="block text-sm font-medium text-slate-700">Nombre Comercial <span class="text-red-500">*</span></label>
-                        <input type="text" id="new-client-name" name="name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required placeholder="Ingrese el nombre comercial">
+            <div class="base-modal-body">
+                <form id="add-client-modal-form">
+                    <div class="base-form-grid">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Nombre Comercial <span class="required">*</span></label>
+                            <input type="text" name="name" class="base-form-input" required placeholder="Ingrese el nombre comercial">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Razón Social <span class="required">*</span></label>
+                            <input type="text" name="legal_name" class="base-form-input" required placeholder="Ingrese la razón social">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">RUT <span class="required">*</span></label>
+                            <input type="text" name="rut" class="base-form-input" required placeholder="Ej: 12345678-9">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Giro</label>
+                            <input type="text" name="business_activity" class="base-form-input" placeholder="Ingrese el giro de la empresa">
+                        </div>
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Dirección</label>
+                            <input type="text" name="address" class="base-form-input" placeholder="Ingrese la dirección">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Email</label>
+                            <input type="email" name="email" class="base-form-input" placeholder="ejemplo@correo.com">
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Teléfono</label>
+                            <input type="text" name="phone" class="base-form-input" placeholder="Ej: +56 9 1234 5678">
+                        </div>
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Persona de Contacto</label>
+                            <input type="text" name="contact_name" class="base-form-input" placeholder="Nombre del contacto principal">
+                        </div>
                     </div>
-                    <div>
-                        <label for="new-client-legal-name" class="block text-sm font-medium text-slate-700">Razón Social <span class="text-red-500">*</span></label>
-                        <input type="text" id="new-client-legal-name" name="legal_name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required placeholder="Ingrese la razón social">
-                    </div>
-                     <div>
-                        <label for="new-client-rut" class="block text-sm font-medium text-slate-700">RUT <span class="text-red-500">*</span></label>
-                        <input type="text" id="new-client-rut" name="rut" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required placeholder="Ej: 12345678-9">
-                    </div>
-                    <div>
-                        <label for="new-client-business-activity" class="block text-sm font-medium text-slate-700">Giro</label>
-                        <input type="text" id="new-client-business-activity" name="business_activity" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="Ingrese el giro de la empresa">
-                    </div>
-                </div>
-                <div>
-                    <label for="new-client-address" class="block text-sm font-medium text-slate-700">Dirección</label>
-                    <input type="text" id="new-client-address" name="address" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="Ingrese la dirección">
-                </div>
-                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label for="new-client-email" class="block text-sm font-medium text-slate-700">Email</label>
-                        <input type="email" id="new-client-email" name="email" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="ejemplo@correo.com">
-                    </div>
-                    <div>
-                        <label for="new-client-phone" class="block text-sm font-medium text-slate-700">Teléfono</label>
-                        <input type="text" id="new-client-phone" name="phone" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="Ej: +56 9 1234 5678">
-                    </div>
-                </div>
-                <div>
-                    <label for="new-client-contact-name" class="block text-sm font-medium text-slate-700">Persona de Contacto</label>
-                    <input type="text" id="new-client-contact-name" name="contact_name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="Nombre del contacto principal">
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" id="add-client-modal-cancel-btn" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Cliente</button>
-                </div>
-            </form>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal('add-client-modal')">Cancelar</button>
+                <button type="submit" form="add-client-modal-form" class="base-btn-save">Guardar Cliente</button>
+            </div>
         </div>
     </div>
 
     <!-- Modal para Crear Sede -->
-    <div id="add-location-modal" class="base-modal modal-nested fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden">
-        <div class="relative mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-             <div class="flex justify-between items-center pb-3 border-b">
-                <h3 class="text-2xl font-semibold">Crear Nueva Sede</h3>
-                <button id="add-location-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200" aria-label="Cerrar modal de nueva sede" title="Cerrar modal">
+    <div id="add-location-modal" class="base-modal modal-nested hidden">
+        <div class="base-modal-content modal-small">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">Crear Nueva Sede</h3>
+                <button type="button" class="base-modal-close" onclick="closeModal('add-location-modal')" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <form id="add-location-modal-form" class="mt-5 space-y-4">
-                <input type="hidden" name="client_id">
-                <div>
-                    <label for="new-location-name" class="block text-sm font-medium text-slate-700">Nombre de la Sede</label>
-                    <input type="text" id="new-location-name" name="name" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required placeholder="Ingrese el nombre de la sede">
-                </div>
-                <div>
-                    <label for="new-location-address" class="block text-sm font-medium text-slate-700">Dirección</label>
-                    <input type="text" id="new-location-address" name="address" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="Ingrese la dirección de la sede">
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" id="add-location-modal-cancel-btn" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Sede</button>
-                </div>
-            </form>
+            <div class="base-modal-body">
+                <form id="add-location-modal-form">
+                    <input type="hidden" name="client_id">
+                    <div class="base-form-grid">
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Nombre de la Sede <span class="required">*</span></label>
+                            <input type="text" name="name" class="base-form-input" required placeholder="Ingrese el nombre de la sede">
+                        </div>
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Dirección</label>
+                            <input type="text" name="address" class="base-form-input" placeholder="Ingrese la dirección de la sede">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal('add-location-modal')">Cancelar</button>
+                <button type="submit" form="add-location-modal-form" class="base-btn-save">Guardar Sede</button>
+            </div>
         </div>
     </div>
 
     <!-- Modal para Crear Equipo -->
-    <div id="add-equipment-modal" class="base-modal modal-nested fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full items-center justify-center hidden">
-        <div class="relative mx-auto p-5 border w-full max-w-xl shadow-lg rounded-md bg-white">
-             <div class="flex justify-between items-center pb-3 border-b">
-                <h3 class="text-2xl font-semibold">Crear Nuevo Equipo</h3>
-                <button id="add-equipment-modal-close-btn" class="modal-close-btn p-1 rounded-full hover:bg-gray-200" aria-label="Cerrar modal de nuevo equipo" title="Cerrar modal">
+    <div id="add-equipment-modal" class="base-modal modal-nested hidden">
+        <div class="base-modal-content modal-small">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">Crear Nuevo Equipo</h3>
+                <button type="button" class="base-modal-close" onclick="closeModal('add-equipment-modal')" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
-            <form id="add-equipment-modal-form" class="mt-5 space-y-4">
-                <input type="hidden" name="location_id">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">Nombre del Equipo <span class="text-red-500">*</span></label>
-                    <input type="text" name="name" placeholder="Ej: Trotadora, Prensa de Piernas" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" required>
-                </div>
-                <div>
-                    <label for="new-equipment-model-select" class="block text-sm font-medium text-slate-700">Modelo</label>
-                    <select name="model_id" id="new-equipment-model-select" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3 shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500" title="Seleccionar modelo de equipo">
-                        <option value="">Seleccione un modelo...</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700">Nº Serie</label>
-                    <input type="text" name="serial_number" class="mt-1 block w-full border border-slate-300 rounded-md py-2 px-3" placeholder="Opcional">
-                </div>
-                <div class="flex justify-end space-x-3 pt-4 border-t mt-6">
-                    <button type="button" id="add-equipment-modal-cancel-btn" class="btn-secondary">Cancelar</button>
-                    <button type="submit" class="btn-primary">Guardar Equipo</button>
-                </div>
-            </form>
+            <div class="base-modal-body">
+                <form id="add-equipment-modal-form">
+                    <input type="hidden" name="location_id">
+                    <div class="base-form-grid">
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Nombre del Equipo <span class="required">*</span></label>
+                            <input type="text" name="name" class="base-form-input" required placeholder="Ej: Trotadora, Prensa de Piernas">
+                        </div>
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Modelo</label>
+                            <select name="model_id" id="new-equipment-model-select" class="base-form-input" title="Seleccionar modelo de equipo">
+                                <option value="">Seleccione un modelo...</option>
+                            </select>
+                        </div>
+                        <div class="base-form-group full-width">
+                            <label class="base-form-label">Nº Serie</label>
+                            <input type="text" name="serial_number" class="base-form-input" placeholder="Opcional">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal('add-equipment-modal')">Cancelar</button>
+                <button type="submit" form="add-equipment-modal-form" class="base-btn-save">Guardar Equipo</button>
+            </div>
         </div>
     </div>
 
