@@ -1022,7 +1022,9 @@ async function openModal(modalId, data = {}) {
                 form.elements.title.value = ticketData.title;
                 form.elements.description.value = ticketData.description;
                 form.elements.priority.value = ticketData.priority;
-                form.elements.status.value = ticketData.status;
+                if (form.elements.status) {
+                    form.elements.status.value = ticketData.status;
+                }
 
                 if (ticketData.due_date) {
                     form.elements.due_date.value = ticketData.due_date.split('T')[0];
