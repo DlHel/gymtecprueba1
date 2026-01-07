@@ -825,7 +825,7 @@ async function handleFormSubmit(e) {
         fetchTickets();
     } catch (error) {
         console.error('Form submission error:', error);
-        alert(`Error al guardar: ${error.message}`);
+        toastError(`Error al guardar: ${error.message}`);
     }
 }
 
@@ -869,7 +869,7 @@ async function handleNewClientSubmit(e) {
 
     } catch (error) {
         console.error('Error creating new client:', error);
-        alert(`Error: ${error.message}`);
+        toastError(`${error.message}`);
     }
 }
 
@@ -906,7 +906,7 @@ async function handleNewLocationSubmit(e) {
 
     } catch (error) {
         console.error('Error creating new location:', error);
-        alert('Error al crear la sede.');
+        toastError('Error al crear la sede');
     }
 }
 
@@ -917,12 +917,12 @@ async function handleNewEquipmentSubmit(e) {
     
     // Validar campos requeridos
     if (!body.location_id) {
-        alert('Error: Debe seleccionar una sede primero.');
+        toastError('Debe seleccionar una sede primero');
         return;
     }
     
     if (!body.model_id) {
-        alert('Error: Debe seleccionar un modelo de equipo.');
+        toastError('Debe seleccionar un modelo de equipo');
         return;
     }
 
@@ -957,7 +957,7 @@ async function handleNewEquipmentSubmit(e) {
 
     } catch (error) {
         console.error('Error creating new equipment:', error);
-        alert(`Error al crear el equipo: ${error.message}`);
+        toastError(`Error al crear el equipo: ${error.message}`);
     }
 }
 
@@ -1042,7 +1042,7 @@ async function openModal(modalId, data = {}) {
 
             } catch (error) {
                 console.error('Error populating form for edit:', error);
-                alert('Error al cargar los datos del ticket para editar.');
+                toastError('Error al cargar los datos del ticket para editar');
                 closeModal(modalId);
                 return; // Detener ejecución si falla la carga
             }
@@ -1164,7 +1164,7 @@ async function checkForUrlParams() {
             await openModal('ticket-modal', { id: editTicketId });
         } catch (error) {
             console.error("Error processing URL param for ticket edit:", error);
-            alert('Error al cargar el ticket para editar');
+            toastError('Error al cargar el ticket para editar');
         }
     }
     // Manejar creación de ticket con datos precompletados
@@ -1203,7 +1203,7 @@ async function openGimnacionModal() {
         
         if (!gimnacionModal) {
             console.error('❌ GIMNACION: Modal no encontrado');
-            alert('Error: Modal de gimnación no disponible');
+            toastError('Modal de gimnación no disponible');
             return;
         }
         
@@ -1230,7 +1230,7 @@ async function openGimnacionModal() {
         
     } catch (error) {
         console.error('❌ GIMNACION: Error al abrir modal:', error);
-        alert('Error al abrir el modal de gimnación');
+        toastError('Error al abrir el modal de gimnación');
     }
 }
 
@@ -2518,14 +2518,14 @@ async function handleGimnacionSubmit(event) {
     const { gimnacionForm, checklistTemplateSelect } = window.ticketsElements || {};
     
     if (!gimnacionForm) {
-        alert('Error: Formulario no disponible');
+        toastError('Formulario no disponible');
         return;
     }
     
     try {
         // Validaciones
         if (state.gimnacion.selectedEquipment.length === 0) {
-            alert('Debe seleccionar al menos un equipo para el servicio');
+            toastWarning('Debe seleccionar al menos un equipo para el servicio');
             activateGimnacionTab('gimnacion-scope');
             return;
         }
@@ -2589,11 +2589,11 @@ async function handleGimnacionSubmit(event) {
         renderTickets(state.filteredTickets);
         updateStatistics();
         
-        alert('Ticket de gimnación creado exitosamente');
+        toastSuccess('Ticket de gimnación creado exitosamente');
         
     } catch (error) {
         console.error('❌ GIMNACION: Error al crear ticket:', error);
-        alert(`Error al crear el ticket de gimnación: ${error.message}`);
+        toastError(`Error al crear el ticket de gimnación: ${error.message}`);
     }
 }
 
@@ -2692,7 +2692,7 @@ async function deleteItem(resource, id, callback) {
         callback();
     } catch (error) {
         console.error(`Error deleting ${resource}:`, error);
-        alert(`Error al eliminar: ${error.message}`);
+        toastError(`Error al eliminar: ${error.message}`);
     }
 }
 
@@ -2786,7 +2786,7 @@ async function onTemplateChangeWithEditor(event) {
         
     } catch (error) {
         console.error('❌ GIMNACION: Error cargando template en editor:', error);
-        alert('Error al cargar el template seleccionado');
+        toastError('Error al cargar el template seleccionado');
     }
 }
 
