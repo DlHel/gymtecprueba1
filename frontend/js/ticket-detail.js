@@ -2216,7 +2216,7 @@ async function toggleChecklistItem(itemId, isCompleted) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 is_completed: completed,
-                completed_by: completed ? 'Felipe Maturana' : null
+                completed_by: completed ? (window.authManager?.getUser()?.username || 'Usuario') : null
             })
         });
         
@@ -2234,7 +2234,7 @@ async function toggleChecklistItem(itemId, isCompleted) {
         if (item) {
             item.is_completed = completed;
             item.completed_at = completed ? new Date().toISOString() : null;
-            item.completed_by = completed ? 'Felipe Maturana' : null;
+            item.completed_by = completed ? (window.authManager?.getUser()?.username || 'Usuario') : null;
             console.log('🔄 Item actualizado localmente:', item);
         } else {
             console.warn('⚠️ Item no encontrado en estado local:', itemId);
@@ -2323,7 +2323,7 @@ async function handleAddNote() {
             body: JSON.stringify({
                 note: noteText,
                 note_type: 'General',
-                author: 'Felipe Maturana'
+                author: (window.authManager?.getUser()?.username || 'Usuario')
             })
         });
         
@@ -2339,7 +2339,7 @@ async function handleAddNote() {
             id: result.data.id,
             note: noteText,
             note_type: 'General',
-            author: 'Felipe Maturana',
+            author: (window.authManager?.getUser()?.username || 'Usuario'),
             is_internal: false,
             created_at: new Date().toISOString()
         };
@@ -3350,7 +3350,7 @@ async function addUnifiedNote(comment) {
         body: JSON.stringify({
             note: markdownComment,
             note_type: commentType,
-            author: 'Felipe Maturana',
+            author: (window.authManager?.getUser()?.username || 'Usuario'),
             is_internal: false
         })
     });
@@ -3367,7 +3367,7 @@ async function addUnifiedNote(comment) {
             id: result.data.id,
             note: markdownComment,
             note_type: commentType,
-            author: 'Felipe Maturana',
+            author: (window.authManager?.getUser()?.username || 'Usuario'),
             is_internal: false,
             created_at: new Date().toISOString()
         };
@@ -4388,7 +4388,7 @@ async function executeDirectStatusChange(newStatus, userComment) {
             const noteData = {
                 note: markdownComment,
                 note_type: 'Seguimiento',
-                author: 'Felipe Maturana'
+                author: (window.authManager?.getUser()?.username || 'Usuario')
             };
             
             const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
@@ -4525,7 +4525,7 @@ async function applyQuickClose(statusType, template) {
         const noteData = {
             note: template,
             note_type: statusType === 'Cerrado' ? 'Solución' : 'Diagnóstico',
-            author: 'Felipe Maturana'
+            author: (window.authManager?.getUser()?.username || 'Usuario')
         };
         
         const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {

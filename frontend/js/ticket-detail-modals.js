@@ -494,7 +494,7 @@ async function submitPhotoForm(button) {
             file_size: file.size,
             description: formData.get('description') || null,
             photo_type: formData.get('photo_type'),
-            author: 'Felipe Maturana'
+            author: (window.authManager?.getUser()?.username || 'Usuario')
         };
         
         const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
@@ -576,7 +576,7 @@ async function submitStatusChange(button) {
                     body: JSON.stringify({
                         note: `Estado cambiado a "${newStatus}": ${comment}`,
                         note_type: 'Seguimiento',
-                        author: 'Felipe Maturana'
+                        author: (window.authManager?.getUser()?.username || 'Usuario')
                     })
                 });
             }
@@ -602,7 +602,7 @@ async function submitStatusChange(button) {
                     id: Date.now(),
                     note: `Estado cambiado a "${newStatus}": ${comment}`,
                     note_type: 'Seguimiento',
-                    author: 'Felipe Maturana',
+                    author: (window.authManager?.getUser()?.username || 'Usuario'),
                     is_internal: false,
                     created_at: new Date().toISOString()
                 };
@@ -675,7 +675,7 @@ async function submitAdvancedNote(button) {
             const noteData = {
                 note: noteText,
                 note_type: noteType,
-                author: 'Felipe Maturana',
+                author: (window.authManager?.getUser()?.username || 'Usuario'),
                 is_internal: isInternal
             };
             
@@ -711,7 +711,7 @@ async function submitAdvancedNote(button) {
                     file_size: photo.size,
                     description: `Adjunto a nota: ${noteType}`,
                     photo_type: noteType,
-                    author: 'Felipe Maturana'
+                    author: (window.authManager?.getUser()?.username || 'Usuario')
                 };
                 
                 // Si hay una nota asociada, vincularlo
