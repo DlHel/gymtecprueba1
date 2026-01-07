@@ -1006,10 +1006,10 @@ async function openModal(modalId, data = {}) {
         if (effectiveData.id) { // Editing an existing ticket
             document.getElementById('ticket-modal-title').textContent = 'Editar Ticket';
             
-            // Mostrar wrapper de status si existe (para tickets existentes)
-            const statusWrapper = document.getElementById('ticket-status-wrapper');
-            if (statusWrapper) {
-                statusWrapper.classList.remove('hidden');
+            // Mostrar campo de status (para edición de tickets existentes)
+            const statusField = document.getElementById('ticket-status-field');
+            if (statusField) {
+                statusField.classList.remove('hidden');
             }
 
             try {

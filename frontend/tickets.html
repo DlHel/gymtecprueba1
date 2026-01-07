@@ -335,6 +335,18 @@
                             </select>
                             </div>
                             
+                            <!-- Campo Estado - visible solo en edición -->
+                            <div id="ticket-status-field" class="base-form-group hidden">
+                                <label class="base-form-label">Estado <span class="required">*</span></label>
+                                <select name="status" class="base-form-input" title="Estado del ticket">
+                                    <option value="pending">Pendiente</option>
+                                    <option value="in_progress">En Progreso</option>
+                                    <option value="resolved">Resuelto</option>
+                                    <option value="closed">Cerrado</option>
+                                    <option value="cancelled">Cancelado</option>
+                                </select>
+                            </div>
+                            
                             <div class="base-form-group full-width">
                                 <label class="base-form-label">Título <span class="required">*</span></label>
                                 <input type="text" name="title" class="base-form-input" required placeholder="Título descriptivo del problema">
