@@ -851,12 +851,17 @@ async function handleNewClientSubmit(e) {
         // 1. Añadir el nuevo cliente al estado local
         state.clients.push(newClient);
         
-        // 2. Repoblar y seleccionar en el desplegable de tickets
-        populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
-        clientSelect.value = newClient.id;
-
-        // 3. Disparar el evento change para cargar las sedes (que estarán vacías para un cliente nuevo)
-        clientSelect.dispatchEvent(new Event('change'));
+        // 2. Obtener referencia al select desde window.ticketsElements
+        const clientSelect = window.ticketsElements?.clientSelect;
+        
+        // 3. Repoblar y seleccionar en el desplegable de tickets
+        if (clientSelect) {
+            populateSelect(clientSelect, state.clients, { placeholder: 'Seleccione un cliente...' });
+            clientSelect.value = newClient.id;
+            
+            // 4. Disparar el evento change para cargar las sedes (que estarán vacías para un cliente nuevo)
+            clientSelect.dispatchEvent(new Event('change'));
+        }
 
         // 4. Cerrar el modal de creación de cliente
         closeModal('add-client-modal');
