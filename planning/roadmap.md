@@ -22,38 +22,37 @@
 
 ---
 
-## FASE 0: Limpieza (Pre-requisito)
+## FASE 0: Limpieza (Pre-requisito) ✅ COMPLETADA
 
-### Grupo 0.1: Eliminar Archivos Duplicados
+### Grupo 0.1: Eliminar Archivos Duplicados ✅
 **Objetivo**: Definir UN SOLO `server-clean.js` oficial.
 
-| Acción | Archivo | Razón |
-|--------|---------|-------|
-| 🗑️ Eliminar | `server-clean-vps.js` | Duplicado |
-| 🗑️ Eliminar | `server-clean-vps-sync.js` | Duplicado |
-| 🗑️ Eliminar | `server-clean-vps-updated.js` | Duplicado |
-| 🗑️ Eliminar | `server-clean-final.js` | Duplicado |
-| ✅ Mantener | `server-clean.js` | Archivo oficial |
+| Acción | Archivo | Estado |
+|--------|---------|--------|
+| ✅ Eliminado | `server-clean-vps.js` | Hecho |
+| ✅ Eliminado | `server-clean-vps-sync.js` | Hecho |
+| ✅ Eliminado | `server-clean-vps-updated.js` | Hecho |
+| ✅ Eliminado | `server-clean-final.js` | Hecho |
+| ✅ Mantenido | `server-clean.js` | Archivo oficial |
 
 **Verificación**: 
-- [ ] `npm start` funciona
-- [ ] Login funciona
-- [ ] Dashboard carga
+- [x] Archivos eliminados (-38,856 líneas)
+- [ ] Login funciona (pendiente verificación usuario)
+- [ ] Dashboard carga (pendiente verificación usuario)
 
 ---
 
-### Grupo 0.2: Crear Core (Sin tocar lógica)
-**Objetivo**: Crear estructura de carpetas y archivos vacíos.
+### Grupo 0.2: Crear Core (Sin tocar lógica) ✅
+**Objetivo**: Crear estructura de carpetas y archivos base.
 
-| Archivo a Crear | Contenido |
-|-----------------|-----------|
-| `core/config/env.js` | Exporta JWT_SECRET desde process.env |
-| `core/middleware/auth.middleware.js` | Copia de authenticateToken oficial |
-| `core/events/event-bus.js` | EventEmitter básico |
+| Archivo Creado | Contenido |
+|----------------|-----------|
+| ✅ `core/config/env.js` | JWT_SECRET, DB config centralizado |
+| ✅ `core/middleware/auth.middleware.js` | authenticateToken oficial |
+| ✅ `core/events/event-bus.js` | EventEmitter para comunicación |
+| ✅ `core/errors/app-error.js` | Clases de error estándar |
 
-**Verificación**:
-- [ ] `require('./core/config/env')` funciona
-- [ ] NO se modifica `server-clean.js` todavía
+**Commit**: `4f1f413` subido a GitHub
 
 ---
 

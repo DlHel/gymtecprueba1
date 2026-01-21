@@ -2,6 +2,9 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
 
+// ✅ MIGRADO: Usar middleware centralizado del core
+const { authenticateToken } = require('../core/middleware/auth.middleware');
+
 /**
  * GYMTEC ERP - APIs SISTEMA DE INVENTARIO INTELIGENTE
  * 
@@ -20,34 +23,6 @@ const db = require('../db-adapter');
  * ✅ GET /api/inventory/categories - Categorías de inventario
  * ✅ POST /api/inventory/categories - Crear categoría
  */
-
-// Importar middleware de autenticación desde server-clean.js
-// El middleware authenticateToken ya está disponible globalmente
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            error: 'Token de acceso requerido',
-            code: 'MISSING_TOKEN'
-        });
-    }
-
-    const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'gymtec-erp-secret-key-2024';
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(401).json({
-                error: 'Token inválido o expirado',
-                code: 'INVALID_TOKEN'
-            });
-        }
-        req.user = user;
-        next();
-    });
-};
 
 // ===================================================================
 // GESTIÓN DE INVENTARIO

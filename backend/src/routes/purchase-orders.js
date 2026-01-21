@@ -2,38 +2,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
 
+// ✅ MIGRADO: Usar middleware centralizado del core
+const { authenticateToken } = require('../core/middleware/auth.middleware');
+
 /**
  * GYMTEC ERP - APIs ÓRDENES DE COMPRA
  * 
  * 🔐 NOTA: Todos los endpoints requieren autenticación JWT
  */
-
-// Middleware de autenticación
-const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            error: 'Token de acceso requerido',
-            code: 'MISSING_TOKEN'
-        });
-    }
-
-    const jwt = require('jsonwebtoken');
-    const JWT_SECRET = process.env.JWT_SECRET || 'gymtec_secret_key_2024_production_change_this';
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(401).json({
-                error: 'Token inválido o expirado',
-                code: 'INVALID_TOKEN'
-            });
-        }
-        req.user = user;
-        next();
-    });
-};
 
 /**
  * @route GET /api/purchase-orders
