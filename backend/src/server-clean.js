@@ -22,6 +22,7 @@ const AuthService = require('./services/authService');
 // Router imports
 const purchaseOrdersRoutes = require('./routes/purchase-orders');
 const inventoryRoutes = require('./routes/inventory'); // Ensure this is mounted too just in case
+const planningRoutes = require('./modules/planning/planning.routes'); // ✅ NUEVO: Módulo planificador
 
 // Sistema de Notificaciones
 const { triggerNotificationProcessing } = require('../notification-hooks');
@@ -89,6 +90,7 @@ app.use((req, res, next) => {
 // Rutas de API
 app.use('/api/purchase-orders', purchaseOrdersRoutes);
 app.use('/api/inventory', inventoryRoutes);
+app.use('/api/maintenance-tasks', planningRoutes); // ✅ NUEVO: Planificador con UNION corregida
 
 // Archivos estáticos
 app.use(express.static(path.join(__dirname, '../../frontend')));
