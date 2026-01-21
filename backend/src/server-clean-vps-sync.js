@@ -9284,9 +9284,9 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
     console.log('📄 Solicitando datos para informe del ticket ' + ticketId);
     
     const queries = {
-        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.type as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_to = u.id WHERE t.id = ?',
-        comments: 'SELECT tc.*, u.username as author_name FROM TicketComments tc LEFT JOIN Users u ON tc.user_id = u.id WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
-        photos: 'SELECT id, photo_base64, uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY uploaded_at ASC'
+        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.brand as equipment_brand, e.serial_number FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id WHERE t.id = ?',
+        comments: 'SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at ASC',
+        photos: 'SELECT id, photo_data AS photo_base64, created_at AS uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at ASC'
     };
     
     Promise.all([
@@ -9303,6 +9303,154 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
         console.error('❌ Error:', error);
         res.status(500).json({ message: 'error', error: error.message });
     });
+});
+
+// =====================================================
+// GENERAR PDF EN EL SERVIDOR (funciona en todos los navegadores)
+// Usa middleware inline que acepta token en query param o header
+// =====================================================
+app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
+    // Autenticación inline que acepta token en query param o header
+    const token = req.query.token || (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Token requerido' });
+    }
+    
+    try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gymtec-secret-key-2024-production');
+        req.user = decoded;
+    } catch (err) {
+        console.error('❌ Error verificando token PDF:', err.message);
+        return res.status(401).json({ error: 'Token inválido' });
+    }
+    
+    const ticketId = req.params.id;
+    console.log('📄 Generando PDF para ticket ' + ticketId);
+    
+    try {
+        // Obtener datos del ticket
+        const queries = {
+            ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.brand as equipment_brand, e.serial_number FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id WHERE t.id = ?',
+            comments: 'SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at ASC'
+        };
+        
+        const [ticket, comments] = await Promise.all([
+            new Promise((resolve, reject) => db.get(queries.ticket, [ticketId], (err, row) => err ? reject(err) : resolve(row))),
+            new Promise((resolve, reject) => db.all(queries.comments, [ticketId], (err, rows) => err ? reject(err) : resolve(rows || [])))
+        ]);
+        
+        if (!ticket) {
+            return res.status(404).json({ message: 'error', error: 'Ticket no encontrado' });
+        }
+        
+        // Cargar PDFKit
+        const PDFDocument = require('pdfkit');
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Configurar cabeceras HTTP para forzar descarga con nombre
+        const filename = `Informe_Tecnico_${ticketId}_${Date.now()}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        // Pipe directo a response
+        doc.pipe(res);
+        
+        // Colores Gymtec
+        const redGymtec = '#FF4B2B';
+        const darkBlue = '#1A1B26';
+        const lightGray = '#F5F5F7';
+        
+        // === HEADER ===
+        doc.rect(0, 0, doc.page.width, 70).fill(darkBlue);
+        doc.fillColor('white').fontSize(24).font('Helvetica-Bold').text('GYMTEC', 50, 20);
+        doc.fontSize(10).font('Helvetica').text('Servicio Técnico Profesional', 50, 48);
+        doc.fillColor(redGymtec).fontSize(12).text(`Ticket #${ticketId}`, doc.page.width - 150, 28, { align: 'right', width: 100 });
+        doc.fillColor('white').fontSize(10).text(new Date().toLocaleDateString('es-CL'), doc.page.width - 150, 45, { align: 'right', width: 100 });
+        
+        // Título del informe
+        doc.fillColor(darkBlue).fontSize(20).font('Helvetica-Bold').text('INFORME TÉCNICO DE SERVICIO', 50, 90, { align: 'center' });
+        
+        let y = 130;
+        
+        // === INFORMACIÓN DEL CLIENTE ===
+        doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('INFORMACIÓN DEL CLIENTE', 50, y);
+        y += 20;
+        doc.rect(50, y, doc.page.width - 100, 80).fill(lightGray);
+        doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
+        doc.text(`Cliente: ${ticket.client_name || 'N/A'}`, 60, y + 10);
+        doc.text(`RUT: ${ticket.client_rut || 'N/A'}`, 60, y + 25);
+        doc.text(`Contacto: ${ticket.client_contact || 'N/A'}`, 60, y + 40);
+        doc.text(`Teléfono: ${ticket.client_phone || 'N/A'}`, 60, y + 55);
+        
+        doc.text(`Ubicación: ${ticket.location_name || 'N/A'}`, 300, y + 10);
+        doc.text(`Dirección: ${ticket.location_address || 'N/A'}`, 300, y + 25, { width: 200 });
+        y += 100;
+        
+        // === INFORMACIÓN DEL EQUIPO ===
+        doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('EQUIPO', 50, y);
+        y += 20;
+        doc.rect(50, y, doc.page.width - 100, 60).fill(lightGray);
+        doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
+        doc.text(`Modelo: ${ticket.equipment_model || 'N/A'}`, 60, y + 10);
+        doc.text(`Marca: ${ticket.equipment_brand || 'N/A'}`, 60, y + 25);
+        doc.text(`Tipo: ${ticket.equipment_type || 'N/A'}`, 60, y + 40);
+        doc.text(`Serial: ${ticket.serial_number || 'N/A'}`, 300, y + 10);
+        doc.text(`Técnico: ${ticket.technician_name || 'N/A'}`, 300, y + 25);
+        y += 80;
+        
+        // === DESCRIPCIÓN DEL PROBLEMA ===
+        doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('DESCRIPCIÓN DEL PROBLEMA', 50, y);
+        y += 20;
+        doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
+        doc.text(ticket.description || 'Sin descripción', 50, y, { width: doc.page.width - 100 });
+        y += 60;
+        
+        // === TRABAJO REALIZADO (comentarios) ===
+        if (comments.length > 0) {
+            // Verificar si necesitamos nueva página
+            if (y > doc.page.height - 200) {
+                doc.addPage();
+                y = 50;
+            }
+            
+            doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('TRABAJO REALIZADO', 50, y);
+            y += 20;
+            
+            comments.forEach(comment => {
+                if (y > doc.page.height - 100) {
+                    doc.addPage();
+                    y = 50;
+                }
+                
+                doc.rect(50, y, doc.page.width - 100, 40).fill(lightGray);
+                doc.fillColor('#666').fontSize(8).font('Helvetica').text(
+                    `${comment.author_name || 'Técnico'} - ${new Date(comment.created_at).toLocaleString('es-CL')}`, 
+                    60, y + 5
+                );
+                doc.fillColor(darkBlue).fontSize(10).text(comment.comment || '', 60, y + 18, { width: doc.page.width - 130 });
+                y += 50;
+            });
+        }
+        
+        // === FOOTER EN TODAS LAS PÁGINAS ===
+        const range = doc.bufferedPageRange();
+        for (let i = range.start; i < range.start + range.count; i++) {
+            doc.switchToPage(i);
+            doc.fillColor('#999').fontSize(8).font('Helvetica');
+            doc.text('GYMTEC | Servicio Técnico de Gimnasios | www.gymtec.cl', 50, doc.page.height - 40);
+            doc.text(`Página ${i + 1} de ${range.count}`, doc.page.width - 100, doc.page.height - 40);
+        }
+        
+        // Finalizar documento
+        doc.end();
+        console.log(`✅ PDF generado: ${filename}`);
+        
+    } catch (error) {
+        console.error('❌ Error generando PDF:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
 });
 
 // Registrar informe generado

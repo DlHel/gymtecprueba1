@@ -399,7 +399,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             im.*,
             i.item_code,
             i.item_name,
-            ic.name as category_name,
+            i.category as category_name,
             u.username as performed_by_name,
             CASE 
                 WHEN im.reference_type = 'ticket' THEN t.id
@@ -416,7 +416,6 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as is_pending_request
         FROM InventoryMovements im
         LEFT JOIN Inventory i ON im.inventory_id = i.id
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         LEFT JOIN Users u ON im.performed_by = u.id
         LEFT JOIN Tickets t ON im.reference_type = 'ticket' AND im.reference_id = t.id
         LEFT JOIN spare_part_requests spr ON im.reference_type = 'spare_part_request' AND im.reference_id = spr.id
@@ -454,7 +453,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as id,
             NULL as inventory_id,
             'pending_request' as movement_type,
-            spr.quantity_needed as quantity,
+            spr.quantity as quantity,
             NULL as unit_cost,
             NULL as total_cost,
             NULL as stock_before,
@@ -465,11 +464,11 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as location_to_id,
             NULL as batch_number,
             NULL as expiry_date,
-            CONCAT('SOLICITUD PENDIENTE: ', spr.description) as notes,
+            CONCAT('SOLICITUD PENDIENTE: ', IFNULL(spr.notes, '')) as notes,
             NULL as performed_by,
             spr.created_at as performed_at,
             NULL as item_code,
-            spr.spare_part_name as item_name,
+            IFNULL(i.item_name, CONCAT('Repuesto #', spr.spare_part_id)) as item_name,
             NULL as category_name,
             spr.requested_by as performed_by_name,
             t.id as related_ticket_id,
@@ -477,10 +476,11 @@ router.get('/movements', authenticateToken, async (req, res) => {
             spr.id as request_id,
             spr.status as request_status,
             1 as is_pending_request,
-            spr.priority as request_priority
+            'normal' as request_priority
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
-        WHERE spr.status = 'pendiente'
+        LEFT JOIN Inventory i ON spr.spare_part_id = i.id
+        WHERE spr.status = 'pending' OR spr.status = 'pendiente'
         ORDER BY spr.created_at DESC
         `;
         
@@ -492,7 +492,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as id,
             NULL as inventory_id,
             'rejected_request' as movement_type,
-            spr.quantity_needed as quantity,
+            spr.quantity as quantity,
             NULL as unit_cost,
             NULL as total_cost,
             NULL as stock_before,
@@ -507,7 +507,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as performed_by,
             spr.approved_at as performed_at,
             NULL as item_code,
-            spr.spare_part_name as item_name,
+            IFNULL(i.item_name, CONCAT('Repuesto #', spr.spare_part_id)) as item_name,
             NULL as category_name,
             spr.approved_by as performed_by_name,
             t.id as related_ticket_id,
@@ -515,10 +515,11 @@ router.get('/movements', authenticateToken, async (req, res) => {
             spr.id as request_id,
             spr.status as request_status,
             0 as is_pending_request,
-            spr.priority as request_priority
+            'normal' as request_priority
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
-        WHERE spr.status = 'rechazada'
+        LEFT JOIN Inventory i ON spr.spare_part_id = i.id
+        WHERE spr.status = 'rejected' OR spr.status = 'rechazada'
         ORDER BY spr.approved_at DESC
         LIMIT 10
         `;
@@ -531,7 +532,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as id,
             NULL as inventory_id,
             'approved_request' as movement_type,
-            spr.quantity_needed as quantity,
+            spr.quantity as quantity,
             NULL as unit_cost,
             NULL as total_cost,
             NULL as stock_before,
@@ -546,7 +547,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as performed_by,
             spr.approved_at as performed_at,
             NULL as item_code,
-            spr.spare_part_name as item_name,
+            IFNULL(i.item_name, CONCAT('Repuesto #', spr.spare_part_id)) as item_name,
             NULL as category_name,
             spr.approved_by as performed_by_name,
             t.id as related_ticket_id,
@@ -554,11 +555,12 @@ router.get('/movements', authenticateToken, async (req, res) => {
             spr.id as request_id,
             spr.status as request_status,
             0 as is_pending_request,
-            spr.priority as request_priority,
-            spr.purchase_order_id
+            'normal' as request_priority,
+            NULL as purchase_order_id
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
-        WHERE spr.status = 'aprobada'
+        LEFT JOIN Inventory i ON spr.spare_part_id = i.id
+        WHERE spr.status = 'approved' OR spr.status = 'aprobada'
         ORDER BY spr.approved_at DESC
         LIMIT 10
         `;
@@ -612,14 +614,13 @@ router.get('/technicians', authenticateToken, async (req, res) => {
             ti.*,
             i.item_code,
             i.item_name,
-            i.description,
-            ic.name as category_name,
+            i.notes as description,
+            i.category as category_name,
             u.username as technician_name,
             u.email as technician_email,
             assigned_by_user.username as assigned_by_name
         FROM TechnicianInventory ti
         LEFT JOIN Inventory i ON ti.spare_part_id = i.id
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         LEFT JOIN Users u ON ti.technician_id = u.id
         LEFT JOIN Users assigned_by_user ON ti.assigned_by = assigned_by_user.id
         WHERE 1=1`;

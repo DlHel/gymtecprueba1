@@ -60,12 +60,11 @@ router.get('/', authenticateToken, async (req, res) => {
             COUNT(DISTINCT poi.id) as item_count,
             COALESCE(SUM(poi.quantity_ordered), 0) as total_items_ordered,
             COALESCE(SUM(poi.quantity_received), 0) as total_items_received,
-            GROUP_CONCAT(DISTINCT CONCAT(spr.spare_part_name, ' (', spr.quantity_needed, ' unidades)') SEPARATOR ', ') as spare_parts_list,
-            GROUP_CONCAT(DISTINCT spr.ticket_id SEPARATOR ', ') as ticket_ids
+            GROUP_CONCAT(DISTINCT CONCAT(i.item_name, ' (', poi.quantity_ordered, ' unidades)') SEPARATOR ', ') as spare_parts_list
         FROM PurchaseOrders po
         LEFT JOIN Users creator ON po.created_by = creator.id
         LEFT JOIN PurchaseOrderItems poi ON po.id = poi.purchase_order_id
-        LEFT JOIN spare_part_requests spr ON po.id = spr.purchase_order_id
+        LEFT JOIN Inventory i ON poi.spare_part_id = i.id
         WHERE 1=1`;
         
         const params = [];
@@ -181,11 +180,10 @@ router.get('/:id', authenticateToken, async (req, res) => {
             poi.*,
             i.item_code,
             i.item_name,
-            i.description,
-            ic.name as category_name
+            i.notes as description,
+            i.category as category_name
         FROM PurchaseOrderItems poi
         LEFT JOIN Inventory i ON poi.spare_part_id = i.id
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         WHERE poi.purchase_order_id = ?`;
         
         const items = await db.all(itemsSQL, [id]);

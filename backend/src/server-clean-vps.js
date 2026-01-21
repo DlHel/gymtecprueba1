@@ -589,63 +589,92 @@ app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
     });
 });
 
-// GET all maintenance tasks
+// GET all maintenance tasks (combines MaintenanceTasks + Tickets with due_date)
+// Patrón: callbacks anidados (estándar del proyecto)
 app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT 
-            mt.id,
-            mt.title,
-            mt.description,
-            mt.type,
-            mt.status,
-            mt.priority,
-            mt.scheduled_date,
-            mt.scheduled_time,
-            mt.estimated_duration,
-            mt.actual_duration,
-            mt.notes,
-            mt.is_preventive,
-            mt.started_at,
-            mt.completed_at,
-            mt.created_at,
-            mt.updated_at,
-            -- Equipment info
-            e.name as equipment_name,
-            e.serial_number as equipment_serial,
-            em.name as equipment_model,
-            -- Technician info
-            u.username as technician_username,
-            u.username as technician_name,
-            -- Client and location info
-            c.name as client_name,
-            l.name as location_name
+    // Query 1: MaintenanceTasks
+    const maintenanceQuery = `
+        SELECT mt.id, 'maintenance' as source, mt.title, mt.description, mt.type, mt.status, mt.priority,
+            mt.scheduled_date, mt.scheduled_time, mt.estimated_duration, mt.actual_duration,
+            mt.notes, mt.is_preventive, mt.started_at, mt.completed_at, mt.created_at, mt.updated_at,
+            e.name as equipment_name, e.serial_number as equipment_serial, em.name as equipment_model,
+            u.username as technician_username, u.username as technician_name,
+            c.name as client_name, l.name as location_name
         FROM MaintenanceTasks mt
         LEFT JOIN Equipment e ON mt.equipment_id = e.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
         LEFT JOIN Users u ON mt.technician_id = u.id
         LEFT JOIN Clients c ON mt.client_id = c.id
         LEFT JOIN Locations l ON mt.location_id = l.id
-        ORDER BY mt.scheduled_date DESC, mt.scheduled_time ASC
     `;
     
-    db.all(sql, [], (err, rows) => {
+    // Ejecutar primera query (MaintenanceTasks)
+    db.all(maintenanceQuery, [], (err, maintenanceTasks) => {
         if (err) {
             console.error('❌ Error getting maintenance tasks:', err.message);
-            res.status(500).json({ 
+            return res.status(500).json({ 
                 error: 'Error retrieving maintenance tasks',
                 code: 'DB_ERROR'
             });
-            return;
         }
         
-        console.log('✅ Maintenance tasks found:', rows.length, 'items');
-        res.json({ 
-            message: 'success',
-            data: rows,
-            metadata: {
-                total: rows.length,
-                timestamp: new Date().toISOString()
+        console.log('📋 MaintenanceTasks found:', maintenanceTasks.length);
+        
+        // Query 2: Tickets with due_date (callback anidado)
+        const ticketsQuery = `
+            SELECT t.id, 'ticket' as source, t.title, t.description, 'ticket' as type,
+                CASE WHEN t.status = 'Cerrado' THEN 'completed' WHEN t.status = 'En Progreso' THEN 'in_progress' ELSE 'pending' END as status,
+                CASE t.priority WHEN 'Urgente' THEN 'critical' WHEN 'Alta' THEN 'high' WHEN 'Media' THEN 'medium' ELSE 'low' END as priority,
+                DATE(t.due_date) as scheduled_date, TIME(t.due_date) as scheduled_time,
+                NULL as estimated_duration, NULL as actual_duration, NULL as notes, FALSE as is_preventive,
+                NULL as started_at, NULL as completed_at, t.created_at, t.updated_at,
+                eq.name as equipment_name, eq.serial_number as equipment_serial, NULL as equipment_model,
+                u.username as technician_username, u.username as technician_name,
+                cl.name as client_name, loc.name as location_name
+            FROM Tickets t
+            LEFT JOIN Equipment eq ON t.equipment_id = eq.id
+            LEFT JOIN Users u ON t.assigned_technician_id = u.id
+            LEFT JOIN Clients cl ON t.client_id = cl.id
+            LEFT JOIN Locations loc ON t.location_id = loc.id
+            WHERE t.due_date IS NOT NULL
+        `;
+        
+        db.all(ticketsQuery, [], (ticketErr, ticketTasks) => {
+            if (ticketErr) {
+                console.error('❌ Error getting tickets with due_date:', ticketErr.message);
+                // Retornar solo las tareas de mantenimiento si hay error con tickets
+                return res.json({
+                    message: 'success',
+                    data: maintenanceTasks,
+                    metadata: {
+                        total: maintenanceTasks.length,
+                        tickets: 0,
+                        maintenance: maintenanceTasks.length,
+                        timestamp: new Date().toISOString()
+                    }
+                });
             }
+            
+            console.log('🎫 Tickets with due_date found:', ticketTasks.length);
+            
+            // Combinar y ordenar resultados
+            const combined = [...maintenanceTasks, ...ticketTasks].sort((a, b) => {
+                const dateA = new Date(a.scheduled_date || 0);
+                const dateB = new Date(b.scheduled_date || 0);
+                return dateB - dateA; // DESC order
+            });
+            
+            console.log('✅ Maintenance tasks found:', combined.length, 'items (combined)');
+            res.json({
+                message: 'success',
+                data: combined,
+                metadata: {
+                    total: combined.length,
+                    tickets: ticketTasks.length,
+                    maintenance: maintenanceTasks.length,
+                    timestamp: new Date().toISOString()
+                }
+            });
         });
     });
 });
@@ -2463,7 +2492,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
         const params = [
             parseInt(location_id, 10),
             parseInt(model_id, 10),
-            customIdValue,
+            customIdValue || null,  // Convertir cadena vacía a null
             serial_number || null,
             acquisition_date || null,
             notes || null
@@ -9311,7 +9340,7 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
     const queries = {
         ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.type as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_to = u.id WHERE t.id = ?',
         comments: 'SELECT tc.*, u.username as author_name FROM TicketComments tc LEFT JOIN Users u ON tc.user_id = u.id WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
-        photos: 'SELECT id, photo_base64, uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY uploaded_at ASC'
+        photos: 'SELECT id, photo_data AS photo_base64, created_at AS uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at ASC'
     };
     
     Promise.all([

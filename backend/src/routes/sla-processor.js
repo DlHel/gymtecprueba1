@@ -99,10 +99,10 @@ class SLAProcessor {
                         TIMESTAMPDIFF(MINUTE, NOW(), mt.sla_deadline)
                     ELSE NULL 
                 END as minutes_until_deadline
-            FROM maintenancetasks mt
-            LEFT JOIN users u ON mt.technician_id = u.id
-            LEFT JOIN locations l ON mt.location_id = l.id
-            LEFT JOIN clients c ON l.client_id = c.id
+            FROM MaintenanceTasks mt
+            LEFT JOIN Users u ON mt.technician_id = u.id
+            LEFT JOIN Locations l ON mt.location_id = l.id
+            LEFT JOIN Clients c ON l.client_id = c.id
             WHERE mt.status IN ('pending', 'scheduled', 'in_progress')
             ORDER BY mt.priority DESC, mt.created_at ASC
         `;
@@ -288,7 +288,7 @@ class SLAProcessor {
         // Buscar supervisor/manager disponible
         const sql = `
             SELECT id, username, email 
-            FROM users 
+            FROM Users 
             WHERE role = ? AND status = 'Activo'
             ORDER BY RAND() 
             LIMIT 1
@@ -304,7 +304,7 @@ class SLAProcessor {
                 if (supervisor) {
                     // Actualizar tarea con escalación
                     const updateSql = `
-                        UPDATE maintenancetasks 
+                        UPDATE MaintenanceTasks 
                         SET escalated_to = ?, escalated_at = NOW(), priority = 'critical'
                         WHERE id = ?
                     `;
@@ -382,7 +382,7 @@ class SLAProcessor {
             // Limpiar asignación actual
             await new Promise((resolve, reject) => {
                 this.db.run(
-                    'UPDATE maintenancetasks SET technician_id = NULL WHERE id = ?',
+                    'UPDATE MaintenanceTasks SET technician_id = NULL WHERE id = ?',
                     [violation.taskId],
                     (err) => err ? reject(err) : resolve()
                 );
@@ -403,7 +403,7 @@ class SLAProcessor {
         console.log(`⬆️  Aumentando prioridad de tarea ${violation.taskId} a: ${newPriority}`);
         
         const sql = `
-            UPDATE maintenancetasks 
+            UPDATE MaintenanceTasks 
             SET priority = ?, priority_boosted_at = NOW() 
             WHERE id = ?
         `;

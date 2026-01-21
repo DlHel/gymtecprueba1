@@ -384,6 +384,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const method = id ? 'PUT' : 'POST';
                 const requestBody = Object.fromEntries(data);
                 
+                // Eliminar id vacío del body para evitar confusión en el backend
+                if (!requestBody.id) {
+                    delete requestBody.id;
+                }
+                
                 console.log(`📡 ${method} ${url}`);
                 console.log('📤 Request body:', requestBody);
                 
@@ -770,31 +775,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (modalElem.id === 'equipment-modal') {
                 console.log('📋 Configurando modal de equipo con datos:', data);
                 
-                // Cargar modelos de equipos si no están cargados
-                const modelSelect = form.querySelector('#equipment-model-id');
-                if (modelSelect && modelSelect.options.length === 1) {
-                    try {
-                        console.log('📥 Cargando modelos de equipos...');
-                        const response = await window.authManager.authenticatedFetch(`${API_URL}/models`);
-                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                        const result = await response.json();
-                        const models = result.data || result;
-                        
-                        console.log(`✅ Modelos cargados: ${models.length}`);
-                        
-                        // Limpiar y llenar el select
-                        modelSelect.innerHTML = '<option value="">Seleccione un modelo...</option>';
-                        models.forEach(model => {
-                            const option = document.createElement('option');
-                            option.value = model.id;
-                            option.textContent = `${model.name} - ${model.brand || 'Sin marca'}`;
-                            modelSelect.appendChild(option);
-                        });
-                    } catch (error) {
-                        console.error('❌ Error cargando modelos:', error);
-                        modelSelect.innerHTML = '<option value="">Error cargando modelos</option>';
-                    }
-                }
+                // Configurar buscador de modelos
+                await setupModelSearcher(form, data);
                 
                 if (data.id) {
                     console.log('✏️ Modo edición de equipo');
@@ -947,7 +929,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     // Mostrar mensajes de error más específicos
                     let errorMessage = error.message;
                     
-                    if (error.message.includes('Duplicate entry') && error.message.includes('serial_number')) {
+                    // Manejo específico para error 409 (duplicado)
+                    if (error.message.includes('409') || error.message.includes('Conflict') || error.message.includes('DUPLICATE_EQUIPMENT')) {
+                        errorMessage = 'El número de serie o ID personalizado ya existe en el sistema. Por favor, use valores únicos.';
+                    } else if (error.message.includes('Ya existe un equipo')) {
+                        errorMessage = error.message; // Usar mensaje del backend directamente
+                    } else if (error.message.includes('Duplicate entry') && error.message.includes('serial_number')) {
                         errorMessage = 'El número de serie ya existe en el sistema. Por favor, ingrese un número de serie único.';
                     } else if (error.message.includes('Duplicate entry') && error.message.includes('rut')) {
                         errorMessage = 'El RUT ya está registrado en el sistema.';
@@ -1404,6 +1391,217 @@ document.addEventListener('DOMContentLoaded', () => {
             
             alert(`❌ Error al eliminar cliente: ${errorMessage}`);
         }
+    }
+    
+    // =========================================================================
+    // BUSCADOR DE MODELOS DE EQUIPO
+    // =========================================================================
+    
+    // Cache de modelos para evitar llamadas repetidas
+    let cachedModels = null;
+    
+    async function setupModelSearcher(form, data) {
+        console.log('🔍 Configurando buscador de modelos...');
+        
+        const searchInput = form.querySelector('#equipment-model-search');
+        const hiddenInput = form.querySelector('#equipment-model-id');
+        const resultsContainer = form.querySelector('#model-search-results');
+        const selectedDisplay = form.querySelector('#selected-model-display');
+        const clearBtn = form.querySelector('#clear-model-search');
+        const changeBtn = form.querySelector('#change-model-btn');
+        
+        if (!searchInput || !hiddenInput || !resultsContainer) {
+            console.error('❌ Elementos del buscador de modelos no encontrados');
+            return;
+        }
+        
+        // Cargar modelos si no están en cache
+        if (!cachedModels) {
+            try {
+                console.log('📥 Cargando modelos de equipos...');
+                const response = await window.authManager.authenticatedFetch(`${API_URL}/models`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                cachedModels = result.data || result;
+                console.log(`✅ ${cachedModels.length} modelos cargados y cacheados`);
+            } catch (error) {
+                console.error('❌ Error cargando modelos:', error);
+                cachedModels = [];
+            }
+        }
+        
+        // Ordenar modelos alfabéticamente
+        const models = [...cachedModels].sort((a, b) => 
+            (a.name || '').localeCompare(b.name || '')
+        );
+        
+        let highlightedIndex = -1;
+        
+        // Función para renderizar resultados
+        function renderResults(filteredModels) {
+            if (filteredModels.length === 0) {
+                resultsContainer.innerHTML = `
+                    <div class="model-search-empty">
+                        <i data-lucide="search-x"></i>
+                        <p>No se encontraron modelos</p>
+                    </div>
+                `;
+            } else {
+                resultsContainer.innerHTML = filteredModels.map((model, index) => `
+                    <div class="model-search-item ${index === highlightedIndex ? 'highlighted' : ''}" 
+                         data-model-id="${model.id}"
+                         data-model-name="${model.name || ''}"
+                         data-model-brand="${model.brand || ''}"
+                         data-model-type="${model.type || ''}">
+                        <div class="model-item-name">${model.name || 'Sin nombre'}</div>
+                        <div class="model-item-details">
+                            ${model.brand ? `<span class="model-item-badge">${model.brand}</span>` : ''}
+                            ${model.type ? `<span class="model-item-badge">${model.type}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            resultsContainer.classList.remove('hidden');
+            lucide.createIcons();
+        }
+        
+        // Función para filtrar modelos
+        function filterModels(searchTerm) {
+            if (!searchTerm || searchTerm.length < 1) {
+                return models.slice(0, 50); // Mostrar primeros 50 si no hay término
+            }
+            
+            const term = searchTerm.toLowerCase();
+            return models.filter(model => 
+                (model.name || '').toLowerCase().includes(term) ||
+                (model.brand || '').toLowerCase().includes(term) ||
+                (model.type || '').toLowerCase().includes(term)
+            ).slice(0, 50); // Limitar a 50 resultados
+        }
+        
+        // Función para seleccionar un modelo
+        function selectModel(modelId, modelName, modelBrand, modelType) {
+            hiddenInput.value = modelId;
+            searchInput.value = '';
+            resultsContainer.classList.add('hidden');
+            clearBtn.classList.add('hidden');
+            
+            // Mostrar modelo seleccionado
+            selectedDisplay.querySelector('.selected-model-name').textContent = modelName;
+            selectedDisplay.querySelector('.selected-model-details').textContent = 
+                [modelBrand, modelType].filter(Boolean).join(' • ');
+            selectedDisplay.classList.remove('hidden');
+            searchInput.parentElement.classList.add('hidden');
+            
+            console.log(`✅ Modelo seleccionado: ${modelName} (ID: ${modelId})`);
+        }
+        
+        // Función para resetear selección
+        function resetSelection() {
+            hiddenInput.value = '';
+            searchInput.value = '';
+            selectedDisplay.classList.add('hidden');
+            searchInput.parentElement.classList.remove('hidden');
+            searchInput.focus();
+        }
+        
+        // Event listeners
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value;
+            highlightedIndex = -1;
+            
+            if (term.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            
+            const filtered = filterModels(term);
+            renderResults(filtered);
+        });
+        
+        searchInput.addEventListener('focus', () => {
+            if (!selectedDisplay.classList.contains('hidden')) return;
+            const filtered = filterModels(searchInput.value);
+            renderResults(filtered);
+        });
+        
+        // Navegación por teclado
+        searchInput.addEventListener('keydown', (e) => {
+            const items = resultsContainer.querySelectorAll('.model-search-item');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                highlightedIndex = Math.min(highlightedIndex + 1, items.length - 1);
+                items.forEach((item, i) => item.classList.toggle('highlighted', i === highlightedIndex));
+                items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                items.forEach((item, i) => item.classList.toggle('highlighted', i === highlightedIndex));
+                items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (highlightedIndex >= 0 && items[highlightedIndex]) {
+                    const item = items[highlightedIndex];
+                    selectModel(
+                        item.dataset.modelId,
+                        item.dataset.modelName,
+                        item.dataset.modelBrand,
+                        item.dataset.modelType
+                    );
+                }
+            } else if (e.key === 'Escape') {
+                resultsContainer.classList.add('hidden');
+            }
+        });
+        
+        // Click en resultados
+        resultsContainer.addEventListener('click', (e) => {
+            const item = e.target.closest('.model-search-item');
+            if (item) {
+                selectModel(
+                    item.dataset.modelId,
+                    item.dataset.modelName,
+                    item.dataset.modelBrand,
+                    item.dataset.modelType
+                );
+            }
+        });
+        
+        // Botón limpiar
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.add('hidden');
+            highlightedIndex = -1;
+            const filtered = filterModels('');
+            renderResults(filtered);
+            searchInput.focus();
+        });
+        
+        // Botón cambiar modelo
+        changeBtn.addEventListener('click', () => {
+            resetSelection();
+        });
+        
+        // Cerrar resultados al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#model-search-container')) {
+                resultsContainer.classList.add('hidden');
+            }
+        });
+        
+        // Si es edición, preseleccionar el modelo
+        if (data.model_id) {
+            const model = models.find(m => m.id == data.model_id);
+            if (model) {
+                selectModel(model.id, model.name, model.brand, model.type);
+            }
+        }
+        
+        lucide.createIcons();
+        console.log('✅ Buscador de modelos configurado');
     }
     
     actions.init();

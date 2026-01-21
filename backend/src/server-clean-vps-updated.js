@@ -9644,7 +9644,7 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
     const queries = {
         ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.type as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_to = u.id WHERE t.id = ?',
         comments: 'SELECT tc.*, u.username as author_name FROM TicketComments tc LEFT JOIN Users u ON tc.user_id = u.id WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
-        photos: 'SELECT id, photo_base64, uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY uploaded_at ASC'
+        photos: 'SELECT id, photo_data AS photo_base64, created_at AS uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at ASC'
     };
     
     Promise.all([

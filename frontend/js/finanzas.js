@@ -2090,7 +2090,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('📝 Opening payroll period modal');
         const modal = document.getElementById('payroll-period-modal');
         if (modal) {
-            modal.classList.add('active');
+            modal.classList.add('is-open');
             
             // Set default dates (current month)
             const now = new Date();
@@ -2113,7 +2113,7 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('❌ Closing payroll period modal');
         const modal = document.getElementById('payroll-period-modal');
         if (modal) {
-            modal.classList.remove('active');
+            modal.classList.remove('is-open');
             document.getElementById('payroll-period-form').reset();
         }
     };

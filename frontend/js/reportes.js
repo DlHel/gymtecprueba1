@@ -2371,7 +2371,8 @@ document.addEventListener('DOMContentLoaded', function() {
         if (window.lucide) {
             window.lucide.createIcons();
         }
-        
+        // Exportar la clase al scope global para que informes-tecnicos.js pueda extenderla
+        window.ReportsManager = ReportsManager;
         // Crear instancia del manager
         window.reportsManager = new ReportsManager();
     }

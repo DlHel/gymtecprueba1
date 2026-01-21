@@ -5,42 +5,57 @@
 (function() {
     'use strict';
     
-    // Extensión de ReportsManager
-    if (typeof ReportsManager !== 'undefined') {
+    // Función para extender ReportsManager
+    function extendReportsManager() {
+        // Extensión de ReportsManager - usar window.ReportsManager que se exporta en reportes.js
+        if (typeof window.ReportsManager !== 'undefined') {
+            console.log('✅ Extendiendo ReportsManager con módulo de informes técnicos...');
         
-        // Generar Informe Técnico
-        ReportsManager.prototype.generateInformeTecnico = async function(ticketId) {
+        // Nueva función: Descargar PDF generado en el servidor
+        window.ReportsManager.prototype.downloadPDFFromServer = async function(ticketId) {
+            try {
+                console.log(`📄 Descargando PDF del servidor para ticket #${ticketId}...`);
+                this.showNotification('Generando PDF...', 'info');
+                
+                // Obtener token de autenticación
+                const token = window.authManager.getToken();
+                if (!token) {
+                    throw new Error('No hay sesión activa');
+                }
+                
+                // Redirigir a la URL del PDF - el navegador descargará automáticamente
+                // gracias al header Content-Disposition: attachment del servidor
+                window.location.href = `${window.API_URL}/tickets/${ticketId}/generate-pdf?token=${token}`;
+                
+                const filename = `Informe_Tecnico_${ticketId}.pdf`;
+                console.log(`✅ PDF descarga iniciada: ${filename}`);
+                
+                // Delay para dar tiempo a la descarga antes de mostrar notificación
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                this.showNotification('PDF descargando...', 'success');
+                
+                return filename;
+                
+            } catch (error) {
+                console.error('❌ Error descargando PDF del servidor:', error);
+                this.showNotification('Error al descargar PDF: ' + error.message, 'error');
+                throw error;
+            }
+        };
+        
+        window.ReportsManager.prototype.generateInformeTecnico = async function(ticketId) {
             try {
                 console.log(`📄 Generando informe técnico para ticket #${ticketId}`);
                 
-                // 1. Cargar datos del ticket
-                const informeData = await this.loadTicketInformeData(ticketId);
+                // USAR MÉTODO DEL SERVIDOR (funciona en todos los navegadores)
+                const filename = await this.downloadPDFFromServer(ticketId);
                 
-                if (!informeData) {
-                    throw new Error('No se pudieron cargar los datos del ticket');
-                }
-                
-                // 2. Generar PDF (ahora devuelve { filename, blob })
-                const { filename, blob } = await this.generateInformePDF(informeData);
-                
-                // 3. Registrar informe en el servidor
-                const informeRegistrado = await this.saveInformeRecord({
+                // Registrar en historial
+                await this.saveInformeRecord({
                     ticket_id: ticketId,
                     filename: filename,
-                    notas_adicionales: informeData.notasAdicionales || ''
+                    notas_adicionales: ''
                 });
-
-                if (informeRegistrado && informeRegistrado.id) {
-                    // 4. Subir el archivo PDF al servidor
-                    await this.uploadInformePDF(informeRegistrado.id, blob, filename);
-                    
-                    // 5. Preguntar si enviar por correo
-                    if (confirm(`Informe generado exitosamente.\n¿Desea enviarlo por correo al cliente (${informeData.cliente.contacto})?`)) {
-                        await this.sendInformeEmail(informeRegistrado.id, informeData.cliente.contacto); // Usando contacto como email temporalmente, idealmente usar email real
-                    } else {
-                        this.showNotification('Informe generado y guardado correctamente', 'success');
-                    }
-                }
                 
                 await this.loadReportsHistory();
                 return filename;
@@ -53,7 +68,7 @@
         };
         
         // Cargar datos completos del ticket para informe
-        ReportsManager.prototype.loadTicketInformeData = async function(ticketId) {
+        window.ReportsManager.prototype.loadTicketInformeData = async function(ticketId) {
             try {
                 const response = await authenticatedFetch(`${API_URL}/tickets/${ticketId}/informe-data`);
                 
@@ -124,7 +139,7 @@
         };
         
         // Extraer comentarios etiquetados
-        ReportsManager.prototype.extractTaggedComments = function(comments) {
+        window.ReportsManager.prototype.extractTaggedComments = function(comments) {
             const contenido = {
                 diagnostico: [],
                 trabajo: [],
@@ -167,8 +182,8 @@
             return contenido;
         };
         
-        // Generar PDF con jsPDF
-        ReportsManager.prototype.generateInformePDF = async function(informe) {
+        // Generar PDF con jsPDF - Diseño Profesional con Colores Corporativos Gymtec
+        window.ReportsManager.prototype.generateInformePDF = async function(informe) {
             try {
                 // Verificar que jsPDF esté disponible
                 if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -177,190 +192,340 @@
                 
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF();
-                let yPos = 20;
+                let yPos = 0;
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const pageHeight = doc.internal.pageSize.getHeight();
                 const margin = 20;
                 const maxWidth = pageWidth - (margin * 2);
                 
-                // PORTADA
-                doc.setFontSize(24);
+                // ========== COLORES CORPORATIVOS GYMTEC ==========
+                const colors = {
+                    primary: [255, 75, 43],      // #FF4B2B - Rojo Gymtec
+                    dark: [26, 27, 38],          // #1A1B26 - Azul Oscuro
+                    grayLight: [245, 245, 247],  // #F5F5F7 - Gris Claro
+                    white: [255, 255, 255],      // #FFFFFF
+                    grayText: [107, 114, 128],   // Gris para texto secundario
+                    border: [229, 231, 235]      // Gris para bordes
+                };
+                
+                // ========== PORTADA ==========
+                // Header con fondo azul oscuro
+                doc.setFillColor(...colors.dark);
+                doc.rect(0, 0, pageWidth, 50, 'F');
+                
+                // Logo/Título GYMTEC
+                doc.setTextColor(...colors.white);
+                doc.setFontSize(28);
                 doc.setFont('helvetica', 'bold');
-                doc.text('GYMTEC ERP', pageWidth / 2, yPos, { align: 'center' });
+                doc.text('GYMTEC', margin, 28);
+                
+                // Subtítulo
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Servicio Técnico Profesional', margin, 40);
+                
+                // Número de ticket en la esquina derecha
+                doc.setFontSize(12);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`TICKET #${informe.ticketId}`, pageWidth - margin, 28, { align: 'right' });
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.text(this.formatDate(informe.fechas.cierre), pageWidth - margin, 40, { align: 'right' });
+                
+                yPos = 60;
+                
+                // Título del documento
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(22);
+                doc.setFont('helvetica', 'bold');
+                doc.text('INFORME TÉCNICO DE SERVICIO', pageWidth / 2, yPos, { align: 'center' });
                 yPos += 15;
                 
-                doc.setFontSize(16);
-                doc.text('INFORME TÉCNICO DE SERVICIO', pageWidth / 2, yPos, { align: 'center' });
-                yPos += 25;
-                
-                doc.setFontSize(12);
-                doc.setFont('helvetica', 'normal');
-                doc.text(`Ticket #${informe.ticketId}`, margin, yPos);
-                yPos += 8;
-                doc.text(`Cliente: ${informe.cliente.nombre}`, margin, yPos);
-                yPos += 8;
-                doc.text(`Fecha: ${this.formatDate(informe.fechas.cierre)}`, margin, yPos);
-                yPos += 8;
-                doc.text(`Técnico: ${informe.tecnico.nombre}`, margin, yPos);
+                // Línea decorativa roja
+                doc.setDrawColor(...colors.primary);
+                doc.setLineWidth(2);
+                doc.line(pageWidth/2 - 40, yPos, pageWidth/2 + 40, yPos);
                 yPos += 20;
                 
-                // RESUMEN EJECUTIVO
-                this.addSection(doc, 'RESUMEN EJECUTIVO', yPos);
-                yPos += 10;
+                // ========== INFORMACIÓN PRINCIPAL (2 columnas) ==========
+                // Caja de Cliente
+                doc.setFillColor(...colors.grayLight);
+                doc.roundedRect(margin, yPos, (pageWidth - margin*3)/2, 50, 3, 3, 'F');
                 
+                doc.setTextColor(...colors.primary);
                 doc.setFontSize(10);
-                doc.text(`Equipo: ${informe.equipo.modelo}`, margin, yPos);
-                yPos += 6;
-                doc.text(`Ubicación: ${informe.ubicacion.nombre}`, margin, yPos);
-                yPos += 6;
-                doc.text(`Prioridad: ${informe.priority}`, margin, yPos);
-                yPos += 6;
-                doc.text(`Duración: ${informe.fechas.duracion}`, margin, yPos);
-                yPos += 15;
+                doc.setFont('helvetica', 'bold');
+                doc.text('CLIENTE', margin + 8, yPos + 12);
                 
-                // DIAGNÓSTICO INICIAL
-                if (informe.contenido.diagnostico.length > 0) {
-                    yPos = this.checkPageBreak(doc, yPos, 40);
-                    this.addSection(doc, 'DIAGNÓSTICO INICIAL', yPos);
-                    yPos += 10;
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(11);
+                doc.text(informe.cliente.nombre, margin + 8, yPos + 24);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(...colors.grayText);
+                if (informe.cliente.rut) doc.text(`RUT: ${informe.cliente.rut}`, margin + 8, yPos + 34);
+                if (informe.cliente.telefono) doc.text(`Tel: ${informe.cliente.telefono}`, margin + 8, yPos + 44);
+                
+                // Caja de Ubicación
+                const col2X = margin + (pageWidth - margin*3)/2 + margin;
+                doc.setFillColor(...colors.grayLight);
+                doc.roundedRect(col2X, yPos, (pageWidth - margin*3)/2, 50, 3, 3, 'F');
+                
+                doc.setTextColor(...colors.primary);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text('UBICACIÓN', col2X + 8, yPos + 12);
+                
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(11);
+                doc.text(informe.ubicacion.nombre, col2X + 8, yPos + 24);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(...colors.grayText);
+                const dirLines = doc.splitTextToSize(informe.ubicacion.direccion || 'N/A', 70);
+                doc.text(dirLines, col2X + 8, yPos + 34);
+                
+                yPos += 60;
+                
+                // Caja de Equipo
+                doc.setFillColor(...colors.grayLight);
+                doc.roundedRect(margin, yPos, (pageWidth - margin*3)/2, 50, 3, 3, 'F');
+                
+                doc.setTextColor(...colors.primary);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text('EQUIPO', margin + 8, yPos + 12);
+                
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(11);
+                doc.text(informe.equipo.modelo, margin + 8, yPos + 24);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(...colors.grayText);
+                if (informe.equipo.tipo) doc.text(`Tipo: ${informe.equipo.tipo}`, margin + 8, yPos + 34);
+                if (informe.equipo.serial) doc.text(`S/N: ${informe.equipo.serial}`, margin + 8, yPos + 44);
+                
+                // Caja de Servicio
+                doc.setFillColor(...colors.grayLight);
+                doc.roundedRect(col2X, yPos, (pageWidth - margin*3)/2, 50, 3, 3, 'F');
+                
+                doc.setTextColor(...colors.primary);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'bold');
+                doc.text('SERVICIO', col2X + 8, yPos + 12);
+                
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(11);
+                doc.text(informe.tecnico.nombre, col2X + 8, yPos + 24);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.setTextColor(...colors.grayText);
+                doc.text(`Prioridad: ${informe.priority}`, col2X + 8, yPos + 34);
+                doc.text(`Duración: ${informe.fechas.duracion}`, col2X + 8, yPos + 44);
+                
+                yPos += 65;
+                
+                // ========== CONTENIDO DEL INFORME ==========
+                // Helper para agregar sección con estilo
+                const addStyledSection = (title, items, icon) => {
+                    if (!items || items.length === 0) return;
                     
-                    informe.contenido.diagnostico.forEach(item => {
-                        const lines = doc.splitTextToSize(`• ${item}`, maxWidth - 10);
-                        yPos = this.checkPageBreak(doc, yPos, lines.length * 6);
-                        doc.setFontSize(10);
-                        doc.text(lines, margin + 5, yPos);
-                        yPos += lines.length * 6 + 2;
+                    yPos = this.checkPageBreak(doc, yPos, 50);
+                    
+                    // Título de sección con barra roja
+                    doc.setFillColor(...colors.primary);
+                    doc.rect(margin, yPos, 4, 14, 'F');
+                    
+                    doc.setTextColor(...colors.dark);
+                    doc.setFontSize(13);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text(title, margin + 10, yPos + 10);
+                    yPos += 20;
+                    
+                    // Contenido
+                    doc.setTextColor(...colors.dark);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    
+                    items.forEach(item => {
+                        const lines = doc.splitTextToSize(`• ${item}`, maxWidth - 15);
+                        yPos = this.checkPageBreak(doc, yPos, lines.length * 6 + 4);
+                        doc.text(lines, margin + 10, yPos);
+                        yPos += lines.length * 6 + 4;
                     });
-                    yPos += 10;
+                    yPos += 8;
+                };
+                
+                // Secciones del informe
+                addStyledSection('DIAGNÓSTICO INICIAL', informe.contenido.diagnostico);
+                addStyledSection('TRABAJO EJECUTADO', informe.contenido.trabajo);
+                addStyledSection('SOLUCIÓN APLICADA', informe.contenido.solucion);
+                addStyledSection('RECOMENDACIONES', informe.contenido.recomendaciones);
+                
+                // Comentario de cierre
+                if (informe.contenido.cierre) {
+                    yPos = this.checkPageBreak(doc, yPos, 60);
+                    
+                    doc.setFillColor(...colors.grayLight);
+                    doc.roundedRect(margin, yPos, maxWidth, 40, 3, 3, 'F');
+                    
+                    doc.setTextColor(...colors.primary);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('COMENTARIO DE CIERRE', margin + 8, yPos + 12);
+                    
+                    doc.setTextColor(...colors.dark);
+                    doc.setFontSize(10);
+                    doc.setFont('helvetica', 'normal');
+                    const cierreLines = doc.splitTextToSize(informe.contenido.cierre, maxWidth - 16);
+                    doc.text(cierreLines, margin + 8, yPos + 24);
+                    yPos += 50;
                 }
                 
-                // TRABAJO EJECUTADO
-                if (informe.contenido.trabajo.length > 0) {
-                    yPos = this.checkPageBreak(doc, yPos, 40);
-                    this.addSection(doc, 'TRABAJO EJECUTADO', yPos);
-                    yPos += 10;
-                    
-                    informe.contenido.trabajo.forEach(item => {
-                        const lines = doc.splitTextToSize(`✓ ${item}`, maxWidth - 10);
-                        yPos = this.checkPageBreak(doc, yPos, lines.length * 6);
-                        doc.setFontSize(10);
-                        doc.text(lines, margin + 5, yPos);
-                        yPos += lines.length * 6 + 2;
-                    });
-                    yPos += 10;
-                }
-                
-                // SOLUCIÓN
-                if (informe.contenido.solucion.length > 0) {
-                    yPos = this.checkPageBreak(doc, yPos, 40);
-                    this.addSection(doc, 'SOLUCIÓN APLICADA', yPos);
-                    yPos += 10;
-                    
-                    informe.contenido.solucion.forEach(item => {
-                        const lines = doc.splitTextToSize(item, maxWidth - 10);
-                        yPos = this.checkPageBreak(doc, yPos, lines.length * 6);
-                        doc.setFontSize(10);
-                        doc.text(lines, margin + 5, yPos);
-                        yPos += lines.length * 6 + 2;
-                    });
-                    yPos += 10;
-                }
-                
-                // FOTOS
+                // ========== REGISTRO FOTOGRÁFICO ==========
                 if (informe.fotos.length > 0) {
                     doc.addPage();
                     yPos = 20;
                     
-                    this.addSection(doc, 'REGISTRO FOTOGRÁFICO', yPos);
-                    yPos += 15;
+                    // Header de página
+                    doc.setFillColor(...colors.dark);
+                    doc.rect(0, 0, pageWidth, 25, 'F');
+                    doc.setTextColor(...colors.white);
+                    doc.setFontSize(14);
+                    doc.setFont('helvetica', 'bold');
+                    doc.text('REGISTRO FOTOGRÁFICO', pageWidth / 2, 16, { align: 'center' });
+                    
+                    yPos = 35;
                     
                     let fotosEnPagina = 0;
-                    const fotoWidth = 80;
-                    const fotoHeight = 60;
+                    const fotoWidth = 85;
+                    const fotoHeight = 65;
                     
                     for (const foto of informe.fotos) {
                         if (fotosEnPagina >= 3) {
                             doc.addPage();
-                            yPos = 20;
+                            // Mini header
+                            doc.setFillColor(...colors.dark);
+                            doc.rect(0, 0, pageWidth, 15, 'F');
+                            doc.setTextColor(...colors.white);
+                            doc.setFontSize(10);
+                            doc.text('REGISTRO FOTOGRÁFICO (cont.)', pageWidth / 2, 10, { align: 'center' });
+                            yPos = 25;
                             fotosEnPagina = 0;
                         }
                         
                         try {
-                            // Verificar que la foto tenga datos
                             if (foto.data && foto.data.startsWith('data:image')) {
+                                // Marco de la foto
+                                doc.setDrawColor(...colors.border);
+                                doc.setLineWidth(0.5);
+                                doc.roundedRect(margin - 2, yPos - 2, fotoWidth + 4, fotoHeight + 4, 2, 2, 'S');
+                                
                                 doc.addImage(foto.data, 'JPEG', margin, yPos, fotoWidth, fotoHeight);
+                                
+                                doc.setTextColor(...colors.grayText);
                                 doc.setFontSize(8);
-                                doc.text(`Foto ${foto.id} - ${this.formatDate(foto.fecha)}`, margin, yPos + fotoHeight + 5);
+                                doc.text(`Foto ${foto.id} - ${this.formatDate(foto.fecha)}`, margin, yPos + fotoHeight + 10);
                             }
                         } catch (error) {
                             console.error('Error agregando foto:', error);
                         }
                         
                         fotosEnPagina++;
-                        yPos += fotoHeight + 15;
+                        yPos += fotoHeight + 20;
                     }
                 }
                 
-                // RECOMENDACIONES
-                if (informe.contenido.recomendaciones.length > 0) {
-                    doc.addPage();
-                    yPos = 20;
-                    
-                    this.addSection(doc, 'RECOMENDACIONES', yPos);
-                    yPos += 10;
-                    
-                    informe.contenido.recomendaciones.forEach(item => {
-                        const lines = doc.splitTextToSize(`• ${item}`, maxWidth - 10);
-                        yPos = this.checkPageBreak(doc, yPos, lines.length * 6);
-                        doc.setFontSize(10);
-                        doc.text(lines, margin + 5, yPos);
-                        yPos += lines.length * 6 + 2;
-                    });
-                    yPos += 15;
-                }
-                
-                // COMENTARIO DE CIERRE
-                if (informe.contenido.cierre) {
-                    yPos = this.checkPageBreak(doc, yPos, 60);
-                    this.addSection(doc, 'COMENTARIO DE CIERRE', yPos);
-                    yPos += 10;
-                    
-                    const lines = doc.splitTextToSize(informe.contenido.cierre, maxWidth - 10);
-                    doc.setFontSize(10);
-                    doc.text(lines, margin + 5, yPos);
-                    yPos += lines.length * 6 + 20;
-                }
-                
-                // FIRMAS
+                // ========== PÁGINA DE FIRMAS ==========
                 doc.addPage();
-                yPos = 20;
                 
-                this.addSection(doc, 'CONFORMIDAD Y FIRMAS', yPos);
-                yPos += 20;
+                // Header
+                doc.setFillColor(...colors.dark);
+                doc.rect(0, 0, pageWidth, 25, 'F');
+                doc.setTextColor(...colors.white);
+                doc.setFontSize(14);
+                doc.setFont('helvetica', 'bold');
+                doc.text('CONFORMIDAD Y FIRMAS', pageWidth / 2, 16, { align: 'center' });
                 
-                // Líneas de firma
-                doc.line(margin, yPos, margin + 70, yPos);
-                doc.line(pageWidth - margin - 70, yPos, pageWidth - margin, yPos);
-                yPos += 6;
+                yPos = 50;
                 
+                // Texto de conformidad
+                doc.setTextColor(...colors.dark);
                 doc.setFontSize(10);
-                doc.text('Técnico Responsable', margin, yPos);
-                doc.text('Cliente (Nombre y Firma)', pageWidth - margin - 70, yPos);
-                yPos += 5;
+                doc.setFont('helvetica', 'normal');
+                const conformidadTexto = `Con la firma del presente documento, el cliente declara su conformidad con el trabajo realizado según lo descrito en este informe técnico. El servicio fue ejecutado por personal calificado de GYMTEC.`;
+                const conformidadLines = doc.splitTextToSize(conformidadTexto, maxWidth);
+                doc.text(conformidadLines, margin, yPos);
+                yPos += 40;
                 
-                doc.text(informe.tecnico.nombre, margin, yPos);
-                yPos += 10;
+                // Cajas de firma
+                // Firma Técnico
+                doc.setFillColor(...colors.grayLight);
+                doc.roundedRect(margin, yPos, 75, 60, 3, 3, 'F');
+                doc.setDrawColor(...colors.dark);
+                doc.line(margin + 10, yPos + 45, margin + 65, yPos + 45);
                 
-                doc.setFontSize(8);
-                doc.text(`Fecha: ${this.formatDate(informe.fechas.cierre)}`, margin, yPos);
-                doc.text('Fecha: _______________', pageWidth - margin - 70, yPos);
+                doc.setTextColor(...colors.primary);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text('TÉCNICO RESPONSABLE', margin + 10, yPos + 10);
                 
-                // Guardar PDF
-                const filename = `Informe_tecnico_${informe.ticketId}_${Date.now()}.pdf`;
-                doc.save(filename);
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(10);
+                doc.setFont('helvetica', 'normal');
+                doc.text(informe.tecnico.nombre, margin + 10, yPos + 52);
                 
-                // Retornar filename y blob para subirlo
+                // Firma Cliente
+                doc.setFillColor(...colors.grayLight);
+                doc.roundedRect(pageWidth - margin - 75, yPos, 75, 60, 3, 3, 'F');
+                doc.line(pageWidth - margin - 65, yPos + 45, pageWidth - margin - 10, yPos + 45);
+                
+                doc.setTextColor(...colors.primary);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'bold');
+                doc.text('CLIENTE', pageWidth - margin - 65, yPos + 10);
+                
+                doc.setTextColor(...colors.grayText);
+                doc.setFontSize(9);
+                doc.setFont('helvetica', 'normal');
+                doc.text('Nombre y Firma', pageWidth - margin - 65, yPos + 52);
+                
+                yPos += 80;
+                
+                // Fecha
+                doc.setTextColor(...colors.dark);
+                doc.setFontSize(10);
+                doc.text(`Fecha del servicio: ${this.formatDate(informe.fechas.cierre)}`, margin, yPos);
+                doc.text('Fecha de firma: _______________', pageWidth - margin - 75, yPos);
+                
+                // ========== FOOTER EN TODAS LAS PÁGINAS ==========
+                const totalPages = doc.internal.getNumberOfPages();
+                for (let i = 1; i <= totalPages; i++) {
+                    doc.setPage(i);
+                    
+                    // Línea del footer
+                    doc.setDrawColor(...colors.border);
+                    doc.setLineWidth(0.5);
+                    doc.line(margin, pageHeight - 15, pageWidth - margin, pageHeight - 15);
+                    
+                    // Texto del footer
+                    doc.setTextColor(...colors.grayText);
+                    doc.setFontSize(8);
+                    doc.text('GYMTEC | Servicio Técnico de Gimnasios | www.gymtec.cl', margin, pageHeight - 8);
+                    doc.text(`Página ${i} de ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+                }
+                
+                // Guardar PDF usando método nativo de jsPDF
+                const filename = `Informe_Tecnico_${informe.ticketId}_${Date.now()}.pdf`;
                 const blob = doc.output('blob');
+                
+                // Método 1: Abrir en nueva ventana usando data URL nativo de jsPDF
+                // Este método evita blob URLs completamente
+                doc.output('dataurlnewwindow', { filename: filename });
+                console.log(`✅ PDF abierto con dataurlnewwindow: ${filename}`);
+                console.log('💡 Usa Ctrl+S para guardar el PDF');
+                
+                // Retornar filename y blob para subirlo al servidor
                 return { filename, blob };
                 
             } catch (error) {
@@ -370,7 +535,7 @@
         };
         
         // Helper: Agregar sección con formato
-        ReportsManager.prototype.addSection = function(doc, title, yPos) {
+        window.ReportsManager.prototype.addSection = function(doc, title, yPos) {
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.text(title, 20, yPos);
@@ -379,7 +544,7 @@
         };
         
         // Helper: Verificar salto de página
-        ReportsManager.prototype.checkPageBreak = function(doc, yPos, neededSpace) {
+        window.ReportsManager.prototype.checkPageBreak = function(doc, yPos, neededSpace) {
             const pageHeight = doc.internal.pageSize.getHeight();
             if (yPos + neededSpace > pageHeight - 20) {
                 doc.addPage();
@@ -389,7 +554,7 @@
         };
         
         // Calcular duración entre fechas
-        ReportsManager.prototype.calculateDuration = function(startDate, endDate) {
+        window.ReportsManager.prototype.calculateDuration = function(startDate, endDate) {
             const start = new Date(startDate);
             const end = new Date(endDate);
             const diff = end - start;
@@ -405,7 +570,7 @@
         };
         
         // Registrar informe en servidor
-        ReportsManager.prototype.saveInformeRecord = async function(data) {
+        window.ReportsManager.prototype.saveInformeRecord = async function(data) {
             try {
                 const response = await authenticatedFetch(`${API_URL}/informes`, {
                     method: 'POST',
@@ -431,7 +596,7 @@
         };
 
         // Subir PDF al servidor
-        ReportsManager.prototype.uploadInformePDF = async function(informeId, pdfBlob, filename) {
+        window.ReportsManager.prototype.uploadInformePDF = async function(informeId, pdfBlob, filename) {
             try {
                 const formData = new FormData();
                 formData.append('pdf', pdfBlob, filename);
@@ -452,7 +617,7 @@
         };
 
         // Enviar informe por correo
-        ReportsManager.prototype.sendInformeEmail = async function(informeId, email) {
+        window.ReportsManager.prototype.sendInformeEmail = async function(informeId, email) {
             try {
                 // Pedir email si no viene (o confirmar)
                 const clientEmail = prompt("Ingrese el correo del cliente para enviar el informe:", email || "");
@@ -478,5 +643,56 @@
         };
         
         console.log('✅ Módulo de informes técnicos cargado correctamente');
+        } else {
+            console.warn('⚠️ ReportsManager no encontrado en este intento');
+        }
+    }
+    
+    // Función robusta para inicializar - maneja race conditions
+    function initializeWhenReady() {
+        // Intentar obtener ReportsManager de diferentes formas
+        function tryGetReportsManager() {
+            // Forma 1: Directamente desde window.ReportsManager
+            if (typeof window.ReportsManager !== 'undefined') {
+                return true;
+            }
+            // Forma 2: Desde el constructor de la instancia (fallback)
+            if (window.reportsManager && window.reportsManager.constructor) {
+                window.ReportsManager = window.reportsManager.constructor;
+                console.log('✅ ReportsManager obtenido desde constructor de instancia');
+                return true;
+            }
+            return false;
+        }
+        
+        // Si ReportsManager ya existe o podemos obtenerlo, extender inmediatamente
+        if (tryGetReportsManager()) {
+            extendReportsManager();
+            return;
+        }
+        
+        // Si no existe aún, esperar con un intervalo (máximo 5 segundos)
+        let attempts = 0;
+        const maxAttempts = 50; // 50 * 100ms = 5 segundos
+        const interval = setInterval(function() {
+            attempts++;
+            if (tryGetReportsManager()) {
+                clearInterval(interval);
+                extendReportsManager();
+            } else if (attempts >= maxAttempts) {
+                clearInterval(interval);
+                console.warn('⚠️ ReportsManager no disponible después de 5 segundos');
+            }
+        }, 100);
+    }
+    
+    // Ejecutar ahora si el DOM ya está listo, o esperar al evento
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(initializeWhenReady, 100);
+        });
+    } else {
+        // DOMContentLoaded ya pasó - ejecutar ahora
+        setTimeout(initializeWhenReady, 100);
     }
 })();

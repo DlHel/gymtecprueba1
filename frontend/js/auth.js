@@ -101,8 +101,12 @@ class AuthManager {
      * Realizar fetch con autenticación automática
      */
     async authenticatedFetch(url, options = {}) {
+        // Detectar si el body es FormData para no sobrescribir Content-Type
+        const isFormData = options.body instanceof FormData;
+        
         const headers = {
-            'Content-Type': 'application/json',
+            // Solo agregar Content-Type: application/json si NO es FormData
+            ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
             ...this.getAuthHeaders(),
             ...(options.headers || {})
         };

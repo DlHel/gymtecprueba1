@@ -10,7 +10,8 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script>lucide.createIcons();</script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="js/FileSaver.min.js"></script>
+    <script src="js/jspdf.umd.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -180,50 +181,6 @@
                                 <div class="report-title-compact">Financiero</div>
                                 <div class="report-subtitle-compact">Mensual</div>
                             </button>
-                        </div>
-                    </div>
-                                <div class="report-type-icon equipment">
-                                    <i data-lucide="cpu" class="h-6 w-6"></i>
-                                </div>
-                                <div class="report-type-content">
-                                    <h4 class="report-type-title">Reporte de Equipos</h4>
-                                    <p class="report-type-description">Estado y mantenimiento de equipos</p>
-                                    <div class="report-type-tags">
-                                        <span class="tag">PDF</span>
-                                        <span class="tag">Gráficos</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Reporte de Inventario -->
-                            <div class="report-type-card" data-type="inventory">
-                                <div class="report-type-icon inventory">
-                                    <i data-lucide="package" class="h-6 w-6"></i>
-                                </div>
-                                <div class="report-type-content">
-                                    <h4 class="report-type-title">Reporte de Inventario</h4>
-                                    <p class="report-type-description">Control de stock y movimientos</p>
-                                    <div class="report-type-tags">
-                                        <span class="tag">Excel</span>
-                                        <span class="tag">Alertas</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Reporte Financiero -->
-                            <div class="report-type-card" data-type="financial">
-                                <div class="report-type-icon financial">
-                                    <i data-lucide="dollar-sign" class="h-6 w-6"></i>
-                                </div>
-                                <div class="report-type-content">
-                                    <h4 class="report-type-title">Reporte Financiero</h4>
-                                    <p class="report-type-description">Análisis de ingresos y costos</p>
-                                    <div class="report-type-tags">
-                                        <span class="tag">PDF</span>
-                                        <span class="tag">Gráficos</span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
 
@@ -525,7 +482,9 @@
 
     <!-- Scripts -->
     <script src="js/config.js"></script>
-    <script src="js/auth.js"></script>`n    <script src="js/change-password.js"></script>`n    <script src="js/permissions.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/change-password.js"></script>
+    <script src="js/permissions.js"></script>
     <script src="js/base-modal.js"></script>
     <script src="js/nav-loader.js"></script>
     <script src="js/reportes.js"></script>

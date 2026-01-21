@@ -241,13 +241,43 @@
                     <input type="hidden" name="location_id">
                     
                     <div class="base-form-group full-width">
-                        <label for="equipment-model-id" class="base-form-label">Modelo de Equipo <span class="required" aria-label="requerido">*</span></label>
-                        <select id="equipment-model-id" name="model_id" class="base-form-input" required aria-describedby="equipment-model-help">
-                            <option value="">Seleccione un modelo...</option>
-                            <!-- Se llenan dinámicamente desde /api/models -->
-                        </select>
+                        <label for="equipment-model-search" class="base-form-label">Modelo de Equipo <span class="required" aria-label="requerido">*</span></label>
+                        
+                        <!-- Componente de búsqueda de modelos -->
+                        <div class="model-search-container" id="model-search-container">
+                            <div class="model-search-input-wrapper">
+                                <i data-lucide="search" class="model-search-icon"></i>
+                                <input type="text" 
+                                       id="equipment-model-search" 
+                                       class="base-form-input model-search-input" 
+                                       placeholder="Buscar modelo por nombre, marca o tipo..."
+                                       autocomplete="off">
+                                <button type="button" id="clear-model-search" class="model-clear-btn hidden">
+                                    <i data-lucide="x" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <input type="hidden" id="equipment-model-id" name="model_id" required>
+                            
+                            <!-- Lista de resultados -->
+                            <div id="model-search-results" class="model-search-results hidden">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                            
+                            <!-- Modelo seleccionado -->
+                            <div id="selected-model-display" class="selected-model-display hidden">
+                                <div class="selected-model-info">
+                                    <span class="selected-model-name"></span>
+                                    <span class="selected-model-details"></span>
+                                </div>
+                                <button type="button" id="change-model-btn" class="change-model-btn">
+                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
+                                    Cambiar
+                                </button>
+                            </div>
+                        </div>
+                        
                         <div id="equipment-model-help" class="form-help-text">
-                            Seleccione el modelo del catálogo. El tipo, marca y nombre se heredan automáticamente.
+                            Busque y seleccione el modelo del catálogo. El tipo, marca y nombre se heredan automáticamente.
                         </div>
                     </div>
                     
@@ -286,7 +316,9 @@
 
     <!-- Configuración de API URL (debe ir PRIMERO) -->
     <script src="js/config.js"></script>
-    <script src="js/auth.js"></script>`n    <script src="js/change-password.js"></script>`n    <script src="js/permissions.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/change-password.js"></script>
+    <script src="js/permissions.js"></script>
     <script src="js/base-modal.js"></script>
     <script src="js/nav-loader.js"></script>
     <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>

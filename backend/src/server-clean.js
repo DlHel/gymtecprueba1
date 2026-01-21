@@ -67,8 +67,24 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware básico
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Helper para detectar peticiones multipart (file uploads)
+const isMultipart = (req) => {
+    const ct = req.headers['content-type'];
+    return ct && (ct.includes('multipart/form-data') || ct.includes('application/octet-stream'));
+};
+
+// Middleware JSON condicionado - ignora multipart para permitir multer
+app.use((req, res, next) => {
+    if (isMultipart(req)) return next();
+    express.json({ limit: '50mb' })(req, res, next);
+});
+
+// Middleware urlencoded condicionado - ignora multipart para permitir multer  
+app.use((req, res, next) => {
+    if (isMultipart(req)) return next();
+    express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
+});
 
 // Rutas de API
 app.use('/api/purchase-orders', purchaseOrdersRoutes);
@@ -193,11 +209,14 @@ function requireRole(roles) {
         }
 
         const userRole = req.user.role;
+        const userRoleLower = userRole ? userRole.toLowerCase() : '';
         const hasPermission = roles.some(role => {
-            if (role === 'Admin') {
-                return userRole === 'Admin' || userRole === 'Administrador';
+            const roleLower = role.toLowerCase();
+            // Case-insensitive comparison
+            if (roleLower === 'admin') {
+                return userRoleLower === 'admin' || userRoleLower === 'administrador';
             }
-            return userRole === role;
+            return userRoleLower === roleLower;
         });
 
         if (!hasPermission) {
@@ -597,44 +616,82 @@ app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
     });
 });
 
-// GET all maintenance tasks
+// GET all maintenance tasks (includes tickets with due_date)
 app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
+    // Query combinada: MaintenanceTasks + Tickets con due_date
+    // NOTA: Se usa COLLATE para evitar error "Illegal mix of collations"
     const sql = `
         SELECT 
             mt.id,
-            mt.title,
-            mt.description,
-            mt.type,
-            mt.status,
-            mt.priority,
+            'task' COLLATE utf8mb4_unicode_ci as source_type,
+            mt.title COLLATE utf8mb4_unicode_ci as title,
+            mt.description COLLATE utf8mb4_unicode_ci as description,
+            mt.type COLLATE utf8mb4_unicode_ci as type,
+            mt.status COLLATE utf8mb4_unicode_ci as status,
+            mt.priority COLLATE utf8mb4_unicode_ci as priority,
             mt.scheduled_date,
             mt.scheduled_time,
             mt.estimated_duration,
             mt.actual_duration,
-            mt.notes,
+            mt.notes COLLATE utf8mb4_unicode_ci as notes,
             mt.is_preventive,
             mt.started_at,
             mt.completed_at,
             mt.created_at,
             mt.updated_at,
-            -- Equipment info
-            e.name as equipment_name,
-            e.serial_number as equipment_serial,
-            em.name as equipment_model,
-            -- Technician info
-            u.username as technician_username,
-            u.username as technician_name,
-            -- Client and location info
-            c.name as client_name,
-            l.name as location_name
+            e.name COLLATE utf8mb4_unicode_ci as equipment_name,
+            e.serial_number COLLATE utf8mb4_unicode_ci as equipment_serial,
+            em.name COLLATE utf8mb4_unicode_ci as equipment_model,
+            u.username COLLATE utf8mb4_unicode_ci as technician_username,
+            u.username COLLATE utf8mb4_unicode_ci as technician_name,
+            c.name COLLATE utf8mb4_unicode_ci as client_name,
+            l.name COLLATE utf8mb4_unicode_ci as location_name
         FROM MaintenanceTasks mt
         LEFT JOIN Equipment e ON mt.equipment_id = e.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
         LEFT JOIN Users u ON mt.technician_id = u.id
         LEFT JOIN Clients c ON mt.client_id = c.id
         LEFT JOIN Locations l ON mt.location_id = l.id
-        ORDER BY mt.scheduled_date DESC, mt.scheduled_time ASC
+        
+        UNION ALL
+        
+        SELECT 
+            t.id,
+            'ticket' COLLATE utf8mb4_unicode_ci as source_type,
+            t.title COLLATE utf8mb4_unicode_ci as title,
+            t.description COLLATE utf8mb4_unicode_ci as description,
+            'repair' COLLATE utf8mb4_unicode_ci as type,
+            t.status COLLATE utf8mb4_unicode_ci as status,
+            t.priority COLLATE utf8mb4_unicode_ci as priority,
+            DATE_FORMAT(t.due_date, '%Y-%m-%d') as scheduled_date,
+            DATE_FORMAT(t.due_date, '%H:%i:%s') as scheduled_time,
+            NULL as estimated_duration,
+            NULL as actual_duration,
+            NULL as notes,
+            0 as is_preventive,
+            NULL as started_at,
+            NULL as completed_at,
+            t.created_at,
+            t.updated_at,
+            eq.name COLLATE utf8mb4_unicode_ci as equipment_name,
+            eq.serial_number COLLATE utf8mb4_unicode_ci as equipment_serial,
+            eqm.name COLLATE utf8mb4_unicode_ci as equipment_model,
+            tech.username COLLATE utf8mb4_unicode_ci as technician_username,
+            tech.username COLLATE utf8mb4_unicode_ci as technician_name,
+            cl.name COLLATE utf8mb4_unicode_ci as client_name,
+            loc.name COLLATE utf8mb4_unicode_ci as location_name
+        FROM Tickets t
+        LEFT JOIN Equipment eq ON t.equipment_id = eq.id
+        LEFT JOIN EquipmentModels eqm ON eq.model_id = eqm.id
+        LEFT JOIN Users tech ON t.assigned_technician_id = tech.id
+        LEFT JOIN Clients cl ON t.client_id = cl.id
+        LEFT JOIN Locations loc ON t.location_id = loc.id
+        WHERE t.due_date IS NOT NULL
+        AND t.status NOT IN ('Cerrado', 'Resuelto')
+        
+        ORDER BY scheduled_date DESC, scheduled_time ASC
     `;
+
     
     db.all(sql, [], (err, rows) => {
         if (err) {
@@ -646,17 +703,24 @@ app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
             return;
         }
         
-        console.log('✅ Maintenance tasks found:', rows.length, 'items');
+        // Separar conteos para logging
+        const taskCount = rows.filter(r => r.source_type === 'task').length;
+        const ticketCount = rows.filter(r => r.source_type === 'ticket').length;
+        
+        console.log(`✅ Planificador: ${taskCount} tareas + ${ticketCount} tickets = ${rows.length} total`);
         res.json({ 
             message: 'success',
             data: rows,
             metadata: {
                 total: rows.length,
+                tasks: taskCount,
+                tickets: ticketCount,
                 timestamp: new Date().toISOString()
             }
         });
     });
 });
+
 
 // POST create new maintenance task
 app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
@@ -1074,123 +1138,80 @@ app.put("/api/clients/:id", authenticateToken, (req, res) => {
     });
 });
 
-app.delete("/api/clients/:id", authenticateToken, (req, res) => {
+app.delete("/api/clients/:id", authenticateToken, async (req, res) => {
     const clientId = req.params.id;
     console.log(`🗑️ Iniciando eliminación en cascada para cliente ID: ${clientId}`);
     
-    db.serialize(() => {
-        db.run("BEGIN TRANSACTION", (err) => {
-            if (err) {
-                console.error("❌ Error al iniciar transacción:", err);
-                return res.status(500).json({"error": "Error al iniciar transacción: " + err.message});
-            }
-            
-            console.log("📋 Paso 1: Eliminando fotos de equipos...");
-            const deleteEquipmentPhotosSQL = `
-                DELETE FROM EquipmentPhotos 
-                WHERE equipment_id IN (
-                    SELECT e.id FROM Equipment e 
-                    JOIN Locations l ON e.location_id = l.id 
-                    WHERE l.client_id = ?
-                )
-            `;
-            
-            db.run(deleteEquipmentPhotosSQL, [clientId], function(err) {
-                if (err) {
-                    console.error("❌ Error eliminando fotos de equipos:", err);
-                    return db.run("ROLLBACK", () => {
-                        res.status(500).json({"error": "Error eliminando fotos de equipos: " + err.message});
-                    });
-                }
-                console.log(`✅ Eliminadas ${this.changes} fotos de equipos`);
-                
-                console.log("🎫 Paso 2: Eliminando tickets...");
-                const deleteTicketsSQL = `
-                    DELETE FROM Tickets 
-                    WHERE equipment_id IN (
-                        SELECT e.id FROM Equipment e 
-                        JOIN Locations l ON e.location_id = l.id 
-                        WHERE l.client_id = ?
-                    )
-                `;
-                
-                db.run(deleteTicketsSQL, [clientId], function(err) {
-                    if (err) {
-                        console.error("❌ Error eliminando tickets:", err);
-                        return db.run("ROLLBACK", () => {
-                            res.status(500).json({"error": "Error eliminando tickets: " + err.message});
-                        });
-                    }
-                    console.log(`✅ Eliminados ${this.changes} tickets`);
-                    
-                    console.log("🔧 Paso 3: Eliminando equipos...");
-                    const deleteEquipmentSQL = `
-                        DELETE FROM Equipment 
-                        WHERE location_id IN (
-                            SELECT id FROM Locations WHERE client_id = ?
-                        )
-                    `;
-                    
-                    db.run(deleteEquipmentSQL, [clientId], function(err) {
-                        if (err) {
-                            console.error("❌ Error eliminando equipos:", err);
-                            return db.run("ROLLBACK", () => {
-                                res.status(500).json({"error": "Error eliminando equipos: " + err.message});
-                            });
-                        }
-                        console.log(`✅ Eliminados ${this.changes} equipos`);
-                        
-                        console.log("🏢 Paso 4: Eliminando sedes...");
-                        const deleteLocationsSQL = 'DELETE FROM Locations WHERE client_id = ?';
-                        
-                        db.run(deleteLocationsSQL, [clientId], function(err) {
-                            if (err) {
-                                console.error("❌ Error eliminando sedes:", err);
-                                return db.run("ROLLBACK", () => {
-                                    res.status(500).json({"error": "Error eliminando sedes: " + err.message});
-                                });
-                            }
-                            console.log(`✅ Eliminadas ${this.changes} sedes`);
-                            
-                            console.log("👤 Paso 5: Eliminando cliente...");
-                            const deleteClientSQL = 'DELETE FROM Clients WHERE id = ?';
-                            
-                            db.run(deleteClientSQL, [clientId], function(err) {
-                                if (err) {
-                                    console.error("❌ Error eliminando cliente:", err);
-                                    return db.run("ROLLBACK", () => {
-                                        res.status(500).json({"error": "Error eliminando cliente: " + err.message});
-                                    });
-                                }
-                                
-                                if (this.changes === 0) {
-                                    console.log("⚠️ Cliente no encontrado");
-                                    return db.run("ROLLBACK", () => {
-                                        res.status(404).json({"error": "Cliente no encontrado"});
-                                    });
-                                }
-                                
-                                console.log("✅ Cliente eliminado exitosamente");
-                                db.run("COMMIT", (err) => {
-                                    if (err) {
-                                        console.error("❌ Error al confirmar transacción:", err);
-                                        return res.status(500).json({"error": "Error al confirmar eliminación: " + err.message});
-                                    }
-                                    
-                                    console.log("🎉 Eliminación en cascada completada exitosamente");
-                                    res.json({
-                                        "message": "Cliente y todos sus datos relacionados eliminados exitosamente",
-                                        "clientId": clientId,
-                                        "changes": this.changes
-                                    });
-                                });
-                            });
-                        });
-                    });
-                });
-            });
+    try {
+        // Paso 1: Eliminar fotos de equipos
+        console.log("📋 Paso 1: Eliminando fotos de equipos...");
+        const deleteEquipmentPhotosSQL = `
+            DELETE FROM EquipmentPhotos 
+            WHERE equipment_id IN (
+                SELECT e.id FROM Equipment e 
+                JOIN Locations l ON e.location_id = l.id 
+                WHERE l.client_id = ?
+            )
+        `;
+        await db.runAsync(deleteEquipmentPhotosSQL, [clientId]);
+        console.log("✅ Fotos de equipos eliminadas");
+        
+        // Paso 2: Eliminar notas de equipos
+        console.log("📝 Paso 2: Eliminando notas de equipos...");
+        const deleteEquipmentNotesSQL = `
+            DELETE FROM EquipmentNotes 
+            WHERE equipment_id IN (
+                SELECT e.id FROM Equipment e 
+                JOIN Locations l ON e.location_id = l.id 
+                WHERE l.client_id = ?
+            )
+        `;
+        await db.runAsync(deleteEquipmentNotesSQL, [clientId]);
+        console.log("✅ Notas de equipos eliminadas");
+        
+        // Paso 3: Eliminar tickets relacionados con el cliente
+        console.log("🎫 Paso 3: Eliminando tickets...");
+        const deleteTicketsSQL = 'DELETE FROM Tickets WHERE client_id = ?';
+        await db.runAsync(deleteTicketsSQL, [clientId]);
+        console.log("✅ Tickets eliminados");
+        
+        // Paso 4: Eliminar equipos
+        console.log("🔧 Paso 4: Eliminando equipos...");
+        const deleteEquipmentSQL = `
+            DELETE FROM Equipment 
+            WHERE location_id IN (
+                SELECT id FROM Locations WHERE client_id = ?
+            )
+        `;
+        await db.runAsync(deleteEquipmentSQL, [clientId]);
+        console.log("✅ Equipos eliminados");
+        
+        // Paso 5: Eliminar sedes
+        console.log("🏢 Paso 5: Eliminando sedes...");
+        const deleteLocationsSQL = 'DELETE FROM Locations WHERE client_id = ?';
+        await db.runAsync(deleteLocationsSQL, [clientId]);
+        console.log("✅ Sedes eliminadas");
+        
+        // Paso 6: Eliminar cliente
+        console.log("👤 Paso 6: Eliminando cliente...");
+        const deleteClientSQL = 'DELETE FROM Clients WHERE id = ?';
+        const result = await db.runAsync(deleteClientSQL, [clientId]);
+        
+        if (result.affectedRows === 0) {
+            console.log("⚠️ Cliente no encontrado");
+            return res.status(404).json({"error": "Cliente no encontrado"});
+        }
+        
+        console.log("🎉 Eliminación en cascada completada exitosamente");
+        res.json({
+            "message": "Cliente y todos sus datos relacionados eliminados exitosamente",
+            "clientId": clientId
         });
-    });
+        
+    } catch (err) {
+        console.error("❌ Error en eliminación en cascada:", err.message);
+        res.status(500).json({"error": "Error al eliminar cliente: " + err.message});
+    }
 });
 
 // ===================================================================
@@ -1484,7 +1505,7 @@ try {
 // PAYROLL SYSTEM - Sistema de N�mina Chile
 try {
     const payrollRoutes = require('./routes/payroll-chile');
-    app.use('/api', payrollRoutes);
+    // app.use('/api', payrollRoutes); // Disabled: routes initialized via function call later
     console.log('? Payroll Routes loaded: Sistema de N�mina Chile con c�lculos autom�ticos');
 } catch (error) {
     console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
@@ -1845,9 +1866,20 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
         return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
     }
 
+    // Convertir due_date de formato ISO a formato MySQL si existe
+    let formattedDueDate = null;
+    if (due_date) {
+        try {
+            formattedDueDate = toMySQLDateTime(new Date(due_date));
+        } catch (e) {
+            console.warn('⚠️ Error parseando due_date, usando valor original:', due_date);
+            formattedDueDate = due_date;
+        }
+    }
+
     const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, ticket_type, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
-    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto', 'individual'];
+    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, formattedDueDate, 'Abierto', 'individual'];
     
     db.run(sql, params, function(err) {
         if (err) {
@@ -1915,6 +1947,17 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
         return res.status(400).json({ error: "Título, Cliente, Prioridad y Estado son campos obligatorios." });
     }
 
+    // Convertir due_date de formato ISO a formato MySQL si existe
+    let formattedDueDate = null;
+    if (due_date) {
+        try {
+            formattedDueDate = toMySQLDateTime(new Date(due_date));
+        } catch (e) {
+            console.warn('⚠️ Error parseando due_date, usando valor original:', due_date);
+            formattedDueDate = due_date;
+        }
+    }
+
     const sql = `UPDATE Tickets SET
                     client_id = ?,
                     location_id = ?,
@@ -1927,7 +1970,7 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
                     updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?`;
                  
-    const params = [client_id, location_id, equipment_id, title, description, status, priority, due_date, req.params.id];
+    const params = [client_id, location_id, equipment_id, title, description, status, priority, formattedDueDate, req.params.id];
 
     db.run(sql, params, function(err) {
         if (err) {
@@ -2513,7 +2556,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
         const params = [
             parseInt(location_id, 10),
             parseInt(model_id, 10),
-            customIdValue,
+            customIdValue || null,  // Convertir cadena vacía a null
             serial_number || null,
             acquisition_date || null,
             notes || null
@@ -2525,9 +2568,17 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
                 
                 // Manejo de errores específicos
                 if (err.message.includes('UNIQUE') || err.code === 'ER_DUP_ENTRY') {
+                    // Determinar qué campo causó el duplicado
+                    let fieldName = 'custom_id o serial_number';
+                    if (err.message.includes('serial_number')) {
+                        fieldName = 'número de serie (serial_number)';
+                    } else if (err.message.includes('custom_id')) {
+                        fieldName = 'ID personalizado (custom_id)';
+                    }
                     return res.status(409).json({ 
-                        error: 'Ya existe un equipo con ese custom_id o serial_number',
-                        code: 'DUPLICATE_EQUIPMENT'
+                        error: `Ya existe un equipo con ese ${fieldName}`,
+                        code: 'DUPLICATE_EQUIPMENT',
+                        field: fieldName
                     });
                 }
                 
@@ -2580,16 +2631,17 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
     
     // Si no hay custom_id, generar uno automáticamente
     if (!finalCustomId) {
-        // Buscar el último custom_id de la ubicación para generar el siguiente
+        // Buscar el último custom_id GLOBAL (no por ubicación) para evitar duplicados
+        // ya que custom_id tiene restricción UNIQUE global
         const findMaxSql = `
             SELECT custom_id 
             FROM Equipment 
-            WHERE location_id = ? AND custom_id LIKE 'CARD-%'
+            WHERE custom_id LIKE 'CARD-%'
             ORDER BY CAST(SUBSTRING(custom_id, 6) AS UNSIGNED) DESC 
             LIMIT 1
         `;
         
-        db.get(findMaxSql, [location_id], (err, row) => {
+        db.get(findMaxSql, [], (err, row) => {
             if (err) {
                 console.error('❌ Error buscando último custom_id:', err.message);
                 return res.status(500).json({ 
@@ -2607,7 +2659,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
             }
             
             finalCustomId = `CARD-${nextNumber}`;
-            console.log(`🔢 Custom ID generado automáticamente: ${finalCustomId}`);
+            console.log(`🔢 Custom ID generado automáticamente (global): ${finalCustomId}`);
             insertEquipment(finalCustomId);
         });
     } else {
@@ -2719,7 +2771,57 @@ app.put('/api/equipment/:id', authenticateToken, (req, res) => {
     });
 });
 
-// DELETE note from equipment
+// DELETE eliminar equipo
+app.delete('/api/equipment/:id', authenticateToken, (req, res) => {
+    const { id } = req.params;
+    
+    console.log(`🗑️ Eliminando equipo ID: ${id}`);
+    
+    // Primero eliminar datos relacionados (fotos, notas)
+    const deletePhotosSql = 'DELETE FROM EquipmentPhotos WHERE equipment_id = ?';
+    const deleteNotesSql = 'DELETE FROM EquipmentNotes WHERE equipment_id = ?';
+    const deleteEquipmentSql = 'DELETE FROM Equipment WHERE id = ?';
+    
+    // Eliminar fotos
+    db.run(deletePhotosSql, [id], function(err) {
+        if (err) {
+            console.error('⚠️ Error eliminando fotos del equipo:', err.message);
+            // Continuar de todos modos
+        }
+        
+        // Eliminar notas
+        db.run(deleteNotesSql, [id], function(err) {
+            if (err) {
+                console.error('⚠️ Error eliminando notas del equipo:', err.message);
+                // Continuar de todos modos
+            }
+            
+            // Eliminar el equipo
+            db.run(deleteEquipmentSql, [id], function(err) {
+                if (err) {
+                    console.error('❌ Error eliminando equipo:', err.message);
+                    return res.status(500).json({ 
+                        error: 'Error al eliminar equipo: ' + err.message,
+                        code: 'EQUIPMENT_DELETE_ERROR'
+                    });
+                }
+                
+                if (this.changes === 0) {
+                    return res.status(404).json({ 
+                        error: 'Equipo no encontrado',
+                        code: 'EQUIPMENT_NOT_FOUND'
+                    });
+                }
+                
+                console.log(`✅ Equipo ${id} eliminado exitosamente`);
+                res.json({
+                    message: 'Equipo eliminado exitosamente',
+                    changes: this.changes
+                });
+            });
+        });
+    });
+});
 app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
     const { noteId } = req.params;
     
@@ -4507,7 +4609,7 @@ app.get('/api/dashboard/contracts-sla-summary', authenticateToken, (req, res) =>
             db.all(`
                 SELECT 
                     c.id,
-                    c.contract_number,
+                    c.id as contract_number,
                     c.start_date,
                     c.end_date,
                     DATEDIFF(c.end_date, CURDATE()) as days_remaining,
@@ -4632,7 +4734,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
             db.all(`
                 SELECT 
                     c.id,
-                    c.contract_number,
+                    c.id as contract_number,
                     c.end_date,
                     DATEDIFF(c.end_date, CURDATE()) as days_remaining,
                     cl.name as client_name
@@ -6131,11 +6233,9 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     let sql = `
         SELECT 
             q.*,
-            c.name as client_name,
-            u.username as created_by_name
+            c.name as client_name
         FROM Quotes q
         LEFT JOIN Clients c ON q.client_id = c.id
-        LEFT JOIN Users u ON q.created_by = u.id
         WHERE 1=1
     `;
     
@@ -6152,12 +6252,12 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     }
     
     if (date_from) {
-        sql += ` AND q.created_date >= ?`;
+        sql += ` AND q.created_at >= ?`;
         params.push(date_from);
     }
     
     if (date_to) {
-        sql += ` AND q.created_date <= ?`;
+        sql += ` AND q.created_at <= ?`;
         params.push(date_to);
     }
     
@@ -6382,11 +6482,9 @@ app.get('/api/quotes/:id', authenticateToken, (req, res) => {
             q.*,
             c.name as client_name,
             c.email as client_email,
-            c.phone as client_phone,
-            u.username as created_by_name
+            c.phone as client_phone
         FROM Quotes q
         LEFT JOIN Clients c ON q.client_id = c.id
-        LEFT JOIN Users u ON q.created_by = u.id
         WHERE q.id = ?
     `;
     
@@ -6437,11 +6535,9 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     let sql = `
         SELECT 
             i.*,
-            c.name as client_name,
-            u.username as created_by_name
+            c.name as client_name
         FROM Invoices i
         LEFT JOIN Clients c ON i.client_id = c.id
-        LEFT JOIN Users u ON i.created_by = u.id
         WHERE 1=1
     `;
     
@@ -6458,12 +6554,12 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     }
     
     if (date_from) {
-        sql += ` AND i.invoice_date >= ?`;
+        sql += ` AND i.created_at >= ?`;
         params.push(date_from);
     }
     
     if (date_to) {
-        sql += ` AND i.invoice_date <= ?`;
+        sql += ` AND i.created_at <= ?`;
         params.push(date_to);
     }
     
@@ -9261,9 +9357,9 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
     console.log('📄 Solicitando datos para informe del ticket ' + ticketId);
     
     const queries = {
-        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.type as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_to = u.id WHERE t.id = ?',
-        comments: 'SELECT tc.*, u.username as author_name FROM TicketComments tc LEFT JOIN Users u ON tc.user_id = u.id WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
-        photos: 'SELECT id, photo_base64, uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY uploaded_at ASC'
+        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.category as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_technician_id = u.id WHERE t.id = ?',
+        comments: 'SELECT tc.id, tc.ticket_id, tc.note AS comment_text, tc.author AS author_name, tc.created_at FROM TicketNotes tc WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
+        photos: 'SELECT id, photo_data AS photo_base64, created_at AS uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at ASC'
     };
     
     Promise.all([
@@ -9284,13 +9380,13 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
 
 // Registrar informe generado
 app.post('/api/informes', authenticateToken, (req, res) => {
-    const { ticket_id, filename, notas_adicionales, client_email } = req.body;
-    const sql = 'INSERT INTO InformesTecnicos (ticket_id, filename, generated_by, notas_adicionales, client_email) VALUES (?, ?, ?, ?, ?)';
+    const { ticket_id, diagnosis, solution, recommendations } = req.body;
+    const sql = 'INSERT INTO InformesTecnicos (ticket_id, technician_id, diagnosis, solution, recommendations) VALUES (?, ?, ?, ?, ?)';
     
-    db.run(sql, [ticket_id, filename, req.user.id, notas_adicionales, client_email], function(err) {
+    db.run(sql, [ticket_id, req.user.id, diagnosis || null, solution || null, recommendations || null], function(err) {
         if (err) return res.status(500).json({ message: 'error', error: err.message });
         console.log('✅ Informe registrado: ' + this.lastID);
-        res.json({ message: 'success', data: { id: this.lastID, ticket_id, filename } });
+        res.json({ message: 'success', data: { id: this.lastID, ticket_id } });
     });
 });
 

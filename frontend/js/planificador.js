@@ -64,8 +64,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Procesar datos para el frontend
                 const tasks = (result.data || []).map(task => ({
                     ...task,
-                    // Asegurar formato de fecha consistente
-                    scheduled_date: task.scheduled_date ? new Date(task.scheduled_date).toISOString().split('T')[0] : null,
+                    // Usar fecha directamente si ya viene como string YYYY-MM-DD
+                    // Evita problemas de timezone con new Date() que interpreta como UTC
+                    scheduled_date: task.scheduled_date 
+                        ? (typeof task.scheduled_date === 'string' && task.scheduled_date.match(/^\d{4}-\d{2}-\d{2}$/)
+                            ? task.scheduled_date  // Ya está en formato correcto
+                            : task.scheduled_date.split('T')[0])  // Extraer solo la fecha
+                        : null,
                     // Mapear campos legacy si es necesario
                     equipment_name: task.equipment_name || 'Sin especificar',
                     technician_name: task.technician_name || 'Sin asignar'
@@ -431,7 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (view === 'month') {
                 elements.calendarView.classList.remove('hidden');
                 elements.tasksView.classList.add('hidden');
-                ui.renderCalendar();
+                ui.updateCalendar();
                 console.log('✅ Vista mensual activada');
             } else if (view === 'week') {
                 elements.calendarView.classList.remove('hidden');

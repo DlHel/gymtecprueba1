@@ -77,7 +77,9 @@ window.PERMISSIONS = {
         const pageConfig = this.pages[page];
         if (!pageConfig) return true; // Si no está configurado, permitir acceso
         
-        return pageConfig.roles.includes(userRole);
+        // Comparación case-insensitive
+        const normalizedUserRole = userRole.toLowerCase();
+        return pageConfig.roles.some(role => role.toLowerCase() === normalizedUserRole);
     },
 
     /**

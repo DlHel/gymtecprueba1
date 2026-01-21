@@ -1,69 +1,185 @@
-# Gymtec ERP - Cursor AI Rules
-# Proyecto: Sistema ERP para Gimnasios
+# Gymtec ERP - AI Coding Rules
+# Para: Cursor AI, Claude, Gemini, Copilot
+# Última actualización: Enero 2026
 
 ## 🚨 REGLAS CRÍTICAS (OBLIGATORIAS)
-1. **Idioma**: Responder SIEMPRE en español.
-2. **No Frameworks**: El frontend es 100% JavaScript Vanilla. NO sugerir React, Vue, etc.
-3. **Validación**: Validar siempre datos en frontend y backend.
-4. **Async/Await**: Usar SIEMPRE `async/await`, nunca callbacks ni `.then()`.
-5. **Manejo de Errores**: Bloques `try-catch` en todas las operaciones asíncronas.
-6. **Interfaz de Usuario**: Todo texto visible en la UI debe estar en español.
 
-## 🛠️ Estándares Modernos (2024)
-- **Variables**: `const` por defecto, `let` solo si es necesario. NUNCA `var`.
-- **Funciones**: Arrow functions `() => {}` para callbacks y métodos cortos.
-- **Strings**: Template literals \`\` para concatenación.
-- **Objetos**: Destructuring y Spread operator `...` para manipulación de datos.
-- **Módulos**: `import/export` (ES Modules) donde sea posible, o `require` en backend Node.js.
+### 1. Idioma y Comunicación
+- Responder SIEMPRE en español
+- Todo texto visible en UI debe estar en español
+- Comentarios de código pueden ser en inglés o español
 
-## 🏗️ Arquitectura del Proyecto
-### Backend (Node.js + Express)
-- **MVC Modular**: Controladores, Modelos (DB), Rutas.
-- **Base de Datos**: MySQL2 con Connection Pool.
-- **Seguridad**: Validar inputs, sanitizar SQL, manejar errores globalmente.
+### 2. Testing Obligatorio
+- **EJECUTAR `npm test` después de CUALQUIER cambio en backend/**
+- Si algún test falla, CORREGIR antes de continuar
+- Los tests validan que los endpoints funcionan contra el VPS real
 
-### Base de Datos (MySQL)
-- **Nombres de Tablas**: SIEMPRE usar `PascalCase` (ej: `Tickets`, `EquipmentNotes`, `TicketPhotos`).
-- **Consistencia**: Las queries SQL deben usar exactamente el mismo case que las tablas.
-- **Evitar Duplicados**: No crear tablas con nombres similares en diferente case (ej: `tickets` vs `Tickets`).
+### 3. Verificar Schema Antes de Queries
+- **LEER CLAUDE.md** antes de escribir queries SQL
+- La BD del VPS tiene diferencias con el código local
+- Columnas que NO existen en VPS:
+  - `spare_part_requests.spare_part_name` → usar JOIN con Inventory
+  - `spare_part_requests.quantity_needed` → usar `quantity`
+  - `spare_part_requests.purchase_order_id` → NO existe
+  - `Inventory.category_id` → usar `category` (VARCHAR)
 
-### Frontend (Vanilla JS)
-- **Modularidad**: Un archivo JS por página/módulo.
-- **DOM**: `querySelector`, `addEventListener`, manipulación directa eficiente.
-- **API**: `fetch` con manejo de errores centralizado.
+### 4. Flujo de Deploy
+1. Modificar código localmente
+2. Ejecutar `npm test` (backend/)
+3. Si pasan tests, subir con `scp` al VPS
+4. Reiniciar con `pm2 restart gymtec-backend`
+5. Verificar logs con `pm2 logs`
 
-## 📂 Estructura de Archivos
-- `backend/src/`: Código fuente del servidor.
-- `backend/database/`: Scripts SQL y migraciones.
-- `frontend/js/`: Lógica del cliente (módulos).
-- `frontend/css/`: Estilos (Vanilla CSS + Tailwind si aplica).
+## 🛠️ Stack Técnico
 
-## 💡 Patrones Comunes
-### Consulta SQL Segura
-```javascript
-const [rows] = await db.execute('SELECT * FROM users WHERE id = ?', [userId]);
+| Componente | Tecnología |
+|------------|------------|
+| Frontend | HTML + JavaScript Vanilla + TailwindCSS |
+| Backend | Node.js + Express (server-clean.js) |
+| Base de Datos | MySQL 8 |
+| VPS | 91.107.237.159 |
+| Testing | Jest + Supertest |
+
+## 📦 Estándares de Código
+
+### JavaScript
+- Variables: `const` por defecto, `let` solo si muta
+- NUNCA usar `var`
+- SIEMPRE usar `async/await`, nunca callbacks
+- SIEMPRE usar `try-catch` en operaciones async
+- Arrow functions para callbacks: `() => {}`
+- Template literals para strings: \`texto ${variable}\`
+
+### SQL
+- Nombres de tablas: `PascalCase` (Tickets, Equipment)
+- Usar queries parametrizadas: `'SELECT * FROM x WHERE id = ?', [id]`
+- NUNCA concatenar strings en queries SQL
+
+### Frontend
+- JavaScript Vanilla únicamente
+- NO sugerir React, Vue, Angular, etc.
+- Usar `querySelector`, `addEventListener`
+- Fetch con `authenticatedFetch()` de auth.js
+
+## 🔧 Comandos Útiles
+
+```bash
+# Tests (obligatorio después de cambios)
+cd backend && npm test
+
+# Logs del VPS
+ssh root@91.107.237.159 "pm2 logs gymtec-backend --err --lines 30 --nostream"
+
+# Reiniciar VPS
+ssh root@91.107.237.159 "pm2 restart gymtec-backend"
+
+# Subir archivo
+scp archivo.js root@91.107.237.159:/var/www/gymtec/backend/src/
 ```
 
-### Fetch Wrapper
-```javascript
-async function apiCall(url, options = {}) {
-  try {
-    const res = await fetch(url, options);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (err) {
-    console.error('API Error:', err);
-    throw err;
-  }
-}
-```
+## 📂 Archivos Importantes
 
-## 📝 Nomenclatura
-- **Variables/Funciones**: `camelCase` (ej: `getUserData`)
-- **Clases/Componentes**: `PascalCase` (ej: `UserController`)
-- **Constantes**: `UPPER_SNAKE_CASE` (ej: `MAX_RETRY_COUNT`)
-- **Archivos**: `kebab-case` (ej: `user-controller.js`)
+| Archivo | Descripción |
+|---------|-------------|
+| `backend/src/server-clean.js` | Servidor principal (~9500 líneas) |
+| `backend/src/routes/inventory.js` | API de inventario |
+| `backend/src/routes/purchase-orders.js` | API de órdenes de compra |
+| `backend/src/db-adapter.js` | Conexión MySQL |
+| `backend/tests/*.test.js` | Tests automatizados |
+| `CLAUDE.md` | Contexto completo del proyecto |
 
 ## 🤖 Preferencias de Flujo
-- **Autonomía**: Ejecutar tareas proactivamente sin pedir confirmación constante.
-- **GitHub**: NUNCA realizar operaciones de respaldo (commit/push) sin autorización explícita.
+
+- **Autonomía**: Ejecutar tareas proactivamente
+- **Tests**: OBLIGATORIO ejecutar después de cambios
+- **Verificación**: Revisar logs del VPS después de deploy
+- **GitHub**: NUNCA commit/push sin autorización explícita
+
+## 📝 Nomenclatura
+
+- Variables/Funciones: `camelCase`
+- Clases: `PascalCase`
+- Constantes: `UPPER_SNAKE_CASE`
+- Archivos: `kebab-case.js`
+- Tablas SQL: `PascalCase`
+
+## 🔒 ARQUITECTURA MODULAR (REGLAS ANTI-FALLO)
+
+### Principio Fundamental
+**Cambios en un módulo NO PUEDEN romper otro módulo.**
+
+### Estructura de Módulos
+```
+backend/src/modules/
+├── tickets/           # Solo código de tickets
+├── planning/          # Solo código del planificador
+├── inventory/         # Solo código de inventario
+├── finance/           # Solo código financiero
+└── ...
+```
+
+### Regla 1: Sin Imports Cruzados
+```javascript
+// ❌ PROHIBIDO: Un módulo importa de otro
+const { getTicket } = require('../tickets/tickets.service');
+
+// ✅ CORRECTO: Cada módulo hace sus propias queries
+const ticket = await db.get('SELECT * FROM Tickets WHERE id = ?', [id]);
+```
+
+### Regla 2: Configuración Centralizada
+```javascript
+// ❌ PROHIBIDO: Definir secretos localmente
+const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto';
+
+// ✅ CORRECTO: Importar del core
+const { JWT_SECRET } = require('../../core/config/env');
+```
+
+### Regla 3: Middleware Compartido desde Core
+```javascript
+// ❌ PROHIBIDO: Copiar authenticateToken en cada archivo
+function authenticateToken(req, res, next) { ... }
+
+// ✅ CORRECTO: Importar del core
+const { authenticateToken } = require('../../core/middleware/auth.middleware');
+```
+
+### Regla 4: Eventos para Comunicación
+```javascript
+// ❌ PROHIBIDO: Llamar directamente a otro módulo
+triggerNotificationProcessing('create', ticketId);
+
+// ✅ CORRECTO: Emitir evento
+eventBus.emit('TICKET_CREATED', { ticketId });
+```
+
+### Regla 5: Try/Catch Obligatorio
+```javascript
+// ❌ PROHIBIDO: Endpoints sin manejo de errores
+router.get('/', async (req, res) => {
+  const data = await service.getAll(); // Si falla, tumba todo
+  res.json(data);
+});
+
+// ✅ CORRECTO: Errores contenidos
+router.get('/', async (req, res, next) => {
+  try {
+    const data = await service.getAll();
+    res.json({ message: 'success', data });
+  } catch (error) {
+    next(error); // Pasa al error handler global
+  }
+});
+```
+
+### Antes de Modificar Cualquier Módulo
+1. **Verificar que NO importas de otro módulo**
+2. **Verificar que NO modificas archivos fuera de tu módulo**
+3. **Ejecutar tests del módulo específico**
+4. **Ejecutar tests de integración**
+
+### Archivos que NUNCA Debes Modificar Sin Autorización
+- `core/config/env.js` - Configuración global
+- `core/middleware/auth.middleware.js` - Autenticación
+- `server.js` - Entry point
