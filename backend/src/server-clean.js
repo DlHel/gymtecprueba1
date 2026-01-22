@@ -19,11 +19,6 @@ const db = dbAdapter;
 // Servicios de Autenticación
 const AuthService = require('./services/authService');
 
-// Router imports
-const purchaseOrdersRoutes = require('./routes/purchase-orders');
-const inventoryRoutes = require('./routes/inventory'); // Ensure this is mounted too just in case
-const planningRoutes = require('./modules/planning/planning.routes'); // ✅ NUEVO: Módulo planificador
-
 // Sistema de Notificaciones
 const { triggerNotificationProcessing } = require('../notification-hooks');
 
@@ -68,29 +63,8 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware básico
 app.use(cors());
-
-// Helper para detectar peticiones multipart (file uploads)
-const isMultipart = (req) => {
-    const ct = req.headers['content-type'];
-    return ct && (ct.includes('multipart/form-data') || ct.includes('application/octet-stream'));
-};
-
-// Middleware JSON condicionado - ignora multipart para permitir multer
-app.use((req, res, next) => {
-    if (isMultipart(req)) return next();
-    express.json({ limit: '50mb' })(req, res, next);
-});
-
-// Middleware urlencoded condicionado - ignora multipart para permitir multer  
-app.use((req, res, next) => {
-    if (isMultipart(req)) return next();
-    express.urlencoded({ limit: '50mb', extended: true })(req, res, next);
-});
-
-// Rutas de API
-app.use('/api/purchase-orders', purchaseOrdersRoutes);
-app.use('/api/inventory', inventoryRoutes);
-app.use('/api/maintenance-tasks', planningRoutes); // ✅ NUEVO: Planificador con UNION corregida
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Archivos estáticos
 app.use(express.static(path.join(__dirname, '../../frontend')));
@@ -211,14 +185,11 @@ function requireRole(roles) {
         }
 
         const userRole = req.user.role;
-        const userRoleLower = userRole ? userRole.toLowerCase() : '';
         const hasPermission = roles.some(role => {
-            const roleLower = role.toLowerCase();
-            // Case-insensitive comparison
-            if (roleLower === 'admin') {
-                return userRoleLower === 'admin' || userRoleLower === 'administrador';
+            if (role === 'Admin') {
+                return userRole === 'Admin' || userRole === 'Administrador';
             }
-            return userRoleLower === roleLower;
+            return userRole === role;
         });
 
         if (!hasPermission) {
@@ -618,82 +589,44 @@ app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
     });
 });
 
-// GET all maintenance tasks (includes tickets with due_date)
+// GET all maintenance tasks
 app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
-    // Query combinada: MaintenanceTasks + Tickets con due_date
-    // NOTA: Se usa COLLATE para evitar error "Illegal mix of collations"
     const sql = `
         SELECT 
             mt.id,
-            'task' COLLATE utf8mb4_unicode_ci as source_type,
-            mt.title COLLATE utf8mb4_unicode_ci as title,
-            mt.description COLLATE utf8mb4_unicode_ci as description,
-            mt.type COLLATE utf8mb4_unicode_ci as type,
-            mt.status COLLATE utf8mb4_unicode_ci as status,
-            mt.priority COLLATE utf8mb4_unicode_ci as priority,
+            mt.title,
+            mt.description,
+            mt.type,
+            mt.status,
+            mt.priority,
             mt.scheduled_date,
             mt.scheduled_time,
             mt.estimated_duration,
             mt.actual_duration,
-            mt.notes COLLATE utf8mb4_unicode_ci as notes,
+            mt.notes,
             mt.is_preventive,
             mt.started_at,
             mt.completed_at,
             mt.created_at,
             mt.updated_at,
-            e.name COLLATE utf8mb4_unicode_ci as equipment_name,
-            e.serial_number COLLATE utf8mb4_unicode_ci as equipment_serial,
-            em.name COLLATE utf8mb4_unicode_ci as equipment_model,
-            u.username COLLATE utf8mb4_unicode_ci as technician_username,
-            u.username COLLATE utf8mb4_unicode_ci as technician_name,
-            c.name COLLATE utf8mb4_unicode_ci as client_name,
-            l.name COLLATE utf8mb4_unicode_ci as location_name
+            -- Equipment info
+            e.name as equipment_name,
+            e.serial_number as equipment_serial,
+            em.name as equipment_model,
+            -- Technician info
+            u.username as technician_username,
+            u.username as technician_name,
+            -- Client and location info
+            c.name as client_name,
+            l.name as location_name
         FROM MaintenanceTasks mt
         LEFT JOIN Equipment e ON mt.equipment_id = e.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
         LEFT JOIN Users u ON mt.technician_id = u.id
         LEFT JOIN Clients c ON mt.client_id = c.id
         LEFT JOIN Locations l ON mt.location_id = l.id
-        
-        UNION ALL
-        
-        SELECT 
-            t.id,
-            'ticket' COLLATE utf8mb4_unicode_ci as source_type,
-            t.title COLLATE utf8mb4_unicode_ci as title,
-            t.description COLLATE utf8mb4_unicode_ci as description,
-            'repair' COLLATE utf8mb4_unicode_ci as type,
-            t.status COLLATE utf8mb4_unicode_ci as status,
-            t.priority COLLATE utf8mb4_unicode_ci as priority,
-            DATE_FORMAT(t.due_date, '%Y-%m-%d') as scheduled_date,
-            DATE_FORMAT(t.due_date, '%H:%i:%s') as scheduled_time,
-            NULL as estimated_duration,
-            NULL as actual_duration,
-            NULL as notes,
-            0 as is_preventive,
-            NULL as started_at,
-            NULL as completed_at,
-            t.created_at,
-            t.updated_at,
-            eq.name COLLATE utf8mb4_unicode_ci as equipment_name,
-            eq.serial_number COLLATE utf8mb4_unicode_ci as equipment_serial,
-            eqm.name COLLATE utf8mb4_unicode_ci as equipment_model,
-            tech.username COLLATE utf8mb4_unicode_ci as technician_username,
-            tech.username COLLATE utf8mb4_unicode_ci as technician_name,
-            cl.name COLLATE utf8mb4_unicode_ci as client_name,
-            loc.name COLLATE utf8mb4_unicode_ci as location_name
-        FROM Tickets t
-        LEFT JOIN Equipment eq ON t.equipment_id = eq.id
-        LEFT JOIN EquipmentModels eqm ON eq.model_id = eqm.id
-        LEFT JOIN Users tech ON t.assigned_technician_id = tech.id
-        LEFT JOIN Clients cl ON t.client_id = cl.id
-        LEFT JOIN Locations loc ON t.location_id = loc.id
-        WHERE t.due_date IS NOT NULL
-        AND t.status NOT IN ('Cerrado', 'Resuelto')
-        
-        ORDER BY scheduled_date DESC, scheduled_time ASC
+        ORDER BY mt.scheduled_date DESC, mt.scheduled_time ASC
     `;
-
     
     db.all(sql, [], (err, rows) => {
         if (err) {
@@ -705,24 +638,17 @@ app.get('/api/maintenance-tasks', authenticateToken, (req, res) => {
             return;
         }
         
-        // Separar conteos para logging
-        const taskCount = rows.filter(r => r.source_type === 'task').length;
-        const ticketCount = rows.filter(r => r.source_type === 'ticket').length;
-        
-        console.log(`✅ Planificador: ${taskCount} tareas + ${ticketCount} tickets = ${rows.length} total`);
+        console.log('✅ Maintenance tasks found:', rows.length, 'items');
         res.json({ 
             message: 'success',
             data: rows,
             metadata: {
                 total: rows.length,
-                tasks: taskCount,
-                tickets: ticketCount,
                 timestamp: new Date().toISOString()
             }
         });
     });
 });
-
 
 // POST create new maintenance task
 app.post('/api/maintenance-tasks', authenticateToken, (req, res) => {
@@ -1140,80 +1066,123 @@ app.put("/api/clients/:id", authenticateToken, (req, res) => {
     });
 });
 
-app.delete("/api/clients/:id", authenticateToken, async (req, res) => {
+app.delete("/api/clients/:id", authenticateToken, (req, res) => {
     const clientId = req.params.id;
     console.log(`🗑️ Iniciando eliminación en cascada para cliente ID: ${clientId}`);
     
-    try {
-        // Paso 1: Eliminar fotos de equipos
-        console.log("📋 Paso 1: Eliminando fotos de equipos...");
-        const deleteEquipmentPhotosSQL = `
-            DELETE FROM EquipmentPhotos 
-            WHERE equipment_id IN (
-                SELECT e.id FROM Equipment e 
-                JOIN Locations l ON e.location_id = l.id 
-                WHERE l.client_id = ?
-            )
-        `;
-        await db.runAsync(deleteEquipmentPhotosSQL, [clientId]);
-        console.log("✅ Fotos de equipos eliminadas");
-        
-        // Paso 2: Eliminar notas de equipos
-        console.log("📝 Paso 2: Eliminando notas de equipos...");
-        const deleteEquipmentNotesSQL = `
-            DELETE FROM EquipmentNotes 
-            WHERE equipment_id IN (
-                SELECT e.id FROM Equipment e 
-                JOIN Locations l ON e.location_id = l.id 
-                WHERE l.client_id = ?
-            )
-        `;
-        await db.runAsync(deleteEquipmentNotesSQL, [clientId]);
-        console.log("✅ Notas de equipos eliminadas");
-        
-        // Paso 3: Eliminar tickets relacionados con el cliente
-        console.log("🎫 Paso 3: Eliminando tickets...");
-        const deleteTicketsSQL = 'DELETE FROM Tickets WHERE client_id = ?';
-        await db.runAsync(deleteTicketsSQL, [clientId]);
-        console.log("✅ Tickets eliminados");
-        
-        // Paso 4: Eliminar equipos
-        console.log("🔧 Paso 4: Eliminando equipos...");
-        const deleteEquipmentSQL = `
-            DELETE FROM Equipment 
-            WHERE location_id IN (
-                SELECT id FROM Locations WHERE client_id = ?
-            )
-        `;
-        await db.runAsync(deleteEquipmentSQL, [clientId]);
-        console.log("✅ Equipos eliminados");
-        
-        // Paso 5: Eliminar sedes
-        console.log("🏢 Paso 5: Eliminando sedes...");
-        const deleteLocationsSQL = 'DELETE FROM Locations WHERE client_id = ?';
-        await db.runAsync(deleteLocationsSQL, [clientId]);
-        console.log("✅ Sedes eliminadas");
-        
-        // Paso 6: Eliminar cliente
-        console.log("👤 Paso 6: Eliminando cliente...");
-        const deleteClientSQL = 'DELETE FROM Clients WHERE id = ?';
-        const result = await db.runAsync(deleteClientSQL, [clientId]);
-        
-        if (result.affectedRows === 0) {
-            console.log("⚠️ Cliente no encontrado");
-            return res.status(404).json({"error": "Cliente no encontrado"});
-        }
-        
-        console.log("🎉 Eliminación en cascada completada exitosamente");
-        res.json({
-            "message": "Cliente y todos sus datos relacionados eliminados exitosamente",
-            "clientId": clientId
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION", (err) => {
+            if (err) {
+                console.error("❌ Error al iniciar transacción:", err);
+                return res.status(500).json({"error": "Error al iniciar transacción: " + err.message});
+            }
+            
+            console.log("📋 Paso 1: Eliminando fotos de equipos...");
+            const deleteEquipmentPhotosSQL = `
+                DELETE FROM EquipmentPhotos 
+                WHERE equipment_id IN (
+                    SELECT e.id FROM Equipment e 
+                    JOIN Locations l ON e.location_id = l.id 
+                    WHERE l.client_id = ?
+                )
+            `;
+            
+            db.run(deleteEquipmentPhotosSQL, [clientId], function(err) {
+                if (err) {
+                    console.error("❌ Error eliminando fotos de equipos:", err);
+                    return db.run("ROLLBACK", () => {
+                        res.status(500).json({"error": "Error eliminando fotos de equipos: " + err.message});
+                    });
+                }
+                console.log(`✅ Eliminadas ${this.changes} fotos de equipos`);
+                
+                console.log("🎫 Paso 2: Eliminando tickets...");
+                const deleteTicketsSQL = `
+                    DELETE FROM Tickets 
+                    WHERE equipment_id IN (
+                        SELECT e.id FROM Equipment e 
+                        JOIN Locations l ON e.location_id = l.id 
+                        WHERE l.client_id = ?
+                    )
+                `;
+                
+                db.run(deleteTicketsSQL, [clientId], function(err) {
+                    if (err) {
+                        console.error("❌ Error eliminando tickets:", err);
+                        return db.run("ROLLBACK", () => {
+                            res.status(500).json({"error": "Error eliminando tickets: " + err.message});
+                        });
+                    }
+                    console.log(`✅ Eliminados ${this.changes} tickets`);
+                    
+                    console.log("🔧 Paso 3: Eliminando equipos...");
+                    const deleteEquipmentSQL = `
+                        DELETE FROM Equipment 
+                        WHERE location_id IN (
+                            SELECT id FROM Locations WHERE client_id = ?
+                        )
+                    `;
+                    
+                    db.run(deleteEquipmentSQL, [clientId], function(err) {
+                        if (err) {
+                            console.error("❌ Error eliminando equipos:", err);
+                            return db.run("ROLLBACK", () => {
+                                res.status(500).json({"error": "Error eliminando equipos: " + err.message});
+                            });
+                        }
+                        console.log(`✅ Eliminados ${this.changes} equipos`);
+                        
+                        console.log("🏢 Paso 4: Eliminando sedes...");
+                        const deleteLocationsSQL = 'DELETE FROM Locations WHERE client_id = ?';
+                        
+                        db.run(deleteLocationsSQL, [clientId], function(err) {
+                            if (err) {
+                                console.error("❌ Error eliminando sedes:", err);
+                                return db.run("ROLLBACK", () => {
+                                    res.status(500).json({"error": "Error eliminando sedes: " + err.message});
+                                });
+                            }
+                            console.log(`✅ Eliminadas ${this.changes} sedes`);
+                            
+                            console.log("👤 Paso 5: Eliminando cliente...");
+                            const deleteClientSQL = 'DELETE FROM Clients WHERE id = ?';
+                            
+                            db.run(deleteClientSQL, [clientId], function(err) {
+                                if (err) {
+                                    console.error("❌ Error eliminando cliente:", err);
+                                    return db.run("ROLLBACK", () => {
+                                        res.status(500).json({"error": "Error eliminando cliente: " + err.message});
+                                    });
+                                }
+                                
+                                if (this.changes === 0) {
+                                    console.log("⚠️ Cliente no encontrado");
+                                    return db.run("ROLLBACK", () => {
+                                        res.status(404).json({"error": "Cliente no encontrado"});
+                                    });
+                                }
+                                
+                                console.log("✅ Cliente eliminado exitosamente");
+                                db.run("COMMIT", (err) => {
+                                    if (err) {
+                                        console.error("❌ Error al confirmar transacción:", err);
+                                        return res.status(500).json({"error": "Error al confirmar eliminación: " + err.message});
+                                    }
+                                    
+                                    console.log("🎉 Eliminación en cascada completada exitosamente");
+                                    res.json({
+                                        "message": "Cliente y todos sus datos relacionados eliminados exitosamente",
+                                        "clientId": clientId,
+                                        "changes": this.changes
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+            });
         });
-        
-    } catch (err) {
-        console.error("❌ Error en eliminación en cascada:", err.message);
-        res.status(500).json({"error": "Error al eliminar cliente: " + err.message});
-    }
+    });
 });
 
 // ===================================================================
@@ -1401,28 +1370,36 @@ app.get('/api/equipment', authenticateToken, (req, res) => {
 // GET individual equipment by ID
 app.get('/api/equipment/:id', authenticateToken, (req, res) => {
     const { id } = req.params;
-    // Query sin JOIN a EquipmentModels (usar columnas directas de Equipment)
     const sql = `
         SELECT 
             e.id,
-            e.name,
             e.custom_id,
-            e.serial_number,
             e.location_id,
             e.model_id,
-            e.brand,
-            e.model,
-            e.type,
             e.acquisition_date,
             e.last_maintenance_date,
             e.notes,
             e.created_at,
             e.updated_at,
-            e.brand as model_brand,
-            e.model as model_name,
+            -- Mapear campos correctamente para el frontend
+            COALESCE(NULLIF(e.name, ''), em.name, 'Sin nombre') as name,
+            CASE 
+                WHEN e.custom_id LIKE 'CARD-%' THEN 'Cardio'
+                WHEN e.custom_id LIKE 'FUER-%' THEN 'Fuerza'
+                WHEN e.custom_id LIKE 'FUNC-%' THEN 'Funcional'
+                WHEN e.custom_id LIKE 'ACCE-%' THEN 'Accesorio'
+                ELSE COALESCE(NULLIF(e.type, ''), 'Sin categoría')
+            END as type,
+            COALESCE(NULLIF(e.brand, ''), em.brand, 'Sin marca') as brand,
+            COALESCE(NULLIF(e.model, ''), em.name, 'Sin modelo') as model,
+            COALESCE(NULLIF(e.serial_number, ''), 'No asignado') as serial_number,
+            -- Campos adicionales y referencias
+            em.name as model_name,
+            em.brand as model_brand,
             l.name as location_name,
             c.name as client_name
         FROM Equipment e
+        LEFT JOIN EquipmentModels em ON e.model_id = em.id
         LEFT JOIN Locations l ON e.location_id = l.id
         LEFT JOIN Clients c ON l.client_id = c.id
         WHERE e.id = ?
@@ -1448,7 +1425,7 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
         }
         
         console.log(`✅ Equipment ${id} found:`, row.name || row.type);
-        res.json(row);
+        res.json({ message: 'success', data: row });
     });
 });
 
@@ -1507,7 +1484,7 @@ try {
 // PAYROLL SYSTEM - Sistema de N�mina Chile
 try {
     const payrollRoutes = require('./routes/payroll-chile');
-    // app.use('/api', payrollRoutes); // Disabled: routes initialized via function call later
+    app.use('/api', payrollRoutes);
     console.log('? Payroll Routes loaded: Sistema de N�mina Chile con c�lculos autom�ticos');
 } catch (error) {
     console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
@@ -1515,10 +1492,10 @@ try {
 
 // FASE 3 ENHANCEMENTS - Sistema de Inventario Inteligente y Reportes
 try {
-    const inventoryRoutes = require('./routes/inventory');
+//     const inventoryRoutes = require('./routes/inventory');
     const purchaseOrdersRoutes = require('./routes/purchase-orders');
     
-    app.use('/api/inventory', inventoryRoutes);
+//     app.use('/api/inventory', inventoryRoutes);
     app.use('/api/purchase-orders', purchaseOrdersRoutes);
     
     console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
@@ -1535,7 +1512,7 @@ try {
 function logTicketChange(ticketId, fieldChanged, oldValue, newValue, changedBy = 'Sistema') {
     const sql = `INSERT INTO TicketHistory 
                  (ticket_id, field_changed, old_value, new_value, changed_by) 
-                 VALUES (?, ?, ?, ?, ?)`;
+                 VALUES (?, ?, ?, ?)`;
     const params = [ticketId, fieldChanged, oldValue, newValue, changedBy];
     
     db.run(sql, params, function(err) {
@@ -1651,8 +1628,7 @@ app.get('/api/tickets', authenticateToken, (req, res) => {
             c.name as client_name,
             l.name as location_name,
             e.name as equipment_name,
-            e.custom_id as equipment_custom_id,
-            COALESCE(t.ticket_type, 'individual') as ticket_type
+            e.custom_id as equipment_custom_id
         FROM Tickets t
         LEFT JOIN Clients c ON t.client_id = c.id
         LEFT JOIN Equipment e ON t.equipment_id = e.id
@@ -1787,8 +1763,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
             
             console.log(`📸 Encontradas ${photos ? photos.length : 0} fotos para ticket ${ticketId}`);
             
-            // Obtener notas del ticket (usar ticketnotes donde se guardan)
-            const notesSql = `SELECT * FROM ticketnotes WHERE ticket_id = ? ORDER BY created_at DESC`;
+            // Obtener notas del ticket (UPPERCASE para MySQL)
+            const notesSql = `SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at DESC`;
             
             db.all(notesSql, [ticketId], (notesErr, notes) => {
                 if (notesErr) {
@@ -1798,8 +1774,8 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                 
                 console.log(`📝 Encontradas ${notes ? notes.length : 0} notas para ticket ${ticketId}`);
                 
-                // Obtener checklist del ticket (usar ticketchecklists)
-                const checklistSql = `SELECT * FROM ticketchecklists WHERE ticket_id = ? ORDER BY created_at DESC`;
+                // Obtener checklist del ticket (UPPERCASE para MySQL)
+                const checklistSql = `SELECT * FROM TicketChecklist WHERE ticket_id = ? ORDER BY created_at DESC`;
                 
                 db.all(checklistSql, [ticketId], (checklistErr, checklist) => {
                     if (checklistErr) {
@@ -1809,54 +1785,34 @@ app.get('/api/tickets/:id/detail', authenticateToken, (req, res) => {
                     
                     console.log(`📋 Encontradas ${checklist ? checklist.length : 0} tareas de checklist para ticket ${ticketId}`);
                     
-                    // Obtener repuestos usados del ticket
-                    const sparePartsSql = `
-                        SELECT tsp.*, sp.name as spare_part_name, sp.sku as spare_part_sku
-                        FROM TicketSpareParts tsp
-                        LEFT JOIN SpareParts sp ON tsp.spare_part_id = sp.id
-                        WHERE tsp.ticket_id = ?
-                        ORDER BY tsp.used_at DESC
-                    `;
-                    
-                    db.all(sparePartsSql, [ticketId], (sparePartsErr, spareParts) => {
-                        if (sparePartsErr) {
-                            console.log('⚠️ Error obteniendo spare_parts (continuando sin repuestos):', sparePartsErr.message);
-                            spareParts = [];
+                    // Estructurar respuesta completa con TODOS los datos
+                    const detailedTicket = {
+                        ...ticket,
+                        photos: photos || [],
+                        notes: notes || [],
+                        checklist: checklist || [],
+                        activities: [], // Mantenemos actividades vacío por ahora
+                        metadata: {
+                            photos_count: photos ? photos.length : 0,
+                            notes_count: notes ? notes.length : 0,
+                            checklist_count: checklist ? checklist.length : 0,
+                            activities_count: 0,
+                            last_updated: ticket.updated_at,
+                            created_date: ticket.created_at
                         }
-                        
-                        console.log(`🔧 Encontrados ${spareParts ? spareParts.length : 0} repuestos para ticket ${ticketId}`);
+                    };
                     
-                        // Estructurar respuesta completa con TODOS los datos
-                        const detailedTicket = {
-                            ...ticket,
-                            photos: photos || [],
-                            notes: notes || [],
-                            checklist: checklist || [],
-                            spare_parts: spareParts || [], // ✅ NUEVO: Agregar repuestos
-                            activities: [], // Mantenemos actividades vacío por ahora
-                            metadata: {
-                                photos_count: photos ? photos.length : 0,
-                                notes_count: notes ? notes.length : 0,
-                                checklist_count: checklist ? checklist.length : 0,
-                                spare_parts_count: spareParts ? spareParts.length : 0,
-                                activities_count: 0,
-                                last_updated: ticket.updated_at,
-                                created_date: ticket.created_at
-                            }
-                        };
-                        
-                        console.log(`✅ Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}, Repuestos: ${detailedTicket.metadata.spare_parts_count}`);
-                        
-                        return res.json({
-                            success: true,
-                            message: "success", 
-                            data: detailedTicket
-                        });
-                    }); // cierre spare_parts callback
-                }); // cierre checklist callback
-            }); // cierre notes callback
-        }); // cierre photos callback
-    }); // cierre ticket callback
+                    console.log(`✅ Detalle completo del ticket ${ticketId} preparado - Fotos: ${detailedTicket.metadata.photos_count}, Notas: ${detailedTicket.metadata.notes_count}, Checklist: ${detailedTicket.metadata.checklist_count}`);
+                    
+                    return res.json({
+                        success: true,
+                        message: "success", 
+                        data: detailedTicket
+                    });
+                });
+            });
+        });
+    });
 });
 
 // POST new ticket
@@ -1868,20 +1824,9 @@ app.post('/api/tickets', authenticateToken, (req, res) => {
         return res.status(400).json({ error: "Título, Cliente y Prioridad son campos obligatorios." });
     }
 
-    // Convertir due_date de formato ISO a formato MySQL si existe
-    let formattedDueDate = null;
-    if (due_date) {
-        try {
-            formattedDueDate = toMySQLDateTime(new Date(due_date));
-        } catch (e) {
-            console.warn('⚠️ Error parseando due_date, usando valor original:', due_date);
-            formattedDueDate = due_date;
-        }
-    }
-
     const sql = `INSERT INTO Tickets (client_id, location_id, equipment_id, title, description, priority, due_date, status, ticket_type, created_at, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
-    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, formattedDueDate, 'Abierto', 'individual'];
+    const params = [client_id, location_id || null, equipment_id || null, title, description, priority, due_date || null, 'Abierto', 'individual'];
     
     db.run(sql, params, function(err) {
         if (err) {
@@ -1916,14 +1861,16 @@ app.get('/api/tickets/:id/equipment-scope', authenticateToken, (req, res) => {
             tes.equipment_id,
             e.name as equipment_name,
             e.custom_id,
-            e.brand,
-            e.model as model_name,
-            e.type as category,
-            1 as is_included
+            em.name as model_name,
+            em.category,
+            em.brand,
+            tes.is_included,
+            tes.exclusion_reason
         FROM TicketEquipmentScope tes
         INNER JOIN Equipment e ON tes.equipment_id = e.id
+        INNER JOIN EquipmentModels em ON e.model_id = em.id
         WHERE tes.ticket_id = ?
-        ORDER BY e.type, e.name
+        ORDER BY em.category, em.name, em.brand
     `;
     
     db.all(sql, [ticketId], (err, rows) => {
@@ -1932,7 +1879,7 @@ app.get('/api/tickets/:id/equipment-scope', authenticateToken, (req, res) => {
             return res.status(500).json({ error: err.message });
         }
         
-        console.log(`✅ Found ${rows ? rows.length : 0} equipment items for ticket ${ticketId}`);
+        console.log(`✅ Found ${rows.length} equipment items for ticket ${ticketId}`);
         
         res.json({
             message: "success",
@@ -1949,17 +1896,6 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
         return res.status(400).json({ error: "Título, Cliente, Prioridad y Estado son campos obligatorios." });
     }
 
-    // Convertir due_date de formato ISO a formato MySQL si existe
-    let formattedDueDate = null;
-    if (due_date) {
-        try {
-            formattedDueDate = toMySQLDateTime(new Date(due_date));
-        } catch (e) {
-            console.warn('⚠️ Error parseando due_date, usando valor original:', due_date);
-            formattedDueDate = due_date;
-        }
-    }
-
     const sql = `UPDATE Tickets SET
                     client_id = ?,
                     location_id = ?,
@@ -1972,7 +1908,7 @@ app.put('/api/tickets/:id', authenticateToken, (req, res) => {
                     updated_at = CURRENT_TIMESTAMP
                  WHERE id = ?`;
                  
-    const params = [client_id, location_id, equipment_id, title, description, status, priority, formattedDueDate, req.params.id];
+    const params = [client_id, location_id, equipment_id, title, description, status, priority, due_date, req.params.id];
 
     db.run(sql, params, function(err) {
         if (err) {
@@ -2022,7 +1958,7 @@ app.delete('/api/tickets/:id', authenticateToken, (req, res) => {
 app.get('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
     const { ticketId } = req.params;
     const sql = `
-        SELECT * FROM ticketnotes 
+        SELECT * FROM TicketNotes 
         WHERE ticket_id = ? 
         ORDER BY created_at DESC
     `;
@@ -2075,7 +2011,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
         console.log(`✅ Nota agregada al ticket ${ticketId}, ID: ${this.lastID}`);
         
         // Obtener la nota recién creada
-        db.get('SELECT * FROM ticketnotes WHERE id = ?', [this.lastID], (err, newNote) => {
+        db.get('SELECT * FROM TicketNotes WHERE id = ?', [this.lastID], (err, newNote) => {
             if (err) {
                 console.error('❌ Error obteniendo nota creada:', err.message);
                 return res.status(500).json({ 
@@ -2096,7 +2032,7 @@ app.post('/api/tickets/:ticketId/notes', authenticateToken, (req, res) => {
 app.delete('/api/tickets/notes/:noteId', authenticateToken, (req, res) => {
     const { noteId } = req.params;
     
-    const sql = 'DELETE FROM ticketnotes WHERE id = ?';
+    const sql = 'DELETE FROM TicketNotes WHERE id = ?';
     db.run(sql, [noteId], function(err) {
         if (err) {
             console.error('❌ Error eliminando nota de ticket:', err.message);
@@ -2153,8 +2089,7 @@ app.get('/api/tickets/:ticketId/photos', authenticateToken, (req, res) => {
 // POST new photo for ticket
 app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) => {
     const { ticketId } = req.params;
-    // Usar let para permitir modificación durante compresión de imagen
-    let { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
+    const { photo_data, file_name, mime_type, file_size, description, photo_type } = req.body;
     
     console.log(`📸 Solicitud de subir foto al ticket ${ticketId}:`, {
         file_name,
@@ -2273,38 +2208,7 @@ app.post('/api/tickets/:ticketId/photos', authenticateToken, async (req, res) =>
     }
 });
 
-// DELETE a ticket photo (ruta alternativa con ticketId para compatibilidad frontend)
-app.delete('/api/tickets/:ticketId/photos/:photoId', authenticateToken, (req, res) => {
-    const { photoId, ticketId } = req.params;
-    
-    console.log(`🗑️ Eliminando foto ${photoId} del ticket ${ticketId}`);
-    
-    const sql = 'DELETE FROM TicketPhotos WHERE id = ? AND ticket_id = ?';
-    db.run(sql, [photoId, ticketId], function(err) {
-        if (err) {
-            console.error('❌ Error eliminando foto de ticket:', err.message);
-            return res.status(500).json({ 
-                error: 'Error al eliminar foto del ticket',
-                code: 'PHOTO_DELETE_ERROR'
-            });
-        }
-        
-        if (this.changes === 0) {
-            return res.status(404).json({ 
-                error: "Foto no encontrada",
-                code: 'PHOTO_NOT_FOUND'
-            });
-        }
-        
-        console.log(`✅ Foto ${photoId} eliminada del ticket ${ticketId}`);
-        res.json({ 
-            message: "Foto eliminada exitosamente", 
-            changes: this.changes 
-        });
-    });
-});
-
-// DELETE a ticket photo (ruta legacy sin ticketId)
+// DELETE a ticket photo
 app.delete('/api/tickets/photos/:photoId', authenticateToken, (req, res) => {
     const { photoId } = req.params;
     
@@ -2351,21 +2255,14 @@ app.get('/api/equipment/:equipmentId/photos', authenticateToken, (req, res) => {
         if (err) {
             console.error('❌ Error fetching equipment photos:', err.message);
             res.status(500).json({ 
-                message: 'error',
                 error: 'Error al obtener fotos del equipo',
-                code: 'PHOTOS_FETCH_ERROR',
-                details: err.message
+                code: 'PHOTOS_FETCH_ERROR'
             });
             return;
         }
         
-        const photos = rows || [];
-        console.log(`📸 Fotos encontradas para equipo ${equipmentId}:`, photos.length);
-        res.json({
-            message: 'success',
-            data: photos,
-            count: photos.length
-        });
+        console.log(`📸 Fotos encontradas para equipo ${equipmentId}:`, rows.length);
+        res.json({ message: 'success', data: rows || [] });
     });
 });
 
@@ -2466,13 +2363,8 @@ app.get('/api/equipment/:equipmentId/notes', authenticateToken, (req, res) => {
             return;
         }
         
-        const notes = rows || [];
-        console.log(`📝 Notas encontradas para equipo ${equipmentId}:`, notes.length);
-        res.json({
-            message: 'success',
-            data: notes,
-            count: notes.length
-        });
+        console.log(`📝 Notas encontradas para equipo ${equipmentId}:`, rows.length);
+        res.json({ message: 'success', data: rows || [] });
     });
 });
 
@@ -2558,7 +2450,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
         const params = [
             parseInt(location_id, 10),
             parseInt(model_id, 10),
-            customIdValue || null,  // Convertir cadena vacía a null
+            customIdValue,
             serial_number || null,
             acquisition_date || null,
             notes || null
@@ -2570,17 +2462,9 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
                 
                 // Manejo de errores específicos
                 if (err.message.includes('UNIQUE') || err.code === 'ER_DUP_ENTRY') {
-                    // Determinar qué campo causó el duplicado
-                    let fieldName = 'custom_id o serial_number';
-                    if (err.message.includes('serial_number')) {
-                        fieldName = 'número de serie (serial_number)';
-                    } else if (err.message.includes('custom_id')) {
-                        fieldName = 'ID personalizado (custom_id)';
-                    }
                     return res.status(409).json({ 
-                        error: `Ya existe un equipo con ese ${fieldName}`,
-                        code: 'DUPLICATE_EQUIPMENT',
-                        field: fieldName
+                        error: 'Ya existe un equipo con ese custom_id o serial_number',
+                        code: 'DUPLICATE_EQUIPMENT'
                     });
                 }
                 
@@ -2633,17 +2517,16 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
     
     // Si no hay custom_id, generar uno automáticamente
     if (!finalCustomId) {
-        // Buscar el último custom_id GLOBAL (no por ubicación) para evitar duplicados
-        // ya que custom_id tiene restricción UNIQUE global
+        // Buscar el último custom_id de la ubicación para generar el siguiente
         const findMaxSql = `
             SELECT custom_id 
             FROM Equipment 
-            WHERE custom_id LIKE 'CARD-%'
+            WHERE location_id = ? AND custom_id LIKE 'CARD-%'
             ORDER BY CAST(SUBSTRING(custom_id, 6) AS UNSIGNED) DESC 
-            LIMIT 1
+            LIMIT 10
         `;
         
-        db.get(findMaxSql, [], (err, row) => {
+        db.get(findMaxSql, [location_id], (err, row) => {
             if (err) {
                 console.error('❌ Error buscando último custom_id:', err.message);
                 return res.status(500).json({ 
@@ -2661,7 +2544,7 @@ app.post('/api/equipment', authenticateToken, (req, res) => {
             }
             
             finalCustomId = `CARD-${nextNumber}`;
-            console.log(`🔢 Custom ID generado automáticamente (global): ${finalCustomId}`);
+            console.log(`🔢 Custom ID generado automáticamente: ${finalCustomId}`);
             insertEquipment(finalCustomId);
         });
     } else {
@@ -2773,61 +2656,11 @@ app.put('/api/equipment/:id', authenticateToken, (req, res) => {
     });
 });
 
-// DELETE eliminar equipo
-app.delete('/api/equipment/:id', authenticateToken, (req, res) => {
-    const { id } = req.params;
-    
-    console.log(`🗑️ Eliminando equipo ID: ${id}`);
-    
-    // Primero eliminar datos relacionados (fotos, notas)
-    const deletePhotosSql = 'DELETE FROM EquipmentPhotos WHERE equipment_id = ?';
-    const deleteNotesSql = 'DELETE FROM EquipmentNotes WHERE equipment_id = ?';
-    const deleteEquipmentSql = 'DELETE FROM Equipment WHERE id = ?';
-    
-    // Eliminar fotos
-    db.run(deletePhotosSql, [id], function(err) {
-        if (err) {
-            console.error('⚠️ Error eliminando fotos del equipo:', err.message);
-            // Continuar de todos modos
-        }
-        
-        // Eliminar notas
-        db.run(deleteNotesSql, [id], function(err) {
-            if (err) {
-                console.error('⚠️ Error eliminando notas del equipo:', err.message);
-                // Continuar de todos modos
-            }
-            
-            // Eliminar el equipo
-            db.run(deleteEquipmentSql, [id], function(err) {
-                if (err) {
-                    console.error('❌ Error eliminando equipo:', err.message);
-                    return res.status(500).json({ 
-                        error: 'Error al eliminar equipo: ' + err.message,
-                        code: 'EQUIPMENT_DELETE_ERROR'
-                    });
-                }
-                
-                if (this.changes === 0) {
-                    return res.status(404).json({ 
-                        error: 'Equipo no encontrado',
-                        code: 'EQUIPMENT_NOT_FOUND'
-                    });
-                }
-                
-                console.log(`✅ Equipo ${id} eliminado exitosamente`);
-                res.json({
-                    message: 'Equipo eliminado exitosamente',
-                    changes: this.changes
-                });
-            });
-        });
-    });
-});
+// DELETE note from equipment
 app.delete('/api/equipment/notes/:noteId', authenticateToken, (req, res) => {
     const { noteId } = req.params;
     
-    const sql = 'DELETE FROM equipmentnotes WHERE id = ?';
+    const sql = 'DELETE FROM EquipmentNotes WHERE id = ?';
     db.run(sql, [noteId], function(err) {
         if (err) {
             console.error('❌ Error eliminando nota de equipo:', err.message);
@@ -2909,21 +2742,14 @@ app.get('/api/equipment/:equipmentId/tickets', authenticateToken, (req, res) => 
         if (err) {
             console.error('❌ Error fetching equipment tickets:', err.message);
             res.status(500).json({ 
-                message: 'error',
                 error: 'Error al obtener tickets del equipo',
-                code: 'TICKETS_FETCH_ERROR',
-                details: err.message
+                code: 'TICKETS_FETCH_ERROR'
             });
             return;
         }
         
-        const tickets = rows || [];
-        console.log(`🎫 Tickets encontrados para equipo ${equipmentId}:`, tickets.length);
-        res.json({
-            message: 'success',
-            data: tickets,
-            count: tickets.length
-        });
+        console.log(`🎫 Tickets encontrados para equipo ${equipmentId}:`, rows.length);
+        res.json({ message: 'success', data: rows || [] });
     });
 });
 
@@ -2966,7 +2792,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
         }
         
         // Verificar que el repuesto existe y tiene stock - incluir precio
-        db.get('SELECT id, name, sku, current_stock, unit_price FROM spareparts WHERE id = ?', [spare_part_id], (err, sparePart) => {
+        db.get('SELECT id, name, sku, current_stock, unit_price FROM SpareParts WHERE id = ?', [spare_part_id], (err, sparePart) => {
             if (err) {
                 console.error('❌ Error verificando repuesto:', err.message);
                 return res.status(500).json({ 
@@ -3223,7 +3049,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                                 const expenseDescription = `Repuesto: ${sparePart.name} (${actualUsedQty} ${actualUsedQty > 1 ? 'unidades' : 'unidad'}) - ${ticket.title}`;
                                 
                                 // Obtener o crear categoría "Repuestos"
-                                db.get('SELECT id FROM ExpenseCategories WHERE name = ? LIMIT 1', ['Repuestos'], (err, category) => {
+                                db.get('SELECT id FROM ExpenseCategories WHERE name = ? LIMIT 10', ['Repuestos'], (err, category) => {
                                     const categoryId = category ? category.id : null;
                                     
                                     const expenseSql = `
@@ -3277,7 +3103,7 @@ app.post('/api/tickets/:ticketId/spare-parts', authenticateToken, (req, res) => 
                                 sp.name as spare_part_name,
                                 sp.sku as spare_part_sku
                             FROM ticketspareparts tsp
-                            JOIN spareparts sp ON tsp.spare_part_id = sp.id
+                            JOIN SpareParts sp ON tsp.spare_part_id = sp.id
                             WHERE tsp.id = ?
                         `;
                         
@@ -3334,7 +3160,7 @@ app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, 
             sp.sku as spare_part_sku,
             'used' as status_type
         FROM ticketspareparts tsp
-        LEFT JOIN spareparts sp ON tsp.spare_part_id = sp.id
+        LEFT JOIN SpareParts sp ON tsp.spare_part_id = sp.id
         WHERE tsp.ticket_id = ?
         ORDER BY tsp.used_at DESC
     `;
@@ -3356,7 +3182,7 @@ app.get('/api/tickets/:ticketId/spare-parts/requests', authenticateToken, (req, 
                 u.username as requested_by_name,
                 approver.username as approved_by_name
             FROM spare_part_requests spr
-            LEFT JOIN Users u ON spr.requested_by = u.id
+            LEFT JOIN Users u ON spr.requested_by = u.username
             LEFT JOIN Users approver ON spr.approved_by = approver.id
             WHERE spr.ticket_id = ?
             ORDER BY spr.created_at DESC
@@ -3400,64 +3226,50 @@ app.get('/api/locations/:locationId/equipment', authenticateToken, (req, res) =>
         const { locationId } = req.params;
         const { contractId } = req.query;
         
-        // Query con JOIN a EquipmentModels para obtener type/brand/model
-        // Usa COALESCE para tomar del modelo si el equipo no tiene el campo
         let sql = `
             SELECT 
                 e.id,
-                e.name,
-                e.serial_number,
+                COALESCE(NULLIF(e.name, ''), em.name) as name,
+                COALESCE(NULLIF(e.type, ''), 'Equipment') as type,
+                COALESCE(NULLIF(e.brand, ''), em.brand) as brand,
+                COALESCE(NULLIF(e.model, ''), em.model_code, em.name) as model,
+                COALESCE(NULLIF(e.serial_number, ''), e.custom_id, 'N/A') as serial_number,
                 e.custom_id,
-                e.location_id,
-                e.model_id,
-                COALESCE(NULLIF(e.type, ''), m.category) as type,
-                COALESCE(NULLIF(e.brand, ''), m.brand) as brand,
-                COALESCE(NULLIF(e.model, ''), m.name) as model,
-                m.category as model_type,
-                m.name as model_name,
-                m.brand as manufacturer,
-                l.name as location_name,
-                c.name as client_name
+                COALESCE(em.category, 'Sin categoría') as category,
+                CASE 
+                    WHEN ce.equipment_id IS NOT NULL THEN true 
+                    ELSE false 
+                END as is_in_contract
             FROM Equipment e
-            LEFT JOIN EquipmentModels m ON e.model_id = m.id
-            LEFT JOIN Locations l ON e.location_id = l.id
-            LEFT JOIN Clients c ON l.client_id = c.id
+            LEFT JOIN EquipmentModels em ON e.model_id = em.id
+            LEFT JOIN contract_equipment ce ON e.id = ce.equipment_id AND ce.contract_id = ?
             WHERE e.location_id = ?
-            ORDER BY e.id DESC
+            ORDER BY COALESCE(NULLIF(e.name, ''), em.name)
         `;
         
-        db.all(sql, [locationId], (err, rows) => {
+        const params = contractId ? [contractId, locationId] : [null, locationId];
+        
+        db.all(sql, params, (err, rows) => {
             if (err) {
-                console.error('❌ Error fetching location equipment:', err);
-                return res.status(500).json({ 
-                    message: 'error',
-                    error: 'Error al obtener equipos',
-                    details: err.message
-                });
+                console.error('Error fetching location equipment:', err);
+                return res.status(500).json({ error: 'Database error' });
             }
-            
-            const equipment = rows || [];
-            console.log(`🏢 Equipos encontrados para location ${locationId}:`, equipment.length);
             
             res.json({
                 message: 'success',
-                data: equipment,
+                data: rows,
                 metadata: {
                     locationId: parseInt(locationId, 10),
                     contractId: contractId ? parseInt(contractId, 10) : null,
-                    totalEquipment: equipment.length,
-                    timestamp: new Date().toISOString()
+                    totalEquipment: rows.length,
+                    contractEquipment: rows.filter(r => r.is_in_contract).length
                 }
             });
         });
         
     } catch (error) {
-        console.error('❌ Location equipment endpoint error:', error);
-        res.status(500).json({ 
-            message: 'error',
-            error: 'Error interno del servidor',
-            details: error.message
-        });
+        console.error('Location equipment endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -3795,7 +3607,7 @@ app.post('/api/gimnacion/checklist-templates', authenticateToken, (req, res) => 
             if (items.length > 0) {
                 const insertItemsSql = `
                     INSERT INTO GimnacionChecklistItems (template_id, item_text, item_order, is_required, category)
-                    VALUES (?, ?, ?, ?, ?)
+                    VALUES (?, ?, ?, ?)
                 `;
                 
                 const stmt = db.prepare(insertItemsSql);
@@ -3898,7 +3710,7 @@ app.put('/api/gimnacion/checklist-templates/:id', authenticateToken, (req, res) 
                 if (items.length > 0) {
                     const insertItemsSql = `
                         INSERT INTO GimnacionChecklistItems (template_id, item_text, item_order, is_required, category)
-                        VALUES (?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?)
                     `;
                     
                     const stmt = db.prepare(insertItemsSql);
@@ -4105,43 +3917,57 @@ app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
     const limit = parseInt(req.query.limit, 10) || 10;
     console.log(`📋 Solicitando actividad reciente (límite: ${limit})...`);
     
-    // Query simplificada que solo obtiene tickets recientes
     const sql = `
         SELECT 
             'ticket' as type,
             t.id as reference_id,
-            t.title as description,
+            CONCAT('Ticket #', t.id, ': ', t.title) as description,
             t.status,
             t.priority,
             t.updated_at as timestamp,
             c.name as client_name,
-            l.name as location_name,
-            u.username as created_by_name
+            l.name as location_name
         FROM Tickets t
-        LEFT JOIN Locations l ON t.location_id = l.id
-        LEFT JOIN Clients c ON t.client_id = c.id
-        LEFT JOIN Users u ON t.assigned_technician_id = u.id
-        ORDER BY t.updated_at DESC
-        LIMIT ?
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        LEFT JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN Clients c ON l.client_id = c.id
+        WHERE t.updated_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        UNION ALL
+        
+        SELECT 
+            'equipment' as type,
+            e.id as reference_id,
+            CONCAT('Equipo registrado: ', e.name) as description,
+            'activo' as status,
+            'Normal' as priority,
+            e.created_at as timestamp,
+            c.name as client_name,
+            l.name as location_name
+        FROM Equipment e
+        LEFT JOIN Locations l ON e.location_id = l.id
+        LEFT JOIN Clients c ON l.client_id = c.id
+        WHERE e.created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+        
+        ORDER BY timestamp DESC
+        LIMIT 10
     `;
     
     db.all(sql, [limit], (err, rows) => {
         if (err) {
             console.error('❌ Error obteniendo actividad:', err);
             res.status(500).json({ 
-                message: 'error',
                 error: 'Error obteniendo actividad',
                 details: err.message 
             });
             return;
         }
         
-        const activity = rows || [];
-        console.log(`✅ Actividad obtenida: ${activity.length} registros`);
+        console.log(`✅ Actividad obtenida: ${rows.length} registros`);
         res.json({
             message: 'success',
-            data: activity,
-            count: activity.length,
+            data: rows,
+            count: rows.length,
             timestamp: new Date().toISOString()
         });
     });
@@ -4346,7 +4172,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
                     AND e.date >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
                 GROUP BY ec.id, ec.name
                 ORDER BY total_amount DESC
-                LIMIT 5
+                LIMIT 10
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'expenses_by_category', value: rows });
@@ -4455,7 +4281,7 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
                     AND DATE(im.created_at) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
                 GROUP BY i.id, i.sku, i.name, i.current_stock
                 ORDER BY usage_count DESC
-                LIMIT 5
+                LIMIT 10
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'top_used_parts', value: rows });
@@ -4611,7 +4437,7 @@ app.get('/api/dashboard/contracts-sla-summary', authenticateToken, (req, res) =>
             db.all(`
                 SELECT 
                     c.id,
-                    c.id as contract_number,
+                    c.contract_number,
                     c.start_date,
                     c.end_date,
                     DATEDIFF(c.end_date, CURDATE()) as days_remaining,
@@ -4681,7 +4507,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
                 AND status = 'Abierto'
                 AND created_at < DATE_SUB(NOW(), INTERVAL 24 HOUR)
                 ORDER BY priority DESC, created_at ASC
-                LIMIT 5
+                LIMIT 10
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'unassigned_tickets_24h', value: rows });
@@ -4706,7 +4532,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
                 AND t.status NOT IN ('Cerrado', 'Completado')
                 AND t.sla_deadline BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 2 HOUR)
                 ORDER BY t.sla_deadline ASC
-                LIMIT 5
+                LIMIT 10
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'sla_critical_2h', value: rows });
@@ -4724,7 +4550,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
                 FROM SpareParts 
                 WHERE current_stock = 0
                 ORDER BY minimum_stock DESC
-                LIMIT 5
+                LIMIT 10
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'zero_stock_items', value: rows });
@@ -4736,7 +4562,7 @@ app.get('/api/dashboard/critical-alerts', authenticateToken, (req, res) => {
             db.all(`
                 SELECT 
                     c.id,
-                    c.id as contract_number,
+                    c.contract_number,
                     c.end_date,
                     DATEDIFF(c.end_date, CURDATE()) as days_remaining,
                     cl.name as client_name
@@ -5462,7 +5288,7 @@ app.get('/api/models/:id/main-photo', async (req, res) => {
                 created_at
             FROM ModelPhotos 
             WHERE model_id = ? AND is_primary = 1
-            LIMIT 1
+            LIMIT 10
         `;
         
         db.get(query, [modelId], (err, row) => {
@@ -5487,7 +5313,7 @@ app.get('/api/models/:id/main-photo', async (req, res) => {
                     FROM ModelPhotos 
                     WHERE model_id = ?
                     ORDER BY created_at ASC
-                    LIMIT 1
+                    LIMIT 10
                 `;
                 
                 db.get(fallbackQuery, [modelId], (err2, fallbackRow) => {
@@ -5579,8 +5405,8 @@ app.get('/api/expenses', authenticateToken, (req, res) => {
         params.push(date_to);
     }
     
-    sql += ` ORDER BY e.date DESC, e.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit, 10), parseInt(offset, 10));
+    sql += ` ORDER BY e.date DESC, e.created_at DESC LIMIT 10${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
+
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -6233,11 +6059,7 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     const { status, client_id, date_from, date_to, limit = 50, offset = 0 } = req.query;
     
     let sql = `
-        SELECT 
-            q.*,
-            c.name as client_name
-        FROM Quotes q
-        LEFT JOIN Clients c ON q.client_id = c.id
+        SELECT q.*, c.name as client_name FROM Quotes q LEFT JOIN Clients c ON q.client_id = c.id
         WHERE 1=1
     `;
     
@@ -6254,17 +6076,17 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
     }
     
     if (date_from) {
-        sql += ` AND q.created_at >= ?`;
+        sql += ` AND q.created_date >= ?`;
         params.push(date_from);
     }
     
     if (date_to) {
-        sql += ` AND q.created_at <= ?`;
+        sql += ` AND q.created_date <= ?`;
         params.push(date_to);
     }
     
-    sql += ` ORDER BY q.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit, 10), parseInt(offset, 10));
+    sql += ` ORDER BY q.created_at DESC LIMIT 10${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
+
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -6484,9 +6306,11 @@ app.get('/api/quotes/:id', authenticateToken, (req, res) => {
             q.*,
             c.name as client_name,
             c.email as client_email,
-            c.phone as client_phone
+            c.phone as client_phone,
+            u.username as created_by_name
         FROM Quotes q
         LEFT JOIN Clients c ON q.client_id = c.id
+        LEFT JOIN Users u ON q.created_by = u.id
         WHERE q.id = ?
     `;
     
@@ -6535,11 +6359,7 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     const { status, client_id, date_from, date_to, limit = 50, offset = 0 } = req.query;
     
     let sql = `
-        SELECT 
-            i.*,
-            c.name as client_name
-        FROM Invoices i
-        LEFT JOIN Clients c ON i.client_id = c.id
+        SELECT i.*, c.name as client_name FROM Invoices i LEFT JOIN Clients c ON i.client_id = c.id
         WHERE 1=1
     `;
     
@@ -6556,17 +6376,17 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
     }
     
     if (date_from) {
-        sql += ` AND i.created_at >= ?`;
+        sql += ` AND i.invoice_date >= ?`;
         params.push(date_from);
     }
     
     if (date_to) {
-        sql += ` AND i.created_at <= ?`;
+        sql += ` AND i.invoice_date <= ?`;
         params.push(date_to);
     }
     
-    sql += ` ORDER BY i.created_at DESC LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit, 10), parseInt(offset, 10));
+    sql += ` ORDER BY i.created_at DESC LIMIT 10${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
+
     
     db.all(sql, params, (err, rows) => {
         if (err) {
@@ -7139,7 +6959,7 @@ app.get('/api/employee-schedules/:userId/active', authenticateToken, (req, res) 
           AND CURDATE() >= es.start_date
           AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
         ORDER BY es.start_date DESC
-        LIMIT 1
+        LIMIT 10
     `;
     
     db.get(sql, [req.params.userId], (err, row) => {
@@ -7161,7 +6981,7 @@ app.post('/api/employee-schedules', authenticateToken, requireRole(['Admin', 'Ma
     
     const sql = `
         INSERT INTO EmployeeSchedules (user_id, schedule_id, start_date, end_date, notes)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
     `;
     
     db.run(sql, [user_id, schedule_id, start_date, end_date, notes], function(err) {
@@ -7365,7 +7185,7 @@ app.get('/api/attendance/all', authenticateToken, requireRole(['Admin', 'Manager
         params.push(status);
     }
     
-    sql += ' ORDER BY a.date DESC, u.username LIMIT ?';
+    sql += ' ORDER BY a.date DESC, u.username LIMIT 10?';
     params.push(parseInt(limit, 10));
     
     // Obtener registros
@@ -7470,7 +7290,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
               AND es.is_active = 1
               AND CURDATE() >= es.start_date
               AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
-            LIMIT 1
+            LIMIT 10
         `;
         
         db.get(scheduleSql, [user_id], (err, schedule) => {
@@ -8453,6 +8273,111 @@ app.get('/api/payroll-periods/:id/export', authenticateToken, requireRole(['Admi
 });
 
 // ===================================================================
+// ENDPOINTS FALTANTES - COMPLETAR FUNCIONALIDAD
+// ===================================================================
+
+// GET /api/inventory - Listar inventario
+app.get('/api/inventory', authenticateToken, (req, res) => {
+    console.log('📦 GET /api/inventory - Listando inventario');
+    const sql = `SELECT * FROM Inventory ORDER BY item_name`;
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error al obtener inventario:', err);
+            return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        }
+        console.log(`✅ Inventario obtenido: ${rows.length} items`);
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET /api/inventory/categories - Categorías de inventario
+app.get('/api/inventory/categories', authenticateToken, (req, res) => {
+    console.log('📦 GET /api/inventory/categories - Listando categorías');
+    const sql = `SELECT DISTINCT category FROM Inventory WHERE category IS NOT NULL ORDER BY category`;
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            console.error('❌ Error al obtener categorías:', err);
+            return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        }
+        const categories = rows.map(row => row.category);
+        console.log(`✅ Categorías obtenidas: ${categories.length}`);
+        res.json({ message: 'success', data: categories });
+    });
+});
+
+// GET /api/dashboard/activity - Actividad reciente
+app.get('/api/dashboard/activity', authenticateToken, (req, res) => {
+    console.log('📊 GET /api/dashboard/activity - Obteniendo actividad reciente');
+    const limit = parseInt(req.query.limit) || 10;
+    const sql = `
+        SELECT 'ticket' as type, id, title as description, created_at as date, created_by as user
+        FROM Tickets ORDER BY created_at DESC LIMIT 10?
+    `;
+    db.all(sql, [limit], (err, rows) => {
+        if (err) {
+            console.error('❌ Error al obtener actividad:', err);
+            return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        }
+        console.log(`✅ Actividad obtenida: ${rows.length} registros`);
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+// GET /api/models/:id - Modelo individual
+app.get('/api/models/:id', authenticateToken, (req, res) => {
+    console.log(`🔧 GET /api/models/${req.params.id} - Obteniendo modelo`);
+    const sql = `SELECT * FROM EquipmentModels WHERE id = ?`;
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            console.error('❌ Error al obtener modelo:', err);
+            return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        }
+        if (!row) {
+            return res.status(404).json({ error: 'Modelo no encontrado' });
+        }
+        console.log(`✅ Modelo obtenido: ${row.name}`);
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// GET /api/users/me - Usuario actual
+app.get('/api/users/me', authenticateToken, (req, res) => {
+    console.log(`👤 GET /api/users/me - Usuario: ${req.user.username}`);
+    const sql = `SELECT id, username, email, role, status, created_at FROM Users WHERE id = ?`;
+    db.get(sql, [req.user.id], (err, row) => {
+        if (err) {
+            console.error('❌ Error al obtener usuario:', err);
+            return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        }
+        if (!row) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        console.log(`✅ Usuario obtenido: ${row.username}`);
+        res.json({ message: 'success', data: row });
+    });
+});
+
+// GET /api/locations/:id/tickets - Tickets por ubicación
+app.get('/api/locations/:id/tickets', authenticateToken, (req, res) => {
+    console.log(`🎫 GET /api/locations/${req.params.id}/tickets`);
+    const sql = `
+        SELECT t.*, e.serial_number FROM Tickets t
+        LEFT JOIN Equipment e ON t.equipment_id = e.id
+        WHERE e.location_id = ? ORDER BY t.created_at DESC
+    `;
+    db.all(sql, [req.params.id], (err, rows) => {
+        if (err) {
+            console.error('❌ Error al obtener tickets:', err);
+            return res.status(500).json({ error: 'Error interno del servidor', details: err.message });
+        }
+        console.log(`✅ Tickets obtenidos: ${rows.length}`);
+        res.json({ message: 'success', data: rows });
+    });
+});
+
+console.log('✅ Todos los endpoints registrados correctamente');
+
+// ===================================================================
 // INICIALIZACIÓN DEL SERVIDOR
 // ===================================================================
 
@@ -8747,7 +8672,7 @@ app.get('/api/employee-schedules/:userId/active', authenticateToken, (req, res) 
           AND CURDATE() >= es.start_date
           AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
         ORDER BY es.start_date DESC
-        LIMIT 1
+        LIMIT 10
     `;
     
     db.get(sql, [req.params.userId], (err, row) => {
@@ -8769,7 +8694,7 @@ app.post('/api/employee-schedules', authenticateToken, requireRole(['Admin', 'Ma
     
     const sql = `
         INSERT INTO EmployeeSchedules (user_id, schedule_id, start_date, end_date, notes)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
     `;
     
     db.run(sql, [user_id, schedule_id, start_date, end_date, notes], function(err) {
@@ -8896,7 +8821,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
               AND es.is_active = 1
               AND CURDATE() >= es.start_date
               AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
-            LIMIT 1
+            LIMIT 10
         `;
         
         db.get(scheduleSql, [user_id], (err, schedule) => {
@@ -9275,7 +9200,7 @@ app.post('/api/holidays', authenticateToken, requireRole(['Admin']), (req, res) 
     
     const sql = `
         INSERT INTO Holidays (name, date, type, is_paid, description)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?)
     `;
     
     db.run(sql, [name, date, type || 'national', is_paid !== false ? 1 : 0, description], function(err) {
@@ -9359,8 +9284,8 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
     console.log('📄 Solicitando datos para informe del ticket ' + ticketId);
     
     const queries = {
-        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.category as equipment_type, e.serial_number, u.username as technician_name FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id LEFT JOIN Users u ON t.assigned_technician_id = u.id WHERE t.id = ?',
-        comments: 'SELECT tc.id, tc.ticket_id, tc.note AS comment_text, tc.author AS author_name, tc.created_at FROM TicketNotes tc WHERE tc.ticket_id = ? ORDER BY tc.created_at ASC',
+        ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.brand as equipment_brand, e.serial_number FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id WHERE t.id = ?',
+        comments: 'SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at ASC',
         photos: 'SELECT id, photo_data AS photo_base64, created_at AS uploaded_at FROM TicketPhotos WHERE ticket_id = ? ORDER BY created_at ASC'
     };
     
@@ -9380,15 +9305,163 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
     });
 });
 
+// =====================================================
+// GENERAR PDF EN EL SERVIDOR (funciona en todos los navegadores)
+// Usa middleware inline que acepta token en query param o header
+// =====================================================
+app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
+    // Autenticación inline que acepta token en query param o header
+    const token = req.query.token || (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
+    
+    if (!token) {
+        return res.status(401).json({ error: 'Token requerido' });
+    }
+    
+    try {
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gymtec-secret-key-2024-production');
+        req.user = decoded;
+    } catch (err) {
+        console.error('❌ Error verificando token PDF:', err.message);
+        return res.status(401).json({ error: 'Token inválido' });
+    }
+    
+    const ticketId = req.params.id;
+    console.log('📄 Generando PDF para ticket ' + ticketId);
+    
+    try {
+        // Obtener datos del ticket
+        const queries = {
+            ticket: 'SELECT t.*, c.name as client_name, c.rut as client_rut, c.contact_name as client_contact, c.phone as client_phone, l.name as location_name, l.address as location_address, em.name as equipment_model, em.brand as equipment_brand, e.serial_number FROM Tickets t LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Locations l ON t.location_id = l.id LEFT JOIN Equipment e ON t.equipment_id = e.id LEFT JOIN EquipmentModels em ON e.model_id = em.id WHERE t.id = ?',
+            comments: 'SELECT * FROM TicketNotes WHERE ticket_id = ? ORDER BY created_at ASC'
+        };
+        
+        const [ticket, comments] = await Promise.all([
+            new Promise((resolve, reject) => db.get(queries.ticket, [ticketId], (err, row) => err ? reject(err) : resolve(row))),
+            new Promise((resolve, reject) => db.all(queries.comments, [ticketId], (err, rows) => err ? reject(err) : resolve(rows || [])))
+        ]);
+        
+        if (!ticket) {
+            return res.status(404).json({ message: 'error', error: 'Ticket no encontrado' });
+        }
+        
+        // Cargar PDFKit
+        const PDFDocument = require('pdfkit');
+        const doc = new PDFDocument({ margin: 50 });
+        
+        // Configurar cabeceras HTTP para forzar descarga con nombre
+        const filename = `Informe_Tecnico_${ticketId}_${Date.now()}.pdf`;
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        
+        // Pipe directo a response
+        doc.pipe(res);
+        
+        // Colores Gymtec
+        const redGymtec = '#FF4B2B';
+        const darkBlue = '#1A1B26';
+        const lightGray = '#F5F5F7';
+        
+        // === HEADER ===
+        doc.rect(0, 0, doc.page.width, 70).fill(darkBlue);
+        doc.fillColor('white').fontSize(24).font('Helvetica-Bold').text('GYMTEC', 50, 20);
+        doc.fontSize(10).font('Helvetica').text('Servicio Técnico Profesional', 50, 48);
+        doc.fillColor(redGymtec).fontSize(12).text(`Ticket #${ticketId}`, doc.page.width - 150, 28, { align: 'right', width: 100 });
+        doc.fillColor('white').fontSize(10).text(new Date().toLocaleDateString('es-CL'), doc.page.width - 150, 45, { align: 'right', width: 100 });
+        
+        // Título del informe
+        doc.fillColor(darkBlue).fontSize(20).font('Helvetica-Bold').text('INFORME TÉCNICO DE SERVICIO', 50, 90, { align: 'center' });
+        
+        let y = 130;
+        
+        // === INFORMACIÓN DEL CLIENTE ===
+        doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('INFORMACIÓN DEL CLIENTE', 50, y);
+        y += 20;
+        doc.rect(50, y, doc.page.width - 100, 80).fill(lightGray);
+        doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
+        doc.text(`Cliente: ${ticket.client_name || 'N/A'}`, 60, y + 10);
+        doc.text(`RUT: ${ticket.client_rut || 'N/A'}`, 60, y + 25);
+        doc.text(`Contacto: ${ticket.client_contact || 'N/A'}`, 60, y + 40);
+        doc.text(`Teléfono: ${ticket.client_phone || 'N/A'}`, 60, y + 55);
+        
+        doc.text(`Ubicación: ${ticket.location_name || 'N/A'}`, 300, y + 10);
+        doc.text(`Dirección: ${ticket.location_address || 'N/A'}`, 300, y + 25, { width: 200 });
+        y += 100;
+        
+        // === INFORMACIÓN DEL EQUIPO ===
+        doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('EQUIPO', 50, y);
+        y += 20;
+        doc.rect(50, y, doc.page.width - 100, 60).fill(lightGray);
+        doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
+        doc.text(`Modelo: ${ticket.equipment_model || 'N/A'}`, 60, y + 10);
+        doc.text(`Marca: ${ticket.equipment_brand || 'N/A'}`, 60, y + 25);
+        doc.text(`Tipo: ${ticket.equipment_type || 'N/A'}`, 60, y + 40);
+        doc.text(`Serial: ${ticket.serial_number || 'N/A'}`, 300, y + 10);
+        doc.text(`Técnico: ${ticket.technician_name || 'N/A'}`, 300, y + 25);
+        y += 80;
+        
+        // === DESCRIPCIÓN DEL PROBLEMA ===
+        doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('DESCRIPCIÓN DEL PROBLEMA', 50, y);
+        y += 20;
+        doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
+        doc.text(ticket.description || 'Sin descripción', 50, y, { width: doc.page.width - 100 });
+        y += 60;
+        
+        // === TRABAJO REALIZADO (comentarios) ===
+        if (comments.length > 0) {
+            // Verificar si necesitamos nueva página
+            if (y > doc.page.height - 200) {
+                doc.addPage();
+                y = 50;
+            }
+            
+            doc.fillColor(redGymtec).fontSize(14).font('Helvetica-Bold').text('TRABAJO REALIZADO', 50, y);
+            y += 20;
+            
+            comments.forEach(comment => {
+                if (y > doc.page.height - 100) {
+                    doc.addPage();
+                    y = 50;
+                }
+                
+                doc.rect(50, y, doc.page.width - 100, 40).fill(lightGray);
+                doc.fillColor('#666').fontSize(8).font('Helvetica').text(
+                    `${comment.author_name || 'Técnico'} - ${new Date(comment.created_at).toLocaleString('es-CL')}`, 
+                    60, y + 5
+                );
+                doc.fillColor(darkBlue).fontSize(10).text(comment.comment || '', 60, y + 18, { width: doc.page.width - 130 });
+                y += 50;
+            });
+        }
+        
+        // === FOOTER EN TODAS LAS PÁGINAS ===
+        const range = doc.bufferedPageRange();
+        for (let i = range.start; i < range.start + range.count; i++) {
+            doc.switchToPage(i);
+            doc.fillColor('#999').fontSize(8).font('Helvetica');
+            doc.text('GYMTEC | Servicio Técnico de Gimnasios | www.gymtec.cl', 50, doc.page.height - 40);
+            doc.text(`Página ${i + 1} de ${range.count}`, doc.page.width - 100, doc.page.height - 40);
+        }
+        
+        // Finalizar documento
+        doc.end();
+        console.log(`✅ PDF generado: ${filename}`);
+        
+    } catch (error) {
+        console.error('❌ Error generando PDF:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
 // Registrar informe generado
 app.post('/api/informes', authenticateToken, (req, res) => {
-    const { ticket_id, diagnosis, solution, recommendations } = req.body;
-    const sql = 'INSERT INTO InformesTecnicos (ticket_id, technician_id, diagnosis, solution, recommendations) VALUES (?, ?, ?, ?, ?)';
+    const { ticket_id, filename, notas_adicionales, client_email } = req.body;
+    const sql = 'INSERT INTO InformesTecnicos (ticket_id, filename, notas_adicionales, client_email) VALUES (?, ?, ?, ?)';
     
-    db.run(sql, [ticket_id, req.user.id, diagnosis || null, solution || null, recommendations || null], function(err) {
+    db.run(sql, [ticket_id, filename, notas_adicionales, client_email], function(err) {
         if (err) return res.status(500).json({ message: 'error', error: err.message });
         console.log('✅ Informe registrado: ' + this.lastID);
-        res.json({ message: 'success', data: { id: this.lastID, ticket_id } });
+        res.json({ message: 'success', data: { id: this.lastID, ticket_id, filename } });
     });
 });
 

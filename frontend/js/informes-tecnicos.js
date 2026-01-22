@@ -25,9 +25,9 @@
                 
                 // Redirigir a la URL del PDF - el navegador descargará automáticamente
                 // gracias al header Content-Disposition: attachment del servidor
-                window.location.href = `${window.API_URL}/tickets/${ticketId}/generate-pdf?token=${token}`;
+                const filename = await window.downloadPDFWithName(ticketId);
                 
-                const filename = `Informe_Tecnico_${ticketId}.pdf`;
+                
                 console.log(`✅ PDF descarga iniciada: ${filename}`);
                 
                 // Delay para dar tiempo a la descarga antes de mostrar notificación
@@ -516,7 +516,7 @@
                 }
                 
                 // Guardar PDF usando método nativo de jsPDF
-                const filename = `Informe_Tecnico_${informe.ticketId}_${Date.now()}.pdf`;
+                
                 const blob = doc.output('blob');
                 
                 // Método 1: Abrir en nueva ventana usando data URL nativo de jsPDF

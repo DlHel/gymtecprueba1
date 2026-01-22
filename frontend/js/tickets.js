@@ -219,24 +219,12 @@ document.addEventListener('DOMContentLoaded', () => {
         addEquipmentCloseBtn.addEventListener('click', () => closeModal('add-equipment-modal'));
     }
 
-    // Event listener global para botones de acción en la tabla
     document.body.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
-        
-        console.log('🔍 TICKETS DEBUG: Click detectado en botón:', button.className, 'data-id:', button.dataset.id);
-        
-        if (button.matches('.edit-ticket-btn')) {
-            console.log('✏️ TICKETS: Abriendo modal de edición para ticket:', button.dataset.id);
-            openModal('ticket-modal', { id: button.dataset.id });
-        }
-        if (button.matches('.delete-ticket-btn')) {
-            console.log('🗑️ TICKETS: Iniciando eliminación de ticket:', button.dataset.id);
-            deleteItem('tickets', button.dataset.id, fetchTickets);
-        }
+        if (button.matches('.edit-ticket-btn')) openModal('ticket-modal', { id: button.dataset.id });
+        if (button.matches('.delete-ticket-btn')) deleteItem('tickets', button.dataset.id, fetchTickets);
     });
-    
-    console.log('✅ TICKETS: Event listener global para acciones de tabla configurado');
 
     if (clientSelect) clientSelect.addEventListener('change', handleClientChange);
     if (locationSelect) locationSelect.addEventListener('change', handleLocationChange);

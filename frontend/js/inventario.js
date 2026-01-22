@@ -937,7 +937,7 @@ class InventoryManager {
             this.data.technicians.forEach(tech => {
                 const option = document.createElement('option');
                 option.value = tech.id;
-                option.textContent = tech.name;
+                option.textContent = tech.name || tech.username;
                 select.appendChild(option);
             });
         });
