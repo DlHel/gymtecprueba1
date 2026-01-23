@@ -1465,6 +1465,15 @@ try {
     console.log("✅ Clients Module loaded");
 } catch (error) {
     console.warn("⚠️ Clients module error:", error.message);
+
+// USERS MODULE - Extraído de server-clean.js
+try {
+    const usersRoutes = require("./modules/users/users.routes");
+    app.use("/api", usersRoutes);
+    console.log("✅ Users Module loaded");
+} catch (error) {
+    console.warn("⚠️ Users module error:", error.message);
+}
 }
     console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
 }
