@@ -1479,6 +1479,15 @@ try {
 }
 
 // FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes (Production mode)
+
+// EQUIPMENT MODULE - Extraído de server-clean.js
+try {
+    const equipmentRoutes = require("./modules/equipment/equipment.routes");
+    app.use("/api", equipmentRoutes);
+    console.log("✅ Equipment Module loaded");
+} catch (error) {
+    console.warn("⚠️ Equipment module error:", error.message);
+}
 try {
     const notificationsRoutes = require("./modules/notifications/notifications.routes");
     // const notificationsTestRoutes = require("./modules/notifications/notifications.routes"); // ⚠️ TEST ROUTE - Disabled in production
