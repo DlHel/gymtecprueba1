@@ -1436,12 +1436,12 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
 // FASE 1 ENHANCEMENTS - Sistema de Contratos y Workflow
 try {
     const contractsSlaRoutes = require('./routes/contracts-sla');
-    const checklistRoutes = require('./routes/checklist');
+    const checklistRoutes = require('./modules/checklist/checklist.routes');
     const workflowRoutes = require('./routes/workflow');
     const dashboardCorrelationsRoutes = require('./routes/dashboard-correlations'); // Nueva ruta para correlaciones
     const taskGeneratorRoutes = require('./routes/task-generator'); // Sistema de generación automática de tareas
-    const intelligentAssignmentRoutes = require('./routes/intelligent-assignment'); // Sistema de asignación inteligente
-    const { router: slaProcessorRoutes, initializeSLAProcessor, startAutomaticMonitoring } = require('./routes/sla-processor'); // Sistema de reglas SLA
+    const intelligentAssignmentRoutes = require('./modules/intelligent-assignment/intelligent-assignment.routes'); // Sistema de asignación inteligente
+    const { router: slaProcessorRoutes, initializeSLAProcessor, startAutomaticMonitoring } = require("./modules/sla/sla.routes"); // Sistema de reglas SLA
     
     app.use('/api', contractsSlaRoutes);
     app.use('/api', checklistRoutes);
@@ -1462,10 +1462,10 @@ try {
 
 // FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes (Production mode)
 try {
-    const notificationsRoutes = require('./routes/notifications');
-    // const notificationsTestRoutes = require('./routes/notifications-test'); // ⚠️ TEST ROUTE - Disabled in production
-    // const notificationsSimpleTestRoutes = require('./routes/notifications-simple-test'); // ⚠️ TEST ROUTE - Disabled in production
-    const notificationsFixedRoutes = require('./routes/notifications-fixed');
+    const notificationsRoutes = require("./modules/notifications/notifications.routes");
+    // const notificationsTestRoutes = require("./modules/notifications/notifications.routes"); // ⚠️ TEST ROUTE - Disabled in production
+    // const notificationsSimpleTestRoutes = require("./modules/notifications/notifications.routes"); // ⚠️ TEST ROUTE - Disabled in production
+    const notificationsFixedRoutes = require("./modules/notifications/notifications.routes");
     // const testDbRoutes = require('./routes/test-db'); // ⚠️ TEST ROUTE - Disabled in production
     // const simpleTestRoutes = require('./routes/simple-test'); // ⚠️ TEST ROUTE - Disabled in production
     
@@ -1483,7 +1483,7 @@ try {
 
 // PAYROLL SYSTEM - Sistema de N�mina Chile
 try {
-    const payrollRoutes = require('./routes/payroll-chile');
+    const payrollRoutes = require('./modules/payroll/payroll.routes');
     app.use('/api', payrollRoutes);
     console.log('? Payroll Routes loaded: Sistema de N�mina Chile con c�lculos autom�ticos');
 } catch (error) {
@@ -1492,10 +1492,10 @@ try {
 
 // FASE 3 ENHANCEMENTS - Sistema de Inventario Inteligente y Reportes
 try {
-//     const inventoryRoutes = require('./routes/inventory');
+const inventoryRoutes = require("./modules/inventory/inventory.routes");
     const purchaseOrdersRoutes = require('./routes/purchase-orders');
     
-//     app.use('/api/inventory', inventoryRoutes);
+app.use("/api/inventory", inventoryRoutes);
     app.use('/api/purchase-orders', purchaseOrdersRoutes);
     
     console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
@@ -7842,7 +7842,7 @@ console.log('✅ Rutas principales de asistencia registradas (shift-types, sched
 // N�MINA CHILE - ENDPOINTS
 // ===================================================================
 try {
-    const payrollRoutes = require('./routes/payroll-chile');
+    const payrollRoutes = require('./modules/payroll/payroll.routes');
     payrollRoutes(app, db, authenticateToken, requireRole, toMySQLDateTime);
     console.log(' Rutas de N�mina Chile cargadas correctamente');
 } catch (error) {
