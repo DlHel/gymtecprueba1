@@ -1437,9 +1437,9 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
 try {
     const contractsSlaRoutes = require('./modules/contracts-sla/contracts-sla.routes');
     const checklistRoutes = require('./modules/checklist/checklist.routes');
-    const workflowRoutes = require('./routes/workflow');
-    const dashboardCorrelationsRoutes = require('./routes/dashboard-correlations'); // Nueva ruta para correlaciones
-    const taskGeneratorRoutes = require('./routes/task-generator'); // Sistema de generación automática de tareas
+    const workflowRoutes = require('./modules/workflow/workflow.routes');
+    const dashboardCorrelationsRoutes = require('./modules/dashboard-correlations/dashboard-correlations.routes'); // Nueva ruta para correlaciones
+    const taskGeneratorRoutes = require('./modules/task-generator/task-generator.routes'); // Sistema de generación automática de tareas
     const intelligentAssignmentRoutes = require('./modules/intelligent-assignment/intelligent-assignment.routes'); // Sistema de asignación inteligente
     const { router: slaProcessorRoutes, initializeSLAProcessor, startAutomaticMonitoring } = require("./modules/sla/sla.routes"); // Sistema de reglas SLA
     
