@@ -12,9 +12,11 @@ const { authenticateToken } = require('../../core/middleware/auth.middleware');
 // CRUD DE EQUIPOS
 // ===================================================================
 
-// GET all equipment
+// GET all equipment (with optional location_id filter)
 router.get('/equipment', authenticateToken, (req, res) => {
-    const sql = `
+    const { location_id } = req.query;
+    
+    let sql = `
         SELECT 
             e.id, e.name, e.type, e.brand, e.model, e.serial_number, e.custom_id,
             e.location_id, e.model_id, e.acquisition_date, e.last_maintenance_date, e.notes,
@@ -23,16 +25,25 @@ router.get('/equipment', authenticateToken, (req, res) => {
         LEFT JOIN Locations l ON e.location_id = l.id
         LEFT JOIN Clients c ON l.client_id = c.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
-        ORDER BY e.name
     `;
     
-    db.all(sql, [], (err, rows) => {
+    let params = [];
+    
+    // Filtrar por location_id si se proporciona
+    if (location_id) {
+        sql += ` WHERE e.location_id = ?`;
+        params.push(location_id);
+    }
+    
+    sql += ` ORDER BY e.name`;
+    
+    db.all(sql, params, (err, rows) => {
         if (err) {
-            console.error('❌ Error getting all equipment:', err.message);
+            console.error('❌ Error getting equipment:', err.message);
             res.status(500).json({"error": "Error al obtener equipos: " + err.message});
             return;
         }
-        console.log('✅ All equipment found:', rows.length, 'items');
+        console.log(`✅ Equipment found: ${rows.length} items${location_id ? ` for location ${location_id}` : ''}`);
         res.json({ message: 'success', data: rows || [] });
     });
 });
