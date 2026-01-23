@@ -1435,7 +1435,7 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
 
 // FASE 1 ENHANCEMENTS - Sistema de Contratos y Workflow
 try {
-    const contractsSlaRoutes = require('./routes/contracts-sla');
+    const contractsSlaRoutes = require('./modules/contracts-sla/contracts-sla.routes');
     const checklistRoutes = require('./modules/checklist/checklist.routes');
     const workflowRoutes = require('./routes/workflow');
     const dashboardCorrelationsRoutes = require('./routes/dashboard-correlations'); // Nueva ruta para correlaciones
