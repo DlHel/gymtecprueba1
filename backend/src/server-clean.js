@@ -1457,6 +1457,15 @@ try {
     
     console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow, Dashboard Correlations, Task Generator, Intelligent Assignment, SLA Processor');
 } catch (error) {
+
+// CLIENTS MODULE - Extraído de server-clean.js
+try {
+    const clientsRoutes = require("./modules/clients/clients.routes");
+    app.use("/api", clientsRoutes);
+    console.log("✅ Clients Module loaded");
+} catch (error) {
+    console.warn("⚠️ Clients module error:", error.message);
+}
     console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
 }
 
