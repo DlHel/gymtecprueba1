@@ -1493,6 +1493,15 @@ try {
     // const notificationsTestRoutes = require("./modules/notifications/notifications.routes"); // ⚠️ TEST ROUTE - Disabled in production
     // const notificationsSimpleTestRoutes = require("./modules/notifications/notifications.routes"); // ⚠️ TEST ROUTE - Disabled in production
     const notificationsFixedRoutes = require("./modules/notifications/notifications.routes");
+
+// TICKETS MODULE - Extraído de server-clean.js
+try {
+    const ticketsRoutes = require("./modules/tickets/tickets.routes");
+    app.use("/api", ticketsRoutes);
+    console.log("✅ Tickets Module loaded");
+} catch (error) {
+    console.warn("⚠️ Tickets module error:", error.message);
+}
     // const testDbRoutes = require('./routes/test-db'); // ⚠️ TEST ROUTE - Disabled in production
     // const simpleTestRoutes = require('./routes/simple-test'); // ⚠️ TEST ROUTE - Disabled in production
     
