@@ -1,0 +1,9 @@
+
+// PLANIFICADOR MODULE
+try {
+    const planificadorRoutes = require("./modules/planificador/planificador.routes");
+    app.use("/api", planificadorRoutes);
+    console.log("✅ Planificador Module loaded");
+} catch (error) {
+    console.warn("⚠️ Planificador module error:", error.message);
+}

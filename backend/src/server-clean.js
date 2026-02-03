@@ -1502,6 +1502,44 @@ try {
 } catch (error) {
     console.warn("⚠️ Tickets module error:", error.message);
 }
+
+
+// CLIENTS MODULE
+try {
+    const planificadorRoutes = require("./modules/planificador/planificador.routes");
+    app.use("/api", planificadorRoutes);
+    console.log("✅ Planificador Module loaded");
+} catch (error) {
+    console.warn("⚠️ Planificador module error:", error.message);
+}
+
+
+// CLIENTS MODULE
+try {
+    const clientsRoutes = require("./modules/clients/clients.routes");
+    app.use("/api", clientsRoutes);
+    console.log("✅ Clients Module loaded");
+} catch (error) {
+    console.warn("⚠️ Clients module error:", error.message);
+}
+
+// USERS MODULE
+try {
+    const usersRoutes = require("./modules/users/users.routes");
+    app.use("/api", usersRoutes);
+    console.log("✅ Users Module loaded");
+} catch (error) {
+    console.warn("⚠️ Users module error:", error.message);
+}
+
+// EQUIPMENT MODULE
+try {
+    const equipmentRoutes = require("./modules/equipment/equipment.routes");
+    app.use("/api", equipmentRoutes);
+    console.log("✅ Equipment Module loaded");
+} catch (error) {
+    console.warn("⚠️ Equipment module error:", error.message);
+}
     // const testDbRoutes = require('./routes/test-db'); // ⚠️ TEST ROUTE - Disabled in production
     // const simpleTestRoutes = require('./routes/simple-test'); // ⚠️ TEST ROUTE - Disabled in production
     
@@ -6121,7 +6159,7 @@ app.get('/api/quotes', authenticateToken, (req, res) => {
         params.push(date_to);
     }
     
-    sql += ` ORDER BY q.created_at DESC LIMIT 10${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
+    sql += ` ORDER BY q.created_at DESC LIMIT ${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
 
     
     db.all(sql, params, (err, rows) => {
@@ -6421,7 +6459,7 @@ app.get('/api/invoices', authenticateToken, (req, res) => {
         params.push(date_to);
     }
     
-    sql += ` ORDER BY i.created_at DESC LIMIT 10${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
+    sql += ` ORDER BY i.created_at DESC LIMIT ${parseInt(limit,10)} OFFSET ${parseInt(offset,10)}`;
 
     
     db.all(sql, params, (err, rows) => {
@@ -9494,7 +9532,7 @@ app.post('/api/informes', authenticateToken, (req, res) => {
     const { ticket_id, filename, notas_adicionales, client_email } = req.body;
     const sql = 'INSERT INTO InformesTecnicos (ticket_id, filename, notas_adicionales, client_email) VALUES (?, ?, ?, ?)';
     
-    db.run(sql, [ticket_id, filename, notas_adicionales, client_email], function(err) {
+    db.run(sql, [ticket_id, filename, notas_adicionales || null, client_email || null], function(err) {
         if (err) return res.status(500).json({ message: 'error', error: err.message });
         console.log('✅ Informe registrado: ' + this.lastID);
         res.json({ message: 'success', data: { id: this.lastID, ticket_id, filename } });

@@ -1,0 +1,4 @@
+            const dayTasks = state.tasks.filter(task => {
+                const taskDate = new Date(task.event_date || task.scheduled_date);
+                return taskDate.toDateString() === date.toDateString();
+            });

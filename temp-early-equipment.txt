@@ -1,0 +1,9 @@
+// EQUIPMENT MODULE - Cargado ANTES del código original para capturar /api/equipment
+try {
+    const equipmentRoutes = require("./modules/equipment/equipment.routes");
+    app.use("/api", equipmentRoutes);
+    console.log("✅ Equipment Module loaded (early)");
+} catch (error) {
+    console.warn("⚠️ Equipment module error:", error.message);
+}
+
