@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../db-adapter');
+const db = require('../../db-adapter');
 
 // ✅ Usar middleware centralizado del core
-const { authenticateToken } = require('../core/middleware/auth.middleware');
+const { authenticateToken } = require('../../core/middleware/auth.middleware');
 
 /**
  * GYMTEC ERP - MÓDULO PLANIFICADOR
@@ -35,16 +35,16 @@ router.get('/', authenticateToken, (req, res) => {
     const sql = `
         SELECT
             mt.id,
-            mt.title,
-            mt.description,
-            mt.type,
-            mt.status,
-            mt.priority,
+            mt.title COLLATE utf8mb4_unicode_ci as title,
+            mt.description COLLATE utf8mb4_unicode_ci as description,
+            mt.type COLLATE utf8mb4_unicode_ci as type,
+            mt.status COLLATE utf8mb4_unicode_ci as status,
+            mt.priority COLLATE utf8mb4_unicode_ci as priority,
             DATE_FORMAT(mt.scheduled_date, '%Y-%m-%d') as scheduled_date,
             mt.scheduled_time,
             mt.estimated_duration,
             mt.actual_duration,
-            mt.notes,
+            mt.notes COLLATE utf8mb4_unicode_ci as notes,
             mt.is_preventive,
             mt.started_at,
             mt.completed_at,
@@ -68,12 +68,12 @@ router.get('/', authenticateToken, (req, res) => {
         
         SELECT
             t.id,
-            t.title,
-            t.description,
-            'ticket' as type,
-            t.status,
-            t.priority,
-            DATE_FORMAT(t.due_date, '%Y-%m-%d') as scheduled_date,
+            t.title COLLATE utf8mb4_unicode_ci as title,
+            t.description COLLATE utf8mb4_unicode_ci as description,
+            'ticket' COLLATE utf8mb4_unicode_ci as type,
+            t.status COLLATE utf8mb4_unicode_ci as status,
+            t.priority COLLATE utf8mb4_unicode_ci as priority,
+            DATE_FORMAT(COALESCE(t.due_date, t.updated_at, t.created_at), '%Y-%m-%d') as scheduled_date,
             NULL as scheduled_time,
             NULL as estimated_duration,
             NULL as actual_duration,
@@ -93,10 +93,9 @@ router.get('/', authenticateToken, (req, res) => {
         FROM Tickets t
         LEFT JOIN Equipment e ON t.equipment_id = e.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
-        LEFT JOIN Users u ON t.assigned_to = u.id
+        LEFT JOIN Users u ON t.assigned_technician_id = u.id
         LEFT JOIN Clients c ON t.client_id = c.id
         LEFT JOIN Locations l ON t.location_id = l.id
-        WHERE t.due_date IS NOT NULL
         
         ORDER BY scheduled_date DESC, scheduled_time ASC
     `;

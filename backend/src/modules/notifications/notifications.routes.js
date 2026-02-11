@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
             nl.id,
             nl.type,
             nl.priority,
-            nl.title,
+            nl.subject as title,
             nl.message,
             nl.status,
             nl.sent_at as created_at,
@@ -62,14 +62,14 @@ router.get('/', async (req, res) => {
         UNION ALL
         SELECT 
             nq.id,
-            'email' as type,
+            nq.type,
             nq.priority,
             nq.subject as title,
-            nq.body as message,
+            nq.message,
             nq.status,
             nq.scheduled_at as created_at,
             NULL as delivered_at,
-            nq.failed_at,
+            NULL as failed_at,
             'queue' as source
         FROM NotificationQueue nq
         WHERE 1=1`;
@@ -650,12 +650,11 @@ router.get('/logs', async (req, res) => {
         let sql = `
         SELECT nl.*, 
                nt.name as template_name,
-               nq.trigger_event,
                nq.related_entity_type,
                nq.related_entity_id
-        FROM NotificationLog nl
-        JOIN NotificationTemplates nt ON nl.template_id = nt.id
-        JOIN NotificationQueue nq ON nl.queue_id = nq.id
+        FROM NotificationLogs nl
+        LEFT JOIN NotificationTemplates nt ON nl.template_id = nt.id
+        LEFT JOIN NotificationQueue nq ON nl.queue_id = nq.id
         WHERE 1=1`;
         
         const params = [];
@@ -725,7 +724,7 @@ router.get('/stats', async (req, res) => {
         
         // Stats básicas sin filtros de fecha complejos para evitar problemas MySQL
         console.log('🔍 Ejecutando consulta totalSent...');
-        const totalSent = await db.allAsync('SELECT COUNT(*) as count FROM NotificationLog');
+        const totalSent = await db.allAsync('SELECT COUNT(*) as count FROM NotificationLogs');
         console.log('✅ totalSent result:', totalSent);
         
         console.log('🔍 Ejecutando consulta totalPending...');
@@ -733,11 +732,11 @@ router.get('/stats', async (req, res) => {
         console.log('✅ totalPending result:', totalPending);
         
         console.log('🔍 Ejecutando consulta totalDelivered...');
-        const totalDelivered = await db.allAsync('SELECT COUNT(*) as count FROM NotificationLog WHERE status = ?', ['delivered']);
+        const totalDelivered = await db.allAsync('SELECT COUNT(*) as count FROM NotificationLogs WHERE status = ?', ['delivered']);
         console.log('✅ totalDelivered result:', totalDelivered);
         
         console.log('🔍 Ejecutando consulta totalFailed...');
-        const totalFailed = await db.allAsync('SELECT COUNT(*) as count FROM NotificationLog WHERE status = ?', ['failed']);
+        const totalFailed = await db.allAsync('SELECT COUNT(*) as count FROM NotificationLogs WHERE status = ?', ['failed']);
         console.log('✅ totalFailed result:', totalFailed);
         
         // Calcular tasa de éxito

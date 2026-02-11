@@ -345,8 +345,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tbody.innerHTML = attendances.map(att => {
                 const date = new Date(att.date).toLocaleDateString('es-CL');
-                const checkIn = att.check_in_time ? new Date(att.check_in_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '-';
-                const checkOut = att.check_out_time ? new Date(att.check_out_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '-';
+                // FIX: check_in_time puede ser TIME ("HH:MM:SS") o DATETIME
+                const checkIn = att.check_in_time ? (att.check_in_time.includes(' ') ? new Date(att.check_in_time.replace(' ', 'T')).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : att.check_in_time.substring(0, 5)) : '-';
+                const checkOut = att.check_out_time ? (att.check_out_time.includes(' ') ? new Date(att.check_out_time.replace(' ', 'T')).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : att.check_out_time.substring(0, 5)) : '-';
                 const hours = att.worked_hours ? `${att.worked_hours}h` : '-';
                 
                 let statusBadge = '';
@@ -1252,8 +1253,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             tbody.innerHTML = attendances.map(att => {
                 const date = new Date(att.date).toLocaleDateString('es-CL');
-                const checkIn = att.check_in_time ? new Date(att.check_in_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '-';
-                const checkOut = att.check_out_time ? new Date(att.check_out_time).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '-';
+                // FIX: check_in_time puede ser TIME ("HH:MM:SS") o DATETIME
+                const checkIn = att.check_in_time ? (att.check_in_time.includes(' ') ? new Date(att.check_in_time.replace(' ', 'T')).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : att.check_in_time.substring(0, 5)) : '-';
+                const checkOut = att.check_out_time ? (att.check_out_time.includes(' ') ? new Date(att.check_out_time.replace(' ', 'T')).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : att.check_out_time.substring(0, 5)) : '-';
                 const hours = att.worked_hours ? `${parseFloat(att.worked_hours).toFixed(1)}h` : '-';
                 
                 let statusBadge = '';

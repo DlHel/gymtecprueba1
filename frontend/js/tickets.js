@@ -463,7 +463,7 @@ function getTicketTypeLabel(ticketType) {
     const type = (ticketType || 'individual').toLowerCase();
     switch (type) {
         case 'gimnacion':
-            return 'Gimnación';
+            return 'Mantención de Gimnasio';
         case 'individual':
         default:
             return 'Individual';

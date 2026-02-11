@@ -117,7 +117,7 @@
                             </button>
                             <button id="add-gimnacion-btn" class="flex items-center justify-center">
                                 <i data-lucide="building" class="mr-2 h-4 w-4 sm:h-5 sm:w-5"></i> 
-                                <span class="text-sm sm:text-base">Ticket de Gimnación</span>
+                                <span class="text-sm sm:text-base">Mantención de Gimnasio</span>
                             </button>
                         </div>
                     </div>
@@ -172,7 +172,7 @@
                                         <select id="tickets-filter-type" title="Filtrar por tipo de ticket">
                                             <option value="">Todos los tipos</option>
                                             <option value="individual">Individual</option>
-                                            <option value="gimnacion">Gimnación</option>
+                                            <option value="gimnacion">Mantención de Gimnasio</option>
                                         </select>
                                     </div>
                                 </div>
@@ -390,11 +390,11 @@
         </div>
     </div>
 
-    <!-- Modal para Crear Ticket de Gimnación -->
+    <!-- Modal para Crear Ticket de Mantención de Gimnasio -->
     <div id="gimnacion-modal" class="base-modal">
         <div class="base-modal-content modal-large">
             <div class="base-modal-header">
-                <h3 id="gimnacion-modal-title" class="base-modal-title">Nuevo Ticket de Gimnación</h3>
+                <h3 id="gimnacion-modal-title" class="base-modal-title">Nueva Mantención de Gimnasio</h3>
                 <button type="button" class="base-modal-close" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
@@ -446,6 +446,11 @@
                                 </select>
                             </div>
                             
+                            <div class="base-form-group">
+                                <label class="base-form-label">Fecha de Vencimiento</label>
+                                <input type="datetime-local" name="due_date" class="base-form-input" title="Seleccionar fecha y hora de vencimiento">
+                            </div>
+                            
                             <div class="base-form-group full-width">
                                 <label class="base-form-label">Título del Servicio <span class="required">*</span></label>
                                 <input type="text" name="title" class="base-form-input" required placeholder="Ej: Mantenimiento Preventivo Mensual - Enero 2025">
@@ -466,7 +471,7 @@
                                     <i data-lucide="info" class="h-5 w-5 text-blue-600 mt-0.5 mr-3"></i>
                                     <div>
                                         <h4 class="text-blue-900 font-medium">Alcance del Servicio</h4>
-                                        <p class="text-blue-700 text-sm mt-1">Seleccione los equipos que serán incluidos en este servicio de gimnación. Puede seleccionar equipos individuales o toda la sede.</p>
+                                        <p class="text-blue-700 text-sm mt-1">Seleccione los equipos que serán incluidos en esta mantención. Puede seleccionar equipos individuales o toda la sede.</p>
                                     </div>
                                 </div>
                             </div>
@@ -585,7 +590,7 @@
                 <button type="button" class="base-btn-cancel" onclick="closeGimnacionModal()">Cancelar</button>
                 <button type="submit" form="gimnacion-form" class="base-btn-save">
                     <i data-lucide="save" class="h-4 w-4 mr-2"></i>
-                    Crear Servicio de Gimnación
+                    Crear Mantención
                 </button>
             </div>
         </div>

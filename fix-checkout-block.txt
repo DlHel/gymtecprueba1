@@ -1,0 +1,11 @@
+        } else if (typeof attendance.check_in_time === 'string') {
+            // FIX: check_in_time puede ser TIME (HH:MM:SS) o DATETIME (YYYY-MM-DD HH:MM:SS)
+            const checkInStr = attendance.check_in_time;
+            if (checkInStr.includes(' ') || checkInStr.length > 10) {
+                // Es DATETIME completo
+                check_in = new Date(checkInStr.replace(' ', 'T'));
+            } else {
+                // Es solo TIME, combinar con attendance.date
+                const dateStr = String(attendance.date).split('T')[0];
+                check_in = new Date(dateStr + 'T' + checkInStr);
+            }

@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const db = require('../../db-adapter');
 const { authenticateToken } = require('../../core/middleware/auth.middleware');
+const validateData = require('../../middleware/validate.middleware');
+const { equipmentSchema, equipmentUpdateSchema } = require('../../schemas/equipment.schema');
 
 // ===================================================================
 // CRUD DE EQUIPOS
@@ -89,11 +91,11 @@ router.get('/equipment/:id', authenticateToken, (req, res) => {
 });
 
 // POST crear nuevo equipo
-router.post('/equipment', authenticateToken, (req, res) => {
+router.post('/equipment', authenticateToken, validateData(equipmentSchema), (req, res) => {
     const { location_id, model_id, custom_id, serial_number, acquisition_date, notes } = req.body;
     
-    if (!location_id) return res.status(400).json({ error: 'location_id es requerido', code: 'MISSING_LOCATION' });
-    if (!model_id) return res.status(400).json({ error: 'model_id es requerido', code: 'MISSING_MODEL' });
+    // Manual validation removed, handled by middleware
+    // if (!location_id) return res.status(400).... handled by Zod
     
     let finalCustomId = custom_id;
     
@@ -150,11 +152,11 @@ router.post('/equipment', authenticateToken, (req, res) => {
 });
 
 // PUT actualizar equipo existente
-router.put('/equipment/:id', authenticateToken, (req, res) => {
+router.put('/equipment/:id', authenticateToken, validateData(equipmentUpdateSchema), (req, res) => {
     const { id } = req.params;
     const { location_id, model_id, custom_id, serial_number, acquisition_date, notes } = req.body;
     
-    if (!location_id || !model_id) return res.status(400).json({ error: 'location_id y model_id son requeridos', code: 'MISSING_REQUIRED_FIELDS' });
+    // Manual validation removed/redundant but kept specific checks safe if needed, Zod handles types/required keys
     
     const sql = `UPDATE Equipment SET location_id = ?, model_id = ?, custom_id = ?, serial_number = ?, acquisition_date = ?, notes = ?, updated_at = NOW() WHERE id = ?`;
     const params = [parseInt(location_id, 10), parseInt(model_id, 10), custom_id || null, serial_number || null, acquisition_date || null, notes || null, parseInt(id, 10)];

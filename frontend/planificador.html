@@ -53,8 +53,8 @@
         }
         
         .event-item {
-            background-color: #3b82f6;
-            color: white;
+            /* background-color: #3b82f6; Removed to allow dynamic coloring */
+            /* color: white; Removed to allow dynamic coloring */
             padding: 2px 6px;
             margin: 2px 0;
             border-radius: 4px;
@@ -64,24 +64,14 @@
             white-space: nowrap;
         }
         
-        .event-item.maintenance {
-            background-color: #f59e0b;
-        }
-        
-        .event-item.inspection {
-            background-color: #10b981;
-        }
-        
-        .event-item.repair {
-            background-color: #ef4444;
-        }
-        
+        /* ... types keep their colors as fallbacks ... */
+
         .task-card {
             background: white;
             border-radius: 8px;
             padding: 16px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #3b82f6;
+            border-left: 4px solid #e2e8f0; /* Default neutral border */
             margin-bottom: 12px;
         }
         

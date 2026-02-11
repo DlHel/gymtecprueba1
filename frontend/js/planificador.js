@@ -265,15 +265,26 @@ document.addEventListener('DOMContentLoaded', () => {
             dayElement.appendChild(dayNumber);
 
             // Tareas del día
+            // ✅ FIX: Construir string YYYY-MM-DD usando fecha local para evitar errores de timezone
+            // toISOString() convierte a UTC y puede cambiar el día (ej: 2023-10-01 00:00 Local -> 2023-09-30 21:00 UTC)
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const dateStr = `${year}-${month}-${day}`;
+
             const dayTasks = state.tasks.filter(task => 
-                task.scheduled_date === date.toISOString().split('T')[0]
+                task.scheduled_date === dateStr
             );
 
             dayTasks.forEach(task => {
                 const eventElement = document.createElement('div');
-                eventElement.className = `event-item ${task.type}`;
+                // ✅ FIX: Usar getTaskColor para asignar colores según estado (especialmente items cerrados)
+                const colorClass = ui.getTaskColor(task);
+                // Si el colorClass incluye bg-, asumimos que maneja el fondo. Si no, mantenemos type.
+                // Pero event-item probablemente tiene estilo base. Agregamos las clases de color.
+                eventElement.className = `event-item ${task.type} ${colorClass} text-xs p-1 mb-1 rounded truncate`;
                 eventElement.textContent = task.title;
-                eventElement.title = `${task.title} - ${task.scheduled_time || 'Sin hora'}`;
+                eventElement.title = `${task.title} - ${task.scheduled_time || 'Sin hora'} (${task.status})`;
                 dayElement.appendChild(eventElement);
             });
 
@@ -310,11 +321,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const currentYear = state.currentDate.getFullYear();
             
             console.log(`📅 Actualizando vista de tareas para ${currentYear}-${currentMonth + 1}`);
+            
+            const closedStatuses = ['completed', 'closed', 'resuelto', 'finalizado', 'terminado', 'cerrado'];
 
             // Tareas pendientes del mes actual
             const pendingTasks = state.tasks.filter(task => {
                 const taskDate = new Date(task.scheduled_date);
-                return task.status === 'pending' && 
+                // Si NO está cerrado/completado, es pendiente
+                return !closedStatuses.includes(task.status?.toLowerCase()) && 
                        task.scheduled_date >= todayStr &&
                        taskDate.getMonth() === currentMonth &&
                        taskDate.getFullYear() === currentYear;
@@ -328,9 +342,10 @@ document.addEventListener('DOMContentLoaded', () => {
             ui.renderTaskList(elements.todayTasks, todayTasks);
 
             // Tareas completadas del mes actual
+            // ✅ FIX: Usar array de estados cerrados en lugar de solo 'completed'
             const completedTasks = state.tasks.filter(task => {
                 const taskDate = new Date(task.scheduled_date);
-                return task.status === 'completed' &&
+                return closedStatuses.includes(task.status?.toLowerCase()) &&
                        taskDate.getMonth() === currentMonth &&
                        taskDate.getFullYear() === currentYear;
             }).slice(0, 10);
@@ -358,6 +373,9 @@ document.addEventListener('DOMContentLoaded', () => {
             card.className = 'task-card';
             
             // Determinar estado visual
+            const colorClass = ui.getTaskColor(task);
+            card.classList.add(...colorClass.split(' '));
+            
             const today = new Date().toISOString().split('T')[0];
             if (task.scheduled_date < today && task.status === 'pending') {
                 card.classList.add('overdue');
@@ -404,9 +422,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         getTaskColor: (task) => {
             // Determinar color basado en estado y prioridad
-            if (task.status === 'completed') {
+            const closedStatuses = ['completed', 'closed', 'resuelto', 'finalizado', 'terminado', 'cerrado'];
+            const inProgressStatuses = ['in_progress', 'en_curso', 'trabajando', 'en_proceso'];
+
+            if (closedStatuses.includes(task.status?.toLowerCase())) {
                 return 'bg-green-100 text-green-800 border-green-200';
-            } else if (task.status === 'in_progress') {
+            } else if (inProgressStatuses.includes(task.status?.toLowerCase())) {
                 return 'bg-blue-100 text-blue-800 border-blue-200';
             } else if (task.priority === 'critical') {
                 return 'bg-red-100 text-red-800 border-red-200';

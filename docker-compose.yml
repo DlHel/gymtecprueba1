@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+    ports:
+      - "3000:3000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=gymtec_user
+      - DB_PASS=gymtec_password
+      - DB_NAME=gymtec_erp
+      - PORT=3000
+      - JWT_SECRET=gymtec-secret-key-local-docker
+    volumes:
+      - ./backend/src:/app/src
+      - ./frontend:/app/../frontend
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    platform: linux/x86_64
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_password
+      - MYSQL_DATABASE=gymtec_erp
+      - MYSQL_USER=gymtec_user
+      - MYSQL_PASSWORD=gymtec_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      # Inicializar DB con schema y parches
+      - ./backend/database/mysql-schema.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - ./backend/database/docker-patches.sql:/docker-entrypoint-initdb.d/02-patches.sql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:

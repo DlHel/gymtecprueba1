@@ -2370,3 +2370,31 @@ body.modal-open {
     backdrop-filter: blur(8px);
 }
 
+
+/* Utilidades de colores de estado faltantes */
+.bg-green-100 { background-color: rgb(220 252 231); }
+.text-green-800 { color: rgb(22 101 52); }
+.border-green-200 { border-color: rgb(187 247 208); }
+
+.bg-blue-100 { background-color: rgb(219 234 254); }
+.text-blue-800 { color: rgb(30 64 175); }
+.border-blue-200 { border-color: rgb(191 219 254); }
+
+.bg-red-100 { background-color: rgb(254 226 226); }
+.text-red-800 { color: rgb(153 27 27); }
+.border-red-200 { border-color: rgb(254 202 202); }
+
+.bg-yellow-100 { background-color: rgb(254 249 195); }
+.text-yellow-800 { color: rgb(133 77 14); }
+.border-yellow-200 { border-color: rgb(254 240 138); }
+
+.bg-orange-100 { background-color: rgb(255 237 213); }
+.text-orange-800 { color: rgb(154 52 18); }
+.border-orange-200 { border-color: rgb(254 215 170); }
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+

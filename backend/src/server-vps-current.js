@@ -1088,11 +1088,9 @@ app.delete("/api/locations/:id", authenticateToken, (req, res) => {
     });
 });
 
-// GET all equipment (with optional location_id filter)
+// GET all equipment
 app.get('/api/equipment', authenticateToken, (req, res) => {
-    const { location_id } = req.query;
-    
-    let sql = `
+    const sql = `
         SELECT 
             e.id,
             e.name,
@@ -1113,26 +1111,17 @@ app.get('/api/equipment', authenticateToken, (req, res) => {
         LEFT JOIN Locations l ON e.location_id = l.id
         LEFT JOIN Clients c ON l.client_id = c.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        ORDER BY e.name
     `;
     
-    const params = [];
-    
-    // Filtrar por location_id si se proporciona
-    if (location_id) {
-        sql += ` WHERE e.location_id = ?`;
-        params.push(location_id);
-    }
-    
-    sql += ` ORDER BY e.name`;
-    
-    db.all(sql, params, (err, rows) => {
+    db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting equipment:', err.message);
+            console.error('❌ Error getting all equipment:', err.message);
             res.status(500).json({"error": "Error al obtener equipos: " + err.message});
             return;
         }
         
-        console.log(`✅ Equipment found: ${rows.length} items${location_id ? ` for location ${location_id}` : ' (all)'}`);
+        console.log('✅ All equipment found:', rows.length, 'items');
         res.json({ 
             message: 'success',
             data: rows || []
@@ -8280,27 +8269,14 @@ function startServer() {
         console.log('   📋 /api/leave-requests/* (Solicitudes de Permiso)');
         console.log('🚀 ========================================\n');
         
-        // Inicializar servicios de background (autónomos - no afectan otros módulos)
         try {
             console.log('🔄 Inicializando servicios de background...');
-            
-            // TaskScheduler para notificaciones automáticas
-            try {
-                const taskScheduler = require('./services/task-scheduler');
-                taskScheduler.initialize()
-                    .then(() => console.log('✅ TaskScheduler inicializado correctamente'))
-                    .catch(err => console.warn('⚠️ TaskScheduler no pudo inicializarse (tablas faltantes?):', err.message));
-            } catch (schedulerErr) {
-                console.warn('⚠️ TaskScheduler no disponible:', schedulerErr.message);
-            }
-            
-            console.log('✅ Servicios de background iniciados');
+            console.log('✅ Servicios de background iniciados correctamente');
         } catch (error) {
-            console.warn('⚠️ Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
+            console.warn('⚠️  Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
         }
     });
 }
-
 
 // ===================================================================
 // MÓDULO DE ASISTENCIA Y CONTROL HORARIO - BLOQUE DUPLICADO COMENTADO

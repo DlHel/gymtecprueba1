@@ -536,10 +536,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         const formData = new FormData(e.target);
         const contractData = {
             client_id: parseInt(formData.get('client_id'), 10),
-            status: formData.get('status'),
+            contract_number: formData.get('contract_number'),
+            contract_name: formData.get('contract_name'),
+            status: formData.get('status') || 'borrador',
             start_date: formData.get('start_date'),
             end_date: formData.get('end_date'),
-            details: formData.get('details')
+            service_type: formData.get('service_type'),
+            maintenance_frequency: formData.get('maintenance_frequency'),
+            sla_level: formData.get('sla_level'),
+            service_description: formData.get('service_description')
         };
 
         if (state.currentContract) {

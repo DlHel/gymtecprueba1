@@ -228,9 +228,24 @@
                 </div>
                 
                 <form id="contract-form" class="space-y-4">
+                    <!-- Campos obligatorios -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                            <label for="contract-client" class="block text-sm font-medium text-gray-700">Cliente</label>
+                            <label for="contract-number" class="block text-sm font-medium text-gray-700">Número de Contrato *</label>
+                            <input type="text" id="contract-number" name="contract_number" required 
+                                   placeholder="Ej: CTR-2026-001"
+                                   class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label for="contract-name" class="block text-sm font-medium text-gray-700">Nombre del Contrato *</label>
+                            <input type="text" id="contract-name" name="contract_name" required 
+                                   placeholder="Ej: Mantenimiento Preventivo Anual"
+                                   class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        
+                        <div>
+                            <label for="contract-client" class="block text-sm font-medium text-gray-700">Cliente *</label>
                             <select id="contract-client" name="client_id" required 
                                     class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 <option value="">Seleccionar cliente...</option>
@@ -239,33 +254,72 @@
                         
                         <div>
                             <label for="contract-status" class="block text-sm font-medium text-gray-700">Estado</label>
-                            <select id="contract-status" name="status" required 
+                            <select id="contract-status" name="status" 
                                     class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
-                                <option value="active">Activo</option>
-                                <option value="inactive">Inactivo</option>
-                                <option value="pending">Pendiente</option>
-                                <option value="expired">Expirado</option>
+                                <option value="borrador">Borrador</option>
+                                <option value="activo">Activo</option>
+                                <option value="suspendido">Suspendido</option>
+                                <option value="vencido">Vencido</option>
                             </select>
                         </div>
                         
                         <div>
-                            <label for="contract-start-date" class="block text-sm font-medium text-gray-700">Fecha de Inicio</label>
+                            <label for="contract-start-date" class="block text-sm font-medium text-gray-700">Fecha de Inicio *</label>
                             <input type="date" id="contract-start-date" name="start_date" required 
                                    class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
                         
                         <div>
-                            <label for="contract-end-date" class="block text-sm font-medium text-gray-700">Fecha de Fin</label>
+                            <label for="contract-end-date" class="block text-sm font-medium text-gray-700">Fecha de Fin *</label>
                             <input type="date" id="contract-end-date" name="end_date" required 
                                    class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
                         </div>
                     </div>
                     
+                    <!-- Configuración de Servicio -->
+                    <div class="border-t pt-4 mt-4">
+                        <h4 class="text-sm font-medium text-gray-900 mb-3">Configuración del Servicio</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="service-type" class="block text-sm font-medium text-gray-700">Tipo de Servicio *</label>
+                                <select id="service-type" name="service_type" required 
+                                        class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="mantenimiento_preventivo">Mantención Preventiva</option>
+                                    <option value="mantenimiento_correctivo">Mantención Correctiva</option>
+                                    <option value="instalacion">Instalación</option>
+                                    <option value="soporte_completo">Soporte Completo</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="maintenance-frequency" class="block text-sm font-medium text-gray-700">Frecuencia *</label>
+                                <select id="maintenance-frequency" name="maintenance_frequency" required 
+                                        class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="mensual">Mensual</option>
+                                    <option value="bimestral">Bimestral</option>
+                                    <option value="trimestral">Trimestral</option>
+                                    <option value="semestral">Semestral</option>
+                                    <option value="anual">Anual</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label for="sla-level" class="block text-sm font-medium text-gray-700">Nivel SLA *</label>
+                                <select id="sla-level" name="sla_level" required 
+                                        class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500">
+                                    <option value="standard">Standard (24h)</option>
+                                    <option value="premium">Premium (8h)</option>
+                                    <option value="enterprise">Enterprise (4h)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div>
-                        <label for="contract-details" class="block text-sm font-medium text-gray-700">Detalles del Contrato</label>
-                        <textarea id="contract-details" name="details" rows="4" 
+                        <label for="contract-details" class="block text-sm font-medium text-gray-700">Descripción del Servicio</label>
+                        <textarea id="contract-details" name="service_description" rows="3" 
                                   class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                  placeholder="Describe los términos y condiciones del contrato..."></textarea>
+                                  placeholder="Describe los términos y servicios incluidos..."></textarea>
                     </div>
                     
                     <div class="flex justify-end space-x-3 pt-4">

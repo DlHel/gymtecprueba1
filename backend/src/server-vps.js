@@ -1088,11 +1088,9 @@ app.delete("/api/locations/:id", authenticateToken, (req, res) => {
     });
 });
 
-// GET all equipment (with optional location_id filter)
+// GET all equipment
 app.get('/api/equipment', authenticateToken, (req, res) => {
-    const { location_id } = req.query;
-    
-    let sql = `
+    const sql = `
         SELECT 
             e.id,
             e.name,
@@ -1113,26 +1111,17 @@ app.get('/api/equipment', authenticateToken, (req, res) => {
         LEFT JOIN Locations l ON e.location_id = l.id
         LEFT JOIN Clients c ON l.client_id = c.id
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
+        ORDER BY e.name
     `;
     
-    const params = [];
-    
-    // Filtrar por location_id si se proporciona
-    if (location_id) {
-        sql += ` WHERE e.location_id = ?`;
-        params.push(location_id);
-    }
-    
-    sql += ` ORDER BY e.name`;
-    
-    db.all(sql, params, (err, rows) => {
+    db.all(sql, [], (err, rows) => {
         if (err) {
-            console.error('❌ Error getting equipment:', err.message);
+            console.error('❌ Error getting all equipment:', err.message);
             res.status(500).json({"error": "Error al obtener equipos: " + err.message});
             return;
         }
         
-        console.log(`✅ Equipment found: ${rows.length} items${location_id ? ` for location ${location_id}` : ' (all)'}`);
+        console.log('✅ All equipment found:', rows.length, 'items');
         res.json({ 
             message: 'success',
             data: rows || []
@@ -7192,7 +7181,7 @@ app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
                     ) VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)
                 `;
                 
-                const scheduled_hours = (schedule && schedule.weekly_hours) ? schedule.weekly_hours / 5 : 8; // Aproximación
+                const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // Aproximación
                 
                 db.run(insertSql, [user_id, nowTime, location, notes, ip, is_late, late_minutes, status, scheduled_hours], function(err) {
                     if (err) {
@@ -7238,28 +7227,12 @@ app.post('/api/attendance/check-out', authenticateToken, (req, res) => {
             // Ya es un objeto Date
             check_in = attendance.check_in_time;
         } else if (typeof attendance.check_in_time === 'string') {
-            // FIX: check_in_time puede ser TIME (HH:MM:SS) o DATETIME (YYYY-MM-DD HH:MM:SS)
-            const checkInStr = attendance.check_in_time;
-            if (checkInStr.includes(' ') || checkInStr.length > 10) {
-                // Es DATETIME completo
-                check_in = new Date(checkInStr.replace(' ', 'T'));
-            } else {
-                // Es solo TIME, combinar con attendance.date
-                // FIX: attendance.date puede ser Date object o string
-                let dateStr;
-                if (attendance.date instanceof Date) {
-                    dateStr = attendance.date.toISOString().split('T')[0];
-                } else {
-                    dateStr = String(attendance.date).split('T')[0];
-                }
-                check_in = new Date(dateStr + 'T' + checkInStr);
-            }
-        }
-        
-        // FIX: Validar que check_in sea una fecha válida
-        if (!check_in || isNaN(check_in.getTime())) {
-            console.error('Error: check_in inválido:', attendance.check_in_time, '-> check_in:', check_in);
-            return res.status(500).json({ error: 'Error calculando horas trabajadas - hora de entrada inválida' });
+            // Es un string, necesitamos parsearlo como hora local
+            const checkInStr = attendance.check_in_time.replace(' ', 'T');
+            check_in = new Date(checkInStr);
+        } else {
+            console.error('Tipo inesperado para check_in_time:', typeof attendance.check_in_time);
+            return res.status(500).json({ error: 'Error procesando hora de entrada' });
         }
         
         const worked_hours = (now - check_in) / (1000 * 60 * 60); // Horas trabajadas
@@ -8280,27 +8253,14 @@ function startServer() {
         console.log('   📋 /api/leave-requests/* (Solicitudes de Permiso)');
         console.log('🚀 ========================================\n');
         
-        // Inicializar servicios de background (autónomos - no afectan otros módulos)
         try {
             console.log('🔄 Inicializando servicios de background...');
-            
-            // TaskScheduler para notificaciones automáticas
-            try {
-                const taskScheduler = require('./services/task-scheduler');
-                taskScheduler.initialize()
-                    .then(() => console.log('✅ TaskScheduler inicializado correctamente'))
-                    .catch(err => console.warn('⚠️ TaskScheduler no pudo inicializarse (tablas faltantes?):', err.message));
-            } catch (schedulerErr) {
-                console.warn('⚠️ TaskScheduler no disponible:', schedulerErr.message);
-            }
-            
-            console.log('✅ Servicios de background iniciados');
+            console.log('✅ Servicios de background iniciados correctamente');
         } catch (error) {
-            console.warn('⚠️ Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
+            console.warn('⚠️  Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
         }
     });
 }
-
 
 // ===================================================================
 // MÓDULO DE ASISTENCIA Y CONTROL HORARIO - BLOQUE DUPLICADO COMENTADO

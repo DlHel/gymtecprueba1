@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="css/equipment-drawer.css">
     <link rel="stylesheet" href="css/equipo.css">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="js/jspdf.umd.min.js"></script>
+    <!-- Alpine.js Core -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.3/dist/cdn.min.js"></script>
     <script>lucide.createIcons();</script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -81,16 +84,16 @@
                 </div>
 
                 <!-- Contenido principal con layout mejorado -->
-                <div class="clients-main-content">
+                <div class="clients-main-content" x-data="clientsManager()">
                     <!-- Panel de búsqueda y filtros -->
                     <div class="clients-search-panel">
                         <div class="clients-search-container">
                             <div class="clients-search-input-wrapper">
                                 <i data-lucide="search" class="clients-search-icon"></i>
-                                <input type="text" id="clientSearch" placeholder="Buscar por nombre, RUT o razón social..." class="clients-search-input">
+                                <input type="text" x-model="searchTerm" placeholder="Buscar por nombre, RUT o razón social..." class="clients-search-input">
                             </div>
-                            <div class="clients-search-stats" id="search-stats">
-                                <span class="clients-total-count">0 clientes</span>
+                            <div class="clients-search-stats">
+                                <span class="clients-total-count" x-text="`${filteredClients.length} clientes`">0 clientes</span>
                             </div>
                         </div>
                     </div>
@@ -105,29 +108,161 @@
                                     Lista de Clientes
                                 </h3>
                             </div>
-                            <div class="clients-list-content" id="client-list-container">
+                            <div class="clients-list-content">
                                 <!-- Loading state -->
-                                <div class="clients-loading-state" id="loading-clients">
+                                <div class="clients-loading-state" x-show="isLoading">
                                     <div class="clients-loading-spinner"></div>
                                     <p>Cargando clientes...</p>
                                 </div>
+
+                                <!-- Empty State -->
+                                <template x-if="!isLoading && filteredClients.length === 0">
+                                    <div class="clients-list-empty">
+                                        <i data-lucide="users"></i>
+                                        <h4>No hay clientes registrados</h4>
+                                        <p x-text="searchTerm ? 'No hay coincidencias' : 'Comienza agregando tu primer cliente'"></p>
+                                    </div>
+                                </template>
+
+                                <!-- List Loop -->
+                                <template x-for="client in filteredClients" :key="client.id">
+                                    <div class="client-card" 
+                                         :class="{ 'selected': selectedClientId === client.id }"
+                                         @click="selectClient(client)">
+                                        <div class="client-card-header">
+                                            <h4 class="client-card-name" x-text="client.name"></h4>
+                                            <span class="client-card-badge">Activo</span>
+                                        </div>
+                                        <div class="client-card-info">
+                                            <div class="client-card-detail">
+                                                <i data-lucide="credit-card"></i>
+                                                <span x-text="`RUT: ${client.rut || 'No especificado'}`"></span>
+                                            </div>
+                                            <template x-if="client.email">
+                                                <div class="client-card-detail">
+                                                    <i data-lucide="mail"></i>
+                                                    <span x-text="client.email"></span>
+                                                </div>
+                                            </template>
+                                        </div>
+                                        <div class="client-card-stats">
+                                            <div class="client-stat-item">
+                                                <i data-lucide="map-pin"></i>
+                                                <span class="client-stat-value" x-text="client.location_count || 0"></span>
+                                            </div>
+                                            <div class="client-stat-item">
+                                                <i data-lucide="monitor"></i>
+                                                <span class="client-stat-value" x-text="client.equipment_count || 0"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
                             </div>
                         </div>
 
                         <!-- Panel de detalles (derecha) -->
-                        <div class="clients-detail-panel" id="detail-container">
+                        <div class="clients-detail-panel">
                             <!-- Estado vacío -->
-                            <div class="clients-empty-state" id="empty-detail">
+                            <div class="clients-empty-state" x-show="!selectedClientId">
                                 <div class="clients-empty-icon">
                                     <i data-lucide="user-plus" class="w-16 h-16"></i>
                                 </div>
                                 <h3 class="clients-empty-title">Selecciona un cliente</h3>
-                                <p class="clients-empty-text">Elige un cliente de la lista para ver sus detalles, sedes y equipos</p>
-                                <button id="add-client-btn-empty" class="clients-action-btn primary">
+                                <p class="clients-empty-text">Elige un cliente de la lista para ver sus detalles</p>
+                                <button @click="$dispatch('open-client-modal')" class="clients-action-btn primary">
                                     <i data-lucide="plus" class="w-4 h-4"></i>
-                                    Crear Primer Cliente
+                                    Crear Cliente
                                 </button>
                             </div>
+
+                            <!-- Detalle Cliente -->
+                            <template x-if="selectedClient">
+                                <div class="app-card p-6">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h2 class="text-2xl font-bold text-gray-800" x-text="selectedClient.name"></h2>
+                                            <p class="text-sm text-gray-500" x-text="`${selectedClient.legal_name || ''} (${selectedClient.rut || 'N/A'})`"></p>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button class="edit-client-btn p-2 rounded-md hover:bg-gray-200" @click="$dispatch('open-client-modal', { client: selectedClient })">
+                                                <i data-lucide="pencil" class="h-5 w-5"></i>
+                                            </button>
+                                            <button class="delete-client-btn p-2 rounded-md hover:bg-red-100 text-red-600" @click="deleteClient(selectedClient.id)">
+                                                <i data-lucide="trash-2" class="h-5 w-5"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Info Grid -->
+                                    <div class="mt-4 border-t pt-4">
+                                        <dl class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                                            <dt class="font-medium text-gray-500">Dirección</dt><dd class="text-gray-900" x-text="selectedClient.address || 'N/A'"></dd>
+                                            <dt class="font-medium text-gray-500">Giro</dt><dd class="text-gray-900" x-text="selectedClient.business_activity || 'N/A'"></dd>
+                                            <dt class="font-medium text-gray-500">Contacto</dt><dd class="text-gray-900" x-text="selectedClient.contact_name || 'N/A'"></dd>
+                                            <dt class="font-medium text-gray-500">Teléfono</dt><dd class="text-gray-900" x-text="selectedClient.phone || 'N/A'"></dd>
+                                            <dt class="font-medium text-gray-500 col-span-2">Email</dt><dd class="text-gray-900 col-span-2" x-text="selectedClient.email || 'N/A'"></dd>
+                                        </dl>
+                                    </div>
+
+                                    <!-- Locations Section -->
+                                    <div class="mt-6" x-data="locationsManager()">
+                                        <div class="flex justify-between items-center mb-3">
+                                            <h3 class="text-lg font-semibold text-gray-700">Sedes</h3>
+                                            <button class="btn-primary flex items-center px-3 py-1.5 text-sm" @click="$dispatch('open-location-modal', { clientId: selectedClient.id })">
+                                                <i data-lucide="plus" class="mr-2 h-4 w-4"></i>Añadir Sede
+                                            </button>
+                                        </div>
+                                        
+                                        <div class="space-y-3">
+                                            <template x-for="loc in locations" :key="loc.id">
+                                                <details class="sede-card">
+                                                    <summary>
+                                                        <div class="sede-info">
+                                                            <h4 x-text="loc.name"></h4>
+                                                            <p x-text="loc.address"></p>
+                                                        </div>
+                                                        <div class="sede-actions">
+                                                            <button title="Editar Sede" @click.stop="$dispatch('open-location-modal', { location: loc })"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+                                                            <i data-lucide="chevron-down" class="h-5 w-5 sede-chevron"></i>
+                                                        </div>
+                                                    </summary>
+                                                    <div class="sede-content" x-data="equipmentManager(loc.id)">
+                                                        <!-- Equipment Actions -->
+                                                        <div class="flex justify-end mb-3">
+                                                            <button class="btn-primary flex items-center text-sm px-3 py-1" @click="$dispatch('open-equipment-modal', { locationId: loc.id })">
+                                                                <i data-lucide="plus" class="mr-2 h-4 w-4"></i>Añadir Equipo
+                                                            </button>
+                                                        </div>
+                                                        <!-- Equipment List -->
+                                                        <div class="sede-equipment-table" x-show="equipment.length > 0">
+                                                            <table>
+                                                                <thead>
+                                                                    <tr><th>Modelo</th><th>Serie</th><th class="text-right">Acciones</th></tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    <template x-for="eq in equipment" :key="eq.id">
+                                                                        <tr @click="window.equipmentDrawer.open(eq.id)" class="cursor-pointer hover:bg-gray-50 bg-circle border-b transition-colors">
+                                                                            <td x-text="eq.model_name || eq.name || 'Sin modelo'"></td>
+                                                                            <td class="font-mono text-xs" x-text="eq.serial_number"></td>
+                                                                            <td class="text-right">
+                                                                                 <button class="text-blue-600 hover:text-blue-800 mr-2" @click.stop="$dispatch('open-equipment-modal', { equipment: eq })" title="Editar"><i data-lucide="pencil" class="h-4 w-4"></i></button>
+                                                                                 <button class="text-red-600 hover:text-red-800" @click.stop="deleteEquipment(eq.id)" title="Eliminar"><i data-lucide="trash-2" class="h-4 w-4"></i></button>
+                                                                            </td>
+                                                                        </tr>
+                                                                    </template>
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <div x-show="equipment.length === 0" class="text-center py-4 text-gray-500 text-sm">
+                                                            No hay equipos en esta sede
+                                                        </div>
+                                                    </div>
+                                                </details>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
                         </div>
                     </div>
                 </div>
@@ -136,180 +271,186 @@
     </div>
     
     <!-- Modals -->
-    <div id="client-modal" class="base-modal">
+    <!-- Modals -->
+    <div id="client-modal" class="base-modal" 
+         x-data="clientModal()" 
+         :class="{ 'active': isOpen }"
+         @open-client-modal.window="openModal($event.detail?.client)">
+        
         <div class="base-modal-content">
             <div class="base-modal-header">
-                <h3 id="client-modal-title" class="base-modal-title">Nuevo Cliente</h3>
-                <button type="button" class="base-modal-close" title="Cerrar modal">
+                <h3 class="base-modal-title" x-text="isEdit ? 'Editar Cliente' : 'Nuevo Cliente'"></h3>
+                <button type="button" class="base-modal-close" @click="closeModal()">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
-                <form id="client-modal-form" class="base-form-grid">
-                    <input type="hidden" name="id">
-                    
+                <form id="client-modal-form" class="base-form-grid" @submit.prevent="submitForm">
                     <div class="base-form-group">
-                        <label for="client-name" class="base-form-label">Nombre Comercial <span class="required">*</span></label>
-                        <input type="text" id="client-name" name="name" class="base-form-input" required placeholder="Ingrese el nombre comercial">
+                        <label class="base-form-label">Nombre Comercial <span class="required">*</span></label>
+                        <input type="text" x-model="formData.name" class="base-form-input" required placeholder="Ingrese el nombre comercial">
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="client-legal-name" class="base-form-label">Razón Social <span class="required">*</span></label>
-                        <input type="text" id="client-legal-name" name="legal_name" class="base-form-input" required placeholder="Ingrese la razón social">
+                        <label class="base-form-label">Razón Social <span class="required">*</span></label>
+                        <input type="text" x-model="formData.legal_name" class="base-form-input" required placeholder="Ingrese la razón social">
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="client-rut" class="base-form-label">RUT <span class="required">*</span></label>
-                        <input type="text" id="client-rut" name="rut" class="base-form-input" required placeholder="Ej: 12345678-9">
+                        <label class="base-form-label">RUT <span class="required">*</span></label>
+                        <input type="text" x-model="formData.rut" class="base-form-input" required placeholder="Ej: 12345678-9">
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="client-business-activity" class="base-form-label">Giro</label>
-                        <input type="text" id="client-business-activity" name="business_activity" class="base-form-input" placeholder="Ingrese el giro de la empresa">
+                        <label class="base-form-label">Giro</label>
+                        <input type="text" x-model="formData.business_activity" class="base-form-input" placeholder="Ingrese el giro de la empresa">
                     </div>
                     
                     <div class="base-form-group full-width">
-                        <label for="client-address" class="base-form-label">Dirección</label>
-                        <input type="text" id="client-address" name="address" class="base-form-input" placeholder="Ingrese la dirección">
+                        <label class="base-form-label">Dirección</label>
+                        <input type="text" x-model="formData.address" class="base-form-input" placeholder="Ingrese la dirección">
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="client-email" class="base-form-label">Email</label>
-                        <input type="email" id="client-email" name="email" class="base-form-input" placeholder="ejemplo@correo.com">
+                        <label class="base-form-label">Email</label>
+                        <input type="email" x-model="formData.email" class="base-form-input" placeholder="ejemplo@correo.com">
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="client-phone" class="base-form-label">Teléfono</label>
-                        <input type="text" id="client-phone" name="phone" class="base-form-input" placeholder="Ej: +56 9 1234 5678">
+                        <label class="base-form-label">Teléfono</label>
+                        <input type="text" x-model="formData.phone" class="base-form-input" placeholder="Ej: +56 9 1234 5678">
                     </div>
                     
                     <div class="base-form-group full-width">
-                        <label for="client-contact-name" class="base-form-label">Persona de Contacto</label>
-                        <input type="text" id="client-contact-name" name="contact_name" class="base-form-input" placeholder="Nombre del contacto principal">
+                        <label class="base-form-label">Persona de Contacto</label>
+                        <input type="text" x-model="formData.contact_name" class="base-form-input" placeholder="Nombre del contacto principal">
+                    </div>
+
+                    <div class="base-modal-footer">
+                        <button type="button" class="base-btn-cancel" @click="closeModal()">Cancelar</button>
+                        <button type="submit" class="base-btn-save" x-text="isEdit ? 'Actualizar' : 'Guardar'" :disabled="isSubmitting"></button>
                     </div>
                 </form>
-            </div>
-            <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel modal-cancel-btn">Cancelar</button>
-                <button type="submit" form="client-modal-form" class="base-btn-save">Guardar Cliente</button>
             </div>
         </div>
     </div>
 
-    <div id="location-modal" class="base-modal">
+    <div id="location-modal" class="base-modal"
+         x-data="locationModal()"
+         :class="{ 'active': isOpen }"
+         @open-location-modal.window="openModal($event.detail)">
+        
         <div class="base-modal-content modal-small">
             <div class="base-modal-header">
-                <h3 id="location-modal-title" class="base-modal-title">Nueva Sede</h3>
-                <button type="button" class="base-modal-close" title="Cerrar modal">
+                <h3 class="base-modal-title" x-text="isEdit ? 'Editar Sede' : 'Nueva Sede'"></h3>
+                <button type="button" class="base-modal-close" @click="closeModal()">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
-                <form id="location-modal-form" class="base-form-grid">
-                    <input type="hidden" name="id">
-                    <input type="hidden" name="client_id">
-                    
+                <form id="location-modal-form" class="base-form-grid" @submit.prevent="submitForm">
                     <div class="base-form-group">
-                        <label for="location-name" class="base-form-label">Nombre de la Sede <span class="required">*</span></label>
-                        <input type="text" id="location-name" name="name" class="base-form-input" required placeholder="Ingrese el nombre de la sede">
+                        <label class="base-form-label">Nombre de la Sede <span class="required">*</span></label>
+                        <input type="text" x-model="formData.name" class="base-form-input" required placeholder="Ingrese el nombre de la sede">
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="location-address" class="base-form-label">Dirección</label>
-                        <input type="text" id="location-address" name="address" class="base-form-input" placeholder="Ingrese la dirección de la sede">
+                        <label class="base-form-label">Dirección</label>
+                        <input type="text" x-model="formData.address" class="base-form-input" placeholder="Ingrese la dirección de la sede">
+                    </div>
+
+                    <div class="base-modal-footer">
+                        <button type="button" class="base-btn-cancel" @click="closeModal()">Cancelar</button>
+                        <button type="submit" class="base-btn-save" x-text="isEdit ? 'Actualizar' : 'Guardar'" :disabled="isSubmitting"></button>
                     </div>
                 </form>
-            </div>
-            <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel modal-cancel-btn">Cancelar</button>
-                <button type="submit" form="location-modal-form" class="base-btn-save">Guardar Sede</button>
             </div>
         </div>
     </div>
     
-    <div id="equipment-modal" class="base-modal">
+    <div id="equipment-modal" class="base-modal"
+         x-data="equipmentModal()"
+         :class="{ 'active': isOpen }"
+         @open-equipment-modal.window="openModal($event.detail)">
+         
         <div class="base-modal-content">
             <div class="base-modal-header">
-                <h3 id="equipment-modal-title" class="base-modal-title">Nuevo Equipo</h3>
-                <button type="button" class="base-modal-close" title="Cerrar modal">
+                <h3 class="base-modal-title" x-text="isEdit ? 'Editar Equipo' : 'Nuevo Equipo'"></h3>
+                <button type="button" class="base-modal-close" @click="closeModal()">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
             <div class="base-modal-body">
-                <form id="equipment-modal-form" class="base-form-grid">
-                    <input type="hidden" name="id">
-                    <input type="hidden" name="location_id">
+                <form id="equipment-modal-form" class="base-form-grid" @submit.prevent="submitForm">
                     
+                    <!-- Buscador de Modelos -->
                     <div class="base-form-group full-width">
-                        <label for="equipment-model-search" class="base-form-label">Modelo de Equipo <span class="required" aria-label="requerido">*</span></label>
+                        <label class="base-form-label">Modelo de Equipo <span class="required">*</span></label>
                         
-                        <!-- Componente de búsqueda de modelos -->
-                        <div class="model-search-container" id="model-search-container">
+                        <!-- Input de Búsqueda -->
+                        <div class="model-search-container" x-show="!selectedModel">
                             <div class="model-search-input-wrapper">
                                 <i data-lucide="search" class="model-search-icon"></i>
                                 <input type="text" 
-                                       id="equipment-model-search" 
+                                       x-model="searchQuery"
+                                       @input.debounce.300ms="searchModels()"
                                        class="base-form-input model-search-input" 
                                        placeholder="Buscar modelo por nombre, marca o tipo..."
                                        autocomplete="off">
-                                <button type="button" id="clear-model-search" class="model-clear-btn hidden">
-                                    <i data-lucide="x" class="w-4 h-4"></i>
-                                </button>
                             </div>
-                            <input type="hidden" id="equipment-model-id" name="model_id" required>
-                            
-                            <!-- Lista de resultados -->
-                            <div id="model-search-results" class="model-search-results hidden">
-                                <!-- Se llena dinámicamente -->
-                            </div>
-                            
-                            <!-- Modelo seleccionado -->
-                            <div id="selected-model-display" class="selected-model-display hidden">
-                                <div class="selected-model-info">
-                                    <span class="selected-model-name"></span>
-                                    <span class="selected-model-details"></span>
-                                </div>
-                                <button type="button" id="change-model-btn" class="change-model-btn">
-                                    <i data-lucide="edit-2" class="w-4 h-4"></i>
-                                    Cambiar
-                                </button>
+                            <!-- Resultados -->
+                            <div class="model-search-results" x-show="searchResults.length > 0">
+                                <template x-for="model in searchResults" :key="model.id">
+                                    <div class="model-search-result-item" @click="selectModel(model)">
+                                        <div class="font-medium" x-text="model.name"></div>
+                                        <div class="text-xs text-gray-500" x-text="`${model.brand} - ${model.category}`"></div>
+                                    </div>
+                                </template>
                             </div>
                         </div>
-                        
-                        <div id="equipment-model-help" class="form-help-text">
-                            Busque y seleccione el modelo del catálogo. El tipo, marca y nombre se heredan automáticamente.
+
+                        <!-- Modelo Seleccionado -->
+                        <div class="selected-model-display" x-show="selectedModel" style="display: none;">
+                            <div class="selected-model-info">
+                                <span class="selected-model-name" x-text="selectedModel?.name"></span>
+                                <span class="selected-model-details" x-text="`${selectedModel?.brand} - ${selectedModel?.category}`"></span>
+                            </div>
+                            <button type="button" class="change-model-btn" @click="clearModel()">
+                                <i data-lucide="edit-2" class="w-4 h-4"></i> Cambiar
+                            </button>
                         </div>
                     </div>
                     
                     <div class="base-form-group full-width">
-                        <label for="equipment-serial" class="base-form-label">Nº Serie</label>
+                        <label class="base-form-label">Nº Serie</label>
                         <div class="equipment-input-group">
-                            <input type="text" id="equipment-serial" name="serial_number" class="base-form-input" placeholder="Ingrese el número de serie">
-                            <button type="button" id="scan-barcode-btn" class="equipment-scan-btn" title="Escanear código de barras">
+                            <input type="text" x-model="formData.serial_number" class="base-form-input" placeholder="Ingrese el número de serie">
+                            <button type="button" class="equipment-scan-btn" @click="toggleScanner()" title="Escanear código de barras">
                                 <i data-lucide="camera" class="h-5 w-5"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <div id="barcode-scanner-container" class="base-form-group full-width hidden">
+                    <div x-show="isScanning" class="base-form-group full-width">
                         <div id="barcode-reader" class="w-full"></div>
-                        <button type="button" id="close-scanner-btn" class="mt-2 w-full px-4 py-2 bg-red-600 text-white rounded-md">Cerrar Escáner</button>
+                        <button type="button" class="mt-2 w-full px-4 py-2 bg-red-600 text-white rounded-md" @click="stopScanner()">Cerrar Escáner</button>
                     </div>
                     
                     <div class="base-form-group">
-                        <label for="equipment-acquisition-date" class="base-form-label">Fecha de Adquisición</label>
-                        <input type="date" id="equipment-acquisition-date" name="acquisition_date" class="base-form-input" title="Seleccione la fecha de adquisición del equipo">
+                        <label class="base-form-label">Fecha de Adquisición</label>
+                        <input type="date" x-model="formData.acquisition_date" class="base-form-input">
                     </div>
                     
                     <div class="base-form-group full-width">
-                        <label for="equipment-notes" class="base-form-label">Notas</label>
-                        <textarea id="equipment-notes" name="notes" rows="3" class="base-form-textarea" placeholder="Observaciones adicionales sobre el equipo"></textarea>
+                        <label class="base-form-label">Notas</label>
+                        <textarea x-model="formData.notes" rows="3" class="base-form-textarea" placeholder="Observaciones adicionales"></textarea>
+                    </div>
+
+                    <div class="base-modal-footer">
+                        <button type="button" class="base-btn-cancel" @click="closeModal()">Cancelar</button>
+                        <button type="submit" class="base-btn-save" x-text="isEdit ? 'Actualizar' : 'Guardar'" :disabled="isSubmitting || !formData.model_id"></button>
                     </div>
                 </form>
-            </div>
-            <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel modal-cancel-btn">Cancelar</button>
-                <button type="submit" form="equipment-modal-form" class="base-btn-save">Guardar Equipo</button>
             </div>
         </div>
     </div>
