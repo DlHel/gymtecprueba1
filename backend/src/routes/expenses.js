@@ -230,7 +230,6 @@ router.get('/categories', authenticateToken, (req, res) => {
     
     const sql = `
         SELECT * FROM ExpenseCategories 
-        WHERE is_active = 1 
         ORDER BY name ASC
     `;
     

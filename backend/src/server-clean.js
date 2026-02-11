@@ -3980,7 +3980,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
         // Facturas pendientes de pago
         new Promise((resolve, reject) => {
             db.all(`
-                SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
+                SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_amount
                 FROM Invoices 
                 WHERE status IN ('Enviada', 'Vencida')
             `, [], (err, rows) => {
@@ -3995,7 +3995,7 @@ app.get('/api/dashboard/financial-summary', authenticateToken, (req, res) => {
         // Cotizaciones en proceso
         new Promise((resolve, reject) => {
             db.all(`
-                SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
+                SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_amount
                 FROM Quotes 
                 WHERE status IN ('Borrador', 'Enviada')
             `, [], (err, rows) => {
@@ -4103,8 +4103,8 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         // �rdenes de compra pendientes
         new Promise((resolve, reject) => {
             db.all(`
-                SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
-                FROM SpareParts WHERE 1=0 
+                SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_amount
+                FROM PurchaseOrders 
                 WHERE status IN ('Pending', 'Approved')
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -5711,7 +5711,6 @@ app.get('/api/expense-categories', authenticateToken, (req, res) => {
     
     const sql = `
         SELECT * FROM ExpenseCategories 
-        WHERE is_active = 1 
         ORDER BY name ASC
     `;
     
@@ -8888,13 +8887,13 @@ app.post('/api/informes', authenticateToken, validateResource(createInformeSchem
 // Listar informes
 app.get('/api/informes', authenticateToken, (req, res) => {
     const { ticket_id, date_from, date_to } = req.query;
-    let sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.generated_by = u.id WHERE 1=1';
+    let sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.technician_id = u.id WHERE 1=1';
     const params = [];
     
     if (ticket_id) { sql += ' AND i.ticket_id = ?'; params.push(ticket_id); }
-    if (date_from) { sql += ' AND i.generated_at >= ?'; params.push(date_from); }
-    if (date_to) { sql += ' AND i.generated_at <= ?'; params.push(date_to); }
-    sql += ' ORDER BY i.generated_at DESC';
+    if (date_from) { sql += ' AND i.report_date >= ?'; params.push(date_from); }
+    if (date_to) { sql += ' AND i.report_date <= ?'; params.push(date_to); }
+    sql += ' ORDER BY i.report_date DESC';
     
     db.all(sql, params, (err, rows) => {
         if (err) return res.status(500).json({ message: 'error', error: err.message });
@@ -8904,7 +8903,7 @@ app.get('/api/informes', authenticateToken, (req, res) => {
 
 // Obtener informe específico
 app.get('/api/informes/:id', authenticateToken, (req, res) => {
-    const sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.generated_by = u.id WHERE i.id = ?';
+    const sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.technician_id = u.id WHERE i.id = ?';
     
     db.get(sql, [req.params.id], (err, row) => {
         if (err) return res.status(500).json({ message: 'error', error: err.message });

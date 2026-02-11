@@ -351,50 +351,29 @@ router.get('/tickets/:ticketId/checklist', async (req, res) => {
     try {
         const { ticketId } = req.params;
         
-        // Obtener checklist del ticket
-        const checklist = await db.get(`
-            SELECT tc.*, ct.name as template_name, ct.description as template_description,
-                   u.username as assigned_technician_name
-            FROM ticketchecklists tc
-            LEFT JOIN ChecklistTemplates ct ON tc.template_id = ct.id
-            LEFT JOIN Users u ON tc.assigned_technician_id = u.id
-            WHERE tc.ticket_id = ?
-        `, [ticketId]);
-        
-        if (!checklist) {
-            return res.status(404).json({
-                error: 'No hay checklist asignado a este ticket',
-                code: 'NO_CHECKLIST_FOUND'
-            });
-        }
-        
-        // Obtener items del checklist con información del template
+        // Obtener items del checklist del ticket desde la tabla real TicketChecklists
         const items = await db.all(`
-            SELECT tci.*, cti.item_text, cti.item_order, cti.is_required,
-                   cti.expected_result, cti.notes as template_notes,
-                   u.username as completed_by_name
-            FROM TicketChecklistItems tci
-            LEFT JOIN ChecklistTemplateItems cti ON tci.template_item_id = cti.id
-            LEFT JOIN Users u ON tci.completed_by = u.id
-            WHERE tci.ticket_checklist_id = ?
-            ORDER BY cti.item_order, tci.id
-        `, [checklist.id]);
-        
-        checklist.items = items;
+            SELECT * FROM TicketChecklists 
+            WHERE ticket_id = ?
+            ORDER BY order_index ASC, id ASC
+        `, [ticketId]);
         
         // Calcular progreso
         const totalItems = items.length;
-        const completedItems = items.filter(item => item.is_completed).length;
-        checklist.progress = {
-            total: totalItems,
-            completed: completedItems,
-            percentage: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
-            pending: totalItems - completedItems
-        };
+        const completedItems = items.filter(item => item.is_completed === 1).length;
         
         res.json({
             message: 'success',
-            data: checklist
+            data: {
+                ticket_id: parseInt(ticketId),
+                items: items,
+                progress: {
+                    total: totalItems,
+                    completed: completedItems,
+                    percentage: totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0,
+                    pending: totalItems - completedItems
+                }
+            }
         });
         
     } catch (error) {
