@@ -72,13 +72,9 @@
                             <p class="text-gray-600">Generar informes técnicos y reportes analíticos</p>
                         </div>
                         <div class="flex gap-3">
-                            <button id="schedule-report-btn" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2">
-                                <i data-lucide="calendar" class="h-4 w-4"></i>
-                                Programar
-                            </button>
-                            <button id="new-report-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-                                <i data-lucide="plus" class="h-4 w-4"></i>
-                                Nuevo Reporte
+                            <button id="new-report-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2" onclick="window.dispatchEvent(new Event('open-technical-report-modal'))">
+                                <i data-lucide="file-text" class="h-4 w-4"></i>
+                                Generar Informe Técnico
                             </button>
                         </div>
                     </div>
@@ -123,15 +119,15 @@
                         </div>
                     </div>
 
-                    <!-- Tipos de Reportes -->
+                    <!-- Acceso Rápido a Informes -->
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
                         <h3 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                             <i data-lucide="file-text" class="h-5 w-5"></i>
-                            Generar Nuevo Reporte
+                            Tipos de Reportes
                         </h3>
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3">
-                            <!-- Informe Técnico de Ticket -->
-                            <button class="report-type-card-compact" data-type="technical-ticket">
+                            <!-- Informe Técnico de Ticket (FUNCIONAL) -->
+                            <button class="report-type-card-compact" onclick="window.dispatchEvent(new Event('open-technical-report-modal'))">
                                 <div class="report-icon-compact technical">
                                     <i data-lucide="wrench" class="h-5 w-5"></i>
                                 </div>
@@ -139,50 +135,50 @@
                                 <div class="report-subtitle-compact">Ticket</div>
                             </button>
 
-                            <!-- Reporte de Tickets Mensual -->
-                            <button class="report-type-card-compact" data-type="tickets-monthly">
+                            <!-- Tickets Mensual (próximamente) -->
+                            <div class="report-type-card-compact opacity-50 cursor-not-allowed" title="Próximamente">
                                 <div class="report-icon-compact tickets">
                                     <i data-lucide="calendar" class="h-5 w-5"></i>
                                 </div>
                                 <div class="report-title-compact">Tickets</div>
-                                <div class="report-subtitle-compact">Mensual</div>
-                            </button>
+                                <div class="report-subtitle-compact text-xs text-gray-400">Próximamente</div>
+                            </div>
 
-                            <!-- Reporte de Clientes -->
-                            <button class="report-type-card-compact" data-type="clients-report">
+                            <!-- Clientes (próximamente) -->
+                            <div class="report-type-card-compact opacity-50 cursor-not-allowed" title="Próximamente">
                                 <div class="report-icon-compact clients">
                                     <i data-lucide="users" class="h-5 w-5"></i>
                                 </div>
                                 <div class="report-title-compact">Clientes</div>
-                                <div class="report-subtitle-compact">General</div>
-                            </button>
+                                <div class="report-subtitle-compact text-xs text-gray-400">Próximamente</div>
+                            </div>
 
-                            <!-- Reporte de Equipos -->
-                            <button class="report-type-card-compact" data-type="equipment-report">
+                            <!-- Equipos (próximamente) -->
+                            <div class="report-type-card-compact opacity-50 cursor-not-allowed" title="Próximamente">
                                 <div class="report-icon-compact equipment">
                                     <i data-lucide="package" class="h-5 w-5"></i>
                                 </div>
                                 <div class="report-title-compact">Equipos</div>
-                                <div class="report-subtitle-compact">Inventario</div>
-                            </button>
+                                <div class="report-subtitle-compact text-xs text-gray-400">Próximamente</div>
+                            </div>
 
-                            <!-- Reporte de Mantenimientos -->
-                            <button class="report-type-card-compact" data-type="maintenance-report">
+                            <!-- Mantenimientos (próximamente) -->
+                            <div class="report-type-card-compact opacity-50 cursor-not-allowed" title="Próximamente">
                                 <div class="report-icon-compact maintenance">
                                     <i data-lucide="settings" class="h-5 w-5"></i>
                                 </div>
                                 <div class="report-title-compact">Mantenimientos</div>
-                                <div class="report-subtitle-compact">Por período</div>
-                            </button>
+                                <div class="report-subtitle-compact text-xs text-gray-400">Próximamente</div>
+                            </div>
 
-                            <!-- Reporte Financiero -->
-                            <button class="report-type-card-compact" data-type="financial-report">
+                            <!-- Financiero (próximamente) -->
+                            <div class="report-type-card-compact opacity-50 cursor-not-allowed" title="Próximamente">
                                 <div class="report-icon-compact financial">
                                     <i data-lucide="dollar-sign" class="h-5 w-5"></i>
                                 </div>
                                 <div class="report-title-compact">Financiero</div>
-                                <div class="report-subtitle-compact">Mensual</div>
-                            </button>
+                                <div class="report-subtitle-compact text-xs text-gray-400">Próximamente</div>
+                            </div>
                         </div>
                     </div>
 
@@ -267,162 +263,6 @@
         </div>
     </div>
 
-    <!-- Modal para Nuevo Reporte (Alpine.js) -->
-    <div id="new-report-modal" class="base-modal" 
-         x-data="newReportModal()" 
-         :class="{ 'active': isOpen }"
-         @open-new-report-modal.window="openModal($event.detail?.type)">
-         
-        <div class="base-modal-content modal-large">
-            <div class="base-modal-header">
-                <h3 class="base-modal-title">Generar Nuevo Reporte</h3>
-                <button type="button" class="base-modal-close" @click="closeModal()" title="Cerrar modal">
-                    <i data-lucide="x" class="h-5 w-5"></i>
-                </button>
-            </div>
-            <div class="base-modal-body">
-                <form id="new-report-form" class="reports-form" @submit.prevent="submitReport">
-                    <div class="reports-form-section">
-                        <h4 class="reports-form-section-title">Información General</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="base-form-group">
-                                <label class="base-form-label">Tipo de Reporte <span class="required">*</span></label>
-                                <select x-model="formData.type" class="base-form-input" required title="Tipo de reporte a generar">
-                                    <option value="">Seleccionar tipo</option>
-                                    <option value="technical-ticket">Informe Técnico</option>
-                                    <option value="tickets">Reporte de Tickets</option>
-                                    <option value="clients">Reporte de Clientes</option>
-                                    <option value="equipment">Reporte de Equipos</option>
-                                    <option value="inventory">Reporte de Inventario</option>
-                                    <option value="financial">Reporte Financiero</option>
-                                </select>
-                            </div>
-                            <div class="base-form-group">
-                                <label class="base-form-label">Formato <span class="required">*</span></label>
-                                <select x-model="formData.format" class="base-form-input" required title="Formato de salida">
-                                    <option value="pdf">PDF</option>
-                                    <option value="excel">Excel</option>
-                                    <option value="csv">CSV</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="reports-form-section">
-                        <h4 class="reports-form-section-title">Período y Filtros</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div class="base-form-group">
-                                <label class="base-form-label">Período</label>
-                                <select x-model="formData.period" class="base-form-input" title="Período del reporte">
-                                    <option value="today">Hoy</option>
-                                    <option value="yesterday">Ayer</option>
-                                    <option value="this-week">Esta semana</option>
-                                    <option value="last-week">Semana pasada</option>
-                                    <option value="this-month">Este mes</option>
-                                    <option value="last-month">Mes pasado</option>
-                                    <option value="this-quarter">Este trimestre</option>
-                                    <option value="this-year">Este año</option>
-                                    <option value="custom">Personalizado</option>
-                                </select>
-                            </div>
-                            <div class="base-form-group">
-                                <label class="base-form-label">Fecha Inicio</label>
-                                <input type="date" x-model="formData.startDate" :disabled="formData.period !== 'custom'" class="base-form-input" title="Fecha de inicio">
-                            </div>
-                            <div class="base-form-group">
-                                <label class="base-form-label">Fecha Fin</label>
-                                <input type="date" x-model="formData.endDate" :disabled="formData.period !== 'custom'" class="base-form-input" title="Fecha de fin">
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Sección específica para Informe Técnico -->
-                    <div x-show="formData.type === 'technical-ticket'" class="reports-form-section" x-transition>
-                        <h4 class="reports-form-section-title">Informe Técnico</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="base-form-group">
-                                <label class="base-form-label">Ticket <span class="required">*</span></label>
-                                <select x-model="formData.ticketId" class="base-form-input" title="Ticket para el informe">
-                                    <option value="">Seleccionar ticket</option>
-                                    <template x-for="ticket in tickets" :key="ticket.id">
-                                        <option :value="ticket.id" x-text="`#${ticket.id} - ${ticket.title}`"></option>
-                                    </template>
-                                </select>
-                            </div>
-                            <div class="base-form-group">
-                                <label class="base-form-label">Técnico Responsable</label>
-                                <select x-model="formData.technicianId" class="base-form-input" title="Técnico responsable">
-                                    <option value="">Seleccionar técnico</option>
-                                    <template x-for="tech in technicians" :key="tech.id">
-                                        <option :value="tech.id" x-text="tech.name"></option>
-                                    </template>
-                                </select>
-                            </div>
-                        </div>
-                        <div class="base-form-group mt-3">
-                            <label class="base-form-label">Descripción del Trabajo</label>
-                            <textarea x-model="formData.workDescription" class="base-form-input" rows="3" placeholder="Descripción detallada del trabajo realizado..." title="Descripción del trabajo"></textarea>
-                        </div>
-                    </div>
-
-                    <div class="reports-form-section">
-                        <h4 class="reports-form-section-title">Opciones Avanzadas</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="reports-form-checkboxes">
-                                <label class="reports-checkbox">
-                                    <input type="checkbox" x-model="formData.includeCharts">
-                                    <span class="checkmark"></span>
-                                    Incluir gráficos y estadísticas
-                                </label>
-                                <label class="reports-checkbox">
-                                    <input type="checkbox" x-model="formData.includeImages">
-                                    <span class="checkmark"></span>
-                                    Incluir imágenes (equipos/tickets)
-                                </label>
-                            </div>
-                            <div class="base-form-group">
-                                <label class="base-form-label">Destinatarios Email</label>
-                                <input type="email" x-model="formData.emailRecipients" class="base-form-input" placeholder="email1@ejemplo.com, email2@ejemplo.com" title="Emails separados por coma">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="base-modal-footer">
-                        <button type="button" class="base-btn-cancel" @click="closeModal()">Cancelar</button>
-                        <button type="submit" class="base-btn-primary" :disabled="isSubmitting">
-                            <i data-lucide="download" class="h-4 w-4"></i>
-                            <span x-text="isSubmitting ? 'Generando...' : 'Generar Reporte'"></span>
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Vista Previa -->
-    <div id="preview-modal" class="base-modal">
-        <div class="base-modal-content modal-xl">
-            <div class="base-modal-header">
-                <h3 class="base-modal-title">Vista Previa del Reporte</h3>
-                <button type="button" class="base-modal-close" title="Cerrar vista previa">
-                    <i data-lucide="x" class="h-5 w-5"></i>
-                </button>
-            </div>
-            <div class="base-modal-body">
-                <div id="report-preview" class="report-preview-container">
-                    <!-- El contenido de la vista previa se generará aquí -->
-                </div>
-            </div>
-            <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel">Cerrar</button>
-                <button type="button" class="base-btn-primary" id="confirm-generate">
-                    <i data-lucide="download" class="h-4 w-4"></i>
-                    Confirmar y Generar
-                </button>
-            </div>
-        </div>
-    </div>
-
     <!-- Modal para Informe Técnico (Alpine.js) -->
     <div id="informe-tecnico-modal" class="base-modal"
          x-data="technicalReportModal()"
@@ -437,16 +277,91 @@
                 </button>
             </div>
             <div class="base-modal-body">
-                <!-- Selector de Ticket -->
-                <div class="mb-6">
-                    <label class="base-form-label">Ticket Completado <span class="required">*</span></label>
-                    <select x-model="selectedTicketId" class="base-form-input">
-                        <option value="">Seleccionar ticket completado...</option>
-                        <template x-for="ticket in completedTickets" :key="ticket.id">
-                            <option :value="ticket.id" x-text="`#${ticket.id} - ${ticket.title} (${ticket.client_name || 'Sin cliente'})`"></option>
-                        </template>
-                    </select>
-                    <small class="base-form-help">Solo se muestran tickets con estado "completed" o "closed"</small>
+                <!-- Barra de Filtros -->
+                <div class="mb-4">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i data-lucide="filter" class="h-4 w-4 text-gray-500"></i>
+                        <span class="text-sm font-semibold text-gray-700">Filtrar Tickets</span>
+                        <span class="text-xs text-gray-400 ml-auto" x-text="`${completedTickets.length} de ${allTickets.length} tickets`"></span>
+                    </div>
+                    
+                    <!-- Búsqueda -->
+                    <div class="relative mb-3">
+                        <i data-lucide="search" class="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" x-model="searchText" @input="applyFilters()" 
+                               class="base-form-input pl-9 text-sm" placeholder="Buscar por título, cliente o ID...">
+                    </div>
+                    
+                    <!-- Filtros en fila -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <!-- Cliente -->
+                        <select x-model="filterClient" @change="applyFilters()" class="base-form-input text-sm py-1.5">
+                            <option value="">Todos los clientes</option>
+                            <template x-for="c in clients" :key="c">
+                                <option :value="c" x-text="c"></option>
+                            </template>
+                        </select>
+                        <!-- Técnico -->
+                        <select x-model="filterTechnician" @change="applyFilters()" class="base-form-input text-sm py-1.5">
+                            <option value="">Todos los técnicos</option>
+                            <template x-for="t in technicians" :key="t">
+                                <option :value="t" x-text="t"></option>
+                            </template>
+                        </select>
+                        <!-- Sede -->
+                        <select x-model="filterLocation" @change="applyFilters()" class="base-form-input text-sm py-1.5">
+                            <option value="">Todas las sedes</option>
+                            <template x-for="l in locations" :key="l">
+                                <option :value="l" x-text="l"></option>
+                            </template>
+                        </select>
+                        <!-- Estado -->
+                        <select x-model="filterStatus" @change="applyFilters()" class="base-form-input text-sm py-1.5">
+                            <option value="">Todos los estados</option>
+                            <template x-for="s in statuses" :key="s">
+                                <option :value="s" x-text="getStatusLabel(s)"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Lista de Tickets Agrupados por Cliente -->
+                <div class="mb-4 border rounded-lg overflow-hidden" style="max-height: 320px; overflow-y: auto;">
+                    <template x-if="ticketsByClient.length === 0">
+                        <div class="p-6 text-center text-gray-400 text-sm">
+                            <i data-lucide="search-x" class="h-8 w-8 mx-auto mb-2 opacity-50"></i>
+                            <p>No se encontraron tickets con los filtros aplicados</p>
+                        </div>
+                    </template>
+                    <template x-for="group in ticketsByClient" :key="group.name">
+                        <div>
+                            <!-- Cabecera de grupo (cliente) -->
+                            <div class="bg-gray-100 px-4 py-2 border-b sticky top-0 z-10">
+                                <span class="text-xs font-bold text-gray-600 uppercase tracking-wide" x-text="group.name"></span>
+                                <span class="text-xs text-gray-400 ml-1" x-text="`(${group.tickets.length})`"></span>
+                            </div>
+                            <!-- Tickets del grupo -->
+                            <template x-for="ticket in group.tickets" :key="ticket.id">
+                                <div @click="selectedTicketId = String(ticket.id)" 
+                                     class="px-4 py-2.5 border-b cursor-pointer hover:bg-blue-50 transition-colors flex items-center gap-3"
+                                     :class="{ 'bg-blue-50 border-l-4 border-l-blue-500': selectedTicketId == ticket.id }">
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-mono text-gray-400" x-text="`#${ticket.id}`"></span>
+                                            <span class="text-sm font-medium text-gray-800 truncate" x-text="ticket.title || 'Sin título'"></span>
+                                        </div>
+                                        <div class="flex items-center gap-3 mt-0.5 text-xs text-gray-500">
+                                            <span x-show="ticket.technician_name" x-text="ticket.technician_name"></span>
+                                            <span x-show="ticket.location_name" x-text="ticket.location_name"></span>
+                                        </div>
+                                    </div>
+                                    <span class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap" 
+                                          :class="getStatusColor(ticket.status)"
+                                          x-text="getStatusLabel(ticket.status)"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
                 </div>
 
                 <!-- Vista Previa de Datos -->
