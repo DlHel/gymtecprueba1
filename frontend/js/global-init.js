@@ -39,14 +39,14 @@ window.debugAuth = function() {
     console.log('🔍 DEBUG AUTH STATE:');
     console.log('- API_URL:', typeof API_URL !== 'undefined' ? API_URL : 'No definido');
     console.log('- AuthManager available:', typeof AuthManager !== 'undefined');
-    console.log('- authManager instance:', typeof authManager !== 'undefined');
+    console.log('- authManager instance:', typeof window.authManager !== 'undefined');
     
-    if (typeof authManager !== 'undefined') {
-        console.log('- Token present:', !!authManager.getToken());
-        console.log('- User present:', !!authManager.getUser());
-        console.log('- Is authenticated:', authManager.isAuthenticated());
+    if (typeof window.authManager !== 'undefined') {
+        console.log('- Token present:', !!window.authManager.getToken());
+        console.log('- User present:', !!window.authManager.getUser());
+        console.log('- Is authenticated:', window.authManager.isAuthenticated());
         
-        const user = authManager.getUser();
+        const user = window.authManager.getUser();
         if (user) {
             console.log('- Username:', user.username);
             console.log('- Role:', user.role);
@@ -88,7 +88,7 @@ window.clearAuthState = function() {
 // Manejador global de errores no capturados
 window.addEventListener('error', function(event) {
     if (event.error && event.error.message && event.error.message.includes('auth')) {
-        handleAuthError(event.error, 'Global Error Handler');
+        window.handleAuthError(event.error, 'Global Error Handler');
     }
 });
 
@@ -99,7 +99,7 @@ window.addEventListener('unhandledrejection', function(event) {
          event.reason.message.includes('token') ||
          event.reason.message.includes('401') ||
          event.reason.message.includes('403'))) {
-        handleAuthError(event.reason, 'Unhandled Promise Rejection');
+        window.handleAuthError(event.reason, 'Unhandled Promise Rejection');
     }
 });
 

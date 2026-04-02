@@ -1,110 +1,110 @@
 {
   "projectName": "Gymtec ERP",
-  "projectType": "enterprise-erp",
-  "version": "2.0.0",
-  "description": "Sistema ERP profesional para gestión de equipos de gimnasio con arquitectura Node.js + Express + MySQL",
-  
-  "mcpServers": {
-    "gymtec-project-context": {
-      "command": "node",
-      "args": [".mcp/gymtec-mcp-server.js"],
-      "env": {
-        "PROJECT_ROOT": ".",
-        "CONTEXT_LEVEL": "full"
-      }
-    },
-    "gymtec-bitacora": {
-      "command": "node", 
-      "args": [".mcp/bitacora-mcp-server.js"],
-      "env": {
-        "BITACORA_PATH": "./docs/BITACORA_PROYECTO.md",
-        "AUTO_REFERENCE": "true"
-      }
-    }
-  },
-  
+  "projectType": "maintenance-erp",
+  "version": "3.0.0",
+  "description": "ERP de mantenimiento técnico con frontend estático, backend Express/MySQL y despliegue único con Docker Compose.",
   "systemPrompt": {
-    "role": "Expert Full-Stack Developer for Gymtec ERP",
-    "context": "You are working on Gymtec ERP, a professional enterprise-level system for gym equipment maintenance management.",
+    "role": "Gymtec ERP multi-agent coding workspace",
+    "context": "You are working on Gymtec ERP after the Docker cleanup. Respect the active architecture, the local skill library and the specialist agents.",
     "rules": [
-      "ALWAYS reference @bitacora for project context before implementing",
-      "Use Node.js + Express + MySQL patterns established in the project",
-      "Follow enterprise security patterns (JWT, input validation, rate limiting)",
-      "Maintain Vanilla JavaScript frontend (NO frameworks)",
-      "Use established database schema and relationships",
-      "Apply comprehensive error handling and logging",
-      "Follow Model Context Protocol standards"
+      "Use the active stack only: static frontend, Express/MySQL backend, Docker Compose plus Nginx.",
+      "Treat backend/src/server-clean.js as the canonical backend entrypoint.",
+      "Do not reintroduce VPS/manual deploy flows, CRA/React frontend or archived legacy paths.",
+      "Use gymtec-orchestrator first for cross-domain work and specialist agents from .claude/agents for domain-specific work.",
+      "Use the shared project skills from .agent/skills and the routing playbook in .agent/workflows/multi-agent-routing.md.",
+      "Keep secrets and environment values out of versioned files."
     ]
   },
-
+  "multiAgent": {
+    "enabled": true,
+    "agentsDirectory": ".claude/agents",
+    "sharedSkillsDirectory": ".agent/skills",
+    "orchestrationPlaybook": ".agent/workflows/multi-agent-routing.md",
+    "delegationPolicy": {
+      "entryAgent": "gymtec-orchestrator",
+      "maxInitialSpecialists": 3,
+      "allowNestedDelegation": false,
+      "defaultFinalValidator": "qa-smoke-engineer"
+    },
+    "experts": [
+      {
+        "name": "gymtec-orchestrator",
+        "focus": "Task routing, ownership split and multi-agent consolidation"
+      },
+      {
+        "name": "backend-architect",
+        "focus": "Express/MySQL backend, modules, services and API contracts"
+      },
+      {
+        "name": "frontend-mpa-specialist",
+        "focus": "Static frontend, Vanilla JS and Alpine compatibility"
+      },
+      {
+        "name": "mysql-schema-guardian",
+        "focus": "Schema compatibility, SQL correctness and DB integrity"
+      },
+      {
+        "name": "docker-deploy-engineer",
+        "focus": "Docker Compose, Nginx and runtime environment"
+      },
+      {
+        "name": "security-auditor",
+        "focus": "Secrets, auth, exposure and security review"
+      },
+      {
+        "name": "qa-smoke-engineer",
+        "focus": "Smoke validation, lint and regression checks"
+      },
+      {
+        "name": "monolith-refactorer",
+        "focus": "Safe extraction from server-clean.js"
+      }
+    ]
+  },
   "projectContext": {
     "architecture": {
-      "backend": "Node.js + Express.js REST API",
-      "frontend": "Vanilla JavaScript + HTML + CSS (Tailwind)",
-      "database": "MySQL 8.0+ with 37+ tables",
-      "authentication": "JWT with refresh tokens",
-      "fileStorage": "Multer + Base64 encoding",
-      "ports": {
-        "backend": 3000,
-        "frontend": 8080
-      }
+      "frontend": "HTML + Vanilla JavaScript + TailwindCSS",
+      "frontendLegacyRuntime": "Alpine.js only in clientes and reportes",
+      "backend": "Node.js + Express REST API",
+      "database": "MySQL 8",
+      "deploy": "Docker Compose with nginx + backend + mysql",
+      "publicContract": [
+        "/",
+        "/api/*",
+        "/uploads/*"
+      ]
     },
-    
-    "coreFeatures": [
-      "Equipment management system",
-      "Maintenance ticket system",
-      "Client and location management", 
-      "User authentication and authorization",
-      "Advanced reporting system",
-      "File upload and management",
-      "Real-time notifications"
+    "activeDocs": [
+      "README.md",
+      "AGENTS.md",
+      "docs/ARCHITECTURE_MAP.md",
+      "docs/DEPLOY_DOCKER.md",
+      "docs/API_DOCUMENTATION.md"
     ],
-    
-    "technicalStandards": {
-      "errorHandling": "Comprehensive try-catch with logging",
-      "validation": "Joi schema validation + sanitization",
-      "security": "Rate limiting + SQL injection prevention",
-      "logging": "Winston structured logging",
-      "apiPattern": "REST with consistent JSON responses",
-      "debugging": "Advanced debug system integrated"
-    }
-  },
-
-  "bitacoraSystem": {
-    "enabled": true,
-    "autoReference": true,
     "commands": {
-      "@bitacora": "Complete project context",
-      "@bitacora api": "API endpoints and patterns",
-      "@bitacora database": "Schema and relationships", 
-      "@bitacora authentication": "JWT auth system",
-      "@bitacora frontend": "Vanilla JS architecture",
-      "@bitacora backend": "Express + MySQL patterns",
-      "@bitacora debug": "Debug system and logging",
-      "@bitacora security": "Security measures",
-      "@bitacora deployment": "Deployment configuration"
+      "start": "docker compose up --build",
+      "test": "npm test",
+      "lint": "npm run lint",
+      "backendTest": "cd backend && npm test",
+      "backendLint": "cd backend && npm run lint"
     }
   },
-
   "protectedFiles": [
     "docs/**",
+    "AGENTS.md",
     ".github/copilot-instructions.md",
     ".mcp/**",
-    ".vscode/launch.json",
-    "backend/src/server.js",
     "frontend/js/config.js"
   ],
-
   "developmentContext": {
-    "startCommand": "start-servers.bat",
-    "debugCommand": "F5 in VS Code",
-    "testCommand": "npm test",
+    "defaultEntry": "backend/src/server-clean.js",
+    "backendTests": "backend/tests/smoke",
     "projectStructure": {
-      "backend/": "Express API server with JWT auth",
-      "frontend/": "Vanilla JS client with Tailwind CSS",
-      "docs/": "Protected documentation with @bitacora system",
-      ".vscode/": "Professional VS Code configuration",
-      "uploads/": "File storage directory"
+      "backend/": "Express API server with MySQL integration",
+      "frontend/": "Static MPA frontend",
+      "nginx/": "Reverse proxy and static hosting",
+      "archives/": "Historical material removed from active architecture",
+      "uploads/": "Persistent file storage"
     }
   }
 }

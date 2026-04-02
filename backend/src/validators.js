@@ -19,7 +19,7 @@ const isValidRUT = (rut) => {
 const isValidPhone = (phone) => {
     if (!phone) return true; // Teléfono es opcional
     // Acepta números con o sin espacios, guiones, paréntesis
-    const phoneRegex = /^[\d\s\-\(\)\+]{7,15}$/;
+    const phoneRegex = /^[\d\s()+-]{7,15}$/;
     return phoneRegex.test(phone);
 };
 

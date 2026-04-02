@@ -35,7 +35,7 @@ router.get('/tickets', authenticateToken, (req, res) => {
         LEFT JOIN Locations l ON t.location_id = l.id
     `;
     
-    let params = [];
+    const params = [];
     if (location_id) {
         sql += ` WHERE t.location_id = ?`;
         params.push(location_id);

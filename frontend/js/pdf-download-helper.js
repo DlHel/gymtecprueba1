@@ -1,11 +1,12 @@
 // Helper para descargar PDF con nombre correcto - Versión Chrome-compatible
 window.downloadPDFWithName = async function(ticketId) {
-    const token = window.authManager ? window.authManager.getToken() : localStorage.getItem('gymtec_token');
+    const token = window.authManager ? window.authManager.getToken() : (sessionStorage.getItem('gymtec_token') || localStorage.getItem('gymtec_token'));
     if (!token) throw new Error('No autenticado');
     
     console.log('📥 Descargando PDF...');
     
-    const response = await fetch('/api/tickets/' + ticketId + '/generate-pdf', {
+    const apiBase = window.API_URL || '/api';
+    const response = await fetch(apiBase + '/tickets/' + ticketId + '/generate-pdf', {
         method: 'GET',
         headers: { 'Authorization': 'Bearer ' + token }
     });

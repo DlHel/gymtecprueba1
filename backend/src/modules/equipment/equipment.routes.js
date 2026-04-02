@@ -29,7 +29,7 @@ router.get('/equipment', authenticateToken, (req, res) => {
         LEFT JOIN EquipmentModels em ON e.model_id = em.id
     `;
     
-    let params = [];
+    const params = [];
     
     // Filtrar por location_id si se proporciona
     if (location_id) {

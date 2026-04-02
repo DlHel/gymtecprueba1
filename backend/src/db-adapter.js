@@ -9,7 +9,10 @@ class DatabaseAdapter {
     // Inicializar la base de datos MySQL
     async initialize() {
         try {
-            await this.db.testConnection();
+            const isConnected = await this.db.testConnection();
+            if (!isConnected) {
+                throw new Error('No se pudo establecer conexión a MySQL');
+            }
             console.log('✅ Base de datos MySQL conectada correctamente');
         } catch (error) {
             console.error('❌ Error conectando a MySQL:', error.message);

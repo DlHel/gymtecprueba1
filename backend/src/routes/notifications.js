@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
+const { authenticateToken } = require('../core/middleware/auth.middleware');
+
+router.use(authenticateToken);
 
 /**
  * GYMTEC ERP - APIs SISTEMA DE NOTIFICACIONES INTELIGENTES
@@ -589,10 +592,10 @@ router.post('/send', async (req, res) => {
             INSERT INTO NotificationQueue 
             (template_id, trigger_event, related_entity_type, related_entity_id,
              recipient_type, recipient_identifier, subject, body, 
-             context_data, priority, scheduled_at)
+            context_data, priority, scheduled_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
             
-            return db.query(sql, [
+            return db.runAsync(sql, [
                 template_id,
                 trigger_event,
                 related_entity_type,

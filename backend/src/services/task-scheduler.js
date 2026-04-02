@@ -86,7 +86,7 @@ class TaskScheduler {
 
             console.log(`📋 Cargando ${jobs.length} jobs programados...`);
 
-            for (let jobData of jobs) {
+            for (const jobData of jobs) {
                 await this.scheduleJob(jobData);
             }
 
@@ -237,7 +237,7 @@ class TaskScheduler {
         let processed = 0;
         let sent = 0;
 
-        for (let notification of pendingNotifications) {
+        for (const notification of pendingNotifications) {
             try {
                 // Simular envío (aquí se integraría con servicio real de email/SMS)
                 await this.simulateNotificationSend(notification);

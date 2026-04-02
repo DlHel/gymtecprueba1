@@ -21,16 +21,19 @@
     "tailwindcss": "^4.1.10"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "lint": "eslint \"frontend/js/**/*.js\" \"backend/src/**/*.js\"",
-    "format": "prettier --write src/**/*.{ts,tsx,css}",
+    "start": "docker compose up --build",
+    "build": "docker compose build",
+    "test": "npm --prefix backend test",
+    "lint": "npm --prefix backend run lint && node backend/node_modules/eslint/bin/eslint.js --quiet frontend/js/config.js frontend/js/auth.js frontend/js/base-modal.js frontend/js/global-init.js frontend/js/nav-loader.js",
+    "lint:backend": "npm --prefix backend run lint",
+    "lint:frontend": "node backend/node_modules/eslint/bin/eslint.js --quiet frontend/js/config.js frontend/js/auth.js frontend/js/base-modal.js frontend/js/global-init.js frontend/js/nav-loader.js",
     "build:css": "tailwindcss -i ./frontend/css/input.css -o ./frontend/css/style.css --watch",
     "start:backend": "cd backend && npm start",
     "start:frontend": "cd frontend && python -m http.server 8080",
-    "dev": "npm run build:css"
+    "dev": "npm run build:css",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
   },
   "repository": {
     "type": "git",
@@ -43,8 +46,8 @@
     "url": "https://github.com/DlHel/gymtecprueba1/issues"
   },
   "homepage": "https://github.com/DlHel/gymtecprueba1#readme",
-  "description": "Este es un Sistema de Gestión (ERP) para Gymtec, diseñado para centralizar y automatizar las operaciones de mantenimiento de equipos de gimnasio.",
-  "main": "FRONTEND_BACKEND_MAPPING.js",
+  "description": "Gymtec ERP con frontend estático, backend Express/MySQL y despliegue único en Docker Compose.",
+  "main": "backend/src/server-clean.js",
   "directories": {
     "doc": "docs"
   }

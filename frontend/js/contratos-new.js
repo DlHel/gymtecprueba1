@@ -3,10 +3,36 @@
  * Sistema completo de CRUD con autenticación y UI moderna
  */
 
-// Verificación de autenticación inmediata
-if (!localStorage.getItem('authToken')) {
+function getStoredToken() {
+    if (window.authManager && typeof window.authManager.getToken === 'function') {
+        return window.authManager.getToken();
+    }
+
+    return sessionStorage.getItem('gymtec_token') || localStorage.getItem('gymtec_token');
+}
+
+function clearStoredAuth() {
+    if (window.authManager && typeof window.authManager.clearStoredAuth === 'function') {
+        window.authManager.clearStoredAuth();
+        return;
+    }
+
+    sessionStorage.removeItem('gymtec_token');
+    sessionStorage.removeItem('gymtec_user');
+    localStorage.removeItem('gymtec_token');
+    localStorage.removeItem('gymtec_user');
+    localStorage.removeItem('gymtec_remember');
+}
+
+function redirectToLoginIfNeeded() {
+    if (getStoredToken()) {
+        return;
+    }
+
     window.location.href = '/login.html';
 }
+
+redirectToLoginIfNeeded();
 
 document.addEventListener('DOMContentLoaded', async function() {
     console.log('🚀 Iniciando módulo de contratos...');
@@ -556,8 +582,12 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Logout
     elements.logoutBtn?.addEventListener('click', () => {
-        localStorage.removeItem('authToken');
-        window.location.href = '/login.html';
+        if (window.authManager && typeof window.authManager.logout === 'function') {
+            window.authManager.logout();
+        } else {
+            clearStoredAuth();
+            window.location.href = '/login.html';
+        }
     });
 
     // ================================

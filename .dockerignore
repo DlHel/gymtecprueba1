@@ -1,0 +1,6 @@
+*
+!.dockerignore
+!frontend/
+!frontend/**
+!nginx/
+!nginx/**

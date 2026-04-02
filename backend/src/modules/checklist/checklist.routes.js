@@ -28,7 +28,7 @@ router.get('/checklist/templates', async (req, res) => {
         let sql = `
             SELECT ct.*, em.name as equipment_model_name, em.brand as equipment_brand
             FROM ChecklistTemplates ct
-            LEFT JOIN EquipmentModels em ON ct.equipment_model_id = em.id
+            LEFT JOIN EquipmentModels em ON ct.model_id = em.id
             WHERE 1=1
         `;
         const params = [];
@@ -52,7 +52,7 @@ router.get('/checklist/templates', async (req, res) => {
         const templates = await db.all(sql, params);
         
         // Obtener count de items para cada template
-        for (let template of templates) {
+        for (const template of templates) {
             const itemCount = await db.get(
                 'SELECT COUNT(*) as count FROM ChecklistTemplateItems WHERE template_id = ?',
                 [template.id]
@@ -90,7 +90,7 @@ router.get('/checklist/templates/:id', async (req, res) => {
             SELECT ct.*, em.name as equipment_model_name, em.brand as equipment_brand,
                    u.username as created_by_name
             FROM ChecklistTemplates ct
-            LEFT JOIN EquipmentModels em ON ct.equipment_model_id = em.id
+            LEFT JOIN EquipmentModels em ON ct.model_id = em.id
             LEFT JOIN Users u ON ct.created_by = u.id
             WHERE ct.id = ?
         `, [id]);
@@ -160,7 +160,7 @@ router.post('/checklist/templates', async (req, res) => {
         const templateSql = `
             INSERT INTO ChecklistTemplates (
                 name, description, ticket_type, equipment_category, 
-                equipment_model_id, is_mandatory, created_by
+                model_id, is_mandatory, created_by
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
         `;
         
@@ -194,7 +194,7 @@ router.post('/checklist/templates', async (req, res) => {
         const newTemplate = await db.get(`
             SELECT ct.*, em.name as equipment_model_name
             FROM ChecklistTemplates ct
-            LEFT JOIN EquipmentModels em ON ct.equipment_model_id = em.id
+            LEFT JOIN EquipmentModels em ON ct.model_id = em.id
             WHERE ct.id = ?
         `, [templateId]);
         
@@ -365,7 +365,7 @@ router.get('/tickets/:ticketId/checklist', async (req, res) => {
         res.json({
             message: 'success',
             data: {
-                ticket_id: parseInt(ticketId),
+                ticket_id: parseInt(ticketId, 10),
                 items: items,
                 progress: {
                     total: totalItems,

@@ -7,6 +7,25 @@
 
 const jwt = require('jsonwebtoken');
 const config = require('../config/env');
+const { matchesAnyRole } = require('../auth/identity');
+
+function extractBearerToken(authorizationHeader) {
+    return authorizationHeader && authorizationHeader.split(' ')[1];
+}
+
+function getTokenFromRequest(req) {
+    const headerToken = extractBearerToken(req.headers['authorization']);
+
+    if (headerToken) {
+        return headerToken;
+    }
+
+    return null;
+}
+
+function verifyAccessToken(token) {
+    return jwt.verify(token, config.JWT_SECRET);
+}
 
 /**
  * Middleware para verificar token JWT
@@ -15,8 +34,7 @@ const config = require('../config/env');
  * @param {NextFunction} next - Express next
  */
 function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+    const token = getTokenFromRequest(req);
 
     if (!token) {
         return res.status(401).json({
@@ -57,14 +75,7 @@ function requireRole(roles) {
         }
 
         const userRole = req.user.role;
-        const userRoleLower = userRole ? userRole.toLowerCase() : '';
-        const hasPermission = roles.some(role => {
-            const roleLower = role.toLowerCase();
-            if (roleLower === 'admin') {
-                return userRoleLower === 'admin' || userRoleLower === 'administrador';
-            }
-            return userRoleLower === roleLower;
-        });
+        const hasPermission = matchesAnyRole(userRole, roles);
 
         if (!hasPermission) {
             return res.status(403).json({
@@ -80,6 +91,9 @@ function requireRole(roles) {
 }
 
 module.exports = {
+    extractBearerToken,
+    getTokenFromRequest,
     authenticateToken,
-    requireRole
+    requireRole,
+    verifyAccessToken
 };

@@ -662,9 +662,9 @@ router.get('/low-stock', authenticateToken, (req, res) => {
         const sql = `
         SELECT 
             i.*,
-            ic.name as category_name,
-            l.name as location_name,
-            ps.company_name as primary_supplier_name,
+            i.category as category_name,
+            i.location as location_name,
+            i.supplier as primary_supplier_name,
             (i.minimum_stock - i.current_stock) as reorder_needed,
             CASE 
                 WHEN i.current_stock = 0 THEN 'out_of_stock'
@@ -672,10 +672,7 @@ router.get('/low-stock', authenticateToken, (req, res) => {
                 ELSE 'low'
             END as urgency_level
         FROM Inventory i
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
-        LEFT JOIN Locations l ON i.location_id = l.id
-        LEFT JOIN Suppliers ps ON i.primary_supplier_id = ps.id
-        WHERE i.is_active = 1 AND i.current_stock <= i.minimum_stock
+        WHERE i.current_stock <= i.minimum_stock
         ORDER BY 
             CASE 
                 WHEN i.current_stock = 0 THEN 1
@@ -737,7 +734,7 @@ router.get('/spare-parts', authenticateToken, (req, res) => {
             created_at,
             updated_at
         FROM Inventory
-        WHERE is_active = 1 AND current_stock > 0
+        WHERE current_stock > 0
         ORDER BY item_name ASC
     `;
     
@@ -827,16 +824,11 @@ router.get('/:id', authenticateToken, async (req, res) => {
         const sql = `
         SELECT 
             i.*,
-            ic.name as category_name,
-            l.name as location_name,
-            ps.company_name as primary_supplier_name,
-            as_sup.company_name as alternative_supplier_name
+            i.category as category_name,
+            i.location as location_name,
+            i.supplier as primary_supplier_name
         FROM Inventory i
-        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
-        LEFT JOIN Locations l ON i.location_id = l.id
-        LEFT JOIN Suppliers ps ON i.primary_supplier_id = ps.id
-        LEFT JOIN Suppliers as_sup ON i.alternative_supplier_id = as_sup.id
-        WHERE i.id = ? AND i.is_active = 1`;
+        WHERE i.id = ?`;
         
         const item = await db.get(sql, [id]);
         
@@ -871,7 +863,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         const { id } = req.params;
         
         // Verificar que el item existe
-        const checkSQL = 'SELECT id, item_name FROM Inventory WHERE id = ? AND is_active = 1';
+        const checkSQL = 'SELECT id, item_name FROM Inventory WHERE id = ?';
         const exists = await db.get(checkSQL, [id]);
         
         if (!exists) {
@@ -882,7 +874,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
         }
         
         // Soft delete (marcar como inactivo)
-        const deleteSQL = 'UPDATE Inventory SET is_active = 0, updated_at = NOW() WHERE id = ?';
+        const deleteSQL = 'DELETE FROM Inventory WHERE id = ?';
         await db.run(deleteSQL, [id]);
         
         // Registrar movimiento
@@ -934,7 +926,7 @@ router.post('/:id/adjust', authenticateToken, async (req, res) => {
         
         // Obtener item actual
         const item = await db.get(
-            'SELECT * FROM Inventory WHERE id = ? AND is_active = 1',
+            'SELECT * FROM Inventory WHERE id = ?',
             [id]
         );
         
@@ -1009,7 +1001,7 @@ router.get('/categories', authenticateToken, async (req, res) => {
             COUNT(i.id) as items_count
         FROM InventoryCategories ic
         LEFT JOIN InventoryCategories parent ON ic.parent_category_id = parent.id
-        LEFT JOIN Inventory i ON ic.id = i.category_id AND i.is_active = 1
+        LEFT JOIN Inventory i ON ic.id = i.category_id
         WHERE ic.is_active = 1
         GROUP BY ic.id
         ORDER BY ic.name ASC`;
@@ -1206,7 +1198,6 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
                 `SELECT * FROM Inventory 
                  WHERE (LOWER(item_name) LIKE LOWER(?) 
                  OR LOWER(item_code) LIKE LOWER(?))
-                 AND is_active = 1
                  LIMIT 1`,
                 [`%${request.spare_part_name}%`, `%${request.spare_part_name}%`],
                 (err, row) => {

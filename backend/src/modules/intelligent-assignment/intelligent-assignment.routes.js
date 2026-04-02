@@ -587,7 +587,7 @@ async function logAssignmentDecision(taskId, selectedTechnician, allScores) {
 async function getUnassignedTasks(filters) {
     return new Promise((resolve, reject) => {
         let whereClause = 'WHERE mt.technician_id IS NULL AND mt.status = "pending"';
-        let params = [];
+        const params = [];
         
         // Aplicar filtros adicionales
         if (filters.priority) {

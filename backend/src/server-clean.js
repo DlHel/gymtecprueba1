@@ -1,9 +1,6 @@
 const express = require('express');
-const cors = require('cors');
 const path = require('path');
-const multer = require('multer');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const sharp = require('sharp');
 const nodemailer = require('nodemailer');
 
@@ -18,6 +15,23 @@ const db = dbAdapter;
 
 // Servicios de Autenticación
 const AuthService = require('./services/authService');
+const { configureExpressApp } = require('./core/bootstrap/configure-express');
+const { registerAdvancedRoutes } = require('./core/bootstrap/register-advanced-routes');
+const {
+    authenticateToken,
+    requireRole,
+    getTokenFromRequest,
+    verifyAccessToken
+} = require('./core/middleware/auth.middleware');
+const { uploadReports, reportsDirectory } = require('./core/http/uploads');
+const { createServerRuntime } = require('./core/runtime/server-runtime');
+const { toMySQLDateTime } = require('./core/utils/datetime');
+const {
+    normalizeRole,
+    normalizeStatus,
+    isAdminLikeRole,
+    matchesAnyRole
+} = require('./core/auth/identity');
 
 // Sistema de Notificaciones
 const { triggerNotificationProcessing } = require('../notification-hooks');
@@ -33,176 +47,37 @@ const {
 } = require('./validators');
 
 // ===================================================================
-// HELPER FUNCTIONS
-// ===================================================================
-
-/**
- * Convierte una fecha JavaScript a formato MySQL DATETIME (hora local)
- * Esto evita problemas de zona horaria al guardar/recuperar fechas
- * @param {Date} date - Fecha a convertir (por defecto: fecha actual)
- * @returns {string} Fecha en formato MySQL 'YYYY-MM-DD HH:MM:SS'
- */
-function toMySQLDateTime(date = new Date()) {
-    // Obtener componentes de fecha en zona horaria local
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-}
-
-// ===================================================================
 // CONFIGURACIÓN BÁSICA DE EXPRESS
 // ===================================================================
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+configureExpressApp({ app, db, env: process.env });
 
-// Middleware básico
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-// Archivos estáticos
-app.use(express.static(path.join(__dirname, '../../frontend')));
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
-// Configuración de multer para subida de archivos
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, path.join(__dirname, '../uploads/models/'));
-    },
-    filename: function (req, file, cb) {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 10 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /jpeg|jpg|png|gif/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
-        
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('Solo se permiten imágenes (JPEG, JPG, PNG, GIF)'));
-        }
-    }
-});
-
-const uploadManuals = multer({ 
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 50 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        const allowedTypes = /pdf|doc|docx/;
-        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const allowedMimes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-        const mimetype = allowedMimes.includes(file.mimetype);
-        
-        if (mimetype && extname) {
-            return cb(null, true);
-        } else {
-            cb(new Error('Solo se permiten documentos PDF, DOC y DOCX'));
-        }
-    }
-});
-
-
-// Configuración para reportes PDF
-const storageReports = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const dir = path.join(__dirname, '../uploads/reports/');
-        // Asegurar que el directorio existe (node < 10 no tiene recursive: true en mkdirSync, pero asumimos entorno moderno)
-        const fs = require('fs');
-        if (!fs.existsSync(dir)){
-            fs.mkdirSync(dir, { recursive: true });
-        }
-        cb(null, dir);
-    },
-    filename: function (req, file, cb) {
-        // Usar el nombre original o generar uno seguro
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, 'report-' + uniqueSuffix + '.pdf');
-    }
-});
-
-const uploadReports = multer({ 
-    storage: storageReports,
-    limits: { fileSize: 25 * 1024 * 1024 }, // 25MB
-    fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/pdf') {
-            cb(null, true);
-        } else {
-            cb(new Error('Solo se permiten archivos PDF'));
-        }
-    }
-});
-
-// ===================================================================
-// MIDDLEWARE DE AUTENTICACIÓN Y AUTORIZACIÓN
-// ===================================================================
-
-// Verificar token JWT
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            error: 'Token de acceso requerido',
-            code: 'MISSING_TOKEN'
-        });
-    }
-
-    jwt.verify(token, AuthService.JWT_SECRET, (err, user) => {
-        if (err) {
-            console.log('❌ Token inválido:', err.message);
-            return res.status(401).json({
-                error: 'Token inválido o expirado',
-                code: 'INVALID_TOKEN'
-            });
-        }
-        req.user = user;
-        next();
-    });
+function canManageUsers(user) {
+    return isAdminLikeRole(user && user.role);
 }
 
-// Middleware para verificar roles
-function requireRole(roles) {
-    return (req, res, next) => {
-        if (!req.user) {
-            return res.status(401).json({
-                error: 'Usuario no autenticado',
-                code: 'NOT_AUTHENTICATED'
-            });
-        }
-
-        const userRole = req.user.role;
-        const hasPermission = roles.some(role => {
-            if (role === 'Admin') {
-                return userRole === 'Admin' || userRole === 'Administrador';
-            }
-            return userRole === role;
-        });
-
-        if (!hasPermission) {
-            return res.status(403).json({
-                error: 'Permisos insuficientes',
-                code: 'INSUFFICIENT_PERMISSIONS',
-                required: roles,
-                current: userRole
-            });
-        }
-
-        next();
+function normalizeUserPayload({ role, status }) {
+    return {
+        role: normalizeRole(role),
+        status: normalizeStatus(status) || 'Activo'
     };
+}
+
+function isTechnicalReportAdmin(user) {
+    return matchesAnyRole(user && user.role, ['Admin', 'Manager', 'Supervisor']);
+}
+
+function canAccessTechnicalReport(user, report) {
+    if (!user || !report) {
+        return false;
+    }
+
+    if (isTechnicalReportAdmin(user)) {
+        return true;
+    }
+
+    return Number(report.technician_id) === Number(user.id);
 }
 
 // ===================================================================
@@ -292,14 +167,20 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
 // GET all users with optional role filter
 app.get('/api/users', authenticateToken, (req, res) => {
+    if (!canManageUsers(req.user)) {
+        return res.status(403).json({
+            error: 'No tienes permisos para listar usuarios'
+        });
+    }
+
     const { role } = req.query;
     
     let sql = 'SELECT id, username, email, role, created_at FROM Users';
-    let params = [];
+    const params = [];
     
     if (role) {
         sql += ' WHERE role = ?';
-        params.push(role);
+        params.push(normalizeRole(role));
     }
     
     sql += ' ORDER BY username';
@@ -318,14 +199,14 @@ app.get('/api/users', authenticateToken, (req, res) => {
 
 // POST create new user
 app.post('/api/users', authenticateToken, async (req, res) => {
-    // Solo Admin puede crear usuarios
-    if (req.user.role !== 'Admin') {
+    if (!canManageUsers(req.user)) {
         return res.status(403).json({ 
             error: 'No tienes permisos para crear usuarios' 
         });
     }
 
     const { username, email, password, role, status } = req.body;
+    const normalizedUser = normalizeUserPayload({ role, status });
 
     // Validaciones
     if (!username || !email || !password || !role) {
@@ -340,10 +221,10 @@ app.post('/api/users', authenticateToken, async (req, res) => {
         });
     }
 
-    const validRoles = ['Admin', 'Manager', 'Technician', 'Client'];
-    if (!validRoles.includes(role)) {
+    const validRoles = ['Admin', 'Manager', 'Technician', 'Cliente', 'Supervisor'];
+    if (!validRoles.includes(normalizedUser.role)) {
         return res.status(400).json({ 
-            error: 'Rol inválido. Debe ser: Admin, Manager, Technician o Client' 
+            error: 'Rol inválido. Debe ser: Admin, Manager, Technician, Cliente o Supervisor'
         });
     }
 
@@ -381,13 +262,11 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 
                 // Insertar usuario
                 const insertSql = `
-                    INSERT INTO Users (username, email, password_hash, role, status, created_at, updated_at)
+                    INSERT INTO Users (username, email, password, role, status, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, NOW(), NOW())
                 `;
 
-                const userStatus = status || 'active';
-
-                db.run(insertSql, [username, email, hashedPassword, role, userStatus], function(err) {
+                db.run(insertSql, [username, email, hashedPassword, normalizedUser.role, normalizedUser.status], function(err) {
                     if (err) {
                         console.error('❌ Error creating user:', err);
                         return res.status(500).json({ 
@@ -425,8 +304,7 @@ app.post('/api/users', authenticateToken, async (req, res) => {
 
 // PUT update user
 app.put('/api/users/:id', authenticateToken, async (req, res) => {
-    // Solo Admin puede actualizar usuarios
-    if (req.user.role !== 'Admin') {
+    if (!canManageUsers(req.user)) {
         return res.status(403).json({ 
             error: 'No tienes permisos para actualizar usuarios' 
         });
@@ -434,6 +312,7 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
 
     const userId = req.params.id;
     const { username, email, password, role, status } = req.body;
+    const normalizedUser = normalizeUserPayload({ role, status });
 
     // Validaciones básicas
     if (!username || !email || !role) {
@@ -442,8 +321,8 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
         });
     }
 
-    const validRoles = ['Admin', 'Manager', 'Technician', 'Client'];
-    if (!validRoles.includes(role)) {
+    const validRoles = ['Admin', 'Manager', 'Technician', 'Cliente', 'Supervisor'];
+    if (!validRoles.includes(normalizedUser.role)) {
         return res.status(400).json({ 
             error: 'Rol inválido' 
         });
@@ -451,7 +330,7 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
 
     try {
         // Si hay contraseña nueva, hashearla
-        let updateFields = [username, email, role, status || 'active'];
+        const updateFields = [username, email, normalizedUser.role, normalizedUser.status];
         let updateSql = `
             UPDATE Users 
             SET username = ?, email = ?, role = ?, status = ?, updated_at = NOW()
@@ -464,7 +343,7 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
                 });
             }
             const hashedPassword = await bcrypt.hash(password, 10);
-            updateSql += ', password_hash = ?';
+            updateSql += ', password = ?';
             updateFields.push(hashedPassword);
         }
 
@@ -510,8 +389,7 @@ app.put('/api/users/:id', authenticateToken, async (req, res) => {
 
 // DELETE user
 app.delete('/api/users/:id', authenticateToken, (req, res) => {
-    // Solo Admin puede eliminar usuarios
-    if (req.user.role !== 'Admin') {
+    if (!canManageUsers(req.user)) {
         return res.status(403).json({ 
             error: 'No tienes permisos para eliminar usuarios' 
         });
@@ -566,7 +444,7 @@ app.get('/api/maintenance-tasks/technicians', authenticateToken, (req, res) => {
             role,
             '' as phone
         FROM Users 
-        WHERE role IN ('technician', 'admin', 'Tecnico', 'Admin') 
+        WHERE role IN ('technician', 'Technician', 'admin', 'Admin', 'Tecnico', 'Técnico', 'Manager', 'Supervisor') 
         AND status = 'Activo'
         ORDER BY username
     `;
@@ -1433,77 +1311,21 @@ app.get('/api/equipment/:id', authenticateToken, (req, res) => {
 // IMPORTAR MÓDULOS DE FASES AVANZADAS
 // ===================================================================
 
-// FASE 1 ENHANCEMENTS - Sistema de Contratos y Workflow
-try {
-    const contractsSlaRoutes = require('./routes/contracts-sla');
-    const checklistRoutes = require('./routes/checklist');
-    const workflowRoutes = require('./routes/workflow');
-    const dashboardCorrelationsRoutes = require('./routes/dashboard-correlations'); // Nueva ruta para correlaciones
-    const taskGeneratorRoutes = require('./routes/task-generator'); // Sistema de generación automática de tareas
-    const intelligentAssignmentRoutes = require('./routes/intelligent-assignment'); // Sistema de asignación inteligente
-    const { router: slaProcessorRoutes, initializeSLAProcessor, startAutomaticMonitoring } = require('./routes/sla-processor'); // Sistema de reglas SLA
-    
-    app.use('/api', contractsSlaRoutes);
-    app.use('/api', checklistRoutes);
-    app.use('/api', workflowRoutes);
-    app.use('/api', dashboardCorrelationsRoutes); // Agregar correlaciones inteligentes
-    app.use('/api', taskGeneratorRoutes); // Agregar generador automático de tareas
-    app.use('/api', intelligentAssignmentRoutes); // Agregar asignación inteligente de recursos
-    app.use('/api/sla', slaProcessorRoutes); // Agregar sistema de reglas SLA
-    
-    // Inicializar procesador SLA con monitoreo automático
-    initializeSLAProcessor(db);
-    startAutomaticMonitoring(db, 5); // Monitoreo cada 5 minutos
-    
-    console.log('✅ Fase 1 Routes loaded: Contratos SLA, Checklist, Workflow, Dashboard Correlations, Task Generator, Intelligent Assignment, SLA Processor');
-} catch (error) {
-    console.warn('⚠️  Warning: Some Fase 1 routes could not be loaded:', error.message);
-}
+const advancedRuntime = registerAdvancedRoutes({
+    app,
+    db,
+    env: process.env,
+    logger: console
+});
 
-// FASE 2 ENHANCEMENTS - Sistema de Notificaciones Inteligentes (Production mode)
-try {
-    const notificationsRoutes = require('./routes/notifications');
-    // const notificationsTestRoutes = require('./routes/notifications-test'); // ⚠️ TEST ROUTE - Disabled in production
-    // const notificationsSimpleTestRoutes = require('./routes/notifications-simple-test'); // ⚠️ TEST ROUTE - Disabled in production
-    const notificationsFixedRoutes = require('./routes/notifications-fixed');
-    // const testDbRoutes = require('./routes/test-db'); // ⚠️ TEST ROUTE - Disabled in production
-    // const simpleTestRoutes = require('./routes/simple-test'); // ⚠️ TEST ROUTE - Disabled in production
-    
-    app.use('/api/notifications', notificationsRoutes);
-    // app.use('/api/notifications', notificationsTestRoutes); // ⚠️ TEST ROUTE - Disabled in production
-    // app.use('/api/notifications', notificationsSimpleTestRoutes); // ⚠️ TEST ROUTE - Disabled in production
-    app.use('/api/notifications', notificationsFixedRoutes);
-    // app.use('/api', testDbRoutes); // ⚠️ TEST ROUTE - Disabled in production
-    // app.use('/api', simpleTestRoutes); // ⚠️ TEST ROUTE - Disabled in production
-    
-    console.log('✅ Fase 2 Routes loaded: Sistema de Notificaciones (Production mode)');
-} catch (error) {
-    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
-}
-
-// PAYROLL SYSTEM - Sistema de N�mina Chile
-try {
-    const payrollRoutes = require('./routes/payroll-chile');
-    app.use('/api', payrollRoutes);
-    console.log('? Payroll Routes loaded: Sistema de N�mina Chile con c�lculos autom�ticos');
-} catch (error) {
-    console.warn('⚠️  Warning: Some Fase 2 routes could not be loaded:', error.message);
-}
-
-// FASE 3 ENHANCEMENTS - Sistema de Inventario Inteligente y Reportes
-try {
-//     const inventoryRoutes = require('./routes/inventory');
-    const purchaseOrdersRoutes = require('./routes/purchase-orders');
-    
-//     app.use('/api/inventory', inventoryRoutes);
-    app.use('/api/purchase-orders', purchaseOrdersRoutes);
-    
-    console.log('✅ Fase 3 Routes loaded: Sistema de Inventario Inteligente y Reportes');
-    console.log('   📦 /api/inventory/* (Gestión de Inventario)');
-    console.log('   🛒 /api/purchase-orders/* (Órdenes de Compra)');
-} catch (error) {
-    console.warn('⚠️  Warning: Some Fase 3 routes could not be loaded:', error.message);
-}
+const { startServer, shutdown } = createServerRuntime({
+    app,
+    db,
+    port: process.env.PORT || 3000,
+    advancedRuntime,
+    env: process.env,
+    logger: console
+});
 
 // ===================================================================
 // FUNCIONES UTILITARIAS
@@ -3986,7 +3808,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
     const queries = [
         // Total de personal activo
         new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'Manager', 'Admin')`, [], (err, rows) => {
+            db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'technician', 'Tecnico', 'Técnico', 'Manager', 'Admin', 'Supervisor')`, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'active_staff', value: rows[0].total });
             });
@@ -3994,7 +3816,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
         
         // T�cnicos activos
         new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Users WHERE role = 'Technician'`, [], (err, rows) => {
+            db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'technician', 'Tecnico', 'Técnico')`, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'active_technicians', value: rows[0].total });
             });
@@ -4036,7 +3858,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
                     SUM(CASE WHEN t.priority = 'Cr�tica' THEN 1 ELSE 0 END) as critical_count
                 FROM Users u
                 LEFT JOIN Tickets t ON t.assigned_technician_id = u.id AND t.status NOT IN ('Cerrado', 'Completado')
-                WHERE u.role = 'Technician'
+                WHERE u.role IN ('Technician', 'technician', 'Tecnico', 'Técnico')
                 GROUP BY u.id, u.username, u.email
                 ORDER BY ticket_count DESC
             `, [], (err, rows) => {
@@ -4053,7 +3875,7 @@ app.get('/api/dashboard/resources-summary', authenticateToken, (req, res) => {
                     NULLIF(COUNT(DISTINCT u.id), 0) as utilization_percentage
                 FROM Users u
                 LEFT JOIN Tickets t ON t.assigned_technician_id = u.id AND t.status NOT IN ('Cerrado', 'Completado')
-                WHERE u.role = 'Technician'
+                WHERE u.role IN ('Technician', 'technician', 'Tecnico', 'Técnico')
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ 
@@ -4221,7 +4043,7 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total 
-                FROM SpareParts 
+                FROM Inventory 
                 WHERE current_stock <= minimum_stock
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -4233,7 +4055,7 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total 
-                FROM SpareParts 
+                FROM Inventory 
                 WHERE current_stock = 0
             `, [], (err, rows) => {
                 if (err) reject(err);
@@ -4245,8 +4067,8 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT COUNT(*) as total 
-                FROM SparePartsMovements 
-                WHERE DATE(movement_date) = CURDATE()
+                FROM InventoryMovements 
+                WHERE DATE(performed_at) = CURDATE()
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ metric: 'movements_today', value: rows[0].total });
@@ -4256,9 +4078,9 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         // �rdenes de compra pendientes
         new Promise((resolve, reject) => {
             db.all(`
-                SELECT COUNT(*) as total, COALESCE(SUM(total), 0) as total_amount
-                FROM SpareParts WHERE 1=0 
-                WHERE status IN ('Pending', 'Approved')
+                SELECT COUNT(*) as total, COALESCE(SUM(total_amount), 0) as total_amount
+                FROM PurchaseOrders
+                WHERE status IN ('Pending', 'Approved', 'Pendiente', 'Aprobada', 'Aprobado')
             `, [], (err, rows) => {
                 if (err) reject(err);
                 else resolve({ 
@@ -4272,14 +4094,14 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
-                    i.sku,
-                    i.name,
-                    SUM(CASE WHEN im.type = 'Salida' THEN im.quantity ELSE 0 END) as usage_count,
+                    i.item_code as sku,
+                    i.item_name,
+                    SUM(CASE WHEN im.movement_type IN ('out', 'salida', 'Salida') THEN im.quantity ELSE 0 END) as usage_count,
                     i.current_stock
-                FROM SpareParts i
-                LEFT JOIN SparePartsMovements im ON im.spare_part_id = i.id 
-                    AND DATE(im.created_at) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
-                GROUP BY i.id, i.sku, i.name, i.current_stock
+                FROM Inventory i
+                LEFT JOIN InventoryMovements im ON im.inventory_id = i.id 
+                    AND DATE(im.performed_at) >= DATE_FORMAT(CURDATE(), '%Y-%m-01')
+                GROUP BY i.id, i.item_code, i.item_name, i.current_stock
                 ORDER BY usage_count DESC
                 LIMIT 10
             `, [], (err, rows) => {
@@ -4292,12 +4114,12 @@ app.get('/api/dashboard/inventory-summary', authenticateToken, (req, res) => {
         new Promise((resolve, reject) => {
             db.all(`
                 SELECT 
-                    sku,
-                    name,
+                    item_code as sku,
+                    item_name as name,
                     current_stock,
                     minimum_stock,
-                    0 as unit_cost
-                FROM SpareParts 
+                    COALESCE(unit_cost, 0) as unit_cost
+                FROM Inventory 
                 WHERE current_stock <= minimum_stock
                 ORDER BY current_stock ASC
                 LIMIT 10
@@ -4707,7 +4529,7 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
             });
         }),
         new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'Manager', 'Admin')`, [], (err, rows) => {
+            db.all(`SELECT COUNT(*) as total FROM Users WHERE role IN ('Technician', 'technician', 'Tecnico', 'Técnico', 'Manager', 'Admin', 'Supervisor')`, [], (err, rows) => {
                 if (err) {
                     console.error('❌ Error en query Users:', err.message);
                     resolve({ metric: 'active_staff', value: 0 });
@@ -4718,7 +4540,7 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
             });
         }),
         new Promise((resolve, reject) => {
-            db.all(`SELECT COUNT(DISTINCT user_id) as total FROM Attendance WHERE DATE(check_in) = CURDATE()`, [], (err, rows) => {
+            db.all(`SELECT COUNT(DISTINCT user_id) as total FROM Attendance WHERE date = CURDATE()`, [], (err, rows) => {
                 if (err) {
                     console.error('❌ Error en query Attendance:', err.message);
                     resolve({ metric: 'attendance_today', value: 0 });
@@ -4775,7 +4597,7 @@ app.get('/api/dashboard/kpis-enhanced', authenticateToken, (req, res) => {
                     COUNT(t.id) as ticket_count
                 FROM Users u
                 LEFT JOIN Tickets t ON t.assigned_technician_id = u.id AND t.status NOT IN ('Cerrado', 'Completado')
-                WHERE u.role = 'Technician'
+                WHERE u.role IN ('Technician', 'technician', 'Tecnico', 'Técnico')
                 GROUP BY u.id, u.username
                 ORDER BY ticket_count DESC
                 LIMIT 10
@@ -7839,15 +7661,9 @@ app.get('/api/attendance/stats/today', authenticateToken, requireRole(['Admin', 
 console.log('✅ Rutas principales de asistencia registradas (shift-types, schedules, employee-schedules, attendance, summary, stats, check-in, check-out, overtime, leave-requests)');
 
 // ===================================================================
-// N�MINA CHILE - ENDPOINTS
+// NÓMINA CHILE - ENDPOINTS
 // ===================================================================
-try {
-    const payrollRoutes = require('./routes/payroll-chile');
-    payrollRoutes(app, db, authenticateToken, requireRole, toMySQLDateTime);
-    console.log(' Rutas de N�mina Chile cargadas correctamente');
-} catch (error) {
-    console.warn(' No se pudieron cargar rutas de n�mina:', error.message);
-}
+// El wiring canónico de nómina vive en register-advanced-routes.js para evitar doble montaje.
 
 // ===================================================================
 // GESTIÓN DE PERÍODOS DE NÓMINA
@@ -8378,901 +8194,11 @@ app.get('/api/locations/:id/tickets', authenticateToken, (req, res) => {
 console.log('✅ Todos los endpoints registrados correctamente');
 
 // ===================================================================
-// INICIALIZACIÓN DEL SERVIDOR
+// MÓDULO DE ASISTENCIA Y CONTROL HORARIO - BLOQUE LEGACY ELIMINADO
 // ===================================================================
+// El duplicado histórico de rutas de asistencia fue removido. La fuente activa
+// de verdad permanece en la sección registrada antes del error handler.
 
-function startServer() {
-    app.listen(PORT, '0.0.0.0', (err) => {
-        if (err) {
-            console.error('💥 Error iniciando servidor:', err);
-            process.exit(1);
-        }
-        
-        console.log('\n🚀 ========================================');
-        console.log('🚀 GYMTEC ERP - SERVIDOR INICIADO');
-        console.log('🚀 ========================================');
-        console.log(`🌍 Servidor corriendo en: http://localhost:${PORT}`);
-        console.log(`🌍 Accessible via: http://0.0.0.0:${PORT}`);
-        console.log(`🔧 Modo: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`📂 Base de datos: MySQL`);
-        console.log('📋 Rutas disponibles:');
-        console.log('   🔐 /api/auth/* (Autenticación)');
-        console.log('   👥 /api/clients/* (Gestión de Clientes)');
-        console.log('   🏢 /api/locations/* (Gestión de Sedes)');
-        console.log('   🔧 /api/equipment/* (Gestión de Equipos)');
-        console.log('   🎫 /api/tickets/* (Sistema de Tickets)');
-        console.log('   📦 /api/inventory/* (Gestión de Inventario)');
-        console.log('   🛒 /api/purchase-orders/* (Órdenes de Compra)');
-        console.log('   📊 /api/dashboard/* (Dashboard y KPIs)');
-        console.log('   👤 /api/users/* (Gestión de Usuarios)');
-        console.log('   💰 /api/quotes/* (Cotizaciones)');
-        console.log('   🧾 /api/invoices/* (Facturación)');
-        console.log('   💸 /api/expenses/* (Gastos)');
-        console.log('   ⏱️  /api/time-entries/* (Control de Tiempo)');
-        console.log('   🔔 /api/notifications/* (Notificaciones - Fase 2)');
-        console.log('   📈 /api/inventory/* (Inventario Inteligente - Fase 3)');
-        console.log('   ⏰ /api/attendance/* (Control de Asistencia)');
-        console.log('   📅 /api/schedules/* (Horarios y Turnos)');
-        console.log('   ⏳ /api/overtime/* (Horas Extras)');
-        console.log('   📋 /api/leave-requests/* (Solicitudes de Permiso)');
-        console.log('🚀 ========================================\n');
-        
-        try {
-            console.log('🔄 Inicializando servicios de background...');
-            console.log('✅ Servicios de background iniciados correctamente');
-        } catch (error) {
-            console.warn('⚠️  Warning: Algunos servicios de background no pudieron iniciarse:', error.message);
-        }
-    });
-}
-
-// ===================================================================
-// MÓDULO DE ASISTENCIA Y CONTROL HORARIO - BLOQUE DUPLICADO COMENTADO
-// ===================================================================
-// NOTA: Las rutas de asistencia están ahora definidas ANTES del error handler (línea ~5030)
-// Este bloque duplicado ha sido comentado para evitar conflictos
-/*
-console.log('🔄 Registrando rutas del módulo de asistencia...');
-
-// ===================================================================
-// TIPOS DE TURNO
-// ===================================================================
-
-// GET - Obtener todos los tipos de turno
-app.get('/api/shift-types', authenticateToken, (req, res) => {
-    const sql = 'SELECT * FROM ShiftTypes WHERE is_active = 1 ORDER BY name';
-    
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo tipos de turno:', err);
-            return res.status(500).json({ error: 'Error al obtener tipos de turno' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// POST - Crear tipo de turno
-app.post('/api/shift-types', authenticateToken, requireRole(['Admin']), (req, res) => {
-    const { name, description, color } = req.body;
-    
-    if (!name) {
-        return res.status(400).json({ error: 'El nombre es requerido' });
-    }
-    
-    const sql = `INSERT INTO ShiftTypes (name, description, color) VALUES (?, ?, ?)`;
-    
-    db.run(sql, [name, description, color || '#3B82F6'], function(err) {
-        if (err) {
-            console.error('Error creando tipo de turno:', err);
-            return res.status(500).json({ error: 'Error al crear tipo de turno' });
-        }
-        res.json({ 
-            message: 'success',
-            data: { id: this.lastID, name, description, color }
-        });
-    });
-});
-
-// ===================================================================
-// HORARIOS DE TRABAJO
-// ===================================================================
-
-// GET - Obtener todos los horarios
-app.get('/api/work-schedules', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT ws.*, st.name as shift_type_name, st.color as shift_type_color
-        FROM WorkSchedules ws
-        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
-        WHERE ws.is_active = 1
-        ORDER BY ws.name
-    `;
-    
-    db.all(sql, [], (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo horarios:', err);
-            return res.status(500).json({ error: 'Error al obtener horarios' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// GET - Obtener horario por ID
-app.get('/api/work-schedules/:id', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT ws.*, st.name as shift_type_name
-        FROM WorkSchedules ws
-        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
-        WHERE ws.id = ?
-    `;
-    
-    db.get(sql, [req.params.id], (err, row) => {
-        if (err) {
-            console.error('Error obteniendo horario:', err);
-            return res.status(500).json({ error: 'Error al obtener horario' });
-        }
-        if (!row) {
-            return res.status(404).json({ error: 'Horario no encontrado' });
-        }
-        res.json({ message: 'success', data: row });
-    });
-});
-
-// POST - Crear horario
-app.post('/api/work-schedules', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const {
-        name, description, shift_type_id,
-        monday_enabled, monday_start, monday_end, monday_break_duration,
-        tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
-        wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
-        thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
-        friday_enabled, friday_start, friday_end, friday_break_duration,
-        saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
-        sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
-        weekly_hours, tolerance_minutes
-    } = req.body;
-    
-    if (!name) {
-        return res.status(400).json({ error: 'El nombre es requerido' });
-    }
-    
-    const sql = `
-        INSERT INTO WorkSchedules (
-            name, description, shift_type_id,
-            monday_enabled, monday_start, monday_end, monday_break_duration,
-            tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
-            wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
-            thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
-            friday_enabled, friday_start, friday_end, friday_break_duration,
-            saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
-            sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
-            weekly_hours, tolerance_minutes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const params = [
-        name, description, shift_type_id,
-        monday_enabled || 0, monday_start, monday_end, monday_break_duration || 0,
-        tuesday_enabled || 0, tuesday_start, tuesday_end, tuesday_break_duration || 0,
-        wednesday_enabled || 0, wednesday_start, wednesday_end, wednesday_break_duration || 0,
-        thursday_enabled || 0, thursday_start, thursday_end, thursday_break_duration || 0,
-        friday_enabled || 0, friday_start, friday_end, friday_break_duration || 0,
-        saturday_enabled || 0, saturday_start, saturday_end, saturday_break_duration || 0,
-        sunday_enabled || 0, sunday_start, sunday_end, sunday_break_duration || 0,
-        weekly_hours || 0, tolerance_minutes || 15
-    ];
-    
-    db.run(sql, params, function(err) {
-        if (err) {
-            console.error('Error creando horario:', err);
-            return res.status(500).json({ error: 'Error al crear horario' });
-        }
-        res.json({ message: 'success', data: { id: this.lastID } });
-    });
-});
-
-// PUT - Actualizar horario
-app.put('/api/work-schedules/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const {
-        name, description, shift_type_id,
-        monday_enabled, monday_start, monday_end, monday_break_duration,
-        tuesday_enabled, tuesday_start, tuesday_end, tuesday_break_duration,
-        wednesday_enabled, wednesday_start, wednesday_end, wednesday_break_duration,
-        thursday_enabled, thursday_start, thursday_end, thursday_break_duration,
-        friday_enabled, friday_start, friday_end, friday_break_duration,
-        saturday_enabled, saturday_start, saturday_end, saturday_break_duration,
-        sunday_enabled, sunday_start, sunday_end, sunday_break_duration,
-        weekly_hours, tolerance_minutes
-    } = req.body;
-    
-    const sql = `
-        UPDATE WorkSchedules SET
-            name = ?, description = ?, shift_type_id = ?,
-            monday_enabled = ?, monday_start = ?, monday_end = ?, monday_break_duration = ?,
-            tuesday_enabled = ?, tuesday_start = ?, tuesday_end = ?, tuesday_break_duration = ?,
-            wednesday_enabled = ?, wednesday_start = ?, wednesday_end = ?, wednesday_break_duration = ?,
-            thursday_enabled = ?, thursday_start = ?, thursday_end = ?, thursday_break_duration = ?,
-            friday_enabled = ?, friday_start = ?, friday_end = ?, friday_break_duration = ?,
-            saturday_enabled = ?, saturday_start = ?, saturday_end = ?, saturday_break_duration = ?,
-            sunday_enabled = ?, sunday_start = ?, sunday_end = ?, sunday_break_duration = ?,
-            weekly_hours = ?, tolerance_minutes = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-    `;
-    
-    const params = [
-        name, description, shift_type_id,
-        monday_enabled || 0, monday_start, monday_end, monday_break_duration || 0,
-        tuesday_enabled || 0, tuesday_start, tuesday_end, tuesday_break_duration || 0,
-        wednesday_enabled || 0, wednesday_start, wednesday_end, wednesday_break_duration || 0,
-        thursday_enabled || 0, thursday_start, thursday_end, thursday_break_duration || 0,
-        friday_enabled || 0, friday_start, friday_end, friday_break_duration || 0,
-        saturday_enabled || 0, saturday_start, saturday_end, saturday_break_duration || 0,
-        sunday_enabled || 0, sunday_start, sunday_end, sunday_break_duration || 0,
-        weekly_hours || 0, tolerance_minutes || 15,
-        req.params.id
-    ];
-    
-    db.run(sql, params, function(err) {
-        if (err) {
-            console.error('Error actualizando horario:', err);
-            return res.status(500).json({ error: 'Error al actualizar horario' });
-        }
-        res.json({ message: 'success' });
-    });
-});
-
-// DELETE - Desactivar horario
-app.delete('/api/work-schedules/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
-    const sql = 'UPDATE WorkSchedules SET is_active = 0 WHERE id = ?';
-    
-    db.run(sql, [req.params.id], function(err) {
-        if (err) {
-            console.error('Error desactivando horario:', err);
-            return res.status(500).json({ error: 'Error al desactivar horario' });
-        }
-        res.json({ message: 'success' });
-    });
-});
-
-// ===================================================================
-// ASIGNACIÓN DE HORARIOS A EMPLEADOS
-// ===================================================================
-
-// GET - Obtener horarios de un empleado
-app.get('/api/employee-schedules/:userId', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT es.*, ws.name as schedule_name, ws.weekly_hours,
-               u.username, st.name as shift_type_name
-        FROM EmployeeSchedules es
-        JOIN WorkSchedules ws ON es.schedule_id = ws.id
-        JOIN Users u ON es.user_id = u.id
-        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
-        WHERE es.user_id = ?
-        ORDER BY es.start_date DESC
-    `;
-    
-    db.all(sql, [req.params.userId], (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo horarios del empleado:', err);
-            return res.status(500).json({ error: 'Error al obtener horarios' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// GET - Obtener horario activo de un empleado
-app.get('/api/employee-schedules/:userId/active', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT es.*, ws.*, st.name as shift_type_name
-        FROM EmployeeSchedules es
-        JOIN WorkSchedules ws ON es.schedule_id = ws.id
-        LEFT JOIN ShiftTypes st ON ws.shift_type_id = st.id
-        WHERE es.user_id = ?
-          AND es.is_active = 1
-          AND CURDATE() >= es.start_date
-          AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
-        ORDER BY es.start_date DESC
-        LIMIT 10
-    `;
-    
-    db.get(sql, [req.params.userId], (err, row) => {
-        if (err) {
-            console.error('Error obteniendo horario activo:', err);
-            return res.status(500).json({ error: 'Error al obtener horario activo' });
-        }
-        res.json({ message: 'success', data: row });
-    });
-});
-
-// POST - Asignar horario a empleado
-app.post('/api/employee-schedules', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const { user_id, schedule_id, start_date, end_date, notes } = req.body;
-    
-    if (!user_id || !schedule_id || !start_date) {
-        return res.status(400).json({ error: 'Datos incompletos' });
-    }
-    
-    const sql = `
-        INSERT INTO EmployeeSchedules (user_id, schedule_id, start_date, end_date, notes)
-        VALUES (?, ?, ?, ?)
-    `;
-    
-    db.run(sql, [user_id, schedule_id, start_date, end_date, notes], function(err) {
-        if (err) {
-            console.error('Error asignando horario:', err);
-            return res.status(500).json({ error: 'Error al asignar horario' });
-        }
-        res.json({ message: 'success', data: { id: this.lastID } });
-    });
-});
-
-// ===================================================================
-// ASISTENCIA
-// ===================================================================
-
-// GET - Obtener asistencias (con filtros)
-app.get('/api/attendance', authenticateToken, (req, res) => {
-    const { user_id, date_from, date_to, status } = req.query;
-    
-    let sql = `
-        SELECT a.*, u.username, u.role_id,
-               ws.name as schedule_name
-        FROM Attendance a
-        JOIN Users u ON a.user_id = u.id
-        LEFT JOIN EmployeeSchedules es ON es.user_id = u.id 
-            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
-            AND es.is_active = 1
-        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
-        WHERE 1=1
-    `;
-    
-    const params = [];
-    
-    if (user_id) {
-        sql += ' AND a.user_id = ?';
-        params.push(user_id);
-    }
-    
-    if (date_from) {
-        sql += ' AND a.date >= ?';
-        params.push(date_from);
-    }
-    
-    if (date_to) {
-        sql += ' AND a.date <= ?';
-        params.push(date_to);
-    }
-    
-    if (status) {
-        sql += ' AND a.status = ?';
-        params.push(status);
-    }
-    
-    sql += ' ORDER BY a.date DESC, u.username';
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo asistencias:', err);
-            return res.status(500).json({ error: 'Error al obtener asistencias' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// GET - Obtener asistencia de hoy del usuario actual
-app.get('/api/attendance/today', authenticateToken, (req, res) => {
-    const sql = `
-        SELECT a.*, ws.name as schedule_name,
-               ws.tolerance_minutes
-        FROM Attendance a
-        LEFT JOIN EmployeeSchedules es ON es.user_id = a.user_id 
-            AND a.date BETWEEN es.start_date AND COALESCE(es.end_date, '9999-12-31')
-            AND es.is_active = 1
-        LEFT JOIN WorkSchedules ws ON es.schedule_id = ws.id
-        WHERE a.user_id = ? AND a.date = CURDATE()
-    `;
-    
-    db.get(sql, [req.user.id], (err, row) => {
-        if (err) {
-            console.error('Error obteniendo asistencia de hoy:', err);
-            return res.status(500).json({ error: 'Error al obtener asistencia' });
-        }
-        res.json({ message: 'success', data: row });
-    });
-});
-
-// POST - Marcar entrada (check-in)
-app.post('/api/attendance/check-in', authenticateToken, (req, res) => {
-    const { location, notes } = req.body;
-    const user_id = req.user.id;
-    const ip = req.ip || req.connection.remoteAddress;
-    
-    // Verificar si ya marcó entrada hoy
-    const checkSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = CURDATE()';
-    
-    db.get(checkSql, [user_id], (err, existing) => {
-        if (err) {
-            console.error('Error verificando asistencia:', err);
-            return res.status(500).json({ error: 'Error al verificar asistencia' });
-        }
-        
-        if (existing && existing.check_in_time) {
-            return res.status(400).json({ 
-                error: 'Ya has marcado tu entrada hoy',
-                data: existing
-            });
-        }
-        
-        // Obtener horario del empleado para calcular tardanza
-        const scheduleSql = `
-            SELECT ws.*, 
-                   CASE DAYOFWEEK(NOW())
-                       WHEN 2 THEN ws.monday_start
-                       WHEN 3 THEN ws.tuesday_start
-                       WHEN 4 THEN ws.wednesday_start
-                       WHEN 5 THEN ws.thursday_start
-                       WHEN 6 THEN ws.friday_start
-                       WHEN 7 THEN ws.saturday_start
-                       WHEN 1 THEN ws.sunday_start
-                   END as scheduled_start
-            FROM EmployeeSchedules es
-            JOIN WorkSchedules ws ON es.schedule_id = ws.id
-            WHERE es.user_id = ?
-              AND es.is_active = 1
-              AND CURDATE() >= es.start_date
-              AND (es.end_date IS NULL OR CURDATE() <= es.end_date)
-            LIMIT 10
-        `;
-        
-        db.get(scheduleSql, [user_id], (err, schedule) => {
-            const now = new Date();
-            const nowTime = now.toISOString();
-            let is_late = 0;
-            let late_minutes = 0;
-            let status = 'present';
-            
-            if (schedule && schedule.scheduled_start) {
-                const scheduledStart = new Date();
-                const [hours, minutes] = schedule.scheduled_start.split(':');
-                scheduledStart.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0);
-                
-                const tolerance = (schedule.tolerance_minutes || 15) * 60 * 1000;
-                const diff = now - scheduledStart;
-                
-                if (diff > tolerance) {
-                    is_late = 1;
-                    late_minutes = Math.floor(diff / 60000);
-                    status = 'late';
-                }
-            }
-            
-            if (existing) {
-                // Actualizar registro existente
-                const updateSql = `
-                    UPDATE Attendance SET
-                        check_in_time = ?,
-                        check_in_location = ?,
-                        check_in_notes = ?,
-                        check_in_ip = ?,
-                        is_late = ?,
-                        late_minutes = ?,
-                        status = ?
-                    WHERE id = ?
-                `;
-                
-                db.run(updateSql, [nowTime, location, notes, ip, is_late, late_minutes, status, existing.id], function(err) {
-                    if (err) {
-                        console.error('Error actualizando entrada:', err);
-                        return res.status(500).json({ error: 'Error al marcar entrada' });
-                    }
-                    res.json({ message: 'Entrada registrada correctamente', data: { id: existing.id, is_late, late_minutes } });
-                });
-            } else {
-                // Crear nuevo registro
-                const insertSql = `
-                    INSERT INTO Attendance (
-                        user_id, date, check_in_time, check_in_location, check_in_notes, check_in_ip,
-                        is_late, late_minutes, status, scheduled_hours
-                    ) VALUES (?, CURDATE(), ?, ?, ?, ?, ?, ?, ?, ?)
-                `;
-                
-                const scheduled_hours = schedule ? schedule.weekly_hours / 5 : 8; // Aproximación
-                
-                db.run(insertSql, [user_id, nowTime, location, notes, ip, is_late, late_minutes, status, scheduled_hours], function(err) {
-                    if (err) {
-                        console.error('Error creando entrada:', err);
-                        return res.status(500).json({ error: 'Error al marcar entrada' });
-                    }
-                    res.json({ message: 'Entrada registrada correctamente', data: { id: this.lastID, is_late, late_minutes } });
-                });
-            }
-        });
-    });
-});
-
-// POST - Marcar salida (check-out)
-app.post('/api/attendance/check-out', authenticateToken, (req, res) => {
-    const { location, notes } = req.body;
-    const user_id = req.user.id;
-    const ip = req.ip || req.connection.remoteAddress;
-    
-    // Obtener registro de hoy
-    const getSql = 'SELECT * FROM Attendance WHERE user_id = ? AND date = DATE("now")';
-    
-    db.get(getSql, [user_id], (err, attendance) => {
-        if (err) {
-            console.error('Error obteniendo asistencia:', err);
-            return res.status(500).json({ error: 'Error al obtener asistencia' });
-        }
-        
-        if (!attendance) {
-            return res.status(400).json({ error: 'No has marcado entrada hoy' });
-        }
-        
-        if (attendance.check_out_time) {
-            return res.status(400).json({ error: 'Ya has marcado tu salida hoy' });
-        }
-        
-        const now = new Date();
-        const check_in = new Date(attendance.check_in_time);
-        const worked_hours = (now - check_in) / (1000 * 60 * 60); // Horas trabajadas
-        
-        const updateSql = `
-            UPDATE Attendance SET
-                check_out_time = ?,
-                check_out_location = ?,
-                check_out_notes = ?,
-                check_out_ip = ?,
-                worked_hours = ?
-            WHERE id = ?
-        `;
-        
-        db.run(updateSql, [toMySQLDateTime(now), location, notes, ip, worked_hours.toFixed(2), attendance.id], function(err) {
-            if (err) {
-                console.error('Error marcando salida:', err);
-                return res.status(500).json({ error: 'Error al marcar salida' });
-            }
-            res.json({ 
-                message: 'Salida registrada correctamente',
-                data: { worked_hours: worked_hours.toFixed(2) }
-            });
-        });
-    });
-});
-
-// ===================================================================
-// HORAS EXTRAS
-// ===================================================================
-
-// GET - Obtener horas extras
-app.get('/api/overtime', authenticateToken, (req, res) => {
-    const { user_id, status, date_from, date_to } = req.query;
-    
-    let sql = `
-        SELECT o.*, u.username,
-               requester.username as requested_by_name,
-               approver.username as approved_by_name
-        FROM Overtime o
-        JOIN Users u ON o.user_id = u.id
-        LEFT JOIN Users requester ON o.requested_by = requester.id
-        LEFT JOIN Users approver ON o.approved_by = approver.id
-        WHERE 1=1
-    `;
-    
-    const params = [];
-    
-    if (user_id) {
-        sql += ' AND o.user_id = ?';
-        params.push(user_id);
-    }
-    
-    if (status) {
-        sql += ' AND o.status = ?';
-        params.push(status);
-    }
-    
-    if (date_from) {
-        sql += ' AND o.date >= ?';
-        params.push(date_from);
-    }
-    
-    if (date_to) {
-        sql += ' AND o.date <= ?';
-        params.push(date_to);
-    }
-    
-    sql += ' ORDER BY o.date DESC, o.start_time DESC';
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo horas extras:', err);
-            return res.status(500).json({ error: 'Error al obtener horas extras' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// POST - Registrar horas extras
-app.post('/api/overtime', authenticateToken, (req, res) => {
-    const { 
-        user_id, date, start_time, end_time, type, description, reason,
-        hourly_rate
-    } = req.body;
-    
-    if (!user_id || !date || !start_time || !end_time) {
-        return res.status(400).json({ error: 'Datos incompletos' });
-    }
-    
-    // Calcular horas
-    const start = new Date(`${date}T${start_time}`);
-    const end = new Date(`${date}T${end_time}`);
-    const hours = (end - start) / (1000 * 60 * 60);
-    
-    // Determinar multiplicador según tipo
-    let multiplier = 1.5;
-    if (type === 'night') multiplier = 2.0;
-    if (type === 'holiday') multiplier = 2.0;
-    if (type === 'sunday') multiplier = 1.8;
-    
-    const total_amount = hourly_rate ? (hours * hourly_rate * multiplier).toFixed(2) : 0;
-    
-    const sql = `
-        INSERT INTO Overtime (
-            user_id, date, start_time, end_time, hours,
-            type, multiplier, description, reason,
-            hourly_rate, total_amount, requested_by, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    db.run(sql, [
-        user_id, date, start_time, end_time, hours.toFixed(2),
-        type || 'regular', multiplier, description, reason,
-        hourly_rate || 0, total_amount, req.user.id, 'pending'
-    ], function(err) {
-        if (err) {
-            console.error('Error registrando horas extras:', err);
-            return res.status(500).json({ error: 'Error al registrar horas extras' });
-        }
-        res.json({ message: 'success', data: { id: this.lastID, hours: hours.toFixed(2), total_amount } });
-    });
-});
-
-// PUT - Aprobar/Rechazar horas extras
-app.put('/api/overtime/:id/status', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const { status, rejection_reason } = req.body;
-    
-    if (!['approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Estado inválido' });
-    }
-    
-    const sql = `
-        UPDATE Overtime SET
-            status = ?,
-            approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP,
-            rejection_reason = ?
-        WHERE id = ?
-    `;
-    
-    db.run(sql, [status, req.user.id, rejection_reason, req.params.id], function(err) {
-        if (err) {
-            console.error('Error actualizando estado de horas extras:', err);
-            return res.status(500).json({ error: 'Error al actualizar estado' });
-        }
-        res.json({ message: 'success' });
-    });
-});
-
-// ===================================================================
-// SOLICITUDES DE PERMISO/VACACIONES
-// ===================================================================
-
-// GET - Obtener solicitudes de permiso
-app.get('/api/leave-requests', authenticateToken, (req, res) => {
-    const { user_id, status } = req.query;
-    
-    let sql = `
-        SELECT lr.*, u.username,
-               approver.username as approved_by_name,
-               replacement.username as replacement_name
-        FROM LeaveRequests lr
-        JOIN Users u ON lr.user_id = u.id
-        LEFT JOIN Users approver ON lr.approved_by = approver.id
-        LEFT JOIN Users replacement ON lr.replacement_user_id = replacement.id
-        WHERE 1=1
-    `;
-    
-    const params = [];
-    
-    if (user_id) {
-        sql += ' AND lr.user_id = ?';
-        params.push(user_id);
-    }
-    
-    if (status) {
-        sql += ' AND lr.status = ?';
-        params.push(status);
-    }
-    
-    sql += ' ORDER BY lr.start_date DESC';
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo solicitudes de permiso:', err);
-            return res.status(500).json({ error: 'Error al obtener solicitudes' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// POST - Crear solicitud de permiso
-app.post('/api/leave-requests', authenticateToken, (req, res) => {
-    const {
-        start_date, end_date, days_requested, type, reason,
-        has_documentation, documentation_file, replacement_user_id
-    } = req.body;
-    
-    if (!start_date || !end_date || !type) {
-        return res.status(400).json({ error: 'Datos incompletos' });
-    }
-    
-    const sql = `
-        INSERT INTO LeaveRequests (
-            user_id, start_date, end_date, days_requested,
-            type, reason, has_documentation, documentation_file,
-            replacement_user_id, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    db.run(sql, [
-        req.user.id, start_date, end_date, days_requested || 1,
-        type, reason, has_documentation || 0, documentation_file,
-        replacement_user_id, 'pending'
-    ], function(err) {
-        if (err) {
-            console.error('Error creando solicitud de permiso:', err);
-            return res.status(500).json({ error: 'Error al crear solicitud' });
-        }
-        res.json({ message: 'success', data: { id: this.lastID } });
-    });
-});
-
-// PUT - Aprobar/Rechazar solicitud de permiso
-app.put('/api/leave-requests/:id/status', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const { status, rejection_reason } = req.body;
-    
-    if (!['approved', 'rejected'].includes(status)) {
-        return res.status(400).json({ error: 'Estado inválido' });
-    }
-    
-    const sql = `
-        UPDATE LeaveRequests SET
-            status = ?,
-            approved_by = ?,
-            approved_at = CURRENT_TIMESTAMP,
-            rejection_reason = ?
-        WHERE id = ?
-    `;
-    
-    db.run(sql, [status, req.user.id, rejection_reason, req.params.id], function(err) {
-        if (err) {
-            console.error('Error actualizando solicitud:', err);
-            return res.status(500).json({ error: 'Error al actualizar solicitud' });
-        }
-        res.json({ message: 'success' });
-    });
-});
-
-// ===================================================================
-// DÍAS FESTIVOS
-// ===================================================================
-
-// GET - Obtener días festivos
-app.get('/api/holidays', authenticateToken, (req, res) => {
-    const { year } = req.query;
-    
-    let sql = 'SELECT * FROM Holidays WHERE 1=1';
-    const params = [];
-    
-    if (year) {
-        sql += ' AND YEAR(date) = ?';
-        params.push(year);
-    }
-    
-    sql += ' ORDER BY date';
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) {
-            console.error('Error obteniendo días festivos:', err);
-            return res.status(500).json({ error: 'Error al obtener días festivos' });
-        }
-        res.json({ message: 'success', data: rows });
-    });
-});
-
-// POST - Crear día festivo
-app.post('/api/holidays', authenticateToken, requireRole(['Admin']), (req, res) => {
-    const { name, date, type, is_paid, description } = req.body;
-    
-    if (!name || !date) {
-        return res.status(400).json({ error: 'Nombre y fecha son requeridos' });
-    }
-    
-    const sql = `
-        INSERT INTO Holidays (name, date, type, is_paid, description)
-        VALUES (?, ?, ?, ?)
-    `;
-    
-    db.run(sql, [name, date, type || 'national', is_paid !== false ? 1 : 0, description], function(err) {
-        if (err) {
-            console.error('Error creando día festivo:', err);
-            return res.status(500).json({ error: 'Error al crear día festivo' });
-        }
-        res.json({ message: 'success', data: { id: this.lastID } });
-    });
-});
-
-// ===================================================================
-// REPORTES DE ASISTENCIA
-// ===================================================================
-
-// GET - Resumen de asistencia por empleado
-app.get('/api/attendance/summary/:userId', authenticateToken, (req, res) => {
-    const { month, year } = req.query;
-    
-    let sql = `
-        SELECT 
-            COUNT(*) as total_days,
-            SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days,
-            SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) as absent_days,
-            SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as late_days,
-            SUM(late_minutes) as total_late_minutes,
-            SUM(worked_hours) as total_worked_hours,
-            AVG(worked_hours) as avg_worked_hours
-        FROM Attendance
-        WHERE user_id = ?
-    `;
-    
-    const params = [req.params.userId];
-    
-    if (month && year) {
-        sql += ' AND MONTH(date) = ? AND YEAR(date) = ?';
-        params.push(month, year);
-    }
-    
-    db.get(sql, params, (err, row) => {
-        if (err) {
-            console.error('Error obteniendo resumen de asistencia:', err);
-            return res.status(500).json({ error: 'Error al obtener resumen' });
-        }
-        res.json({ message: 'success', data: row });
-    });
-});
-
-// GET - Estadísticas generales de asistencia
-app.get('/api/attendance/stats', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
-    const sql = `
-        SELECT 
-            COUNT(DISTINCT user_id) as total_employees,
-            COUNT(*) as total_records,
-            SUM(CASE WHEN date = CURDATE() THEN 1 ELSE 0 END) as today_present,
-            SUM(CASE WHEN date = CURDATE() AND check_in_time IS NOT NULL AND check_out_time IS NULL THEN 1 ELSE 0 END) as currently_working,
-            SUM(CASE WHEN is_late = 1 THEN 1 ELSE 0 END) as total_late
-        FROM Attendance
-        WHERE date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
-    `;
-    
-    db.get(sql, [], (err, row) => {
-        if (err) {
-            console.error('Error obteniendo estadísticas:', err);
-            return res.status(500).json({ error: 'Error al obtener estadísticas' });
-        }
-        res.json({ message: 'success', data: row });
-    });
-});
-*/
-// FIN DEL BLOQUE DUPLICADO COMENTADO
-// ===================================================================
 
 // =====================================================
 // ENDPOINTS DE INFORMES TÉCNICOS
@@ -9307,20 +8233,17 @@ app.get('/api/tickets/:id/informe-data', authenticateToken, (req, res) => {
 
 // =====================================================
 // GENERAR PDF EN EL SERVIDOR (funciona en todos los navegadores)
-// Usa middleware inline que acepta token en query param o header
+// Usa Authorization header Bearer
 // =====================================================
 app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
-    // Autenticación inline que acepta token en query param o header
-    const token = req.query.token || (req.headers.authorization && req.headers.authorization.replace('Bearer ', ''));
+    const token = getTokenFromRequest(req);
     
     if (!token) {
         return res.status(401).json({ error: 'Token requerido' });
     }
     
     try {
-        const jwt = require('jsonwebtoken');
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'gymtec-secret-key-2024-production');
-        req.user = decoded;
+        req.user = verifyAccessToken(token);
     } catch (err) {
         console.error('❌ Error verificando token PDF:', err.message);
         return res.status(401).json({ error: 'Token inválido' });
@@ -9450,52 +8373,50 @@ app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
         // ============================================================
         drawSectionTitle('CRONOLOGÍA DEL SERVICIO');
         
-        doc.rect(50, y, contentW, 55).fill(lightGray).strokeColor(mediumGray).lineWidth(0.5).stroke();
-        
         const colW = contentW / 3;
+        doc.rect(50, y, contentW, 60).fill(lightGray).strokeColor(mediumGray).lineWidth(0.5).stroke();
+        
         drawField('Fecha de Creación', formatDateShort(ticket.created_at), 60, y + 8, colW - 20);
         drawField('Fecha de Cierre', formatDateShort(ticket.closed_at || ticket.completed_at), 60 + colW, y + 8, colW - 20);
         drawField('Estado', ticket.status || 'N/A', 60 + colW * 2, y + 8, colW - 20);
         
-        drawField('Prioridad', ticket.priority || 'N/A', 60, y + 32, colW - 20);
-        drawField('Tipo', ticket.type || ticket.ticket_type || 'N/A', 60 + colW, y + 32, colW - 20);
-        drawField('Técnico', ticket.technician_name || 'N/A', 60 + colW * 2, y + 32, colW - 20);
+        drawField('Prioridad', ticket.priority || 'N/A', 60, y + 34, colW - 20);
+        drawField('Tipo', ticket.type || ticket.ticket_type || 'N/A', 60 + colW, y + 34, colW - 20);
+        drawField('Técnico', ticket.technician_name || 'N/A', 60 + colW * 2, y + 34, colW - 20);
         
-        y += 70;
+        y += 75;
         
         // ============================================================
         // INFORMACIÓN DEL CLIENTE
         // ============================================================
         drawSectionTitle('INFORMACIÓN DEL CLIENTE');
         
-        doc.rect(50, y, contentW, 65).fill(lightGray).strokeColor(mediumGray).lineWidth(0.5).stroke();
-        
         const halfW = contentW / 2;
+        doc.rect(50, y, contentW, 85).fill(lightGray).strokeColor(mediumGray).lineWidth(0.5).stroke();
+        
         drawField('Cliente', ticket.client_name, 60, y + 8, halfW - 20);
-        drawField('RUT', ticket.client_rut, 60, y + 32, halfW - 20);
         drawField('Contacto', ticket.client_contact, 60 + halfW, y + 8, halfW - 20);
-        drawField('Teléfono', ticket.client_phone, 60 + halfW, y + 32, halfW - 20);
+        drawField('RUT', ticket.client_rut, 60, y + 34, halfW - 20);
+        drawField('Teléfono', ticket.client_phone, 60 + halfW, y + 34, halfW - 20);
+        drawField('Ubicación', ticket.location_name, 60, y + 60, halfW - 20);
+        drawField('Dirección', ticket.location_address, 60 + halfW, y + 60, halfW - 20);
         
-        y += 56;
-        drawField('Ubicación', ticket.location_name, 60, y + 2, halfW - 20);
-        drawField('Dirección', ticket.location_address, 60 + halfW, y + 2, halfW - 20);
-        
-        y += 30;
+        y += 100;
         
         // ============================================================
         // EQUIPO
         // ============================================================
         drawSectionTitle('EQUIPO');
         
-        doc.rect(50, y, contentW, 55).fill(lightGray).strokeColor(mediumGray).lineWidth(0.5).stroke();
+        doc.rect(50, y, contentW, 60).fill(lightGray).strokeColor(mediumGray).lineWidth(0.5).stroke();
         
         drawField('Modelo', ticket.equipment_model, 60, y + 8, colW - 20);
         drawField('Marca', ticket.equipment_brand, 60 + colW, y + 8, colW - 20);
         drawField('Tipo', ticket.equipment_type, 60 + colW * 2, y + 8, colW - 20);
         
-        drawField('N° Serie', ticket.serial_number, 60, y + 32, colW - 20);
+        drawField('N° Serie', ticket.serial_number, 60, y + 34, colW - 20);
         
-        y += 70;
+        y += 75;
         
         // ============================================================
         // DESCRIPCIÓN DEL PROBLEMA
@@ -9520,7 +8441,7 @@ app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
             comments.forEach((comment, idx) => {
                 checkPage(80);
                 
-                const commentText = comment.comment || comment.comment_text || '';
+                const commentText = comment.note || comment.comment || comment.comment_text || '';
                 const textH = doc.heightOfString(commentText, { width: contentW - 30 });
                 const boxH = Math.max(38, textH + 28);
                 
@@ -9530,7 +8451,7 @@ app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
                 
                 // Fecha y autor
                 doc.fillColor('#888').fontSize(8).font('Helvetica');
-                doc.text(`${comment.author_name || 'Técnico'} — ${formatDate(comment.created_at)}`, 60, y + 6, { width: contentW - 20 });
+                doc.text(`${comment.author || comment.author_name || 'Técnico'} — ${formatDate(comment.created_at)}`, 60, y + 6, { width: contentW - 20 });
                 
                 // Texto del comentario
                 doc.fillColor(darkBlue).fontSize(10).font('Helvetica');
@@ -9567,7 +8488,7 @@ app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
                     
                     // Etiqueta de la foto
                     doc.fillColor('#666').fontSize(9).font('Helvetica');
-                    const photoLabel = `Foto ${i + 1}${photo.description ? ' — ' + photo.description : ''}${photo.file_name ? ' (' + photo.file_name + ')' : ''}`;
+                    const photoLabel = `Foto ${i + 1}${photo.description && !photo.description.startsWith('Foto del ticket') ? ' — ' + photo.description : ''}`;
                     doc.text(photoLabel, 50, y);
                     doc.fillColor('#999').fontSize(8).text(formatDate(photo.created_at), 50, y + 12);
                     y += 28;
@@ -9612,75 +8533,207 @@ app.get('/api/tickets/:id/generate-pdf', async (req, res) => {
 });
 
 
+const TECHNICAL_REPORTS_TABLE_SQL = `
+CREATE TABLE IF NOT EXISTS InformesTecnicos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    ticket_id INT NOT NULL,
+    technician_id INT NULL,
+    filename VARCHAR(255) NULL,
+    notas_adicionales TEXT NULL,
+    client_email VARCHAR(255) NULL,
+    report_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    sent_to_client TINYINT(1) NOT NULL DEFAULT 0,
+    sent_at DATETIME NULL,
+    INDEX idx_informes_ticket_id (ticket_id),
+    INDEX idx_informes_technician_id (technician_id),
+    INDEX idx_informes_report_date (report_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+`;
+
+async function ensureTechnicalReportsTable() {
+    await db.runAsync(TECHNICAL_REPORTS_TABLE_SQL);
+}
+
+async function getTechnicalReportById(informeId) {
+    const sql = `
+        SELECT
+            i.*,
+            t.title AS ticket_title,
+            t.client_id,
+            c.name AS client_name,
+            u.username AS generated_by_name
+        FROM InformesTecnicos i
+        LEFT JOIN Tickets t ON i.ticket_id = t.id
+        LEFT JOIN Clients c ON t.client_id = c.id
+        LEFT JOIN Users u ON i.technician_id = u.id
+        WHERE i.id = ?
+    `;
+
+    return db.get(sql, [informeId]);
+}
+
 // Registrar informe generado
-app.post('/api/informes', authenticateToken, (req, res) => {
-    const { ticket_id, filename, notas_adicionales, client_email } = req.body;
-    const sql = 'INSERT INTO InformesTecnicos (ticket_id, filename, notas_adicionales, client_email) VALUES (?, ?, ?, ?)';
-    
-    db.run(sql, [ticket_id, filename, notas_adicionales, client_email], function(err) {
-        if (err) return res.status(500).json({ message: 'error', error: err.message });
-        console.log('✅ Informe registrado: ' + this.lastID);
-        res.json({ message: 'success', data: { id: this.lastID, ticket_id, filename } });
-    });
+app.post('/api/informes', authenticateToken, async (req, res) => {
+    try {
+        await ensureTechnicalReportsTable();
+
+        const { ticket_id, filename, notas_adicionales, client_email } = req.body;
+        const technicianId = req.user && req.user.id ? req.user.id : null;
+        const sql = `
+            INSERT INTO InformesTecnicos (
+                ticket_id,
+                technician_id,
+                filename,
+                notas_adicionales,
+                client_email
+            ) VALUES (?, ?, ?, ?, ?)
+        `;
+
+        const result = await db.runAsync(sql, [
+            ticket_id,
+            technicianId,
+            filename,
+            notas_adicionales || null,
+            client_email || null
+        ]);
+
+        console.log('✅ Informe registrado: ' + result.lastID);
+        res.json({ message: 'success', data: { id: result.lastID, ticket_id, filename } });
+    } catch (error) {
+        res.status(500).json({ message: 'error', error: error.message });
+    }
 });
 
 // Listar informes
-app.get('/api/informes', authenticateToken, (req, res) => {
-    const { ticket_id, date_from, date_to } = req.query;
-    let sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.technician_id = u.id WHERE 1=1';
-    const params = [];
-    
-    if (ticket_id) { sql += ' AND i.ticket_id = ?'; params.push(ticket_id); }
-    if (date_from) { sql += ' AND i.report_date >= ?'; params.push(date_from); }
-    if (date_to) { sql += ' AND i.report_date <= ?'; params.push(date_to); }
-    sql += ' ORDER BY i.report_date DESC';
-    
-    db.all(sql, params, (err, rows) => {
-        if (err) return res.status(500).json({ message: 'error', error: err.message });
+app.get('/api/informes', authenticateToken, async (req, res) => {
+    try {
+        await ensureTechnicalReportsTable();
+
+        const { ticket_id, date_from, date_to } = req.query;
+        let sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.technician_id = u.id WHERE 1=1';
+        const params = [];
+
+        if (ticket_id) { sql += ' AND i.ticket_id = ?'; params.push(ticket_id); }
+        if (date_from) { sql += ' AND i.report_date >= ?'; params.push(date_from); }
+        if (date_to) { sql += ' AND i.report_date <= ?'; params.push(date_to); }
+        if (!isTechnicalReportAdmin(req.user)) {
+            sql += ' AND i.technician_id = ?';
+            params.push(req.user.id);
+        }
+        sql += ' ORDER BY i.report_date DESC';
+
+        const rows = await db.all(sql, params);
         res.json({ message: 'success', data: rows || [] });
-    });
+    } catch (error) {
+        res.status(500).json({ message: 'error', error: error.message });
+    }
 });
 
 // Obtener informe específico
-app.get('/api/informes/:id', authenticateToken, (req, res) => {
-    const sql = 'SELECT i.*, t.title as ticket_title, c.name as client_name, u.username as generated_by_name FROM InformesTecnicos i LEFT JOIN Tickets t ON i.ticket_id = t.id LEFT JOIN Clients c ON t.client_id = c.id LEFT JOIN Users u ON i.technician_id = u.id WHERE i.id = ?';
-    
-    db.get(sql, [req.params.id], (err, row) => {
-        if (err) return res.status(500).json({ message: 'error', error: err.message });
-        if (!row) return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+app.get('/api/informes/:id', authenticateToken, async (req, res) => {
+    try {
+        await ensureTechnicalReportsTable();
+
+        const row = await getTechnicalReportById(req.params.id);
+
+        if (!row) {
+            return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+        }
+
+        if (!canAccessTechnicalReport(req.user, row)) {
+            return res.status(403).json({ message: 'error', error: 'No tienes permisos para ver este informe' });
+        }
+
         res.json({ message: 'success', data: row });
-    });
+    } catch (error) {
+        res.status(500).json({ message: 'error', error: error.message });
+    }
 });
+
+app.get('/api/informes/:id/pdf', authenticateToken, async (req, res) => {
+    try {
+        await ensureTechnicalReportsTable();
+
+        const report = await getTechnicalReportById(req.params.id);
+
+        if (!report) {
+            return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+        }
+
+        if (!canAccessTechnicalReport(req.user, report)) {
+            return res.status(403).json({ message: 'error', error: 'No tienes permisos para descargar este informe' });
+        }
+
+        if (!report.filename) {
+            return res.status(404).json({ message: 'error', error: 'El informe no tiene PDF almacenado' });
+        }
+
+        const fs = require('fs');
+        const safeFilename = path.basename(report.filename);
+        const pdfPath = path.join(reportsDirectory, safeFilename);
+
+        if (!fs.existsSync(pdfPath)) {
+            return res.status(404).json({ message: 'error', error: 'Archivo PDF no encontrado' });
+        }
+
+        res.download(pdfPath, `Informe_Tecnico_${report.ticket_id}.pdf`);
+    } catch (error) {
+        console.error('❌ Error descargando PDF de informe:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+});
+
+async function authorizeTechnicalReportWrite(req, res, next) {
+    try {
+        await ensureTechnicalReportsTable();
+
+        const report = await getTechnicalReportById(req.params.id);
+
+        if (!report) {
+            return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+        }
+
+        if (!canAccessTechnicalReport(req.user, report)) {
+            return res.status(403).json({ message: 'error', error: 'No tienes permisos para actualizar este informe' });
+        }
+
+        req.technicalReport = report;
+        next();
+    } catch (error) {
+        console.error('❌ Error autorizando acceso al informe:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
+}
 
 // Marcar como enviado
 // Subir PDF generado
-app.post('/api/informes/:id/pdf', authenticateToken, uploadReports.single('pdf'), (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ message: 'error', error: 'No se subió ningún archivo PDF' });
-    }
-    
-    const informeId = req.params.id;
-    const filename = req.file.filename;
-    
-    // Actualizar registro con el nombre del archivo físico
-    const sql = 'UPDATE InformesTecnicos SET filename = ? WHERE id = ?';
-    
-    db.run(sql, [filename, informeId], function(err) {
-        if (err) {
-            console.error('❌ Error actualizando informe con PDF:', err);
-            return res.status(500).json({ message: 'error', error: err.message });
+app.post('/api/informes/:id/pdf', authenticateToken, authorizeTechnicalReportWrite, uploadReports.single('pdf'), async (req, res) => {
+    try {
+
+        if (!req.file) {
+            return res.status(400).json({ message: 'error', error: 'No se subió ningún archivo PDF' });
         }
-        
+
+        const informeId = req.params.id;
+        const filename = req.file.filename;
+        const sql = 'UPDATE InformesTecnicos SET filename = ? WHERE id = ?';
+
+        await db.runAsync(sql, [filename, informeId]);
+
         console.log(`✅ PDF subido para informe ${informeId}: ${filename}`);
-        res.json({ 
-            message: 'success', 
-            data: { 
-                id: informeId, 
+        res.json({
+            message: 'success',
+            data: {
+                id: informeId,
                 filename: filename,
-                path: `/uploads/reports/${filename}`
-            } 
+                download_url: `/api/informes/${informeId}/pdf`
+            }
         });
-    });
+    } catch (error) {
+        console.error('❌ Error actualizando informe con PDF:', error);
+        res.status(500).json({ message: 'error', error: error.message });
+    }
 });
 
 // Marcar como enviado y ENVIAR CORREO REAL
@@ -9693,6 +8746,18 @@ app.patch('/api/informes/:id/enviar', authenticateToken, async (req, res) => {
     }
 
     try {
+        await ensureTechnicalReportsTable();
+
+        const report = await getTechnicalReportById(informeId);
+
+        if (!report) {
+            return res.status(404).json({ message: 'error', error: 'Informe no encontrado' });
+        }
+
+        if (!canAccessTechnicalReport(req.user, report)) {
+            return res.status(403).json({ message: 'error', error: 'No tienes permisos para enviar este informe' });
+        }
+
         // 1. Obtener datos del informe para el correo
         const informe = await new Promise((resolve, reject) => {
             const sql = `
@@ -9733,7 +8798,7 @@ app.patch('/api/informes/:id/enviar', authenticateToken, async (req, res) => {
         });
 
         // 3. Preparar adjunto
-        const pdfPath = path.join(__dirname, '../uploads/reports/', informe.filename);
+        const pdfPath = path.join(reportsDirectory, path.basename(informe.filename || ''));
         const attachments = [];
         
         const fs = require('fs');
@@ -9842,34 +8907,23 @@ app.use((err, req, res, next) => {
 // ===================================================================
 
 process.on('SIGINT', () => {
-    console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');
-    db.close((err) => {
-        if (err) {
-            console.error('❌ Error cerrando base de datos:', err.message);
-        } else {
-            console.log('✅ Base de datos cerrada correctamente');
-        }
-        process.exit(0);
-    });
+    void shutdown('SIGINT');
 });
 
 process.on('SIGTERM', () => {
-    console.log('\n🛑 Recibida señal SIGTERM, cerrando servidor...');
-    db.close((err) => {
-        if (err) {
-            console.error('❌ Error cerrando base de datos:', err.message);
-        } else {
-            console.log('✅ Base de datos cerrada correctamente');
-        }
-        process.exit(0);
-    });
+    void shutdown('SIGTERM');
 });
 
 // ===================================================================
-// INICIAR SERVIDOR
+// EXPORTS / ENTRYPOINT
 // ===================================================================
 
-startServer();
+if (require.main === module) {
+    startServer();
+}
 
-
-
+module.exports = {
+    app,
+    startServer,
+    shutdown
+};

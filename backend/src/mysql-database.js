@@ -20,6 +20,7 @@ const pool = mysql.createPool({
     connectionLimit: 10,
     queueLimit: 0
 });
+let isPoolClosed = false;
 
 // Función para inicializar la base de datos
 async function initializeDB() {
@@ -125,7 +126,12 @@ async function run(sql, params = []) {
 
 // Función para cerrar el pool de conexiones
 async function close() {
+    if (isPoolClosed) {
+        return;
+    }
+
     await pool.end();
+    isPoolClosed = true;
     console.log('🔌 Pool de conexiones MySQL cerrado');
 }
 

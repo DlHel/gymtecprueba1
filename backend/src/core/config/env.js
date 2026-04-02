@@ -5,7 +5,9 @@
  * PROHIBIDO: Definir JWT_SECRET o DB_CONFIG en archivos de módulos.
  */
 
-require('dotenv').config();
+const path = require('path');
+
+require('dotenv').config({ path: path.resolve(__dirname, '../../../config.env') });
 
 const config = {
     // JWT
@@ -35,8 +37,17 @@ const config = {
     SMTP_FROM: process.env.SMTP_FROM || '"GymTec ERP" <noreply@gymtecerp.com>'
 };
 
+const insecureJwtSecrets = new Set([
+    'gymtec_secret_key_2024',
+    'change-this-jwt-secret'
+]);
+
 // Validar configuración crítica
-if (!config.JWT_SECRET || config.JWT_SECRET === 'gymtec_secret_key_2024') {
+if (!config.JWT_SECRET || insecureJwtSecrets.has(config.JWT_SECRET)) {
+    if (config.NODE_ENV === 'production') {
+        throw new Error('JWT_SECRET inseguro o placeholder. Define un secreto real antes de iniciar en producción.');
+    }
+
     console.warn('⚠️  ADVERTENCIA: Usando JWT_SECRET por defecto. Cambiar en producción.');
 }
 

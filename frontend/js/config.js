@@ -1,7 +1,26 @@
 // Configuración automática de API URL para Gymtec ERP
 // Detecta automáticamente el entorno y configura la URL correcta
 
+const getOverrideApiUrl = () => {
+    const queryOverride = new URLSearchParams(window.location.search).get('apiBase');
+    const storageOverride = window.localStorage.getItem('gymtec_api_url_override');
+    const globalOverride = window.GYMTEC_API_URL_OVERRIDE;
+    const candidate = queryOverride || storageOverride || globalOverride;
+
+    if (!candidate) {
+        return null;
+    }
+
+    console.log('🛠️ API URL override detectada:', candidate);
+    return candidate;
+};
+
 const getApiUrl = () => {
+    const overrideUrl = getOverrideApiUrl();
+    if (overrideUrl) {
+        return overrideUrl;
+    }
+
     const hostname = window.location.hostname;
     const port = window.location.port;
     const protocol = window.location.protocol;
@@ -32,17 +51,17 @@ const getApiUrl = () => {
     
     // Desarrollo local
     if (port === '8080') {
-        console.log('💻 Entorno: Local - Frontend 8080, Backend 3000');
-        return 'http://localhost:3000/api';
+        console.log('💻 Entorno: Local - Frontend 8080, Backend 3000 (IPv4)');
+        return 'http://127.0.0.1:3000/api';
     }
     
-    if (port === '3000') {
-        console.log('💻 Entorno: Local - Backend directo');
+    if (isLocalhost && port && port !== '8080') {
+        console.log(`💻 Entorno: Local - Mismo origen en puerto ${port}`);
         return '/api';
     }
     
-    console.log('💻 Entorno: Local - Por defecto localhost:3000');
-    return 'http://localhost:3000/api';
+    console.log('💻 Entorno: Local - Por defecto 127.0.0.1:3000');
+    return 'http://127.0.0.1:3000/api';
 };
 
 const API_URL = getApiUrl();

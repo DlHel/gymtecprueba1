@@ -41,7 +41,7 @@ class AlertProcessor {
             const alertsToCheck = await this.getAlertsToCheck();
             console.log(`📋 Encontradas ${alertsToCheck.length} alertas para verificar`);
 
-            for (let alert of alertsToCheck) {
+            for (const alert of alertsToCheck) {
                 try {
                     this.processingStats.totalChecked++;
                     await this.processAlert(alert);
@@ -164,7 +164,7 @@ class AlertProcessor {
         if (tickets.length > 0) {
             console.log(`⚠️ ${tickets.length} tickets próximos a vencer SLA`);
             
-            for (let ticket of tickets) {
+            for (const ticket of tickets) {
                 await this.sendSLAWarningNotification(ticket, alert);
             }
             
@@ -178,7 +178,7 @@ class AlertProcessor {
      * Verificar alertas de SLA vencido
      */
     async checkSLAExpired(conditions, alert) {
-        let sql = `
+        const sql = `
         SELECT t.*, c.name as client_name, cs.response_time_hours, cs.resolution_time_hours
         FROM Tickets t
         JOIN Clients c ON t.client_id = c.id
@@ -192,7 +192,7 @@ class AlertProcessor {
         if (tickets.length > 0) {
             console.log(`🚨 ${tickets.length} tickets con SLA vencido`);
             
-            for (let ticket of tickets) {
+            for (const ticket of tickets) {
                 await this.sendSLAExpiredNotification(ticket, alert);
             }
             
@@ -229,7 +229,7 @@ class AlertProcessor {
         if (tickets.length > 0) {
             console.log(`📋 ${tickets.length} tickets sin asignar por más de ${maxUnassignedMinutes} minutos`);
             
-            for (let ticket of tickets) {
+            for (const ticket of tickets) {
                 await this.sendUnassignedTicketNotification(ticket, alert);
             }
             
@@ -263,7 +263,7 @@ class AlertProcessor {
         if (tickets.length > 0) {
             console.log(`📝 ${tickets.length} tickets con checklist pendiente`);
             
-            for (let ticket of tickets) {
+            for (const ticket of tickets) {
                 await this.sendChecklistPendingNotification(ticket, alert);
             }
             
@@ -386,12 +386,12 @@ class AlertProcessor {
         const body = this.processTemplate(templateData.body_template, contextData);
 
         // Obtener destinatarios
-        let recipients = [];
+        const recipients = [];
         
         if (templateData.recipients_roles) {
             try {
                 const roles = JSON.parse(templateData.recipients_roles);
-                for (let role of roles) {
+                for (const role of roles) {
                     recipients.push({ type: 'role', identifier: role });
                 }
             } catch (e) {
@@ -402,7 +402,7 @@ class AlertProcessor {
         if (templateData.recipients_emails) {
             try {
                 const emails = JSON.parse(templateData.recipients_emails);
-                for (let email of emails) {
+                for (const email of emails) {
                     recipients.push({ type: 'email', identifier: email });
                 }
             } catch (e) {
@@ -411,7 +411,7 @@ class AlertProcessor {
         }
 
         // Insertar en cola para cada destinatario
-        for (let recipient of recipients) {
+        for (const recipient of recipients) {
             const sql = `
             INSERT INTO NotificationQueue 
             (template_id, trigger_event, related_entity_type, related_entity_id,

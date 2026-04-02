@@ -52,13 +52,16 @@ function executeSQLFile(filePath) {
 // Función para poblar datos iniciales
 async function seedInitialData() {
     console.log('📊 Poblando datos iniciales...');
+    const adminPassword = process.env.GYMTEC_ADMIN_PASSWORD || 'change-me';
+    const technicianPassword = process.env.GYMTEC_TECHNICIAN_PASSWORD || 'change-me';
+    const supervisorPassword = process.env.GYMTEC_SUPERVISOR_PASSWORD || 'change-me';
     
     // Verificar y crear usuarios de prueba
     const users = [
-        { username: 'admin', email: 'admin@gymtec.cl', password: 'admin123', role: 'Admin', status: 'Activo' },
-        { username: 'tecnico1', email: 'tecnico1@gymtec.cl', password: 'tecnico123', role: 'Tecnico', status: 'Activo' },
-        { username: 'tecnico2', email: 'tecnico2@gymtec.cl', password: 'tecnico123', role: 'Tecnico', status: 'Activo' },
-        { username: 'supervisor', email: 'supervisor@gymtec.cl', password: 'supervisor123', role: 'Supervisor', status: 'Activo' }
+        { username: 'admin', email: 'admin@gymtec.cl', password: adminPassword, role: 'Admin', status: 'Activo' },
+        { username: 'tecnico1', email: 'tecnico1@gymtec.cl', password: technicianPassword, role: 'Tecnico', status: 'Activo' },
+        { username: 'tecnico2', email: 'tecnico2@gymtec.cl', password: technicianPassword, role: 'Tecnico', status: 'Activo' },
+        { username: 'supervisor', email: 'supervisor@gymtec.cl', password: supervisorPassword, role: 'Supervisor', status: 'Activo' }
     ];
     
     for (const user of users) {

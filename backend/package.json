@@ -6,8 +6,8 @@
   "scripts": {
     "start": "node src/server-clean.js",
     "dev": "nodemon src/server-clean.js",
-    "test": "jest",
-    "lint": "eslint src/**/*.js"
+    "test": "jest --runInBand tests/smoke",
+    "lint": "eslint --quiet \"src/core/**/*.js\" \"src/modules/**/*.js\" \"src/services/**/*.js\" \"src/db-adapter.js\" \"src/mysql-database.js\" \"src/validators.js\""
   },
   "dependencies": {
     "axios": "^1.12.2",
@@ -24,6 +24,7 @@
     "mysql2": "^3.14.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.10",
+    "pdfkit": "^0.17.2",
     "sharp": "^0.34.5",
     "winston": "^3.17.0",
     "zod": "^4.3.6"

@@ -143,17 +143,11 @@
 
         </div>
 
-        <!-- Información de Usuario por Defecto (solo en desarrollo) -->
-        <div class="mt-6 text-center text-white/80 text-sm">
-            <p>👨‍💼 Usuario: <strong>admin</strong></p>
-            <p>🔑 Contraseña: <strong>admin123</strong></p>
-            <p class="mt-2 text-xs opacity-75">O usa cualquier técnico con contraseña: tech123</p>
-        </div>
-
     </div>
 
     <!-- JavaScript -->
     <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
     <script>
         class LoginManager {
             constructor() {
@@ -215,6 +209,46 @@
                 lucide.createIcons();
             }
 
+            getStoredToken() {
+                return window.authManager
+                    ? window.authManager.getToken()
+                    : sessionStorage.getItem('gymtec_token') || localStorage.getItem('gymtec_token');
+            }
+
+            clearStoredAuth() {
+                if (window.authManager && window.authManager.clearStoredAuth) {
+                    window.authManager.clearStoredAuth();
+                    return;
+                }
+
+                sessionStorage.removeItem('gymtec_token');
+                sessionStorage.removeItem('gymtec_user');
+                localStorage.removeItem('gymtec_token');
+                localStorage.removeItem('gymtec_user');
+                localStorage.removeItem('gymtec_remember');
+            }
+
+            storeAuthSession(token, user, remember) {
+                if (window.authManager && window.authManager.setStoredAuth) {
+                    window.authManager.setStoredAuth(token, user, remember);
+                    return;
+                }
+
+                const primaryStorage = remember ? localStorage : sessionStorage;
+                const secondaryStorage = remember ? sessionStorage : localStorage;
+
+                primaryStorage.setItem('gymtec_token', token);
+                primaryStorage.setItem('gymtec_user', JSON.stringify(user));
+                secondaryStorage.removeItem('gymtec_token');
+                secondaryStorage.removeItem('gymtec_user');
+
+                if (remember) {
+                    localStorage.setItem('gymtec_remember', 'true');
+                } else {
+                    localStorage.removeItem('gymtec_remember');
+                }
+            }
+
             async handleLogin(e) {
                 e.preventDefault();
                 
@@ -242,14 +276,11 @@
                     const data = await response.json();
 
                     if (response.ok) {
-                        // Guardar token y datos del usuario
-                        localStorage.setItem('gymtec_token', data.token);
-                        localStorage.setItem('gymtec_user', JSON.stringify(data.user));
-                        
-                        // Recordar sesión si está marcado
-                        if (document.getElementById('remember-me').checked) {
-                            localStorage.setItem('gymtec_remember', 'true');
-                        }
+                        this.storeAuthSession(
+                            data.token,
+                            data.user,
+                            document.getElementById('remember-me').checked
+                        );
 
                         this.showAlert('success', 'Login exitoso. Redirigiendo...');
                         
@@ -282,7 +313,7 @@
             }
 
             checkExistingSession() {
-                const token = localStorage.getItem('gymtec_token');
+                const token = this.getStoredToken();
                 if (token) {
                     // Verificar si el token es válido
                     fetch(`${this.apiUrl}/auth/verify`, {
@@ -307,8 +338,7 @@
                             }
                         } else {
                             // Token inválido, limpiar localStorage
-                            localStorage.removeItem('gymtec_token');
-                            localStorage.removeItem('gymtec_user');
+                            this.clearStoredAuth();
                         }
                     })
                     .catch(error => {

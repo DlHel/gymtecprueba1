@@ -16,6 +16,14 @@ class PersonalManager {
         this.init();
     }
 
+    normalizeRole(role) {
+        if (window.authManager && typeof window.authManager.normalizeRole === 'function') {
+            return window.authManager.normalizeRole(role);
+        }
+
+        return String(role || '').trim();
+    }
+
     async init() {
         console.log('🚀 Inicializando módulo de Personal...');
         this.setupEventListeners();
@@ -201,8 +209,8 @@ class PersonalManager {
     updateStatistics() {
         const totalUsers = this.users.length;
         const activeUsers = this.users.filter(user => user.status === 'Activo').length;
-        const technicianUsers = this.users.filter(user => user.role === 'Tecnico').length;
-        const adminUsers = this.users.filter(user => user.role === 'Admin').length;
+        const technicianUsers = this.users.filter((user) => this.normalizeRole(user.role) === 'Technician').length;
+        const adminUsers = this.users.filter((user) => this.normalizeRole(user.role) === 'Admin').length;
 
         document.getElementById('total-users').textContent = totalUsers;
         document.getElementById('active-users').textContent = activeUsers;
@@ -232,7 +240,7 @@ class PersonalManager {
                 user.email.toLowerCase().includes(this.searchTerm) ||
                 user.role.toLowerCase().includes(this.searchTerm);
             
-            const matchesRole = !this.filterRole || user.role === this.filterRole;
+            const matchesRole = !this.filterRole || this.normalizeRole(user.role) === this.normalizeRole(this.filterRole);
             const matchesStatus = !this.filterStatus || user.status === this.filterStatus;
             
             return matchesSearch && matchesRole && matchesStatus;

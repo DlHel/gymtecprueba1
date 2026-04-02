@@ -545,13 +545,13 @@ CREATE TABLE IF NOT EXISTS `SavedReports` (
 -- Agregar campos faltantes a Users si no existen
 ALTER TABLE `Users` 
 ADD COLUMN IF NOT EXISTS `email` VARCHAR(100) UNIQUE AFTER `username`,
-ADD COLUMN IF NOT EXISTS `role` ENUM('Admin', 'Tecnico', 'Cliente', 'Supervisor') DEFAULT 'Tecnico' AFTER `password`,
+ADD COLUMN IF NOT EXISTS `role` ENUM('Admin', 'Manager', 'Technician', 'Tecnico', 'Técnico', 'Cliente', 'Client', 'Supervisor') DEFAULT 'Technician' AFTER `password`,
 ADD COLUMN IF NOT EXISTS `status` ENUM('Activo', 'Inactivo', 'Suspendido') DEFAULT 'Activo' AFTER `role`;
 
 -- Agregar índices para campos nuevos
-CREATE INDEX IF NOT EXISTS `idx_users_email` ON `Users` (`email`);
-CREATE INDEX IF NOT EXISTS `idx_users_role` ON `Users` (`role`);
-CREATE INDEX IF NOT EXISTS `idx_users_status` ON `Users` (`status`);
+CREATE INDEX `idx_users_email` ON `Users` (`email`);
+CREATE INDEX `idx_users_role` ON `Users` (`role`);
+CREATE INDEX `idx_users_status` ON `Users` (`status`);
 
 -- === DATOS INICIALES DE CONFIGURACIÓN ===
 

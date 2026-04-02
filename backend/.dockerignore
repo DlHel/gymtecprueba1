@@ -8,3 +8,9 @@ README.md
 docs
 logs
 uploads
+create-*.js
+reset-*.js
+test-*.js
+update-roles-system.js
+migrate-advanced-features.js
+install-attendance.js

@@ -55,14 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return result.data || {};
             } catch (error) {
                 console.error('❌ API Error - getStats:', error);
-                // Datos de ejemplo para testing
-                return {
-                    total: 2847,
-                    sent: 2621,
-                    pending: 147,
-                    failed: 79,
-                    successRate: 92.4
-                };
+                throw error;
             }
         },
 
@@ -74,27 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return result.data || [];
             } catch (error) {
                 console.error('❌ API Error - getNotifications:', error);
-                // Datos de ejemplo para testing
-                return [
-                    {
-                        id: 1,
-                        type: 'sla_warning',
-                        priority: 'high',
-                        title: 'Advertencia SLA - Ticket #1234',
-                        message: 'El ticket está próximo a vencer el SLA',
-                        status: 'pending',
-                        created_at: new Date().toISOString()
-                    },
-                    {
-                        id: 2,
-                        type: 'maintenance_due',
-                        priority: 'medium',
-                        title: 'Mantenimiento Programado',
-                        message: 'Equipo requiere mantenimiento preventivo',
-                        status: 'sent',
-                        created_at: new Date().toISOString()
-                    }
-                ];
+                throw error;
             }
         }
     };

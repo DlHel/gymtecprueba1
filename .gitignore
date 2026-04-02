@@ -9,6 +9,10 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+backend/.env
+backend/.env.*
+backend/config.env
 
 # Debug logs
 npm-debug.log*
@@ -80,4 +84,4 @@ test-results/
 *.pem
 *.cert
 *.p12
-config.env 
+config.env

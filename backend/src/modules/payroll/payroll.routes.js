@@ -331,7 +331,7 @@ app.post('/api/payroll/periods/:id/generate', authenticateToken, requireRole(['A
 
         // 4. Calcular nómina para cada empleado
         let processedCount = 0;
-        let errors = [];
+        const errors = [];
 
         for (const emp of employees) {
             try {

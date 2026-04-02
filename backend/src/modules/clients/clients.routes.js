@@ -32,8 +32,8 @@ router.get('/clients', authenticateToken, (req, res) => {
 
 // GET a single client by id
 router.get("/clients/:id", authenticateToken, (req, res) => {
-    const sql = "select * from Clients where id = ?"
-    const params = [req.params.id]
+    const sql = "select * from Clients where id = ?";
+    const params = [req.params.id];
     db.get(sql, params, (err, row) => {
         if (err) {
           res.status(400).json({"error":err.message});
@@ -93,14 +93,14 @@ router.put("/clients/:id", authenticateToken, (req, res) => {
     const params = [name, legal_name, rut, address, phone, email, business_activity, contact_name, req.params.id];
     db.run(sql, params, function (err, result) {
             if (err){
-                res.status(400).json({"error": err.message})
+                res.status(400).json({"error": err.message});
                 return;
             }
             res.json({
                 message: "success",
                 data: req.body,
                 changes: this.changes
-            })
+            });
     });
 });
 

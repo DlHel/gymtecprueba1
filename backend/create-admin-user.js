@@ -3,6 +3,7 @@ const db = require('./src/db-adapter');
 // Crear usuario administrador de prueba
 async function createAdminUser() {
     console.log('🔧 Creando usuario administrador de prueba...');
+    const adminPassword = process.env.GYMTEC_ADMIN_PASSWORD || 'change-me';
     
     const sql = `
         INSERT IGNORE INTO Users (username, email, password, role, status, created_at)
@@ -12,7 +13,7 @@ async function createAdminUser() {
     const values = [
         'admin',
         'admin@gymtec.com', 
-        'admin123',  // Contraseña simple para pruebas
+        adminPassword,
         'Admin',
         'Activo'
     ];
@@ -29,7 +30,7 @@ async function createAdminUser() {
         console.log('📋 Credenciales de prueba:');
         console.log('   Usuario: admin');
         console.log('   Email: admin@gymtec.com');
-        console.log('   Contraseña: admin123');
+        console.log(`   Contraseña: ${adminPassword}`);
         console.log('   Rol: Admin');
         
     } catch (error) {

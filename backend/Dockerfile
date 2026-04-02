@@ -1,21 +1,16 @@
-FROM node:18-alpine
-
-# Instalar dependencias necesarias para ciertos módulos nativos (si aplicara)
-# RUN apk add --no-cache python3 make g++
+FROM node:20-bookworm-slim
 
 WORKDIR /app
 
-# Copiar archivos de dependencias primero para aprovechar caché de capas
 COPY package*.json ./
 
-# Instalar dependencias
-RUN npm install
+RUN npm ci --omit=dev
 
-# Copiar el resto del código
 COPY . .
 
-# Exponer el puerto
+RUN mkdir -p /app/uploads/models /app/uploads/reports
+
+ENV NODE_ENV=production
 EXPOSE 3000
 
-# Comando de inicio
 CMD ["npm", "start"]

@@ -11,18 +11,73 @@ class AuthManager {
         this.rememberKey = 'gymtec_remember';
     }
 
+    normalizeRole(role) {
+        const normalized = String(role || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+
+        switch (normalized) {
+            case 'admin':
+            case 'administrador':
+                return 'Admin';
+            case 'manager':
+            case 'gerente':
+                return 'Manager';
+            case 'technician':
+            case 'tecnico':
+                return 'Technician';
+            case 'client':
+            case 'cliente':
+                return 'Cliente';
+            case 'supervisor':
+                return 'Supervisor';
+            default:
+                return String(role || '').trim();
+        }
+    }
+
+    getStorageValue(key) {
+        return sessionStorage.getItem(key) || localStorage.getItem(key);
+    }
+
+    setStoredAuth(token, user, remember = false) {
+        const primaryStorage = remember ? localStorage : sessionStorage;
+        const secondaryStorage = remember ? sessionStorage : localStorage;
+
+        primaryStorage.setItem(this.tokenKey, token);
+        primaryStorage.setItem(this.userKey, JSON.stringify(user));
+        secondaryStorage.removeItem(this.tokenKey);
+        secondaryStorage.removeItem(this.userKey);
+
+        if (remember) {
+            localStorage.setItem(this.rememberKey, 'true');
+        } else {
+            localStorage.removeItem(this.rememberKey);
+        }
+    }
+
+    clearStoredAuth() {
+        sessionStorage.removeItem(this.tokenKey);
+        sessionStorage.removeItem(this.userKey);
+        localStorage.removeItem(this.tokenKey);
+        localStorage.removeItem(this.userKey);
+        localStorage.removeItem(this.rememberKey);
+    }
+
     /**
      * Obtener token del localStorage
      */
     getToken() {
-        return localStorage.getItem(this.tokenKey);
+        return this.getStorageValue(this.tokenKey);
     }
 
     /**
      * Obtener datos del usuario del localStorage
      */
     getUser() {
-        const userJson = localStorage.getItem(this.userKey);
+        const userJson = this.getStorageValue(this.userKey);
         return userJson ? JSON.parse(userJson) : null;
     }
 
@@ -39,11 +94,13 @@ class AuthManager {
     hasRole(role) {
         const user = this.getUser();
         if (!user) return false;
+
+        const userRole = this.normalizeRole(user.role);
         
         if (Array.isArray(role)) {
-            return role.includes(user.role);
+            return role.some((candidateRole) => this.normalizeRole(candidateRole) === userRole);
         }
-        return user.role === role;
+        return userRole === this.normalizeRole(role);
     }
 
     /**
@@ -144,13 +201,12 @@ class AuthManager {
             if (response.ok) {
                 const data = await response.json();
                 console.log('✅ verifyToken: Token válido');
-                localStorage.setItem(this.userKey, JSON.stringify(data.user));
+                const remember = localStorage.getItem(this.rememberKey) === 'true';
+                this.setStoredAuth(this.getToken(), data.user, remember);
                 return true;
             } else if (response.status === 401 || response.status === 403) {
                 console.warn('❌ verifyToken: Token inválido');
-                // Limpiar token pero NO redireccionar aquí
-                localStorage.removeItem(this.tokenKey);
-                localStorage.removeItem(this.userKey);
+                this.clearStoredAuth();
                 return false;
             } else {
                 // Error del servidor - mantener sesión
@@ -250,9 +306,7 @@ class AuthManager {
         }
 
         // Limpiar datos locales
-        localStorage.removeItem(this.tokenKey);
-        localStorage.removeItem(this.userKey);
-        localStorage.removeItem(this.rememberKey);
+        this.clearStoredAuth();
 
         // Redireccionar a login
         const currentPage = window.location.pathname;

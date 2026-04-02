@@ -12,6 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
+const { authenticateToken } = require('../core/middleware/auth.middleware');
 
 // =====================================================
 // WORKFLOW STATES Y TRANSICIONES VÁLIDAS
@@ -51,10 +52,11 @@ const VALID_TRANSITIONS = {
 /**
  * POST /api/tickets/:ticketId/workflow/transition - Cambiar estado del ticket
  */
-router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
+router.post('/tickets/:ticketId/workflow/transition', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         const { new_stage, notes, force = false } = req.body;
+        const canForce = force && ['Admin', 'Manager'].includes(req.user?.role);
         
         // Obtener ticket actual
         const ticket = await db.get('SELECT * FROM Tickets WHERE id = ?', [ticketId]);
@@ -69,7 +71,7 @@ router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
         const currentStage = ticket.workflow_stage || WORKFLOW_STATES.CREADO;
         
         // Validar transición (a menos que sea forzada por admin)
-        if (!force && !VALID_TRANSITIONS[currentStage]?.includes(new_stage)) {
+        if (!canForce && !VALID_TRANSITIONS[currentStage]?.includes(new_stage)) {
             return res.status(400).json({
                 error: `Transición no válida de '${currentStage}' a '${new_stage}'`,
                 code: 'INVALID_WORKFLOW_TRANSITION',
@@ -83,7 +85,7 @@ router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
         
         // Validaciones específicas por estado
         const validationResult = await validateWorkflowTransition(ticket, new_stage);
-        if (!validationResult.valid && !force) {
+        if (!validationResult.valid && !canForce) {
             return res.status(400).json({
                 error: validationResult.message,
                 code: validationResult.code,
@@ -111,7 +113,7 @@ router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
 /**
  * GET /api/tickets/:ticketId/workflow/status - Obtener estado actual del workflow
  */
-router.get('/tickets/:ticketId/workflow/status', async (req, res) => {
+router.get('/tickets/:ticketId/workflow/status', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         
@@ -163,7 +165,7 @@ router.get('/tickets/:ticketId/workflow/status', async (req, res) => {
 /**
  * PUT /api/tickets/:ticketId/assign - Asignar ticket a técnico
  */
-router.put('/tickets/:ticketId/assign', async (req, res) => {
+router.put('/tickets/:ticketId/assign', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         const { technician_id, auto_start = false } = req.body;
@@ -328,9 +330,9 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
             case WORKFLOW_STATES.COMPLETADO:
                 // Finalizar tracking de tiempo
                 await db.run(`
-                    UPDATE TicketTimeEntries SET
+                UPDATE TicketTimeEntries SET
                         end_time = ?,
-                        duration_seconds = ROUND((JULIANDAY(?) - JULIANDAY(start_time)) * 86400)
+                        duration_seconds = TIMESTAMPDIFF(SECOND, start_time, ?)
                     WHERE ticket_id = ? AND end_time IS NULL
                 `, [timestamp, timestamp, ticket.id]);
                 

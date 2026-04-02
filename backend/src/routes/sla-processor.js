@@ -471,6 +471,8 @@ class SLAProcessor {
 
 // Middleware para inicializar el procesador SLA
 let slaProcessor = null;
+let monitoringInterval = null;
+let monitoringInFlight = null;
 
 function initializeSLAProcessor(db) {
     if (!slaProcessor) {
@@ -917,26 +919,57 @@ router.get('/predict', async (req, res) => {
 });
 
 // Función para inicializar monitoreo automático
+async function runMonitoringCycle(processor) {
+    if (monitoringInFlight) {
+        return monitoringInFlight;
+    }
+
+    monitoringInFlight = processor.monitorActiveTasks()
+        .catch((error) => {
+            console.error('❌ Error en monitoreo automático SLA:', error);
+        })
+        .finally(() => {
+            monitoringInFlight = null;
+        });
+
+    return monitoringInFlight;
+}
+
 function startAutomaticMonitoring(db, intervalMinutes = 5) {
     const processor = initializeSLAProcessor(db);
+
+    if (monitoringInterval) {
+        console.log('ℹ️ Monitoreo automático SLA ya estaba activo');
+        return processor;
+    }
     
     console.log(`🔄 Iniciando monitoreo automático SLA cada ${intervalMinutes} minutos`);
     
     // Monitoreo inicial
-    processor.monitorActiveTasks().catch(console.error);
+    void runMonitoringCycle(processor);
     
     // Monitoreo periódico
-    setInterval(async () => {
-        try {
-            await processor.monitorActiveTasks();
-        } catch (error) {
-            console.error('❌ Error en monitoreo automático SLA:', error);
-        }
+    monitoringInterval = setInterval(() => {
+        void runMonitoringCycle(processor);
     }, intervalMinutes * 60 * 1000);
+
+    if (typeof monitoringInterval.unref === 'function') {
+        monitoringInterval.unref();
+    }
+
+    return processor;
+}
+
+function stopAutomaticMonitoring() {
+    if (monitoringInterval) {
+        clearInterval(monitoringInterval);
+        monitoringInterval = null;
+    }
 }
 
 module.exports = { 
     router, 
     initializeSLAProcessor, 
-    startAutomaticMonitoring 
+    startAutomaticMonitoring,
+    stopAutomaticMonitoring
 };

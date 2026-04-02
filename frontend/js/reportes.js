@@ -389,8 +389,7 @@ document.addEventListener('alpine:init', () => {
                 } else if (window.reportsManager && window.reportsManager.downloadPDFFromServer) {
                     await window.reportsManager.downloadPDFFromServer(this.selectedTicketId);
                 } else {
-                    const token = window.authManager ? window.authManager.getToken() : localStorage.getItem('gymtec_token');
-                    window.open(`${window.API_URL}/tickets/${this.selectedTicketId}/generate-pdf?token=${token}`, '_blank');
+                    throw new Error('Descarga autenticada no disponible en este navegador');
                 }
 
                 this.showNotification('Informe generado y descargado correctamente', 'success');

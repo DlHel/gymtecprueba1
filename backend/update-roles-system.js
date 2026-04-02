@@ -15,6 +15,13 @@ const config = {
     database: 'gymtec_erp'
 };
 
+const defaultPasswords = {
+    admin: process.env.GYMTEC_ADMIN_PASSWORD || 'change-me',
+    manager: process.env.GYMTEC_MANAGER_PASSWORD || 'change-me',
+    tecnico: process.env.GYMTEC_TECHNICIAN_PASSWORD || 'change-me',
+    cliente: process.env.GYMTEC_CLIENT_PASSWORD || 'change-me'
+};
+
 // Mapeo de roles antiguos a nuevos
 const roleMapping = {
     'Admin': 'Admin',
@@ -82,28 +89,28 @@ async function updateRolesSystem() {
             { 
                 username: 'admin', 
                 email: 'admin@gymtec.com', 
-                password: 'admin123', 
+                password: defaultPasswords.admin, 
                 role: 'Admin',
                 description: 'Usuario administrador (acceso total)'
             },
             { 
                 username: 'manager', 
                 email: 'manager@gymtec.com', 
-                password: 'manager123', 
+                password: defaultPasswords.manager, 
                 role: 'Manager',
                 description: 'Usuario gerente (sin configuración del sistema)'
             },
             { 
                 username: 'tecnico', 
                 email: 'tecnico@gymtec.com', 
-                password: 'tecnico123', 
+                password: defaultPasswords.tecnico, 
                 role: 'Technician',
                 description: 'Usuario técnico (solo operaciones)'
             },
             { 
                 username: 'cliente', 
                 email: 'cliente@gymtec.com', 
-                password: 'cliente123', 
+                password: defaultPasswords.cliente, 
                 role: 'Client',
                 description: 'Usuario cliente (vista limitada)'
             }
@@ -144,22 +151,22 @@ async function updateRolesSystem() {
         console.log('');
         console.log('1. ADMIN (Acceso total)');
         console.log('   Username: admin');
-        console.log('   Password: admin123');
+        console.log(`   Password: ${defaultPasswords.admin}`);
         console.log('   → Puede ver y hacer TODO');
         console.log('');
         console.log('2. MANAGER (Sin configuración)');
         console.log('   Username: manager');
-        console.log('   Password: manager123');
+        console.log(`   Password: ${defaultPasswords.manager}`);
         console.log('   → Puede gestionar operaciones y finanzas');
         console.log('');
         console.log('3. TECHNICIAN (Solo operaciones)');
         console.log('   Username: tecnico');
-        console.log('   Password: tecnico123');
+        console.log(`   Password: ${defaultPasswords.tecnico}`);
         console.log('   → Solo tickets, equipos y reportes');
         console.log('');
         console.log('4. CLIENT (Vista mínima)');
         console.log('   Username: cliente');
-        console.log('   Password: cliente123');
+        console.log(`   Password: ${defaultPasswords.cliente}`);
         console.log('   → Solo sus propios tickets');
         console.log('');
         console.log('═══════════════════════════════════════════════════════════');

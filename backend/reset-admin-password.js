@@ -6,7 +6,7 @@ require('dotenv').config({ path: path.join(__dirname, 'config.env') });
 const resetAdminPassword = async () => {
     console.log('🔧 Reseteando contraseña de admin...');
     
-    const password = 'admin123';
+    const password = process.env.GYMTEC_ADMIN_PASSWORD || 'change-me';
     const hashedPassword = await bcrypt.hash(password, 10);
     
     const sql = `UPDATE Users SET password = ? WHERE username = 'admin'`;

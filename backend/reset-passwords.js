@@ -1,9 +1,8 @@
 const db = require('./src/db-adapter');
 const bcrypt = require('bcryptjs');
 
-console.log('\n=== ACTUALIZANDO CONTRASEÑAS A admin123 ===\n');
-
-const newPassword = 'admin123';
+const newPassword = process.env.GYMTEC_BULK_PASSWORD || 'change-me';
+console.log(`\n=== ACTUALIZANDO CONTRASEÑAS A ${newPassword} ===\n`);
 
 // Hashear la nueva contraseña
 bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
@@ -50,7 +49,7 @@ bcrypt.hash(newPassword, 10, (err, hashedPassword) => {
                     console.log(`\n=== RESUMEN ===`);
                     console.log(`✅ Actualizados: ${updated}`);
                     console.log(`❌ Errores: ${errors}`);
-                    console.log(`\n🔑 Contraseña universal: admin123`);
+                    console.log(`\n🔑 Contraseña universal: ${newPassword}`);
                     process.exit(0);
                 }
             });

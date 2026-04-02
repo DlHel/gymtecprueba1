@@ -1,185 +1,40 @@
-# Gymtec ERP - AI Coding Rules
-# Para: Cursor AI, Claude, Gemini, Copilot
-# Última actualización: Enero 2026
+# Gymtec ERP - Reglas de trabajo
 
-## 🚨 REGLAS CRÍTICAS (OBLIGATORIAS)
+## Principios
 
-### 1. Idioma y Comunicación
-- Responder SIEMPRE en español
-- Todo texto visible en UI debe estar en español
-- Comentarios de código pueden ser en inglés o español
+- Responder siempre en español.
+- Priorizar seguridad y estabilidad sobre cambios cosméticos.
+- No usar ni documentar secretos/IPs reales dentro del repo.
+- Asumir que `backend/src/server-clean.js` es el backend canónico.
+- Asumir que el deploy soportado es solo Docker Compose con Nginx.
 
-### 2. Testing Obligatorio
-- **EJECUTAR `npm test` después de CUALQUIER cambio en backend/**
-- Si algún test falla, CORREGIR antes de continuar
-- Los tests validan que los endpoints funcionan contra el VPS real
+## Backend
 
-### 3. Verificar Schema Antes de Queries
-- **LEER CLAUDE.md** antes de escribir queries SQL
-- La BD del VPS tiene diferencias con el código local
-- Columnas que NO existen en VPS:
-  - `spare_part_requests.spare_part_name` → usar JOIN con Inventory
-  - `spare_part_requests.quantity_needed` → usar `quantity`
-  - `spare_part_requests.purchase_order_id` → NO existe
-  - `Inventory.category_id` → usar `category` (VARCHAR)
+- Variables de entorno estándar: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET`, `PORT`, `NODE_ENV`, `CORS_ORIGIN`.
+- Preferir trabajo modular en `backend/src/modules/` y `backend/src/services/`.
+- No mover lógica nueva a archivos `*-vps*`, `server.js` o rutas legacy.
+- Toda llamada SQL debe seguir parametrización con `db.all()`, `db.get()` o `db.run()`.
+- Ejecutar `cd backend && npm test` y `cd backend && npm run lint` tras cambios backend.
 
-### 4. Flujo de Deploy
-1. Modificar código localmente
-2. Ejecutar `npm test` (backend/)
-3. Si pasan tests, subir con `scp` al VPS
-4. Reiniciar con `pm2 restart gymtec-backend`
-5. Verificar logs con `pm2 logs`
+## Frontend
 
-## 🛠️ Stack Técnico
+- Frontend activo: MPA estática en `frontend/`.
+- Patrón preferido para código nuevo: Vanilla JS.
+- Excepción explícita: `clientes` y `reportes` siguen usando Alpine.js; mantener compatibilidad allí.
+- No introducir React/Vue/Angular ni reactivar el árbol CRA archivado.
 
-| Componente | Tecnología |
-|------------|------------|
-| Frontend | HTML + JavaScript Vanilla + TailwindCSS |
-| Backend | Node.js + Express (server-clean.js) |
-| Base de Datos | MySQL 8 |
-| VPS | 91.107.237.159 |
-| Testing | Jest + Supertest |
+## Deploy y documentación
 
-## 📦 Estándares de Código
+- No crear nuevas guías de VPS/manual salvo que el usuario lo pida explícitamente.
+- Documentación viva mínima: `README.md`, `AGENTS.md`, `docs/ARCHITECTURE_MAP.md`, `docs/DEPLOY_DOCKER.md`, `docs/API_DOCUMENTATION.md`.
+- Todo material histórico debe ir a `archives/`.
 
-### JavaScript
-- Variables: `const` por defecto, `let` solo si muta
-- NUNCA usar `var`
-- SIEMPRE usar `async/await`, nunca callbacks
-- SIEMPRE usar `try-catch` en operaciones async
-- Arrow functions para callbacks: `() => {}`
-- Template literals para strings: \`texto ${variable}\`
+## Delegación experta
 
-### SQL
-- Nombres de tablas: `PascalCase` (Tickets, Equipment)
-- Usar queries parametrizadas: `'SELECT * FROM x WHERE id = ?', [id]`
-- NUNCA concatenar strings en queries SQL
-
-### Frontend
-- JavaScript Vanilla únicamente
-- NO sugerir React, Vue, Angular, etc.
-- Usar `querySelector`, `addEventListener`
-- Fetch con `authenticatedFetch()` de auth.js
-
-## 🔧 Comandos Útiles
-
-```bash
-# Tests (obligatorio después de cambios)
-cd backend && npm test
-
-# Logs del VPS
-ssh root@91.107.237.159 "pm2 logs gymtec-backend --err --lines 30 --nostream"
-
-# Reiniciar VPS
-ssh root@91.107.237.159 "pm2 restart gymtec-backend"
-
-# Subir archivo
-scp archivo.js root@91.107.237.159:/var/www/gymtec/backend/src/
-```
-
-## 📂 Archivos Importantes
-
-| Archivo | Descripción |
-|---------|-------------|
-| `backend/src/server-clean.js` | Servidor principal (~9500 líneas) |
-| `backend/src/routes/inventory.js` | API de inventario |
-| `backend/src/routes/purchase-orders.js` | API de órdenes de compra |
-| `backend/src/db-adapter.js` | Conexión MySQL |
-| `backend/tests/*.test.js` | Tests automatizados |
-| `CLAUDE.md` | Contexto completo del proyecto |
-
-## 🤖 Preferencias de Flujo
-
-- **Autonomía**: Ejecutar tareas proactivamente
-- **Tests**: OBLIGATORIO ejecutar después de cambios
-- **Verificación**: Revisar logs del VPS después de deploy
-- **GitHub**: NUNCA commit/push sin autorización explícita
-
-## 📝 Nomenclatura
-
-- Variables/Funciones: `camelCase`
-- Clases: `PascalCase`
-- Constantes: `UPPER_SNAKE_CASE`
-- Archivos: `kebab-case.js`
-- Tablas SQL: `PascalCase`
-
-## 🔒 ARQUITECTURA MODULAR (REGLAS ANTI-FALLO)
-
-### Principio Fundamental
-**Cambios en un módulo NO PUEDEN romper otro módulo.**
-
-### Estructura de Módulos
-```
-backend/src/modules/
-├── tickets/           # Solo código de tickets
-├── planning/          # Solo código del planificador
-├── inventory/         # Solo código de inventario
-├── finance/           # Solo código financiero
-└── ...
-```
-
-### Regla 1: Sin Imports Cruzados
-```javascript
-// ❌ PROHIBIDO: Un módulo importa de otro
-const { getTicket } = require('../tickets/tickets.service');
-
-// ✅ CORRECTO: Cada módulo hace sus propias queries
-const ticket = await db.get('SELECT * FROM Tickets WHERE id = ?', [id]);
-```
-
-### Regla 2: Configuración Centralizada
-```javascript
-// ❌ PROHIBIDO: Definir secretos localmente
-const JWT_SECRET = process.env.JWT_SECRET || 'mi_secreto';
-
-// ✅ CORRECTO: Importar del core
-const { JWT_SECRET } = require('../../core/config/env');
-```
-
-### Regla 3: Middleware Compartido desde Core
-```javascript
-// ❌ PROHIBIDO: Copiar authenticateToken en cada archivo
-function authenticateToken(req, res, next) { ... }
-
-// ✅ CORRECTO: Importar del core
-const { authenticateToken } = require('../../core/middleware/auth.middleware');
-```
-
-### Regla 4: Eventos para Comunicación
-```javascript
-// ❌ PROHIBIDO: Llamar directamente a otro módulo
-triggerNotificationProcessing('create', ticketId);
-
-// ✅ CORRECTO: Emitir evento
-eventBus.emit('TICKET_CREATED', { ticketId });
-```
-
-### Regla 5: Try/Catch Obligatorio
-```javascript
-// ❌ PROHIBIDO: Endpoints sin manejo de errores
-router.get('/', async (req, res) => {
-  const data = await service.getAll(); // Si falla, tumba todo
-  res.json(data);
-});
-
-// ✅ CORRECTO: Errores contenidos
-router.get('/', async (req, res, next) => {
-  try {
-    const data = await service.getAll();
-    res.json({ message: 'success', data });
-  } catch (error) {
-    next(error); // Pasa al error handler global
-  }
-});
-```
-
-### Antes de Modificar Cualquier Módulo
-1. **Verificar que NO importas de otro módulo**
-2. **Verificar que NO modificas archivos fuera de tu módulo**
-3. **Ejecutar tests del módulo específico**
-4. **Ejecutar tests de integración**
-
-### Archivos que NUNCA Debes Modificar Sin Autorización
-- `core/config/env.js` - Configuración global
-- `core/middleware/auth.middleware.js` - Autenticación
-- `server.js` - Entry point
+- Si el trabajo cruza dominios, usar el playbook `.agent/workflows/multi-agent-routing.md`.
+- Preferir especialistas locales de `.agent/skills/`, agentes Codex en `.codex/agents/` y, para Claude, `.claude/agents/`.
+- Para tareas cross-domain, usar `gymtec-orchestrator` como entrada.
+- No abrir más de 3 especialistas en el primer reparto.
+- No asignar el mismo archivo editable a dos agentes distintos.
+- Cerrar cambios funcionales con `qa-smoke-engineer`.
+- Cerrar cambios de auth, secretos o exposición con `security-auditor`.

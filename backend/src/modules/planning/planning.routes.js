@@ -279,7 +279,7 @@ router.put('/:id', authenticateToken, (req, res) => {
         console.log(`✅ Tarea actualizada: ID ${id}`);
         res.json({
             message: 'Tarea actualizada exitosamente',
-            data: { id: parseInt(id) }
+            data: { id: parseInt(id, 10) }
         });
     });
 });
@@ -310,7 +310,7 @@ router.delete('/:id', authenticateToken, (req, res) => {
         console.log(`✅ Tarea eliminada: ID ${id}`);
         res.json({
             message: 'Tarea eliminada exitosamente',
-            data: { id: parseInt(id) }
+            data: { id: parseInt(id, 10) }
         });
     });
 });

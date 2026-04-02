@@ -12,33 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
-
-// Middleware de autenticación simple (reutiliza la lógica de server-clean.js)
-const jwt = require('jsonwebtoken');
-const JWT_SECRET = process.env.JWT_SECRET || 'gymtec_secret_key_2024';
-
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-
-    if (!token) {
-        return res.status(401).json({
-            error: 'Token de acceso requerido',
-            code: 'MISSING_TOKEN'
-        });
-    }
-
-    jwt.verify(token, JWT_SECRET, (err, user) => {
-        if (err) {
-            return res.status(401).json({
-                error: 'Token inválido o expirado',
-                code: 'INVALID_TOKEN'
-            });
-        }
-        req.user = user;
-        next();
-    });
-}
+const { authenticateToken } = require('../core/middleware/auth.middleware');
 
 // =====================================================
 // 1. GESTIÓN DE CONTRATOS

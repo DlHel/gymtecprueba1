@@ -1,36 +1,32 @@
 ---
 name: Security Auditor
-description: Auditor de seguridad enfocado en prevención de vulnerabilidades OWASP (SQLi, XSS, Broken Auth) en entornos Node.js/Express.
-version: 1.0.0
-source: community-adapted (hoodini/security)
+description: Controles de seguridad prácticos para Gymtec ERP en su baseline Docker actual.
+version: 2.0.0
 ---
 
 # Security Audit Guidelines
 
-Este skill define los controles de seguridad obligatorios para el proyecto GymTec.
+Este skill funciona como especialista de seguridad dentro del esquema multiagente del proyecto.
 
-## 1. Validación de Inputs (Zero Trust)
-- **Regla de Oro**: NUNCA confiar en el `req.body` o `req.params`.
-- **Implementación**: Usar `Zod` para definir esquemas estrictos.
-  - Rechazar campos desconocidos (`.strict()`).
-  - Validar formatos (email, uuid, fechas).
+## 1. Secretos y configuración
 
-## 2. Base de Datos (SQL Injection)
-- **Prohibido**: Concatenar strings en queries.
-  ```javascript
-  // ❌ INSEGURO
-  db.query("SELECT * FROM users WHERE name = '" + name + "'");
-  ```
-- **Obligatorio**: Usar parámetros preparados (Binding).
-  ```javascript
-  // ✅ SEGURO
-  db.query("SELECT * FROM users WHERE name = ?", [name]);
-  ```
+- Nunca dejar contraseñas, JWTs, IPs productivas o comandos con credenciales en el repo.
+- Todo valor sensible debe venir por entorno.
+- Revisar especialmente `.env*`, `config.env`, documentación de operaciones y scripts shell.
 
-## 3. Autenticación y Autorización
-- Proteger TODAS las rutas `/api/` con middleware `authenticateToken`.
-- Validar roles de usuario para acciones destructivas (`DELETE`, `UPDATE`).
+## 2. API y autenticación
 
-## 4. Exposición de Datos
-- No devolver contraseñas (ni hasheadas) en respuestas JSON.
-- En errores 500, no devolver stacktraces al cliente en producción.
+- Rutas protegidas deben pasar por `authenticateToken`.
+- No devolver datos sensibles en respuestas ni errores de producción.
+- Mantener `/api/health` libre de dependencias sensibles para smoke tests y healthchecks.
+
+## 3. Base de datos
+
+- Usar queries parametrizadas.
+- No introducir SQL construido con concatenación de valores del usuario.
+- Si el esquema real difiere del supuesto, documentarlo antes de cambiar queries críticas.
+
+## 4. Deploy
+
+- Solo se considera soportado el camino Docker Compose detrás de Nginx.
+- No reintroducir flujos PM2/VPS/manuales en scripts o docs activos.

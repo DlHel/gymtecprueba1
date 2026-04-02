@@ -18,6 +18,8 @@
  * @requires db-adapter
  */
 
+const { matchesAnyRole } = require('../core/auth/identity');
+
 module.exports = function(app, db, authenticateToken, requireRole, toMySQLDateTime) {
 
 // ===================================================================
@@ -314,7 +316,7 @@ app.post('/api/payroll/periods/:id/generate', authenticateToken, requireRole(['A
                        COALESCE(eps.base_salary, 0) as base_salary
                 FROM Users u
                 LEFT JOIN EmployeePayrollSettings eps ON u.id = eps.user_id AND eps.is_active = 1
-                WHERE u.role IN ('Technician', 'Manager', 'Admin')
+                WHERE u.role IN ('Technician', 'Tecnico', 'Técnico', 'Manager', 'Admin', 'Supervisor')
                   AND u.id NOT IN (
                       SELECT user_id FROM PayrollDetails WHERE payroll_period_id = ?
                   )
@@ -420,7 +422,7 @@ app.get('/api/payroll/details', authenticateToken, (req, res) => {
     const { period_id, user_id } = req.query;
     
     // Si es empleado normal, solo puede ver su propia nómina
-    const isAdminOrManager = ['Admin', 'Manager'].includes(req.user.role);
+    const isAdminOrManager = matchesAnyRole(req.user.role, ['Admin', 'Manager', 'Supervisor']);
     
     let sql = `
         SELECT 
@@ -489,7 +491,7 @@ app.get('/api/payroll/details/:id', authenticateToken, (req, res) => {
         }
         
         // Verificar permisos
-        const isAdminOrManager = ['Admin', 'Manager'].includes(req.user.role);
+        const isAdminOrManager = matchesAnyRole(req.user.role, ['Admin', 'Manager', 'Supervisor']);
         if (!isAdminOrManager && row.user_id !== req.user.id) {
             return res.status(403).json({ error: 'No autorizado' });
         }

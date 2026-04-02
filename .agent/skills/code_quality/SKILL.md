@@ -1,43 +1,34 @@
 ---
 name: Code Quality & Refactoring Expert
-description: Experto en análisis estático, simplificación de código y refactorización moderna (Vanilla JS -> Alpine.js).
-version: 1.0.0
-source: community-adapted (awesome-agent-skills)
+description: Refactorización pragmática para el código activo de Gymtec ERP.
+version: 2.0.0
 ---
 
 # Code Quality & Refactoring Guidelines
 
-Este skill encapsula patrones de la comunidad para mantener código limpio, especialmente en migraciones de Legacy a Moderno.
+Este skill funciona como especialista de revisión y refactor dentro del esquema multiagente del proyecto.
 
-## 1. Principios de Refactorización
+## 1. Prioridades
 
-### De Imperativo a Declarativo
-- **Legacy (Evitar)**:
-  ```javascript
-  document.getElementById('btn').addEventListener('click', () => {
-      document.getElementById('modal').style.display = 'block';
-  });
-  ```
-- **Moderno (Alpine.js)**:
-  ```html
-  <div x-data="{ open: false }">
-      <button @click="open = true">Abrir</button>
-      <div x-show="open">Modal</div>
-  </div>
-  ```
+1. Seguridad y estabilidad.
+2. Aislar código activo del legado.
+3. Reducir ruido de lint antes de intentar limpieza masiva.
 
-### Modularidad
-- Funciones de más de 50 líneas deben dividirse.
-- Cada archivo JS debe tener una responsabilidad clara (SRP).
-- Extraer lógica de negocio compleja a servicios o utilidades puras.
+## 2. Reglas prácticas
 
-## 2. Checklist de Code Review
-Antes de dar por finalizada una tarea, verifica:
-- [ ] **Nombres**: ¿Las variables describen *qué son*, no *cómo se usan*?
-- [ ] **Errores**: ¿Se manejan los casos de borde (null, undefined)?
-- [ ] **Logs**: Eliminar `console.log` de depuración. Solo dejar `console.error` críticos.
-- [ ] **Comentarios**: Eliminar código comentado. Si es viejo y no sirve, bórralo (git tiene historia).
+- No refactorizar archivos legacy archivados salvo que el usuario lo pida.
+- Si un archivo activo comparte espacio con código legacy, corregir errores reales primero y posponer formato total.
+- Antes de borrar, preferir archivar en `archives/` cuando el material tenga valor histórico.
+- En frontend, no asumir "solo Vanilla" si el archivo usa Alpine en producción.
 
-## 3. Comandos Útiles
-- Ejecutar linter (si existe): `npm run lint`
-- Formatear código: Usar Prettier si está configurado.
+## 3. Definición de código activo
+
+- Backend: `backend/src/modules/`, `backend/src/services/`, `backend/src/core/`, `backend/src/db-adapter.js`, `backend/src/mysql-database.js`, `backend/src/validators.js`, `backend/src/server-clean.js`.
+- Frontend: `frontend/*.html` y `frontend/js/*.js`.
+- Infra: `docker-compose.yml`, `nginx/`, `backend/Dockerfile`.
+
+## 4. Criterio de limpieza
+
+- Quitar secretos y referencias operativas sensibles primero.
+- Consolidar deploy en Docker Compose.
+- Mantener `npm test` y `npm run lint` pasando para el alcance activo definido.

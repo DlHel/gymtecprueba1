@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
+const { authenticateToken } = require('../core/middleware/auth.middleware');
+
+router.use(authenticateToken);
 
 /**
  * Endpoints simplificados de notificaciones que funcionan con el adaptador actual

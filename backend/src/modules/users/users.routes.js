@@ -8,6 +8,11 @@ const router = express.Router();
 const bcrypt = require('bcryptjs');
 const db = require('../../db-adapter');
 const { authenticateToken } = require('../../core/middleware/auth.middleware');
+const {
+    normalizeRole,
+    normalizeStatus,
+    isAdminLikeRole
+} = require('../../core/auth/identity');
 
 // ===================================================================
 // RUTAS DE USUARIOS
@@ -15,14 +20,20 @@ const { authenticateToken } = require('../../core/middleware/auth.middleware');
 
 // GET all users with optional role filter
 router.get('/users', authenticateToken, (req, res) => {
+    if (!isAdminLikeRole(req.user && req.user.role)) {
+        return res.status(403).json({
+            error: 'No tienes permisos para listar usuarios'
+        });
+    }
+
     const { role } = req.query;
     
     let sql = 'SELECT id, username, email, role, created_at FROM Users';
-    let params = [];
+    const params = [];
     
     if (role) {
         sql += ' WHERE role = ?';
-        params.push(role);
+        params.push(normalizeRole(role));
     }
     
     sql += ' ORDER BY username';
@@ -58,14 +69,15 @@ router.get('/users/me', authenticateToken, (req, res) => {
 
 // POST create new user
 router.post('/users', authenticateToken, async (req, res) => {
-    // Solo Admin puede crear usuarios
-    if (req.user.role !== 'Admin') {
+    if (!isAdminLikeRole(req.user && req.user.role)) {
         return res.status(403).json({ 
             error: 'No tienes permisos para crear usuarios' 
         });
     }
 
     const { username, email, password, role, status } = req.body;
+    const normalizedRole = normalizeRole(role);
+    const normalizedStatus = normalizeStatus(status) || 'Activo';
 
     // Validaciones
     if (!username || !email || !password || !role) {
@@ -80,10 +92,10 @@ router.post('/users', authenticateToken, async (req, res) => {
         });
     }
 
-    const validRoles = ['Admin', 'Manager', 'Technician', 'Client'];
-    if (!validRoles.includes(role)) {
+    const validRoles = ['Admin', 'Manager', 'Technician', 'Cliente', 'Supervisor'];
+    if (!validRoles.includes(normalizedRole)) {
         return res.status(400).json({ 
-            error: 'Rol inválido. Debe ser: Admin, Manager, Technician o Client' 
+            error: 'Rol inválido. Debe ser: Admin, Manager, Technician, Cliente o Supervisor'
         });
     }
 
@@ -121,13 +133,11 @@ router.post('/users', authenticateToken, async (req, res) => {
 
                 // Insertar usuario
                 const insertSql = `
-                    INSERT INTO Users (username, email, password_hash, role, status, created_at, updated_at)
+                    INSERT INTO Users (username, email, password, role, status, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, NOW(), NOW())
                 `;
 
-                const userStatus = status || 'active';
-
-                db.run(insertSql, [username, email, hashedPassword, role, userStatus], function(err) {
+                db.run(insertSql, [username, email, hashedPassword, normalizedRole, normalizedStatus], function(err) {
                     if (err) {
                         console.error('❌ Error creating user:', err);
                         return res.status(500).json({ 
@@ -165,8 +175,7 @@ router.post('/users', authenticateToken, async (req, res) => {
 
 // PUT update user
 router.put('/users/:id', authenticateToken, async (req, res) => {
-    // Solo Admin puede actualizar usuarios
-    if (req.user.role !== 'Admin') {
+    if (!isAdminLikeRole(req.user && req.user.role)) {
         return res.status(403).json({ 
             error: 'No tienes permisos para actualizar usuarios' 
         });
@@ -174,6 +183,8 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
 
     const userId = req.params.id;
     const { username, email, password, role, status } = req.body;
+    const normalizedRole = normalizeRole(role);
+    const normalizedStatus = normalizeStatus(status) || 'Activo';
 
     // Validaciones básicas
     if (!username || !email || !role) {
@@ -182,8 +193,8 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
         });
     }
 
-    const validRoles = ['Admin', 'Manager', 'Technician', 'Client'];
-    if (!validRoles.includes(role)) {
+    const validRoles = ['Admin', 'Manager', 'Technician', 'Cliente', 'Supervisor'];
+    if (!validRoles.includes(normalizedRole)) {
         return res.status(400).json({ 
             error: 'Rol inválido' 
         });
@@ -191,7 +202,7 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
 
     try {
         // Si hay contraseña nueva, hashearla
-        let updateFields = [username, email, role, status || 'active'];
+        const updateFields = [username, email, normalizedRole, normalizedStatus];
         let updateSql = `
             UPDATE Users 
             SET username = ?, email = ?, role = ?, status = ?, updated_at = NOW()
@@ -204,7 +215,7 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
                 });
             }
             const hashedPassword = await bcrypt.hash(password, 10);
-            updateSql += ', password_hash = ?';
+            updateSql += ', password = ?';
             updateFields.push(hashedPassword);
         }
 
@@ -250,8 +261,7 @@ router.put('/users/:id', authenticateToken, async (req, res) => {
 
 // DELETE user
 router.delete('/users/:id', authenticateToken, (req, res) => {
-    // Solo Admin puede eliminar usuarios
-    if (req.user.role !== 'Admin') {
+    if (!isAdminLikeRole(req.user && req.user.role)) {
         return res.status(403).json({ 
             error: 'No tienes permisos para eliminar usuarios' 
         });

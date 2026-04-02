@@ -8,7 +8,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db-adapter');
-const { authenticateToken } = require('../middleware/auth');
+const { authenticateToken } = require('../core/middleware/auth.middleware');
 
 // =====================================================
 // GENERADOR AUTOMÁTICO DE TAREAS CONTRACTUALES

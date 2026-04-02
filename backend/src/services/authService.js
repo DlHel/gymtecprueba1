@@ -1,5 +1,7 @@
 const db = require('../db-adapter');
 const { generateToken, hashPassword, verifyPassword, JWT_SECRET } = require('../middleware/auth');
+const { verifyAccessToken } = require('../core/middleware/auth.middleware');
+const { normalizeRole, normalizeStatus } = require('../core/auth/identity');
 
 /**
  * Servicio de Autenticación
@@ -41,14 +43,22 @@ class AuthService {
                 try {
                     // Verificar contraseña
                     let isValidPassword = false;
+                    const storedPassword = user.password || '';
+
+                    if (!storedPassword) {
+                        return reject({
+                            code: 'INVALID_PASSWORD_STATE',
+                            message: 'La cuenta no tiene una contraseña válida configurada'
+                        });
+                    }
                     
                     // Detectar si la contraseña está hasheada o en texto plano
-                    if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+                    if (storedPassword.startsWith('$2a$') || storedPassword.startsWith('$2b$') || storedPassword.startsWith('$2y$')) {
                         // Contraseña ya está hasheada
-                        isValidPassword = await verifyPassword(password, user.password);
+                        isValidPassword = await verifyPassword(password, storedPassword);
                     } else {
                         // Contraseña en texto plano - verificar directamente y migrar
-                        if (password === user.password) {
+                        if (password === storedPassword) {
                             isValidPassword = true;
                             
                             // Migrar contraseña a hash
@@ -113,51 +123,56 @@ class AuthService {
      * Registrar nuevo usuario
      */
     static async register(userData) {
-        const { username, email, password, role = 'Técnico', status = 'Activo' } = userData;
+        const { username, email, password, role = 'Technician', status = 'Activo' } = userData;
+        let hashedPassword;
 
-        return new Promise(async (resolve, reject) => {
-            try {
-                // Hash de la contraseña
-                const hashedPassword = await hashPassword(password);
+        try {
+            hashedPassword = await hashPassword(password);
+        } catch (error) {
+            throw {
+                code: 'HASH_ERROR',
+                message: 'Error al procesar contraseña',
+                details: error.message
+            };
+        }
 
-                const sql = `
-                    INSERT INTO Users (username, email, password, role, status) 
-                    VALUES (?, ?, ?, ?, ?)
-                `;
-                
-                const params = [username, email, hashedPassword, role, status];
+        return new Promise((resolve, reject) => {
+            const sql = `
+                INSERT INTO Users (username, email, password, role, status) 
+                VALUES (?, ?, ?, ?, ?)
+            `;
+            
+            const params = [
+                username,
+                email,
+                hashedPassword,
+                normalizeRole(role),
+                normalizeStatus(status) || 'Activo'
+            ];
 
-                db.run(sql, params, function(err) {
-                    if (err) {
-                        if (err.message.includes('UNIQUE constraint failed')) {
-                            return reject({
-                                code: 'USER_EXISTS',
-                                message: 'El usuario o email ya existe'
-                            });
-                        }
+            db.run(sql, params, function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE constraint failed')) {
                         return reject({
-                            code: 'DATABASE_ERROR',
-                            message: 'Error al crear usuario',
-                            details: err.message
+                            code: 'USER_EXISTS',
+                            message: 'El usuario o email ya existe'
                         });
                     }
-
-                    resolve({
-                        id: this.lastID,
-                        username,
-                        email,
-                        role,
-                        status
+                    return reject({
+                        code: 'DATABASE_ERROR',
+                        message: 'Error al crear usuario',
+                        details: err.message
                     });
-                });
+                }
 
-            } catch (error) {
-                reject({
-                    code: 'HASH_ERROR',
-                    message: 'Error al procesar contraseña',
-                    details: error.message
+                resolve({
+                    id: this.lastID,
+                    username,
+                    email,
+                    role,
+                    status
                 });
-            }
+            });
         });
     }
 
@@ -228,11 +243,7 @@ class AuthService {
      */
     static async verifyToken(token) {
         try {
-            const jwt = require('jsonwebtoken');
-            const { JWT_SECRET } = require('../middleware/auth');
-            
-            const decoded = jwt.verify(token, JWT_SECRET);
-            return decoded;
+            return verifyAccessToken(token);
         } catch (error) {
             throw {
                 code: 'TOKEN_INVALID',

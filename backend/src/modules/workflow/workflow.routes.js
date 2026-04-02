@@ -238,7 +238,7 @@ async function validateWorkflowTransition(ticket, newStage) {
                 }
                 break;
                 
-            case WORKFLOW_STATES.COMPLETADO:
+            case WORKFLOW_STATES.COMPLETADO: {
                 // Verificar que el checklist esté completo (si existe)
                 const checklist = await db.get(
                     'SELECT completion_percentage FROM TicketChecklist WHERE ticket_id = ?',
@@ -254,6 +254,7 @@ async function validateWorkflowTransition(ticket, newStage) {
                     };
                 }
                 break;
+            }
                 
             case WORKFLOW_STATES.CERRADO:
                 if (ticket.workflow_stage !== WORKFLOW_STATES.COMPLETADO) {
@@ -307,7 +308,7 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
         
         // Acciones específicas por estado
         switch (newStage) {
-            case WORKFLOW_STATES.EN_PROGRESO:
+            case WORKFLOW_STATES.EN_PROGRESO: {
                 // Iniciar tracking de tiempo si no existe
                 const existingTime = await db.get(
                     'SELECT id FROM TicketTimeEntries WHERE ticket_id = ? AND end_time IS NULL',
@@ -324,8 +325,9 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
                 // Calcular SLA
                 await calculateTicketSLA(ticket.id);
                 break;
+            }
                 
-            case WORKFLOW_STATES.COMPLETADO:
+            case WORKFLOW_STATES.COMPLETADO: {
                 // Finalizar tracking de tiempo
                 await db.run(`
                     UPDATE TicketTimeEntries SET
@@ -346,8 +348,9 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
                     WHERE id = ?
                 `, [resolutionMinutes, ticket.id]);
                 break;
+            }
                 
-            case WORKFLOW_STATES.CERRADO:
+            case WORKFLOW_STATES.CERRADO: {
                 // Marcar como cerrado definitivamente
                 await db.run(`
                     UPDATE Tickets SET
@@ -355,6 +358,7 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
                     WHERE id = ?
                 `, [ticket.id]);
                 break;
+            }
         }
         
         return {

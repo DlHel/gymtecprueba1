@@ -124,7 +124,7 @@ connection.connect((err) => {
                                     console.log('   • Notas de asistencia');
                                     console.log('   • Integración con nómina');
                                     console.log('\n💡 Accede al módulo en: http://localhost:8080/asistencia.html');
-                                    console.log('💡 Usuario demo: admin / password: admin123');
+                                    console.log('💡 Usuario demo: define GYMTEC_ADMIN_PASSWORD antes de ejecutar el seed');
                                 } else {
                                     console.log('\n⚠️  INSTALACIÓN INCOMPLETA - Algunas tablas no se crearon');
                                 }

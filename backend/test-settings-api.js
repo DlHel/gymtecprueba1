@@ -2,8 +2,8 @@ const axios = require('axios');
 
 // Configuración
 const API_URL = 'http://localhost:3004/api';
-const USERNAME = 'admin';
-const PASSWORD = 'admin123'; // Contraseña reseteada
+const USERNAME = process.env.GYMTEC_TEST_USERNAME || 'admin';
+const PASSWORD = process.env.GYMTEC_TEST_PASSWORD || 'change-me';
 
 async function runTests() {
     console.log('🚀 Iniciando pruebas de API de Configuración...');

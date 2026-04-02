@@ -1,52 +1,44 @@
 ---
 name: GymTec ERP Development
-description: Estándares y flujos de trabajo para el desarrollo en GymTec ERP (Node.js/Express + Alpine.js + MySQL).
-version: 1.0.0
+description: Guía operativa del stack real de Gymtec ERP después del saneamiento Docker.
+version: 2.0.0
 ---
 
-# GymTec ERP Developer Guide
+# Gymtec ERP Developer Guide
 
-Este skill encapsula las mejores prácticas y arquitecturas definidas para el proyecto GymTec ERP. **Debes** seguir estas guías al modificar o crear nuevo código.
+Este skill es la base generalista del proyecto. Para trabajo por dominio, delega en los especialistas de `.agent/skills/` y sigue `.agent/workflows/multi-agent-routing.md`.
 
-## 1. Stack Tecnológico
+## 1. Stack real
 
-- **Backend**: Node.js con Express.
-  - **Validación**: OBLIGATORIO usar `Zod` para validar inputs en controladores (`backend/src/middleware/validateResource.js`).
-  - **Base de Datos**: MySQL (usando driver `mysql2` o adapter similar).
-  - **Módulos**: Preferir estructura modular en `backend/src/modules/` en lugar de agregar todo a `server-clean.js`.
+- Backend: Node.js + Express + MySQL.
+- Servidor canónico: `backend/src/server-clean.js`.
+- Frontend activo: HTML + JavaScript Vanilla + TailwindCSS.
+- Legacy frontend activo: Alpine.js solo en `clientes` y `reportes`.
+- Infraestructura soportada: Docker Compose con `nginx + backend + mysql`.
 
-- **Frontend**: HTML5 + Vanilla JS + Alpine.js.
-  - **Reactividad**: Usar **Alpine.js** (`x-data`, `x-bind`, `x-model`) para interactividad de UI.
-  - **Legacy**: Evitar jQuery. Refactorizar Vanilla JS imperativo (selectores manuales `document.getElementById`) a declarativo con Alpine cuando sea posible.
-  - **Estilos**: TailwindCSS.
-  - **Iconos**: Lucide Icons (`data-lucide`).
+## 2. Reglas de implementación
 
-- **Infraestructura**: Docker y Docker Compose para entorno local.
+- Nuevos cambios backend: preferir `backend/src/modules/` y `backend/src/services/`.
+- Nuevos cambios frontend: preferir Vanilla JS; no introducir frameworks.
+- En archivos Alpine activos, mantener el patrón existente hasta que haya una migración explícita.
+- No crear nuevas rutas o scripts `*-vps*`, `server.js`, deploy manual o documentación de hosting legacy.
 
-## 2. Convenciones de Código
+## 3. Seguridad y entorno
 
-### Backend
-- **Rutas**: Definir en `backend/src/routes/` o módulos específicos.
-- **Manejo de Errores**: Retornar JSON con estructura `{ message: "error", error: "detalle" }`.
-- **Async/Await**: Usar siempre en operaciones de BD.
+- Variables estándar: `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `JWT_SECRET`, `PORT`, `NODE_ENV`, `CORS_ORIGIN`.
+- Nunca dejar IPs, contraseñas o secretos en archivos versionados.
+- `backend/config.env` ya no debe versionarse; usar ejemplos y `.env` raíz para Docker.
 
-### Frontend
-- **Componentes Alpine**:
-  - Definir lógica en archivos `.js` separados usando `Alpine.data('nombreComponente', () => ({ ... }))`.
-  - Inicializar en HTML con `x-data="nombreComponente()"`.
-- **Modales**: Usar patrón `x-show` con transición para modales, controlados por variables booleanas (`isOpen`).
+## 4. Verificación mínima
 
-## 3. Base de Datos (MySQL)
-- **Tabla `InformesTecnicos`**:
-  - `ticket_id` es obligatorio.
-  - `technician_id` y `generated_by` pueden ser NULL (no asumir valor por defecto).
-  - `client_email` debe validarse antes de insertar.
+- `cd backend && npm test`
+- `cd backend && npm run lint`
+- `npm run lint`
 
-## 4. Flujo de Trabajo
-1. **Validación**: Siempre crear esquema Zod antes de tocar el endpoint.
-2. **Implementación**: Modificar código siguiendo patrón existente.
-3. **Verificación**: Usar `task_boundary` para documentar pruebas.
+## 5. Documentación viva
 
-## 5. Recursos Comunes
-- `window.authenticatedFetch`: Usar para todas las llamadas al API (maneja tokens JWT).
-- `window.API_URL`: Constante global para endpoints.
+- `README.md`
+- `AGENTS.md`
+- `docs/ARCHITECTURE_MAP.md`
+- `docs/DEPLOY_DOCKER.md`
+- `docs/API_DOCUMENTATION.md`
