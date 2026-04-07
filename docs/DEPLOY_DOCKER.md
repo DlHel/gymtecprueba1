@@ -33,6 +33,15 @@ Las variables `DB_PASSWORD`, `MYSQL_ROOT_PASSWORD` y `JWT_SECRET` son obligatori
 docker compose up --build
 ```
 
+Para un VPS nuevo se recomienda usar la variante con secretos montados como archivos:
+
+```bash
+cp vps.env.example .env
+docker compose -f docker-compose.vps.yml --env-file .env up --build -d
+```
+
+Ver [docs/VPS_NEW_SERVER.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/VPS_NEW_SERVER.md).
+
 Este modo usa:
 
 - `nginx` como reverse proxy y servidor estático.
@@ -87,5 +96,6 @@ Bootstrap de base al primer arranque:
 
 - No hay soporte oficial para deploy manual con PM2/VPS dentro del árbol activo.
 - Si ya tienes otro sistema escuchando en el VPS, deja Gymtec en `HTTP_PORT=8082` o el puerto libre que uses y publícalo detrás de tu proxy principal.
+- En VPS nuevo, preferir `docker-compose.vps.yml` y secretos en `secrets/*.txt`; esos archivos no se versionan.
 - Si quieres separar frontend y backend en producción, usa `docker-compose.split.yml` y conserva `CORS_ORIGIN` restringido al origen del frontend.
 - Si Docker no está instalado en la máquina actual, valida al menos `npm test` y `npm run lint` antes de mover el cambio.

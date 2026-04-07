@@ -6,8 +6,10 @@
  */
 
 const path = require('path');
+const { applyFileBackedEnv } = require('./load-env');
 
 require('dotenv').config({ path: path.resolve(__dirname, '../../../config.env') });
+applyFileBackedEnv(process.env);
 
 const config = {
     // JWT

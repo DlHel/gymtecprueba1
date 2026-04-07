@@ -1,6 +1,9 @@
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
+const { applyFileBackedEnv } = require('./core/config/load-env');
+
+applyFileBackedEnv(process.env);
 
 // Configuración de la base de datos MySQL
 const dbConfig = {

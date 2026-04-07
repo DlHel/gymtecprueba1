@@ -36,6 +36,15 @@ gymtecprueba1/
 3. Abre `http://localhost:8082` o el puerto definido en `HTTP_PORT`.
 4. Si necesitas el modo separado, ejecuta `docker compose -f docker-compose.split.yml up --build` y abre `http://localhost:8081`.
 
+Para un VPS nuevo, usa la variante estándar con secretos montados como archivos:
+
+```bash
+cp vps.env.example .env
+docker compose -f docker-compose.vps.yml --env-file .env up --build -d
+```
+
+Guía completa: [docs/VPS_NEW_SERVER.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/VPS_NEW_SERVER.md).
+
 Rutas públicas esperadas:
 
 - `/` sirve el frontend estático
@@ -64,6 +73,7 @@ Notas de despliegue:
 
 - Arquitectura y estado: [docs/ARCHITECTURE_MAP.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/ARCHITECTURE_MAP.md)
 - Deploy Docker: [docs/DEPLOY_DOCKER.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/DEPLOY_DOCKER.md)
+- VPS nuevo: [docs/VPS_NEW_SERVER.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/VPS_NEW_SERVER.md)
 - Superficie API: [docs/API_DOCUMENTATION.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/API_DOCUMENTATION.md)
 - Skills y multiagente: [docs/AI_SKILLS_AND_AGENTS.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/docs/AI_SKILLS_AND_AGENTS.md)
 - Reglas para agentes: [AGENTS.md](/C:/Users/felip/Desktop/desa/g/gymtecprueba1/AGENTS.md)
