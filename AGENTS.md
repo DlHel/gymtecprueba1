@@ -58,6 +58,8 @@ gymtecprueba1/
 8. No pasar JWT por query string. Los tokens se envían por header `Authorization` y la sesión del navegador debe priorizar `sessionStorage`.
 9. `uploads/reports` no es público. Los informes técnicos y PDFs solo se descargan por endpoints autenticados con validación de permisos.
 10. El bootstrap Docker no acepta contraseñas planas para el admin inicial: usar `APP_ADMIN_PASSWORD_HASH`.
+11. Las páginas soporte `login.html` y `menu.html` no son módulos de negocio, pero cualquier cambio allí debe mantener compatibilidad con el runner QA y el flujo de autenticación.
+12. `test-clientes.html` es una página de apoyo; no debe considerarse fuente de verdad funcional salvo instrucción explícita.
 
 ## Equipo multiagente
 
@@ -69,6 +71,26 @@ gymtecprueba1/
 - `security-auditor`: secretos, auth, exposición y revisión de riesgo.
 - `qa-smoke-engineer`: smoke tests, lint y regresión local.
 - `monolith-refactorer`: extracción segura desde `backend/src/server-clean.js`.
+- `qa-procedure-maintainer`: mantiene specs QA, agentes, playbooks y ownership cuando entra una funcionalidad nueva.
+
+### Equipo QA por flujos
+
+- `flow-test-orchestrator`: orquesta QA profundo por flujo y reparte tickets, inventario y finanzas primero.
+- `tickets-flow-tester`: dueño del flujo tickets, detalle, checklist, workflow, repuestos y reportes ligados al ticket.
+- `inventory-flow-tester`: dueño del flujo inventario, asignaciones, movimientos y órdenes de compra.
+- `finance-flow-tester`: dueño del flujo finanzas, cotizaciones, facturas, gastos y nómina.
+- `dashboard-flow-tester`: smoke y ownership de dashboard.
+- `clients-flow-tester`: smoke y ownership de clientes.
+- `equipment-flow-tester`: smoke y ownership de equipos/modelos relacionados.
+- `reports-flow-tester`: smoke y ownership de reportes e informes técnicos.
+- `workforce-flow-tester`: smoke y ownership de asistencia y workforce.
+- `contracts-flow-tester`: smoke y ownership de contratos.
+- `planning-flow-tester`: smoke y ownership de planificación.
+- `notifications-flow-tester`: smoke y ownership de notificaciones.
+- `config-flow-tester`: smoke y ownership de configuración.
+- `models-flow-tester`: smoke y ownership de modelos.
+- `personal-flow-tester`: smoke y ownership de personal.
+- `qa-procedure-maintainer`: sincroniza procedimientos, specs, routing y documentación del sistema QA.
 
 Fuente local de verdad:
 
@@ -88,6 +110,13 @@ Fuente local de verdad:
 6. `security-auditor` debe revisar cambios de auth, secretos, permisos, uploads o exposición de endpoints.
 7. `monolith-refactorer` se usa solo para extraer o limpiar `backend/src/server-clean.js`.
 8. Los nombres canónicos del equipo son los listados arriba; los aliases legacy existen solo por compatibilidad.
+9. Para QA manual o automatizado por módulo, entrar por `flow-test-orchestrator` y ejecutar primero `tickets -> inventario -> finanzas`.
+10. Cada agente de flujo es dueño de su HTML/JS, endpoints backend, tablas implicadas, botones, tabs, modales y checks cross-module.
+11. `qa:modals` debe quedar verde antes de aceptar refactors de UI o ownership.
+12. `qa:architecture` debe quedar verde antes de aceptar refactors backend o de modularización.
+13. Si entra una funcionalidad nueva, pasar por `qa-procedure-maintainer` para actualizar specs, agentes y playbooks antes de cerrar.
+14. El preflight QA puede levantar backend y frontend local automáticamente; no asumir que esos procesos ya están corriendo.
+15. `QA_EVIDENCE_LEVEL` controla la evidencia del runner: `min`, `medium` o `max`.
 
 ## Comandos útiles
 
@@ -96,6 +125,15 @@ docker compose up --build
 cd backend && npm test
 cd backend && npm run lint
 npm run lint
+npm run qa:seed
+npm run qa:flow:tickets
+npm run qa:flow:inventory
+npm run qa:flow:finance
+npm run qa:flow:core
+npm run qa:flow:all
+npm run qa:modals
+npm run qa:architecture
+npm run qa:ui
 ```
 
 ## Qué quedó archivado

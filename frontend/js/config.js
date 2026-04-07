@@ -30,6 +30,13 @@ const getApiUrl = () => {
     const isCodespaces = hostname.includes('github.dev') || 
                          hostname.includes('githubpreview.dev') ||
                          hostname.includes('codespaces.github.com');
+
+    // Despliegue separado frontend/api en el mismo host
+    if (port === '8081') {
+        const splitBaseUrl = `${protocol}//${hostname}:3000`;
+        console.log('🧩 Entorno: Frontend separado - usando API directa:', splitBaseUrl + '/api');
+        return `${splitBaseUrl}/api`;
+    }
     
     // Si es producción (no localhost, no codespaces) → usar proxy /api
     if (!isLocalhost && !isCodespaces) {

@@ -69,6 +69,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.error('❌ API Error - getNotifications:', error);
                 throw error;
             }
+        },
+
+        getTemplates: async () => {
+            try {
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/notifications/templates`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const result = await response.json();
+                return result.data || [];
+            } catch (error) {
+                console.error('❌ API Error - getTemplates:', error);
+                throw error;
+            }
         }
     };
 
@@ -213,6 +225,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
             container.innerHTML = notificationRows;
             console.log('📋 Notificaciones renderizadas:', notifications.length);
+        },
+
+        renderTemplates: (templates) => {
+            const loading = document.getElementById('templates-loading');
+            const grid = document.getElementById('templates-grid');
+            if (!grid) return;
+
+            if (loading) {
+                loading.classList.add('hidden');
+            }
+
+            grid.classList.remove('hidden');
+
+            if (!templates.length) {
+                grid.innerHTML = `
+                    <div class="bg-white border border-dashed border-slate-300 rounded-xl p-8 text-center">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-slate-100 mb-4">
+                            <i data-lucide="mail" class="w-6 h-6 text-slate-500"></i>
+                        </div>
+                        <h3 class="text-sm font-semibold text-slate-900 mb-1">Sin plantillas configuradas</h3>
+                        <p class="text-sm text-slate-500">El módulo está operativo, pero todavía no hay plantillas registradas.</p>
+                    </div>
+                `;
+                lucide?.createIcons?.();
+                return;
+            }
+
+            grid.innerHTML = `
+                <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                    ${templates.map((template) => `
+                        <article class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                            <div class="flex items-start justify-between gap-3 mb-3">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-slate-900">${template.name || 'Plantilla sin nombre'}</h3>
+                                    <p class="text-xs text-slate-500 mt-1">${template.channel || template.type || 'general'}</p>
+                                </div>
+                                <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${template.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}">
+                                    ${template.is_active ? 'Activa' : 'Inactiva'}
+                                </span>
+                            </div>
+                            <p class="text-sm text-slate-600 leading-6">${(template.subject || template.title || template.description || template.message || 'Sin descripción').slice(0, 160)}</p>
+                        </article>
+                    `).join('')}
+                </div>
+            `;
+
+            lucide?.createIcons?.();
         }
     };
 
@@ -264,8 +323,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 
                 case 'templates':
-                    // Cargar plantillas (por implementar)
-                    console.log('📝 Cargando plantillas...');
+                    const templates = await api.getTemplates();
+                    ui.renderTemplates(templates);
                     break;
                 
                 case 'analytics':

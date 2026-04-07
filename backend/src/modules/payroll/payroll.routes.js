@@ -18,7 +18,16 @@
  * @requires db-adapter
  */
 
-module.exports = function(app, db, authenticateToken, requireRole, toMySQLDateTime) {
+const express = require('express');
+const db = require('../../db-adapter');
+const { matchesAnyRole } = require('../../core/auth/identity');
+const {
+    authenticateToken,
+    requireRole
+} = require('../../core/middleware/auth.middleware');
+const { toMySQLDateTime } = require('../../core/utils/datetime');
+
+const router = express.Router();
 
 // ===================================================================
 // UTILIDADES - CÁLCULOS NÓMINA CHILE
@@ -189,7 +198,7 @@ async function calculatePayrollDetail(userId, periodStart, periodEnd, baseSalary
 /**
  * GET /api/payroll/periods - Listar períodos de nómina
  */
-app.get('/api/payroll/periods', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+router.get('/payroll/periods', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const { status, year } = req.query;
     
     let sql = `
@@ -228,7 +237,7 @@ app.get('/api/payroll/periods', authenticateToken, requireRole(['Admin', 'Manage
 /**
  * GET /api/payroll/periods/:id - Detalle de un período
  */
-app.get('/api/payroll/periods/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+router.get('/payroll/periods/:id', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const sql = `
         SELECT pp.*, 
                COUNT(pd.id) as employee_count,
@@ -256,7 +265,7 @@ app.get('/api/payroll/periods/:id', authenticateToken, requireRole(['Admin', 'Ma
 /**
  * POST /api/payroll/periods - Crear nuevo período de nómina
  */
-app.post('/api/payroll/periods', authenticateToken, requireRole(['Admin', 'Manager']), async (req, res) => {
+router.post('/payroll/periods', authenticateToken, requireRole(['Admin', 'Manager']), async (req, res) => {
     const { period_name, start_date, end_date, payment_date } = req.body;
     
     if (!period_name || !start_date || !end_date) {
@@ -290,7 +299,7 @@ app.post('/api/payroll/periods', authenticateToken, requireRole(['Admin', 'Manag
 /**
  * POST /api/payroll/periods/:id/generate - Generar nómina para todos los empleados
  */
-app.post('/api/payroll/periods/:id/generate', authenticateToken, requireRole(['Admin']), async (req, res) => {
+router.post('/payroll/periods/:id/generate', authenticateToken, requireRole(['Admin']), async (req, res) => {
     const periodId = req.params.id;
     
     try {
@@ -314,7 +323,7 @@ app.post('/api/payroll/periods/:id/generate', authenticateToken, requireRole(['A
                        COALESCE(eps.base_salary, 0) as base_salary
                 FROM Users u
                 LEFT JOIN EmployeePayrollSettings eps ON u.id = eps.user_id AND eps.is_active = 1
-                WHERE u.role IN ('Technician', 'Manager', 'Admin')
+                WHERE u.role IN ('Technician', 'Tecnico', 'Técnico', 'Manager', 'Admin', 'Supervisor')
                   AND u.id NOT IN (
                       SELECT user_id FROM PayrollDetails WHERE payroll_period_id = ?
                   )
@@ -416,11 +425,11 @@ app.post('/api/payroll/periods/:id/generate', authenticateToken, requireRole(['A
 /**
  * GET /api/payroll/details - Listar detalles de nómina
  */
-app.get('/api/payroll/details', authenticateToken, (req, res) => {
+router.get('/payroll/details', authenticateToken, (req, res) => {
     const { period_id, user_id } = req.query;
     
     // Si es empleado normal, solo puede ver su propia nómina
-    const isAdminOrManager = ['Admin', 'Manager'].includes(req.user.role);
+    const isAdminOrManager = matchesAnyRole(req.user.role, ['Admin', 'Manager', 'Supervisor']);
     
     let sql = `
         SELECT 
@@ -465,7 +474,7 @@ app.get('/api/payroll/details', authenticateToken, (req, res) => {
 /**
  * GET /api/payroll/details/:id - Detalle individual de liquidación
  */
-app.get('/api/payroll/details/:id', authenticateToken, (req, res) => {
+router.get('/payroll/details/:id', authenticateToken, (req, res) => {
     const sql = `
         SELECT 
             pd.*,
@@ -489,7 +498,7 @@ app.get('/api/payroll/details/:id', authenticateToken, (req, res) => {
         }
         
         // Verificar permisos
-        const isAdminOrManager = ['Admin', 'Manager'].includes(req.user.role);
+        const isAdminOrManager = matchesAnyRole(req.user.role, ['Admin', 'Manager', 'Supervisor']);
         if (!isAdminOrManager && row.user_id !== req.user.id) {
             return res.status(403).json({ error: 'No autorizado' });
         }
@@ -501,7 +510,7 @@ app.get('/api/payroll/details/:id', authenticateToken, (req, res) => {
 /**
  * PATCH /api/payroll/details/:id - Actualizar detalle de nómina
  */
-app.patch('/api/payroll/details/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
+router.patch('/payroll/details/:id', authenticateToken, requireRole(['Admin']), (req, res) => {
     const { 
         bonuses, deductions, otros_descuentos, anticipo_amount,
         bono_asistencia, bono_produccion, gratificacion_amount,
@@ -556,7 +565,7 @@ app.patch('/api/payroll/details/:id', authenticateToken, requireRole(['Admin']),
 /**
  * PUT /api/payroll/details/:id/approve - Aprobar liquidación
  */
-app.put('/api/payroll/details/:id/approve', authenticateToken, requireRole(['Admin']), (req, res) => {
+router.put('/payroll/details/:id/approve', authenticateToken, requireRole(['Admin']), (req, res) => {
     const sql = `
         UPDATE PayrollDetails SET
             payment_status = 'processed',
@@ -581,7 +590,7 @@ app.put('/api/payroll/details/:id/approve', authenticateToken, requireRole(['Adm
 /**
  * GET /api/payroll/employee-settings/:userId - Configuración de empleado
  */
-app.get('/api/payroll/employee-settings/:userId', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
+router.get('/payroll/employee-settings/:userId', authenticateToken, requireRole(['Admin', 'Manager']), (req, res) => {
     const sql = 'SELECT * FROM EmployeePayrollSettings WHERE user_id = ?';
     
     db.get(sql, [req.params.userId], (err, row) => {
@@ -596,7 +605,7 @@ app.get('/api/payroll/employee-settings/:userId', authenticateToken, requireRole
 /**
  * POST /api/payroll/employee-settings - Crear/actualizar configuración
  */
-app.post('/api/payroll/employee-settings', authenticateToken, requireRole(['Admin']), (req, res) => {
+router.post('/payroll/employee-settings', authenticateToken, requireRole(['Admin']), (req, res) => {
     const {
         user_id, base_salary, salary_type, contract_type,
         afp, afp_custom_percentage, salud_plan, salud_custom_percentage,
@@ -654,7 +663,7 @@ app.post('/api/payroll/employee-settings', authenticateToken, requireRole(['Admi
 /**
  * GET /api/currency/rates - Obtener tasas actuales
  */
-app.get('/api/currency/rates', authenticateToken, (req, res) => {
+router.get('/currency/rates', authenticateToken, (req, res) => {
     const { date } = req.query;
     
     let sql = 'SELECT * FROM CurrencyRates';
@@ -688,7 +697,7 @@ app.get('/api/currency/rates', authenticateToken, (req, res) => {
 /**
  * POST /api/currency/rates - Actualizar tasas (Admin)
  */
-app.post('/api/currency/rates', authenticateToken, requireRole(['Admin']), (req, res) => {
+router.post('/currency/rates', authenticateToken, requireRole(['Admin']), (req, res) => {
     const { date, utm_value, uf_value, source } = req.body;
     
     if (!date || !utm_value || !uf_value) {
@@ -716,7 +725,7 @@ app.post('/api/currency/rates', authenticateToken, requireRole(['Admin']), (req,
 /**
  * GET /api/currency/convert - Convertir montos
  */
-app.get('/api/currency/convert', authenticateToken, async (req, res) => {
+router.get('/currency/convert', authenticateToken, async (req, res) => {
     const { amount, from, to } = req.query;
     
     if (!amount || !from || !to) {
@@ -768,4 +777,4 @@ app.get('/api/currency/convert', authenticateToken, async (req, res) => {
 
 console.log('✅ Endpoints de Nómina Chile cargados correctamente');
 
-}; // module.exports
+module.exports = router;

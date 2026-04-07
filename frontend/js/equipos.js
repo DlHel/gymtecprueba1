@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const api = {
         async loadEquipment() {
             try {
-                const response = await window.authManager.authenticatedFetch(`${API_URL}/equipment`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/equipment`);
                 
                 if (!response.ok) {
                     throw new Error('Error al cargar equipos');
@@ -51,7 +51,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         async loadClients() {
             try {
-                const response = await window.authManager.authenticatedFetch(`${API_URL}/clients`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/clients`);
                 const result = await response.json();
                 return result.data || [];
                 
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         async loadLocations() {
             try {
-                const response = await window.authManager.authenticatedFetch(`${API_URL}/locations`);
+                const response = await window.authManager.authenticatedFetch(`${window.API_URL}/locations`);
                 const result = await response.json();
                 return result.data || [];
                 

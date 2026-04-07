@@ -113,7 +113,7 @@ class EquipmentDrawer {
             `;
 
             // Obtener datos del equipo
-            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}`);
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/${equipmentId}`);
             if (!response.ok) {
                 throw new Error('Error al cargar el equipo');
             }
@@ -357,7 +357,7 @@ class EquipmentDrawer {
 
     async loadNotes(equipmentId) {
         try {
-            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/notes`);
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/${equipmentId}/notes`);
             const result = await response.json();
             const notas = result.data || result || [];
             
@@ -402,7 +402,7 @@ class EquipmentDrawer {
 
     async loadTickets(equipmentId) {
         try {
-            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/tickets`);
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/${equipmentId}/tickets`);
             const result = await response.json();
             const tickets = result.data || result || [];
             
@@ -663,7 +663,7 @@ class EquipmentDrawer {
                 saveBtn.textContent = 'Guardando...';
             }
             
-            const response = await authenticatedFetch(`${API_URL}/equipment/${this.currentEquipmentId}/notes`, {
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/${this.currentEquipmentId}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ note: noteText })
@@ -700,7 +700,7 @@ class EquipmentDrawer {
         
         try {
             console.log('Eliminando nota...');
-            const response = await authenticatedFetch(`${API_URL}/equipment/notes/${noteId}`, {
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/notes/${noteId}`, {
                 method: 'DELETE'
             });
 
@@ -734,7 +734,7 @@ class EquipmentDrawer {
         }
         
         try {
-            const response = await authenticatedFetch(`${API_URL}/models/${equipo.model_id}/main-photo`);
+            const response = await window.authenticatedFetch(`${window.API_URL}/models/${equipo.model_id}/main-photo`);
             
             if (response.ok) {
                 const result = await response.json();
@@ -777,7 +777,7 @@ class EquipmentDrawer {
 
     async loadPhotos(equipmentId) {
         try {
-            const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/photos`);
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/${equipmentId}/photos`);
             const result = await response.json();
             const photos = result.data || result || [];
             
@@ -875,7 +875,7 @@ class EquipmentDrawer {
                 const base64 = await this.fileToBase64(file);
                 
                 // Enviar al servidor
-                const response = await authenticatedFetch(`${API_URL}/equipment/${equipmentId}/photos`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/equipment/${equipmentId}/photos`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -999,7 +999,7 @@ class EquipmentDrawer {
         }
 
         try {
-            const response = await authenticatedFetch(`${API_URL}/equipment/photos/${photoId}`, {
+            const response = await window.authenticatedFetch(`${window.API_URL}/equipment/photos/${photoId}`, {
                 method: 'DELETE'
             });
 

@@ -12,6 +12,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../db-adapter');
+const { authenticateToken } = require('../../core/middleware/auth.middleware');
 
 // =====================================================
 // WORKFLOW STATES Y TRANSICIONES VÁLIDAS
@@ -51,10 +52,11 @@ const VALID_TRANSITIONS = {
 /**
  * POST /api/tickets/:ticketId/workflow/transition - Cambiar estado del ticket
  */
-router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
+router.post('/tickets/:ticketId/workflow/transition', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         const { new_stage, notes, force = false } = req.body;
+        const canForce = force && ['Admin', 'Manager'].includes(req.user?.role);
         
         // Obtener ticket actual
         const ticket = await db.get('SELECT * FROM Tickets WHERE id = ?', [ticketId]);
@@ -69,7 +71,7 @@ router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
         const currentStage = ticket.workflow_stage || WORKFLOW_STATES.CREADO;
         
         // Validar transición (a menos que sea forzada por admin)
-        if (!force && !VALID_TRANSITIONS[currentStage]?.includes(new_stage)) {
+        if (!canForce && !VALID_TRANSITIONS[currentStage]?.includes(new_stage)) {
             return res.status(400).json({
                 error: `Transición no válida de '${currentStage}' a '${new_stage}'`,
                 code: 'INVALID_WORKFLOW_TRANSITION',
@@ -83,7 +85,7 @@ router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
         
         // Validaciones específicas por estado
         const validationResult = await validateWorkflowTransition(ticket, new_stage);
-        if (!validationResult.valid && !force) {
+        if (!validationResult.valid && !canForce) {
             return res.status(400).json({
                 error: validationResult.message,
                 code: validationResult.code,
@@ -111,16 +113,36 @@ router.post('/tickets/:ticketId/workflow/transition', async (req, res) => {
 /**
  * GET /api/tickets/:ticketId/workflow/status - Obtener estado actual del workflow
  */
-router.get('/tickets/:ticketId/workflow/status', async (req, res) => {
+router.get('/tickets/:ticketId/workflow/status', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         
         const ticket = await db.get(`
-            SELECT t.*, c.name as client_name, tc.completion_percentage,
-                   tc.status as checklist_status
+            SELECT
+                t.*,
+                c.name as client_name,
+                tc.completion_percentage,
+                tc.checklist_status
             FROM Tickets t
             LEFT JOIN Clients c ON t.client_id = c.id
-            LEFT JOIN TicketChecklist tc ON t.id = tc.ticket_id
+            LEFT JOIN (
+                SELECT
+                    ticket_id,
+                    ROUND(
+                        (
+                            SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END)
+                            / NULLIF(COUNT(*), 0)
+                        ) * 100,
+                        0
+                    ) AS completion_percentage,
+                    CASE
+                        WHEN COUNT(*) = 0 THEN 'pending'
+                        WHEN SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) = COUNT(*) THEN 'completed'
+                        ELSE 'in_progress'
+                    END AS checklist_status
+                FROM TicketChecklists
+                GROUP BY ticket_id
+            ) tc ON t.id = tc.ticket_id
             WHERE t.id = ?
         `, [ticketId]);
         
@@ -142,7 +164,7 @@ router.get('/tickets/:ticketId/workflow/status', async (req, res) => {
                 ticket_id: ticketId,
                 current_stage: currentStage,
                 valid_transitions: VALID_TRANSITIONS[currentStage] || [],
-                checklist_completed: ticket.checklist_completed === 1,
+                checklist_completed: Number(ticket.completion_percentage || 0) >= 100,
                 checklist_percentage: ticket.completion_percentage || 0,
                 can_close: ticket.can_close === 1,
                 sla_status: ticket.sla_status,
@@ -163,7 +185,7 @@ router.get('/tickets/:ticketId/workflow/status', async (req, res) => {
 /**
  * PUT /api/tickets/:ticketId/assign - Asignar ticket a técnico
  */
-router.put('/tickets/:ticketId/assign', async (req, res) => {
+router.put('/tickets/:ticketId/assign', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         const { technician_id, auto_start = false } = req.body;
@@ -240,22 +262,31 @@ async function validateWorkflowTransition(ticket, newStage) {
                 
             case WORKFLOW_STATES.COMPLETADO: {
                 // Verificar que el checklist esté completo (si existe)
-                const checklist = await db.get(
-                    'SELECT completion_percentage FROM TicketChecklist WHERE ticket_id = ?',
-                    [ticket.id]
-                );
+                const checklist = await db.get(`
+                    SELECT
+                        COUNT(*) AS total,
+                        SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS completed
+                    FROM TicketChecklists
+                    WHERE ticket_id = ?
+                `, [ticket.id]);
+
+                const totalItems = Number(checklist?.total || 0);
+                const completedItems = Number(checklist?.completed || 0);
+                const completionPercentage = totalItems > 0
+                    ? Math.round((completedItems / totalItems) * 100)
+                    : 0;
                 
-                if (checklist && checklist.completion_percentage < 100) {
+                if (totalItems > 0 && completionPercentage < 100) {
                     return {
                         valid: false,
                         message: 'Checklist debe estar 100% completo antes de marcar como completado',
                         code: 'CHECKLIST_NOT_COMPLETE',
-                        data: { completion_percentage: checklist.completion_percentage }
+                        data: { completion_percentage: completionPercentage }
                     };
                 }
                 break;
             }
-                
+
             case WORKFLOW_STATES.CERRADO:
                 if (ticket.workflow_stage !== WORKFLOW_STATES.COMPLETADO) {
                     return {
@@ -326,13 +357,13 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
                 await calculateTicketSLA(ticket.id);
                 break;
             }
-                
+
             case WORKFLOW_STATES.COMPLETADO: {
                 // Finalizar tracking de tiempo
                 await db.run(`
-                    UPDATE TicketTimeEntries SET
+                UPDATE TicketTimeEntries SET
                         end_time = ?,
-                        duration_seconds = ROUND((JULIANDAY(?) - JULIANDAY(start_time)) * 86400)
+                        duration_seconds = TIMESTAMPDIFF(SECOND, start_time, ?)
                     WHERE ticket_id = ? AND end_time IS NULL
                 `, [timestamp, timestamp, ticket.id]);
                 
@@ -349,7 +380,7 @@ async function executeWorkflowTransition(ticket, newStage, notes, user) {
                 `, [resolutionMinutes, ticket.id]);
                 break;
             }
-                
+
             case WORKFLOW_STATES.CERRADO: {
                 // Marcar como cerrado definitivamente
                 await db.run(`

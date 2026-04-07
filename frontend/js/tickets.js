@@ -1,4 +1,4 @@
-// API_URL se define en config.js
+// window.API_URL se define en config.js
 
 let state = {
     tickets: [],
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Event Listeners ---
     const addTicketBtn = document.getElementById('add-ticket-btn');
     if (addTicketBtn) {
-        addTicketBtn.addEventListener('click', () => openModal('ticket-modal'));
+        addTicketBtn.addEventListener('click', () => openTicketModal('ticket-modal'));
         console.log('✅ TICKETS: Event listener para add-ticket-btn configurado');
     } else {
         console.warn('⚠️ TICKETS: add-ticket-btn no encontrado');
@@ -163,11 +163,11 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listeners para cerrar modales usando el nuevo sistema base-modal
     const ticketModalClose = document.querySelector('#ticket-modal .base-modal-close');
     if (ticketModalClose) {
-        ticketModalClose.addEventListener('click', () => closeModal('ticket-modal'));
+        ticketModalClose.addEventListener('click', () => closeTicketModal('ticket-modal'));
     }
     const ticketModalCancel = document.querySelector('#ticket-modal .base-btn-cancel');
     if (ticketModalCancel) {
-        ticketModalCancel.addEventListener('click', () => closeModal('ticket-modal'));
+        ticketModalCancel.addEventListener('click', () => closeTicketModal('ticket-modal'));
     }
     
     // Listeners para tabs del modal
@@ -192,37 +192,37 @@ document.addEventListener('DOMContentLoaded', () => {
     // Listeners para el nuevo modal de cliente
     const addClientCancelBtn = document.getElementById('add-client-modal-cancel-btn');
     if (addClientCancelBtn) {
-        addClientCancelBtn.addEventListener('click', () => closeModal('add-client-modal'));
+        addClientCancelBtn.addEventListener('click', () => closeTicketModal('add-client-modal'));
     }
     const addClientCloseBtn = document.getElementById('add-client-modal-close-btn');
     if (addClientCloseBtn) {
-        addClientCloseBtn.addEventListener('click', () => closeModal('add-client-modal'));
+        addClientCloseBtn.addEventListener('click', () => closeTicketModal('add-client-modal'));
     }
 
     // Listeners para el modal de sede
     const addLocationCancelBtn = document.getElementById('add-location-modal-cancel-btn');
     if (addLocationCancelBtn) {
-        addLocationCancelBtn.addEventListener('click', () => closeModal('add-location-modal'));
+        addLocationCancelBtn.addEventListener('click', () => closeTicketModal('add-location-modal'));
     }
     const addLocationCloseBtn = document.getElementById('add-location-modal-close-btn');
     if (addLocationCloseBtn) {
-        addLocationCloseBtn.addEventListener('click', () => closeModal('add-location-modal'));
+        addLocationCloseBtn.addEventListener('click', () => closeTicketModal('add-location-modal'));
     }
 
     // Listeners para el modal de equipo
     const addEquipmentCancelBtn = document.getElementById('add-equipment-modal-cancel-btn');
     if (addEquipmentCancelBtn) {
-        addEquipmentCancelBtn.addEventListener('click', () => closeModal('add-equipment-modal'));
+        addEquipmentCancelBtn.addEventListener('click', () => closeTicketModal('add-equipment-modal'));
     }
     const addEquipmentCloseBtn = document.getElementById('add-equipment-modal-close-btn');
     if (addEquipmentCloseBtn) {
-        addEquipmentCloseBtn.addEventListener('click', () => closeModal('add-equipment-modal'));
+        addEquipmentCloseBtn.addEventListener('click', () => closeTicketModal('add-equipment-modal'));
     }
 
     document.body.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
-        if (button.matches('.edit-ticket-btn')) openModal('ticket-modal', { id: button.dataset.id });
+        if (button.matches('.edit-ticket-btn')) openTicketModal('ticket-modal', { id: button.dataset.id });
         if (button.matches('.delete-ticket-btn')) deleteItem('tickets', button.dataset.id, fetchTickets);
     });
 
@@ -417,6 +417,21 @@ function getStatusClass(status) {
 function getPriorityClass(priority) {
     if (!priority) return 'media';
     return priority.toLowerCase();
+}
+
+function normalizeTicketPriorityValue(priority) {
+    const normalized = String(priority || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+
+    if (!normalized) return 'media';
+    if (['low', 'baja'].includes(normalized)) return 'baja';
+    if (['medium', 'media'].includes(normalized)) return 'media';
+    if (['high', 'alta'].includes(normalized)) return 'alta';
+    if (['urgent', 'urgente', 'critical', 'critica', 'crítica'].includes(normalized)) return 'urgente';
+    return 'media';
 }
 
 function getSLAClass(dueDate) {
@@ -614,7 +629,7 @@ async function fetchAllInitialData() {
 
 async function fetchTickets() {
     try {
-        const response = await authenticatedFetch(`${API_URL}/tickets`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -643,7 +658,7 @@ async function fetchTickets() {
 
 async function fetchClients() {
     try {
-        const response = await authenticatedFetch(`${API_URL}/clients`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/clients`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -665,7 +680,7 @@ async function fetchClients() {
 async function fetchLocations(clientId) {
     try {
         console.log('Fetching locations for client:', clientId);
-        const response = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/locations?client_id=${clientId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -696,7 +711,7 @@ async function fetchLocations(clientId) {
 
 async function fetchEquipment(locationId) {
     try {
-        const response = await authenticatedFetch(`${API_URL}/equipment?location_id=${locationId}`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/equipment?location_id=${locationId}`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -739,7 +754,7 @@ async function fetchEquipment(locationId) {
 
 async function fetchEquipmentModels() {
     try {
-        const response = await authenticatedFetch(`${API_URL}/models`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/models`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -807,11 +822,11 @@ async function handleFormSubmit(e) {
     if (!body.equipment_id) body.equipment_id = null;
     if (!body.due_date) body.due_date = null;
 
-    const url = id ? `${API_URL}/tickets/${id}` : `${API_URL}/tickets`;
+    const url = id ? `${window.API_URL}/tickets/${id}` : `${window.API_URL}/tickets`;
     const method = id ? 'PUT' : 'POST';
 
     try {
-        const response = await authenticatedFetch(url, {
+        const response = await window.authenticatedFetch(url, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -821,12 +836,24 @@ async function handleFormSubmit(e) {
             throw new Error(errorData.error || 'Error desconocido');
         }
         
-        closeModal('ticket-modal');
+        closeTicketModal('ticket-modal');
         fetchTickets();
     } catch (error) {
         console.error('Form submission error:', error);
         toastError(`Error al guardar: ${error.message}`);
     }
+}
+
+function normalizeCreatedEntity(payload) {
+    return payload?.data || payload;
+}
+
+function assertCreatedEntity(entity, entityLabel) {
+    if (!entity || !entity.id) {
+        throw new Error(`Respuesta inválida al crear ${entityLabel}`);
+    }
+
+    return entity;
 }
 
 async function handleNewClientSubmit(e) {
@@ -835,7 +862,7 @@ async function handleNewClientSubmit(e) {
     const body = Object.fromEntries(new FormData(form));
 
     try {
-        const response = await authenticatedFetch(`${API_URL}/clients`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/clients`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -846,7 +873,8 @@ async function handleNewClientSubmit(e) {
             throw new Error(errorData.error || 'Error al crear el cliente');
         }
 
-        const newClient = await response.json();
+        const result = await response.json();
+        const newClient = assertCreatedEntity(normalizeCreatedEntity(result), 'el cliente');
         
         // 1. Añadir el nuevo cliente al estado local
         state.clients.push(newClient);
@@ -860,11 +888,11 @@ async function handleNewClientSubmit(e) {
             clientSelect.value = newClient.id;
             
             // 4. Disparar el evento change para cargar las sedes (que estarán vacías para un cliente nuevo)
-            clientSelect.dispatchEvent(new Event('change'));
+            clientSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         // 4. Cerrar el modal de creación de cliente
-        closeModal('add-client-modal');
+        closeTicketModal('add-client-modal');
         form.reset();
 
     } catch (error) {
@@ -879,13 +907,18 @@ async function handleNewLocationSubmit(e) {
     const body = Object.fromEntries(new FormData(form));
 
     try {
-        const response = await authenticatedFetch(`${API_URL}/locations`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/locations`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!response.ok) throw new Error('Failed to create location');
-        const newLocation = await response.json();
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || 'Error al crear la sede');
+        }
+
+        const result = await response.json();
+        const newLocation = assertCreatedEntity(normalizeCreatedEntity(result), 'la sede');
 
         // Obtener referencia desde window.ticketsElements
         const locationSelect = window.ticketsElements?.locationSelect;
@@ -897,11 +930,11 @@ async function handleNewLocationSubmit(e) {
             locationSelect.value = newLocation.id;
             
             // 2. Disparar evento para actualizar la UI dependiente (equipos)
-            locationSelect.dispatchEvent(new Event('change'));
+            locationSelect.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         // 3. Cerrar modal
-        closeModal('add-location-modal');
+        closeTicketModal('add-location-modal');
         form.reset();
 
     } catch (error) {
@@ -927,7 +960,7 @@ async function handleNewEquipmentSubmit(e) {
     }
 
     try {
-        const response = await authenticatedFetch(`${API_URL}/equipment`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/equipment`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -939,7 +972,7 @@ async function handleNewEquipmentSubmit(e) {
         }
         
         const result = await response.json();
-        const newEquipment = result.data || result;
+        const newEquipment = assertCreatedEntity(normalizeCreatedEntity(result), 'el equipo');
 
         // Obtener referencia desde window.ticketsElements
         const equipmentSelect = window.ticketsElements?.equipmentSelect;
@@ -952,7 +985,7 @@ async function handleNewEquipmentSubmit(e) {
         }
 
         // 2. Cerrar modal
-        closeModal('add-equipment-modal');
+        closeTicketModal('add-equipment-modal');
         form.reset();
 
     } catch (error) {
@@ -962,7 +995,7 @@ async function handleNewEquipmentSubmit(e) {
 }
 
 // --- Modal & Generic Functions ---
-async function openModal(modalId, data = {}) {
+async function openTicketModal(modalId, data = {}) {
     // Lógica general para cualquier modal: mostrarlo.
     const modal = document.getElementById(modalId);
     if (!modal) {
@@ -976,6 +1009,13 @@ async function openModal(modalId, data = {}) {
         form.reset();
         form.querySelector('input[name="id"]').value = '';
         document.getElementById('ticket-modal-title').textContent = 'Nuevo Ticket';
+
+        document.querySelectorAll('#ticket-modal .base-tab-button').forEach((tab) => {
+            tab.classList.toggle('active', tab.dataset.tab === 'general');
+        });
+        document.querySelectorAll('#ticket-modal .base-tab-content').forEach((content) => {
+            content.classList.toggle('active', content.id === 'tab-general');
+        });
         
         // Ocultar wrapper de status si existe (para nuevos tickets)
         const statusWrapper = document.getElementById('ticket-status-wrapper');
@@ -1013,7 +1053,7 @@ async function openModal(modalId, data = {}) {
             }
 
             try {
-                const response = await authenticatedFetch(`${API_URL}/tickets/${effectiveData.id}`);
+                const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${effectiveData.id}`);
                 if (!response.ok) throw new Error(`Failed to fetch ticket ${effectiveData.id}`);
                 const result = await response.json();
                 const ticketData = result.data;
@@ -1021,7 +1061,7 @@ async function openModal(modalId, data = {}) {
                 form.querySelector('input[name="id"]').value = ticketData.id;
                 form.elements.title.value = ticketData.title;
                 form.elements.description.value = ticketData.description;
-                form.elements.priority.value = ticketData.priority;
+                form.elements.priority.value = normalizeTicketPriorityValue(ticketData.priority);
                 if (form.elements.status) {
                     form.elements.status.value = ticketData.status;
                 }
@@ -1045,7 +1085,7 @@ async function openModal(modalId, data = {}) {
             } catch (error) {
                 console.error('Error populating form for edit:', error);
                 toastError('Error al cargar los datos del ticket para editar');
-                closeModal(modalId);
+                closeTicketModal(modalId);
                 return; // Detener ejecución si falla la carga
             }
         } else if (effectiveData.client_id) { // Prefill for new ticket
@@ -1112,7 +1152,7 @@ async function openModal(modalId, data = {}) {
 }
 
 // Función para cerrar modales
-function closeModal(modalId) {
+function closeTicketModal(modalId) {
     const modal = document.getElementById(modalId);
     if (!modal) {
         console.error(`Modal with id ${modalId} not found.`);
@@ -1132,8 +1172,8 @@ function closeModal(modalId) {
     console.log(`Modal ${modalId} cerrado`);
 }
 
-// Hacer closeModal global para que funcione con onclick en HTML
-window.closeModal = closeModal;
+window.openTicketModal = openTicketModal;
+window.closeTicketModal = closeTicketModal;
 
 // Helper function to map field names to their HTML IDs
 function getFieldId(fieldName) {
@@ -1163,7 +1203,7 @@ async function checkForUrlParams() {
         try {
             console.log(`🎫 Abriendo modal para editar ticket ${editTicketId}`);
             // Abrir el modal automáticamente en modo edición
-            await openModal('ticket-modal', { id: editTicketId });
+        await openTicketModal('ticket-modal', { id: editTicketId });
         } catch (error) {
             console.error("Error processing URL param for ticket edit:", error);
             toastError('Error al cargar el ticket para editar');
@@ -1178,7 +1218,7 @@ async function checkForUrlParams() {
                 equipment_id: equipmentId || null // equipmentId puede ser opcional
             };
             // Abrir el modal automáticamente si se pasaron parámetros para crear un ticket
-            openModal('ticket-modal'); 
+        openTicketModal('ticket-modal');
         } catch (error) {
             console.error("Error processing URL params for ticket prefill:", error);
         }
@@ -2569,7 +2609,7 @@ async function handleGimnacionSubmit(event) {
         });
         
         // Crear ticket de gimnación
-        const response = await authenticatedFetch(`${API_URL}/tickets/gimnacion`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/gimnacion`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(ticketData)
@@ -2608,7 +2648,7 @@ async function handleGimnacionSubmit(event) {
  */
 async function fetchChecklistTemplates() {
     try {
-        const response = await authenticatedFetch(`${API_URL}/gimnacion/checklist-templates`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/gimnacion/checklist-templates`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -2628,7 +2668,7 @@ async function fetchChecklistTemplates() {
  */
 async function fetchTemplateItems(templateId) {
     try {
-        const response = await authenticatedFetch(`${API_URL}/gimnacion/checklist-templates/${templateId}/items`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/gimnacion/checklist-templates/${templateId}/items`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -2650,7 +2690,7 @@ window.ticketsState = state;
  */
 async function fetchContracts() {
     try {
-        const response = await authenticatedFetch(`${API_URL}/contracts`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/contracts`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -2669,7 +2709,7 @@ async function fetchContracts() {
  */
 async function fetchEquipmentByLocation(locationId) {
     try {
-        const response = await authenticatedFetch(`${API_URL}/locations/${locationId}/equipment`);
+        const response = await window.authenticatedFetch(`${window.API_URL}/locations/${locationId}/equipment`);
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         
         const result = await response.json();
@@ -2686,7 +2726,7 @@ async function fetchEquipmentByLocation(locationId) {
 async function deleteItem(resource, id, callback) {
     if (!confirm('¿Seguro que quieres eliminar este elemento?')) return;
     try {
-        const response = await authenticatedFetch(`${API_URL}/${resource}/${id}`, { method: 'DELETE' });
+        const response = await window.authenticatedFetch(`${window.API_URL}/${resource}/${id}`, { method: 'DELETE' });
         if (!response.ok) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Error al eliminar');

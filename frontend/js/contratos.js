@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         
         // Controles
         createBtn: document.getElementById('create-contract-btn'),
+        emptyCreateBtn: document.getElementById('empty-create-contract-btn'),
         refreshBtn: document.getElementById('refresh-btn'),
         searchInput: document.getElementById('search-input'),
         statusFilter: document.getElementById('status-filter'),
@@ -87,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Obtener todos los contratos
         async getContracts() {
             console.log('📡 Obteniendo contratos...');
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/contracts`);
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -101,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Obtener clientes para el selector
         async getClients() {
             console.log('📡 Obteniendo clientes...');
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/clients`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/clients`);
             
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -115,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Crear nuevo contrato
         async createContract(contractData) {
             console.log('📡 Creando contrato:', contractData);
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts`, {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/contracts`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contractData)
@@ -134,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Actualizar contrato existente
         async updateContract(id, contractData) {
             console.log('📡 Actualizando contrato:', id, contractData);
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts/${id}`, {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/contracts/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(contractData)
@@ -153,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         // Eliminar contrato
         async deleteContract(id) {
             console.log('📡 Eliminando contrato:', id);
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/contracts/${id}`, {
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/contracts/${id}`, {
                 method: 'DELETE'
             });
             
@@ -404,13 +405,27 @@ document.addEventListener('DOMContentLoaded', async function() {
             elements.contractForm.reset();
         }
 
-        elements.modal.style.display = 'block';
+        elements.modal.style.display = 'flex';
+        elements.modal.classList.add('is-open');
+        elements.modal.setAttribute('aria-hidden', 'false');
+
+        const firstInput = elements.contractForm?.querySelector('input, textarea, select');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
     }
 
     function closeModal() {
         if (!elements.modal) return;
-        elements.modal.style.display = 'none';
-        elements.contractForm.reset();
+
+        elements.modal.classList.remove('is-open');
+        elements.modal.setAttribute('aria-hidden', 'true');
+
+        setTimeout(() => {
+            elements.modal.style.display = 'none';
+        }, 300);
+
+        elements.contractForm?.reset();
         state.currentContract = null;
     }
 
@@ -521,6 +536,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Botones principales
     elements.createBtn?.addEventListener('click', () => openModal());
+    elements.emptyCreateBtn?.addEventListener('click', () => openModal());
     elements.refreshBtn?.addEventListener('click', loadData);
 
     // Modal

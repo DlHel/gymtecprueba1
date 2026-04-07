@@ -49,6 +49,22 @@ Roles activos:
 - `security-auditor`
 - `qa-smoke-engineer`
 - `monolith-refactorer`
+- `flow-test-orchestrator`
+- `tickets-flow-tester`
+- `inventory-flow-tester`
+- `finance-flow-tester`
+- `dashboard-flow-tester`
+- `clients-flow-tester`
+- `equipment-flow-tester`
+- `reports-flow-tester`
+- `workforce-flow-tester`
+- `contracts-flow-tester`
+- `planning-flow-tester`
+- `notifications-flow-tester`
+- `config-flow-tester`
+- `models-flow-tester`
+- `personal-flow-tester`
+- `qa-procedure-maintainer`
 
 ## Política de coordinación
 
@@ -58,3 +74,13 @@ Roles activos:
 4. Usar `qa-smoke-engineer` como validador final por defecto.
 5. Usar `security-auditor` como validador final cuando haya auth, secretos, permisos, uploads o endpoints sensibles.
 6. Usar nombres canónicos del equipo; los aliases antiguos existen solo por compatibilidad.
+7. Para QA por módulos, entrar por `flow-test-orchestrator` y ejecutar primero `tickets`, `inventario` y `finanzas`.
+8. Antes de aceptar modularidad UI o backend, dejar verdes `npm run qa:modals` y `npm run qa:architecture`.
+9. Si entra una funcionalidad nueva, pasar por `qa-procedure-maintainer` para actualizar specs, ownership, agentes y playbooks.
+10. El preflight QA puede levantar backend y frontend local automáticamente; no asumir procesos ya corriendo.
+11. `QA_EVIDENCE_LEVEL` soporta `min`, `medium` y `max`.
+
+## Páginas soporte
+
+- `frontend/login.html` y `frontend/menu.html` son páginas soporte activas; mantener compatibilidad con auth y navegación.
+- `frontend/test-clientes.html` no forma parte del core productivo.

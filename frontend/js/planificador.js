@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTasks: async () => {
             try {
                 console.log('🔄 Fetching maintenance tasks from API...');
-                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks`);
+                const response = await window.authenticatedFetch(`${window.API_URL}/maintenance-tasks`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -86,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchEquipment: async () => {
             try {
                 console.log('🔄 Fetching equipment from API...');
-                const response = await authenticatedFetch(`${API_URL}/equipment`);
+                const response = await window.authenticatedFetch(`${window.API_URL}/equipment`);
                 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -104,11 +104,11 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchTechnicians: async () => {
             try {
                 console.log('🔄 Fetching technicians from API...');
-                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks/technicians`);
+                const response = await window.authenticatedFetch(`${window.API_URL}/maintenance-tasks/technicians`);
                 
                 if (!response.ok) {
                     // Fallback to general users endpoint
-                    const usersResponse = await authenticatedFetch(`${API_URL}/users?role=technician`);
+                    const usersResponse = await window.authenticatedFetch(`${window.API_URL}/users?role=technician`);
                     if (!usersResponse.ok) {
                         throw new Error(`HTTP ${usersResponse.status}: ${usersResponse.statusText}`);
                     }
@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
         createTask: async (taskData) => {
             try {
                 console.log('🔄 Creating maintenance task:', taskData.title);
-                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/maintenance-tasks`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -153,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateTask: async (taskId, taskData) => {
             try {
                 console.log('🔄 Updating maintenance task:', taskId);
-                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks/${taskId}`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/maintenance-tasks/${taskId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json'
@@ -178,7 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         deleteTask: async (taskId) => {
             try {
                 console.log('🔄 Deleting maintenance task:', taskId);
-                const response = await authenticatedFetch(`${API_URL}/maintenance-tasks/${taskId}`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/maintenance-tasks/${taskId}`, {
                     method: 'DELETE'
                 });
                 

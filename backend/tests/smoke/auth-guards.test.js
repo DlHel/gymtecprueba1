@@ -10,12 +10,18 @@ describe('Smoke auth guards', () => {
 
     test.each([
         '/api/clients',
+        '/api/maintenance-tasks',
+        '/api/system-settings',
         '/api/tickets',
+        '/api/models',
+        '/api/informes',
         '/api/inventory',
         '/api/purchase-orders',
         '/api/notifications',
         '/api/checklist/templates',
-        '/api/tickets/1/workflow/status'
+        '/api/tickets/1/workflow/status',
+        '/api/shift-types',
+        '/api/gimnacion/checklist-templates'
     ])('protege %s sin token', async (endpoint) => {
         const response = await request.get(endpoint);
 

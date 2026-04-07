@@ -21,8 +21,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // ============================================================================
     // CONFIGURACIÓN Y UTILIDADES
     // ============================================================================
-    const API_URL = window.API_URL;
-    const authenticatedFetch = window.authManager.authenticatedFetch.bind(window.authManager);
 
     // Función para formatear moneda
     const formatCurrency = (amount) => {
@@ -123,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
             getAll: async (params = {}) => {
                 try {
                     const queryString = new URLSearchParams(params).toString();
-                    const response = await authenticatedFetch(`${API_URL}/quotes?${queryString}`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/quotes?${queryString}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     return result.data || [];
@@ -135,7 +133,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             getById: async (id) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/quotes/${id}`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/quotes/${id}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     return result.data;
@@ -147,7 +145,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             create: async (data) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/quotes`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/quotes`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -165,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             update: async (id, data) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/quotes/${id}`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/quotes/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -183,7 +181,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             delete: async (id) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/quotes/${id}`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/quotes/${id}`, {
                         method: 'DELETE'
                     });
                     if (!response.ok) {
@@ -203,7 +201,7 @@ document.addEventListener('DOMContentLoaded', () => {
             getAll: async (params = {}) => {
                 try {
                     const queryString = new URLSearchParams(params).toString();
-                    const response = await authenticatedFetch(`${API_URL}/invoices?${queryString}`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/invoices?${queryString}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     return result.data || [];
@@ -215,7 +213,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             getById: async (id) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/invoices/${id}`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/invoices/${id}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     return result.data;
@@ -227,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             create: async (data) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/invoices`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/invoices`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -245,7 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             update: async (id, data) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/invoices/${id}`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/invoices/${id}`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -263,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             delete: async (id) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/invoices/${id}`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/invoices/${id}`, {
                         method: 'DELETE'
                     });
                     if (!response.ok) {
@@ -279,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             markPaid: async (id, paymentData) => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/invoices/${id}/mark-paid`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/invoices/${id}/mark-paid`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(paymentData)
@@ -301,7 +299,7 @@ document.addEventListener('DOMContentLoaded', () => {
             getAll: async (params = {}) => {
                 try {
                     const queryString = new URLSearchParams(params).toString();
-                    const response = await authenticatedFetch(`${API_URL}/expenses?${queryString}`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/expenses?${queryString}`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     return result.data || [];
@@ -316,7 +314,7 @@ document.addEventListener('DOMContentLoaded', () => {
         clients: {
             getAll: async () => {
                 try {
-                    const response = await authenticatedFetch(`${API_URL}/clients`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/clients`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     return result.data || [];
@@ -335,7 +333,7 @@ document.addEventListener('DOMContentLoaded', () => {
             getPeriods: async () => {
                 try {
                     console.log('📋 Fetching payroll periods...');
-                    const response = await authenticatedFetch(`${API_URL}/payroll/periods`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/payroll/periods`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     console.log('✅ Payroll periods fetched:', result.data?.length || 0);
@@ -350,7 +348,7 @@ document.addEventListener('DOMContentLoaded', () => {
             createPeriod: async (data) => {
                 try {
                     console.log('➕ Creating payroll period:', data);
-                    const response = await authenticatedFetch(`${API_URL}/payroll/periods`, {
+                    const response = await window.authenticatedFetch(`${window.API_URL}/payroll/periods`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(data)
@@ -369,8 +367,8 @@ document.addEventListener('DOMContentLoaded', () => {
             generatePayroll: async (periodId) => {
                 try {
                     console.log(`🔄 Generating payroll for period ${periodId}...`);
-                    const response = await authenticatedFetch(
-                        `${API_URL}/payroll/periods/${periodId}/generate`,
+                    const response = await window.authenticatedFetch(
+                        `${window.API_URL}/payroll/periods/${periodId}/generate`,
                         { method: 'POST' }
                     );
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -387,8 +385,8 @@ document.addEventListener('DOMContentLoaded', () => {
             getDetails: async (periodId) => {
                 try {
                     console.log(`📄 Fetching payroll details for period ${periodId}...`);
-                    const response = await authenticatedFetch(
-                        `${API_URL}/payroll/details?period_id=${periodId}`
+                    const response = await window.authenticatedFetch(
+                        `${window.API_URL}/payroll/details?period_id=${periodId}`
                     );
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
@@ -404,8 +402,8 @@ document.addEventListener('DOMContentLoaded', () => {
             getDetail: async (detailId) => {
                 try {
                     console.log(`📄 Fetching payroll detail ${detailId}...`);
-                    const response = await authenticatedFetch(
-                        `${API_URL}/payroll/details/${detailId}`
+                    const response = await window.authenticatedFetch(
+                        `${window.API_URL}/payroll/details/${detailId}`
                     );
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
@@ -421,8 +419,8 @@ document.addEventListener('DOMContentLoaded', () => {
             approveDetail: async (detailId) => {
                 try {
                     console.log(`✅ Approving payroll detail ${detailId}...`);
-                    const response = await authenticatedFetch(
-                        `${API_URL}/payroll/details/${detailId}/approve`,
+                    const response = await window.authenticatedFetch(
+                        `${window.API_URL}/payroll/details/${detailId}/approve`,
                         { method: 'PUT' }
                     );
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -439,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
             getCurrencyRates: async () => {
                 try {
                     console.log('💱 Fetching currency rates...');
-                    const response = await authenticatedFetch(`${API_URL}/currency/rates`);
+                    const response = await window.authenticatedFetch(`${window.API_URL}/currency/rates`);
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const result = await response.json();
                     console.log('✅ Currency rates fetched:', result.data);
@@ -622,6 +620,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     'pending': { class: 'bg-yellow-100 text-yellow-800', text: 'Pendiente' },
                     'approved': { class: 'bg-green-100 text-green-800', text: 'Aprobada' },
                     'rejected': { class: 'bg-red-100 text-red-800', text: 'Rechazada' },
+                    'aprobada': { class: 'bg-green-100 text-green-800', text: 'Aprobada' },
+                    'rechazada': { class: 'bg-red-100 text-red-800', text: 'Rechazada' },
                     'enviada': { class: 'bg-blue-100 text-blue-800', text: 'Enviada' },
                     'borrador': { class: 'bg-gray-100 text-gray-800', text: 'Borrador' }
                 };
@@ -637,7 +637,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             ${quote.client_name || 'Cliente no especificado'}
                         </td>
                         <td class="border px-4 py-3 text-sm text-gray-700">
-                            ${quote.quote_date ? formatDate(quote.quote_date) : formatDate(quote.created_at) || '-'}
+                            ${quote.created_date ? formatDate(quote.created_date) : (quote.quote_date ? formatDate(quote.quote_date) : formatDate(quote.created_at) || '-')}
                         </td>
                         <td class="border px-4 py-3 text-sm text-right font-semibold text-gray-900">
                             ${formatCurrency(quote.total || 0)}
@@ -701,7 +701,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     'overdue': { class: 'bg-red-100 text-red-800', text: 'Vencida' },
                     'vencida': { class: 'bg-red-100 text-red-800', text: 'Vencida' },
                     'vendida': { class: 'bg-blue-100 text-blue-800', text: 'Vendida' },
-                    'cancelled': { class: 'bg-gray-100 text-gray-800', text: 'Cancelada' }
+                    'cancelled': { class: 'bg-gray-100 text-gray-800', text: 'Cancelada' },
+                    'cancelada': { class: 'bg-gray-100 text-gray-800', text: 'Cancelada' }
                 };
                 
                 const status = statusConfig[invoice.status?.toLowerCase()] || { class: 'bg-gray-100 text-gray-800', text: invoice.status || 'Sin estado' };
@@ -1520,9 +1521,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Combinar y ordenar por fecha
             const activities = [
-                ...quotes.map(q => ({ type: 'quote', data: q, date: q.created_at || q.quote_date })),
-                ...invoices.map(i => ({ type: 'invoice', data: i, date: i.created_at || i.invoice_date })),
-                ...expenses.map(e => ({ type: 'expense', data: e, date: e.created_at || e.expense_date }))
+                ...quotes.map(q => ({ type: 'quote', data: q, date: q.created_date || q.created_at || q.quote_date })),
+                ...invoices.map(i => ({ type: 'invoice', data: i, date: i.issue_date || i.created_at || i.invoice_date })),
+                ...expenses.map(e => ({ type: 'expense', data: e, date: e.date || e.created_at || e.expense_date }))
             ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 10);
 
             if (activities.length === 0) {
@@ -1674,8 +1675,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const balanceNeto = ingresosTotales - gastosTotales;
             
             // Estadísticas adicionales
-            const facturasPendientes = invoices.filter(inv => inv.status === 'pending').length;
-            const cotizacionesActivas = quotes.filter(q => q.status === 'pending' || q.status === 'approved').length;
+            const facturasPendientes = invoices.filter((inv) => ['pending', 'pendiente'].includes(String(inv.status || '').toLowerCase())).length;
+            const cotizacionesActivas = quotes.filter((q) => ['pending', 'approved', 'borrador', 'aprobada'].includes(String(q.status || '').toLowerCase())).length;
             
             // Actualizar UI
             const balanceIngresosEl = document.getElementById('balance-ingresos');
@@ -1754,7 +1755,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Agregar cotizaciones recientes (últimas 3)
         quotes.slice(0, 3).forEach(quote => {
             activities.push({
-                date: new Date(quote.quote_date),
+                date: new Date(quote.created_date || quote.quote_date || quote.created_at),
                 type: 'quote',
                 icon: 'file-check',
                 color: 'purple',
@@ -1793,7 +1794,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 'completed': 'bg-emerald-50 text-emerald-700 border-emerald-200',
                 'vendida': 'bg-emerald-50 text-emerald-700 border-emerald-200',
                 'pagada': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                'vencida': 'bg-rose-50 text-rose-700 border-rose-200'
+                'vencida': 'bg-rose-50 text-rose-700 border-rose-200',
+                'aprobada': 'bg-sky-50 text-sky-700 border-sky-200',
+                'rechazada': 'bg-gray-50 text-gray-700 border-gray-200',
+                'borrador': 'bg-amber-50 text-amber-700 border-amber-200',
+                'cancelada': 'bg-rose-50 text-rose-700 border-rose-200'
             };
             
             const statusText = {
@@ -1805,7 +1810,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 'completed': 'Completado',
                 'vendida': 'Vendida',
                 'pagada': 'Pagada',
-                'vencida': 'Vencida'
+                'vencida': 'Vencida',
+                'aprobada': 'Aprobada',
+                'rechazada': 'Rechazada',
+                'borrador': 'Borrador',
+                'cancelada': 'Cancelada'
             };
             
             // Configuración por tipo de actividad
@@ -2024,8 +2033,8 @@ document.addEventListener('DOMContentLoaded', () => {
     async function init() {
         try {
             console.log('🚀 Initializing finanzas module...');
-            console.log('📍 API_URL:', API_URL);
-            console.log('🔑 authenticatedFetch disponible:', typeof authenticatedFetch);
+            console.log('📍 window.API_URL:', window.API_URL);
+            console.log('🔑 window.authenticatedFetch disponible:', typeof window.authenticatedFetch);
             console.log('📋 Elements:', {
                 quotesTab: !!elements.quotesTab,
                 quotesView: !!elements.quotesView,
@@ -2476,9 +2485,9 @@ async function renderQuoteForm(formElement, quoteId = null) {
                     </label>
                     <select id="quote-status" name="status"
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="pending">Pendiente</option>
-                        <option value="approved">Aprobada</option>
-                        <option value="rejected">Rechazada</option>
+                        <option value="Borrador">Pendiente</option>
+                        <option value="Aprobada">Aprobada</option>
+                        <option value="Rechazada">Rechazada</option>
                     </select>
                 </div>
             </div>
@@ -2487,7 +2496,7 @@ async function renderQuoteForm(formElement, quoteId = null) {
                 <label class="block text-sm font-medium text-gray-700 mb-1">
                     Fecha
                 </label>
-                <input type="date" id="quote-date" name="quote_date"
+                <input type="date" id="quote-date" name="created_date"
                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                        value="${new Date().toISOString().split('T')[0]}">
             </div>
@@ -2505,8 +2514,8 @@ async function renderQuoteForm(formElement, quoteId = null) {
                 document.getElementById('quote-number').value = quote.quote_number || '';
                 document.getElementById('quote-description').value = quote.description || '';
                 document.getElementById('quote-total').value = quote.total || '';
-                document.getElementById('quote-status').value = quote.status || 'pending';
-                document.getElementById('quote-date').value = quote.quote_date?.split('T')[0] || '';
+                document.getElementById('quote-status').value = quote.status || 'Borrador';
+                document.getElementById('quote-date').value = quote.created_date?.split('T')[0] || quote.quote_date?.split('T')[0] || '';
             }
         } catch (error) {
             console.error('Error loading quote data:', error);
@@ -2583,9 +2592,9 @@ async function renderInvoiceForm(formElement, invoiceId = null) {
                     </label>
                     <select id="invoice-status" name="status"
                             class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500">
-                        <option value="pending">Pendiente</option>
-                        <option value="paid">Pagada</option>
-                        <option value="cancelled">Cancelada</option>
+                        <option value="Pendiente">Pendiente</option>
+                        <option value="Pagada">Pagada</option>
+                        <option value="Cancelada">Cancelada</option>
                     </select>
                 </div>
             </div>
@@ -2621,7 +2630,7 @@ async function renderInvoiceForm(formElement, invoiceId = null) {
                 document.getElementById('invoice-number').value = invoice.invoice_number || '';
                 document.getElementById('invoice-description').value = invoice.description || '';
                 document.getElementById('invoice-total').value = invoice.total || '';
-                document.getElementById('invoice-status').value = invoice.status || 'pending';
+                document.getElementById('invoice-status').value = invoice.status || 'Pendiente';
                 document.getElementById('invoice-date').value = invoice.issue_date?.split('T')[0] || '';
                 document.getElementById('invoice-due-date').value = invoice.due_date?.split('T')[0] || '';
             }
@@ -2646,7 +2655,7 @@ async function handleQuoteSubmit(quoteId = null) {
             description: document.getElementById('quote-description').value,
             total: parseFloat(document.getElementById('quote-total').value),
             status: document.getElementById('quote-status').value,
-            quote_date: document.getElementById('quote-date').value
+            created_date: document.getElementById('quote-date').value
         };
         
         console.log('Submitting quote data:', data);
@@ -2752,7 +2761,7 @@ async function renderExpenseForm(formElement, expenseId = null) {
                         <i data-lucide="calendar" class="w-4 h-4 inline"></i>
                         Fecha *
                     </label>
-                    <input type="date" id="expense-date" name="expense_date" required
+                    <input type="date" id="expense-date" name="date" required
                            class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                            value="${new Date().toISOString().split('T')[0]}">
                 </div>
@@ -2846,7 +2855,7 @@ async function renderExpenseForm(formElement, expenseId = null) {
             if (response.ok) {
                 const result = await response.json();
                 const expense = result.data;
-                document.getElementById('expense-date').value = expense.expense_date?.split('T')[0] || '';
+                document.getElementById('expense-date').value = expense.date?.split('T')[0] || expense.expense_date?.split('T')[0] || '';
                 document.getElementById('expense-category').value = expense.category_id || '';
                 document.getElementById('expense-description').value = expense.description || '';
                 document.getElementById('expense-amount').value = expense.amount || '';
@@ -2873,7 +2882,7 @@ async function renderExpenseForm(formElement, expenseId = null) {
 async function handleExpenseSubmit(expenseId = null) {
     try {
         const data = {
-            expense_date: document.getElementById('expense-date').value,
+            date: document.getElementById('expense-date').value,
             category_id: parseInt(document.getElementById('expense-category').value, 10),
             description: document.getElementById('expense-description').value,
             amount: parseFloat(document.getElementById('expense-amount').value),
@@ -3006,7 +3015,7 @@ window.viewQuote = async function(id) {
         const details = `
 Cotización: ${quote.quote_number || 'N/A'}
 Cliente: ${quote.client_name || 'N/A'}
-Fecha: ${formatDate(quote.quote_date)}
+Fecha: ${formatDate(quote.created_date || quote.quote_date)}
 Total: ${formatCurrency(quote.total)}
 Estado: ${quote.status}
 Descripción: ${quote.description || 'Sin descripción'}
@@ -3140,7 +3149,7 @@ window.viewExpense = async function(id) {
         
         const details = `
 Gasto ID: ${expense.id}
-Fecha: ${formatDate(expense.expense_date || expense.date)}
+Fecha: ${formatDate(expense.date || expense.expense_date)}
 Categoría: ${expense.category_name || 'Sin categoría'}
 Descripción: ${expense.description || 'Sin descripción'}
 Monto: ${formatCurrency(expense.amount)}

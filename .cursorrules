@@ -28,6 +28,7 @@
 - No crear nuevas guías de VPS/manual salvo que el usuario lo pida explícitamente.
 - Documentación viva mínima: `README.md`, `AGENTS.md`, `docs/ARCHITECTURE_MAP.md`, `docs/DEPLOY_DOCKER.md`, `docs/API_DOCUMENTATION.md`.
 - Todo material histórico debe ir a `archives/`.
+- Las reglas QA y multiagente deben mantenerse alineadas en `AGENTS.md`, `.agent/workflows/multi-agent-routing.md`, `.github/copilot-instructions.md` y `docs/AI_SKILLS_AND_AGENTS.md`.
 
 ## Delegación experta
 
@@ -38,3 +39,26 @@
 - No asignar el mismo archivo editable a dos agentes distintos.
 - Cerrar cambios funcionales con `qa-smoke-engineer`.
 - Cerrar cambios de auth, secretos o exposición con `security-auditor`.
+- Para QA modular, usar `flow-test-orchestrator`.
+- Si aparece una funcionalidad nueva, usar `qa-procedure-maintainer` para actualizar specs, agentes y playbooks.
+
+## QA modular
+
+- Runner principal: `qa/flow-runner.mjs` con specs en `qa/flows/*.mjs`.
+- Guardas obligatorias antes de cerrar modularidad u ownership:
+  - `npm run qa:modals`
+  - `npm run qa:architecture`
+- Validación profunda prioritaria:
+  - `npm run qa:flow:tickets`
+  - `npm run qa:flow:inventory`
+  - `npm run qa:flow:finance`
+- Validación global:
+  - `npm run qa:flow:all`
+  - `npm run qa:ui`
+- El preflight puede levantar backend/frontend local automáticamente si faltan.
+- `QA_EVIDENCE_LEVEL` soporta `min`, `medium` y `max`.
+
+## Páginas soporte
+
+- `frontend/login.html` y `frontend/menu.html` son páginas soporte activas; cualquier cambio debe respetar auth, navegación y compatibilidad con el runner QA.
+- `frontend/test-clientes.html` no es módulo core ni fuente de verdad funcional.

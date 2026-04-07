@@ -21,7 +21,7 @@ const { authenticateToken } = require('../../core/middleware/auth.middleware');
 /**
  * GET /api/checklist/templates - Listar templates de checklist
  */
-router.get('/checklist/templates', async (req, res) => {
+router.get('/checklist/templates', authenticateToken, async (req, res) => {
     try {
         const { ticket_type, equipment_category, active_only } = req.query;
         
@@ -81,7 +81,7 @@ router.get('/checklist/templates', async (req, res) => {
 /**
  * GET /api/checklist/templates/:id - Obtener template específico con items
  */
-router.get('/checklist/templates/:id', async (req, res) => {
+router.get('/checklist/templates/:id', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -128,7 +128,7 @@ router.get('/checklist/templates/:id', async (req, res) => {
 /**
  * POST /api/checklist/templates - Crear nuevo template de checklist
  */
-router.post('/checklist/templates', async (req, res) => {
+router.post('/checklist/templates', authenticateToken, async (req, res) => {
     try {
         const {
             name,
@@ -227,7 +227,7 @@ router.post('/checklist/templates', async (req, res) => {
 /**
  * POST /api/tickets/:ticketId/checklist/assign - Asignar checklist automático a ticket
  */
-router.post('/tickets/:ticketId/checklist/assign', async (req, res) => {
+router.post('/tickets/:ticketId/checklist/assign', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         const { template_id } = req.body; // Opcional: especificar template específico
@@ -236,7 +236,7 @@ router.post('/tickets/:ticketId/checklist/assign', async (req, res) => {
         const ticket = await db.get(`
             SELECT t.*, e.model_id as equipment_model_id
             FROM Tickets t
-            LEFT JOIN Equipment e ON t.equipment_id = e.model_id
+            LEFT JOIN Equipment e ON t.equipment_id = e.id
             WHERE t.id = ?
         `, [ticketId]);
         
@@ -347,7 +347,7 @@ router.post('/tickets/:ticketId/checklist/assign', async (req, res) => {
 /**
  * GET /api/tickets/:ticketId/checklist - Obtener checklist del ticket
  */
-router.get('/tickets/:ticketId/checklist', async (req, res) => {
+router.get('/tickets/:ticketId/checklist', authenticateToken, async (req, res) => {
     try {
         const { ticketId } = req.params;
         
@@ -388,14 +388,14 @@ router.get('/tickets/:ticketId/checklist', async (req, res) => {
 /**
  * PUT /api/tickets/:ticketId/checklist/items/:itemId - Marcar item como completado/pendiente
  */
-router.put('/tickets/:ticketId/checklist/items/:itemId', (req, res) => {
+router.put('/tickets/:ticketId/checklist/items/:itemId', authenticateToken, (req, res) => {
     try {
         const { ticketId, itemId } = req.params;
         const { is_completed, completion_notes } = req.body;
         
         // Verificar que el item existe y pertenece al ticket
         db.get(`
-            SELECT * FROM ticketchecklists 
+            SELECT * FROM TicketChecklists 
             WHERE id = ? AND ticket_id = ?
         `, [itemId, ticketId], (err, item) => {
             if (err) {
@@ -422,7 +422,7 @@ router.put('/tickets/:ticketId/checklist/items/:itemId', (req, res) => {
             const completedBy = is_completed ? (req.user?.username || req.user?.id || 'Sistema') : null;
             
             db.run(`
-                UPDATE ticketchecklists SET
+                UPDATE TicketChecklists SET
                     is_completed = ?,
                     completed_at = ?,
                     completed_by = ?
@@ -441,7 +441,7 @@ router.put('/tickets/:ticketId/checklist/items/:itemId', (req, res) => {
                     SELECT 
                         COUNT(*) as total,
                         SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) as completed
-                    FROM ticketchecklists 
+                    FROM TicketChecklists 
                     WHERE ticket_id = ?
                 `, [ticketId], (err, progressResult) => {
                     if (err) {
@@ -503,7 +503,7 @@ router.post('/tickets/:ticketId/checklist', authenticateToken, (req, res) => {
         }
         
         // Verificar que el ticket existe
-        db.get('SELECT id FROM tickets WHERE id = ?', [ticketId], (err, ticket) => {
+            db.get('SELECT id FROM Tickets WHERE id = ?', [ticketId], (err, ticket) => {
             if (err) {
                 console.error('Error verificando ticket:', err);
                 return res.status(500).json({
@@ -520,7 +520,7 @@ router.post('/tickets/:ticketId/checklist', authenticateToken, (req, res) => {
             }
             
             // Obtener el siguiente order_index
-            db.get('SELECT MAX(order_index) as max_order FROM ticketchecklists WHERE ticket_id = ?', [ticketId], (err, result) => {
+            db.get('SELECT MAX(order_index) as max_order FROM TicketChecklists WHERE ticket_id = ?', [ticketId], (err, result) => {
                 if (err) {
                     console.error('Error obteniendo order_index:', err);
                     return res.status(500).json({
@@ -533,7 +533,7 @@ router.post('/tickets/:ticketId/checklist', authenticateToken, (req, res) => {
                 
                 // Insertar nuevo item del checklist
                 const sql = `
-                    INSERT INTO ticketchecklists (ticket_id, title, description, is_completed, order_index, created_at)
+                    INSERT INTO TicketChecklists (ticket_id, title, description, is_completed, order_index, created_at)
                     VALUES (?, ?, ?, 0, ?, NOW())
                 `;
                 
@@ -547,7 +547,7 @@ router.post('/tickets/:ticketId/checklist', authenticateToken, (req, res) => {
                     }
                     
                     // Obtener el item recién creado
-                    db.get('SELECT * FROM ticketchecklists WHERE id = ?', [this.lastID], (err, newItem) => {
+                    db.get('SELECT * FROM TicketChecklists WHERE id = ?', [this.lastID], (err, newItem) => {
                         if (err) {
                             console.error('Error obteniendo item creado:', err);
                             return res.status(500).json({
@@ -588,7 +588,7 @@ router.delete('/tickets/:ticketId/checklist/items/:itemId', authenticateToken, (
     
     try {
         // Verificar que el item existe y pertenece al ticket
-        db.get('SELECT * FROM ticketchecklists WHERE id = ? AND ticket_id = ?', [itemId, ticketId], (err, item) => {
+        db.get('SELECT * FROM TicketChecklists WHERE id = ? AND ticket_id = ?', [itemId, ticketId], (err, item) => {
             if (err) {
                 console.error('Error retrieving checklist item:', err);
                 return res.status(500).json({ 
@@ -605,7 +605,7 @@ router.delete('/tickets/:ticketId/checklist/items/:itemId', authenticateToken, (
             }
 
             // Eliminar el item
-            db.run('DELETE FROM ticketchecklists WHERE id = ? AND ticket_id = ?', [itemId, ticketId], function(err) {
+            db.run('DELETE FROM TicketChecklists WHERE id = ? AND ticket_id = ?', [itemId, ticketId], function(err) {
                 if (err) {
                     console.error('Error deleting checklist item:', err);
                     return res.status(500).json({ 

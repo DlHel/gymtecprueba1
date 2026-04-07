@@ -182,7 +182,7 @@
                             <i data-lucide="file-text" class="mx-auto h-12 w-12 text-secondary mb-4"></i>
                             <h3 class="text-sm font-medium text-primary mb-2">No hay contratos</h3>
                             <p class="text-sm text-secondary mb-6">Comienza creando tu primer contrato</p>
-                            <button class="btn-primary flex items-center mx-auto">
+                            <button id="empty-create-contract-btn" class="btn-primary flex items-center mx-auto">
                                 <i data-lucide="plus" class="h-4 w-4 mr-2"></i>
                                 Crear Contrato
                             </button>
@@ -194,7 +194,7 @@
     </div>
 
     <!-- Create/Edit Contract Modal -->
-    <div id="contract-modal" class="modal modal-overlay">
+    <div id="contract-modal" class="modal modal-overlay" aria-hidden="true">
         <div class="modal-panel w-11/12 md:w-3/4 lg:w-1/2">
             <div class="p-6">
                 <div class="flex items-center justify-between mb-6">

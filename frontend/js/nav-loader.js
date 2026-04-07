@@ -112,7 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function filterMenuByRole() {
         // Verificar que exista el sistema de permisos y el usuario esté autenticado
         if (!window.PERMISSIONS || !window.authManager || !window.authManager.isAuthenticated()) {
-            console.warn('⚠️ Sistema de permisos no disponible o usuario no autenticado');
+            console.debug('ℹ️ Filtro de permisos omitido: sistema o sesión no disponibles en esta vista');
             return;
         }
 

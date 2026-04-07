@@ -1,5 +1,6 @@
 const cors = require('cors');
 const express = require('express');
+const helmet = require('helmet');
 const path = require('path');
 const { modelsDirectory } = require('../http/uploads');
 
@@ -44,6 +45,16 @@ function registerHealthRoute(app, env = process.env) {
 function configureExpressApp({ app, db, env = process.env }) {
     app.locals.db = db;
 
+    app.disable('x-powered-by');
+
+    if ((env.NODE_ENV || '').toLowerCase() === 'production') {
+        app.set('trust proxy', env.TRUST_PROXY ? env.TRUST_PROXY : 1);
+    }
+
+    app.use(helmet({
+        contentSecurityPolicy: false,
+        crossOriginEmbedderPolicy: false
+    }));
     app.use(cors(buildCorsOptions(env.CORS_ORIGIN || '', env)));
     app.use(express.json({ limit: '50mb' }));
     app.use(express.urlencoded({ limit: '50mb', extended: true }));

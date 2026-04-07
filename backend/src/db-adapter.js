@@ -84,6 +84,14 @@ class DatabaseAdapter {
             callback = params;
             params = [];
         }
+
+        if (!callback) {
+            return this.db.query(sql, params)
+                .then((result) => ({
+                    lastID: result.insertId || null,
+                    changes: result.affectedRows || 0
+                }));
+        }
         
         this.db.query(sql, params)
             .then(result => {

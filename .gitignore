@@ -77,6 +77,9 @@ tmp/
 coverage/
 .nyc_output/
 test-results/
+output/
+.playwright-cli/
+temp-fixtures.json
 
 # === ARCHIVOS DE SEGURIDAD ===
 # Nunca commitear archivos con secrets

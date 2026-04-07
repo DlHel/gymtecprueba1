@@ -10,6 +10,35 @@ const { authenticateToken } = require('../../core/middleware/auth.middleware');
 const validateData = require('../../middleware/validate.middleware');
 const { equipmentSchema, equipmentUpdateSchema } = require('../../schemas/equipment.schema');
 
+function resolveEquipmentPrefix(modelRow) {
+    const source = `${modelRow?.category || ''} ${modelRow?.name || ''}`.toLowerCase();
+
+    if (source.includes('cardio')) {
+        return 'CARD';
+    }
+
+    if (source.includes('fuerza')) {
+        return 'FUER';
+    }
+
+    if (source.includes('func')) {
+        return 'FUNC';
+    }
+
+    if (source.includes('acces')) {
+        return 'ACCE';
+    }
+
+    return 'EQP';
+}
+
+function buildNextCustomId(prefix, lastCustomId) {
+    const pattern = new RegExp(`^${prefix}-(\\d+)$`);
+    const match = String(lastCustomId || '').match(pattern);
+    const nextNumber = match ? Number.parseInt(match[1], 10) + 1 : 1;
+    return `${prefix}-${nextNumber}`;
+}
+
 // ===================================================================
 // CRUD DE EQUIPOS
 // ===================================================================
@@ -92,7 +121,7 @@ router.get('/equipment/:id', authenticateToken, (req, res) => {
 
 // POST crear nuevo equipo
 router.post('/equipment', authenticateToken, validateData(equipmentSchema), (req, res) => {
-    const { location_id, model_id, custom_id, serial_number, acquisition_date, notes } = req.body;
+    const { location_id, model_id, custom_id, serial_number, acquisition_date, notes, name } = req.body;
     
     // Manual validation removed, handled by middleware
     // if (!location_id) return res.status(400).... handled by Zod
@@ -102,9 +131,9 @@ router.post('/equipment', authenticateToken, validateData(equipmentSchema), (req
     const insertEquipment = (customIdValue) => {
         const sql = `INSERT INTO Equipment 
                      (location_id, model_id, custom_id, serial_number, acquisition_date, notes, name, type, brand, model, created_at, updated_at) 
-                     VALUES (?, ?, ?, ?, ?, ?, '', '', '', '', NOW(), NOW())`;
+                     VALUES (?, ?, ?, ?, ?, ?, ?, '', '', '', NOW(), NOW())`;
         
-        const params = [parseInt(location_id, 10), parseInt(model_id, 10), customIdValue, serial_number || null, acquisition_date || null, notes || null];
+        const params = [parseInt(location_id, 10), parseInt(model_id, 10), customIdValue, serial_number || null, acquisition_date || null, notes || null, name || ''];
         
         db.run(sql, params, function(err) {
             if (err) {
@@ -133,18 +162,30 @@ router.post('/equipment', authenticateToken, validateData(equipmentSchema), (req
     };
     
     if (!finalCustomId) {
-        const findMaxSql = `SELECT custom_id FROM Equipment WHERE location_id = ? AND custom_id LIKE 'CARD-%' ORDER BY CAST(SUBSTRING(custom_id, 6) AS UNSIGNED) DESC LIMIT 10`;
-        
-        db.get(findMaxSql, [location_id], (err, row) => {
-            if (err) return res.status(500).json({ error: 'Error al generar custom_id', code: 'CUSTOM_ID_ERROR' });
-            
-            let nextNumber = 1;
-            if (row && row.custom_id) {
-                const match = row.custom_id.match(/CARD-(\d+)/);
-                if (match) nextNumber = parseInt(match[1], 10) + 1;
+        const getModelSql = 'SELECT id, name, category FROM EquipmentModels WHERE id = ? LIMIT 1';
+
+        db.get(getModelSql, [parseInt(model_id, 10)], (modelErr, modelRow) => {
+            if (modelErr) {
+                return res.status(500).json({ error: 'Error al resolver el modelo del equipo', code: 'CUSTOM_ID_MODEL_ERROR' });
             }
-            finalCustomId = `CARD-${nextNumber}`;
-            insertEquipment(finalCustomId);
+
+            const prefix = resolveEquipmentPrefix(modelRow);
+            const findMaxSql = `
+                SELECT custom_id
+                FROM Equipment
+                WHERE custom_id LIKE ?
+                ORDER BY CAST(SUBSTRING_INDEX(custom_id, '-', -1) AS UNSIGNED) DESC
+                LIMIT 1
+            `;
+
+            db.get(findMaxSql, [`${prefix}-%`], (err, row) => {
+                if (err) {
+                    return res.status(500).json({ error: 'Error al generar custom_id', code: 'CUSTOM_ID_ERROR' });
+                }
+
+                finalCustomId = buildNextCustomId(prefix, row?.custom_id);
+                insertEquipment(finalCustomId);
+            });
         });
     } else {
         insertEquipment(finalCustomId);
@@ -154,12 +195,12 @@ router.post('/equipment', authenticateToken, validateData(equipmentSchema), (req
 // PUT actualizar equipo existente
 router.put('/equipment/:id', authenticateToken, validateData(equipmentUpdateSchema), (req, res) => {
     const { id } = req.params;
-    const { location_id, model_id, custom_id, serial_number, acquisition_date, notes } = req.body;
+    const { location_id, model_id, custom_id, serial_number, acquisition_date, notes, name } = req.body;
     
     // Manual validation removed/redundant but kept specific checks safe if needed, Zod handles types/required keys
     
-    const sql = `UPDATE Equipment SET location_id = ?, model_id = ?, custom_id = ?, serial_number = ?, acquisition_date = ?, notes = ?, updated_at = NOW() WHERE id = ?`;
-    const params = [parseInt(location_id, 10), parseInt(model_id, 10), custom_id || null, serial_number || null, acquisition_date || null, notes || null, parseInt(id, 10)];
+    const sql = `UPDATE Equipment SET location_id = ?, model_id = ?, custom_id = ?, serial_number = ?, acquisition_date = ?, notes = ?, name = COALESCE(?, name), updated_at = NOW() WHERE id = ?`;
+    const params = [parseInt(location_id, 10), parseInt(model_id, 10), custom_id || null, serial_number || null, acquisition_date || null, notes || null, name || null, parseInt(id, 10)];
     
     db.run(sql, params, function(err) {
         if (err) {

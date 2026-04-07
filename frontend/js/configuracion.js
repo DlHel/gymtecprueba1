@@ -20,28 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('✅ Cargando módulo de configuración...');
 
-    // ✅ MENSAJE DE ÉXITO VISUAL
-    setTimeout(() => {
-        const successDiv = document.createElement('div');
-        successDiv.style.cssText = `
-            position: fixed; 
-            top: 20px; 
-            right: 20px; 
-            background: #4CAF50; 
-            color: white; 
-            padding: 15px 20px; 
-            border-radius: 8px; 
-            z-index: 9999;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        `;
-        successDiv.innerHTML = '✅ Configuración cargada correctamente!<br><small>Problema de autenticación resuelto</small>';
-        document.body.appendChild(successDiv);
-        
-        setTimeout(() => {
-            successDiv.remove();
-        }, 5000);
-    }, 500);
 
     // Estado de la configuración
     const state = {
@@ -96,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const api = {
         loadSettings: async () => {
             try {
-                const response = await authenticatedFetch(`${API_URL}/system-settings`);
+                const response = await window.authenticatedFetch(`${window.API_URL}/system-settings`);
                 
                 if (!response.ok) {
                     // Devolver configuración por defecto si no existe el endpoint
@@ -151,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         saveSettings: async (settings) => {
             try {
-                const response = await authenticatedFetch(`${API_URL}/system-settings`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/system-settings`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

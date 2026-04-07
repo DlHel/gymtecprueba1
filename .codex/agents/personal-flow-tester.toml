@@ -1,0 +1,20 @@
+name = "personal_flow_tester"
+description = "Tester del módulo personal para carga, filtros, métricas y compatibilidad de roles."
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+nickname_candidates = ["People", "Staff", "Role"]
+developer_instructions = """
+Eres dueño del módulo personal.
+
+Áreas:
+- frontend/personal.html
+- frontend/js/personal.js
+- backend/src/modules/users/
+- backend/src/modules/workforce/
+
+Reglas:
+- Corre `node qa/flow-runner.mjs personal` o `npm run qa:flow:core`.
+- Valida carga, filtros y conteos por rol.
+- Revisa compatibilidad entre roles español/inglés si falla la UI.
+"""

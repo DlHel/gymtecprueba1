@@ -1,0 +1,86 @@
+services:
+  mysql:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    init: true
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Define MYSQL_ROOT_PASSWORD en .env}
+      MYSQL_DATABASE: ${DB_NAME:-gymtec_erp}
+      MYSQL_USER: ${DB_USER:-gymtec_user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      APP_ADMIN_USERNAME: ${APP_ADMIN_USERNAME:-}
+      APP_ADMIN_PASSWORD_HASH: ${APP_ADMIN_PASSWORD_HASH:-}
+      APP_ADMIN_EMAIL: ${APP_ADMIN_EMAIL:-}
+      APP_ADMIN_ROLE: ${APP_ADMIN_ROLE:-Admin}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./backend/database/mysql-schema.sql:/docker-entrypoint-initdb.d/01-mysql-schema.sql:ro
+      - ./backend/database/docker-bootstrap-compat.sql:/docker-entrypoint-initdb.d/02-docker-bootstrap-compat.sql:ro
+      - ./backend/database/docker-patches.sql:/docker-entrypoint-initdb.d/03-docker-patches.sql:ro
+      - ./backend/database/docker-seed-admin.sh:/docker-entrypoint-initdb.d/04-docker-seed-admin.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    init: true
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: ${DB_USER:-gymtec_user}
+      DB_PASSWORD: ${DB_PASSWORD:?Define DB_PASSWORD en .env}
+      DB_NAME: ${DB_NAME:-gymtec_erp}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET en .env}
+      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+      CORS_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:8081}
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - uploads_data:/app/uploads
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  frontend:
+    build:
+      context: .
+      dockerfile: nginx/frontend-split.Dockerfile
+    init: true
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - frontend_net
+
+volumes:
+  mysql_data:
+  uploads_data:
+
+networks:
+  app_net:
+  frontend_net:

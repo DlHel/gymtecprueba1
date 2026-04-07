@@ -8,7 +8,6 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('✅ Usuario autenticado, cargando módulo de equipo...');
     
-    const API_URL = window.API_URL || 'http://localhost:3000/api';
     const mainContent = document.getElementById('main-content');
     const pageTitle = document.querySelector('header h1'); // Actualizado para nuevo header
     const backButton = document.querySelector('header a');
@@ -20,15 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const api = {
-        getEquipment: id => authenticatedFetch(`${API_URL}/equipment/${id}`).then(res => res.json()),
-        getEquipmentTickets: id => authenticatedFetch(`${API_URL}/equipment/${id}/tickets`).then(res => res.json()),
-        getEquipmentNotes: id => authenticatedFetch(`${API_URL}/equipment/${id}/notes`).then(res => res.json()),
-        addEquipmentNote: (id, note) => authenticatedFetch(`${API_URL}/equipment/${id}/notes`, {
+        getEquipment: id => window.authenticatedFetch(`${window.API_URL}/equipment/${id}`).then(res => res.json()),
+        getEquipmentTickets: id => window.authenticatedFetch(`${window.API_URL}/equipment/${id}/tickets`).then(res => res.json()),
+        getEquipmentNotes: id => window.authenticatedFetch(`${window.API_URL}/equipment/${id}/notes`).then(res => res.json()),
+        addEquipmentNote: (id, note) => window.authenticatedFetch(`${window.API_URL}/equipment/${id}/notes`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(note)
         }).then(res => res.json()),
-        deleteEquipmentNote: (noteId) => authenticatedFetch(`${API_URL}/equipment/notes/${noteId}`, {
+        deleteEquipmentNote: (noteId) => window.authenticatedFetch(`${window.API_URL}/equipment/notes/${noteId}`, {
             method: 'DELETE'
         }).then(res => res.json())
     };
@@ -428,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Cargando datos para el formulario...');
                 
                 // Cargar clientes
-                const clientsResponse = await authenticatedFetch(`${API_URL}/clients`);
+                const clientsResponse = await window.authenticatedFetch(`${window.API_URL}/clients`);
                 if (!clientsResponse.ok) throw new Error('Error al cargar clientes');
                 const clientsData = await clientsResponse.json();
                 
@@ -453,7 +452,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 console.log('Cargando ubicaciones para cliente:', clientId);
                 
-                const locationsResponse = await authenticatedFetch(`${API_URL}/locations?client_id=${clientId}`);
+                const locationsResponse = await window.authenticatedFetch(`${window.API_URL}/locations?client_id=${clientId}`);
                 if (!locationsResponse.ok) throw new Error('Error al cargar ubicaciones');
                 const locationsData = await locationsResponse.json();
                 
@@ -529,7 +528,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 console.log('Datos del equipo a crear:', equipmentData);
                 
-                const response = await authenticatedFetch(`${API_URL}/equipment`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/equipment`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(equipmentData)

@@ -16,9 +16,10 @@ Internet/Usuario
 
 ## Código activo
 
-- `backend/src/server-clean.js`: entrypoint canónico.
+- `backend/src/server-clean.js`: entrypoint canónico y composition root delgado.
+- `backend/src/core/bootstrap/create-app.js`: factory de app y fallback handlers.
 - `backend/src/core/bootstrap/configure-express.js`: wiring base de Express, CORS, static y healthcheck.
-- `backend/src/core/bootstrap/register-advanced-routes.js`: bootstrap de rutas opcionales y servicios de background.
+- `backend/src/modules/index.js`: registry modular y runtime real de rutas.
 - `backend/src/core/http/uploads.js`: uploads persistidos y política de archivos.
 - `backend/src/core/runtime/server-runtime.js`: arranque y apagado ordenado del servidor.
 - `backend/src/core/utils/datetime.js`: utilidades transversales de fecha/hora para MySQL.
@@ -43,7 +44,7 @@ El material de apoyo que no participa del runtime (`scripts`, `planning`, logs l
 
 ## Deuda conocida
 
-- `server-clean.js` sigue siendo un monolito grande; ya no concentra bootstrap/runtime, pero aún mezcla demasiados dominios.
+- El runtime HTTP principal ya sale de `registerModules()`, pero todavía existen wrappers legacy en `backend/src/routes/` para payroll y SLA.
 - El frontend es mixto: la mayor parte es Vanilla JS, pero `clientes` y `reportes` dependen de Alpine.js.
 - El árbol React/CRA original fue archivado como legado no operativo.
 - `backend/src/routes/` y `backend/src/modules/` todavía conviven; la migración a módulos no está terminada.
@@ -52,7 +53,8 @@ El material de apoyo que no participa del runtime (`scripts`, `planning`, logs l
 
 - Frontend estático servido por Nginx.
 - Backend Node/Express en `/api/*`.
-- Uploads persistidos en volumen y expuestos por `/uploads/*`.
+- Uploads persistidos en volumen; solo `/uploads/models/*` es público.
+- `uploads/reports` se sirve únicamente vía endpoints autenticados.
 
 ## Baseline de calidad
 

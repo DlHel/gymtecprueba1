@@ -417,7 +417,16 @@ document.addEventListener('alpine:init', () => {
 // Notificaciones globales
 class ReportsManager {
     constructor() {
-        // Solo notificaciones, los eventos se manejan inline en HTML
+        this.extensions = {};
+    }
+
+    registerTechnicalReports(extensions = {}) {
+        if (!extensions || typeof extensions !== 'object') {
+            return;
+        }
+
+        Object.assign(this, extensions);
+        this.extensions.technicalReports = extensions;
     }
 
     showNotification(message, type) {
@@ -440,5 +449,11 @@ class ReportsManager {
     }
 }
 
+window.ReportsManager = ReportsManager;
+
 // Instanciar globalmente
 window.reportsManager = new ReportsManager();
+
+if (window.GymtecTechnicalReports) {
+    window.reportsManager.registerTechnicalReports(window.GymtecTechnicalReports);
+}

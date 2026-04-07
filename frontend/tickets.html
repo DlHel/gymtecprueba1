@@ -295,7 +295,7 @@
                                                                     <select name="client_id" class="base-form-input" required title="Seleccionar cliente">
                                     <option value="">Seleccione un cliente</option>
                                 </select>
-                                    <button type="button" class="ticket-add-btn" onclick="openModal('add-client-modal')" title="Agregar nuevo cliente" aria-label="Agregar nuevo cliente">
+                                <button type="button" class="ticket-add-btn" onclick="openTicketModal('add-client-modal')" title="Agregar nuevo cliente" aria-label="Agregar nuevo cliente">
                                         <i data-lucide="plus" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -307,7 +307,7 @@
                                     <select name="location_id" class="base-form-input" title="Seleccionar sede">
                                         <option value="">Seleccione una sede</option>
                                     </select>
-                                    <button type="button" class="ticket-add-btn" onclick="openModal('add-location-modal')" title="Agregar nueva sede">
+                                <button type="button" class="ticket-add-btn" onclick="openTicketModal('add-location-modal')" title="Agregar nueva sede">
                                         <i data-lucide="plus" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -319,7 +319,7 @@
                                     <select name="equipment_id" class="base-form-input" title="Seleccionar equipo">
                                         <option value="">Seleccione un equipo</option>
                                     </select>
-                                    <button type="button" class="ticket-add-btn" onclick="openModal('add-equipment-modal')" title="Agregar nuevo equipo">
+                                <button type="button" class="ticket-add-btn" onclick="openTicketModal('add-equipment-modal')" title="Agregar nuevo equipo">
                                         <i data-lucide="plus" class="w-4 h-4"></i>
                                     </button>
                                 </div>
@@ -601,7 +601,7 @@
         <div class="base-modal-content modal-medium">
             <div class="base-modal-header">
                 <h3 class="base-modal-title">Crear Nuevo Cliente</h3>
-                <button type="button" class="base-modal-close" onclick="closeModal('add-client-modal')" title="Cerrar modal">
+                    <button type="button" class="base-modal-close" onclick="closeTicketModal('add-client-modal')" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -644,7 +644,7 @@
                 </form>
             </div>
             <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel" onclick="closeModal('add-client-modal')">Cancelar</button>
+                            <button type="button" class="base-btn-cancel" onclick="closeTicketModal('add-client-modal')">Cancelar</button>
                 <button type="submit" form="add-client-modal-form" class="base-btn-save">Guardar Cliente</button>
             </div>
         </div>
@@ -655,7 +655,7 @@
         <div class="base-modal-content modal-small">
             <div class="base-modal-header">
                 <h3 class="base-modal-title">Crear Nueva Sede</h3>
-                <button type="button" class="base-modal-close" onclick="closeModal('add-location-modal')" title="Cerrar modal">
+                    <button type="button" class="base-modal-close" onclick="closeTicketModal('add-location-modal')" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -675,7 +675,7 @@
                 </form>
             </div>
             <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel" onclick="closeModal('add-location-modal')">Cancelar</button>
+                            <button type="button" class="base-btn-cancel" onclick="closeTicketModal('add-location-modal')">Cancelar</button>
                 <button type="submit" form="add-location-modal-form" class="base-btn-save">Guardar Sede</button>
             </div>
         </div>
@@ -686,7 +686,7 @@
         <div class="base-modal-content modal-small">
             <div class="base-modal-header">
                 <h3 class="base-modal-title">Crear Nuevo Equipo</h3>
-                <button type="button" class="base-modal-close" onclick="closeModal('add-equipment-modal')" title="Cerrar modal">
+                    <button type="button" class="base-modal-close" onclick="closeTicketModal('add-equipment-modal')" title="Cerrar modal">
                     <i data-lucide="x" class="h-5 w-5"></i>
                 </button>
             </div>
@@ -712,7 +712,7 @@
                 </form>
             </div>
             <div class="base-modal-footer">
-                <button type="button" class="base-btn-cancel" onclick="closeModal('add-equipment-modal')">Cancelar</button>
+                            <button type="button" class="base-btn-cancel" onclick="closeTicketModal('add-equipment-modal')">Cancelar</button>
                 <button type="submit" form="add-equipment-modal-form" class="base-btn-save">Guardar Equipo</button>
             </div>
         </div>

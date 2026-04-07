@@ -438,7 +438,7 @@ async function submitSparePartForm(button) {
         button.disabled = true;
         button.textContent = 'Agregando...';
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/spare-parts`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}/spare-parts`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -497,7 +497,7 @@ async function submitPhotoForm(button) {
             author: (window.authManager?.getUser()?.username || 'Usuario')
         };
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}/photos`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -556,7 +556,7 @@ async function submitStatusChange(button) {
         
         console.log('📡 Enviando request de cambio de estado...');
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -570,7 +570,7 @@ async function submitStatusChange(button) {
         if (response.ok) {
             // Agregar nota del cambio si hay comentario
             if (comment) {
-                await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+                await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}/notes`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -679,7 +679,7 @@ async function submitAdvancedNote(button) {
                 is_internal: isInternal
             };
             
-            const noteResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/notes`, {
+            const noteResponse = await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}/notes`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(noteData)
@@ -719,7 +719,7 @@ async function submitAdvancedNote(button) {
                     photoData.note_id = noteId;
                 }
                 
-                const photoResponse = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}/photos`, {
+                const photoResponse = await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}/photos`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(photoData)
@@ -768,7 +768,7 @@ async function deleteTicketPhoto(photoId, button) {
     try {
         button.disabled = true;
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/photos/${photoId}`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/photos/${photoId}`, {
             method: 'DELETE'
         });
         
@@ -851,7 +851,7 @@ async function submitEditTicket(button) {
         button.disabled = true;
         button.textContent = 'Guardando...';
         
-        const response = await authenticatedFetch(`${API_URL}/tickets/${state.currentTicket.id}`, {
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${state.currentTicket.id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
@@ -986,4 +986,789 @@ function removeNotePhotoPreview(button, index) {
         }
     });
     fileInput.files = dt.files;
-} 
+}
+
+function createAddChecklistModal() {
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.id = 'add-checklist-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content modal-small">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="plus-circle" class="w-5 h-5 text-blue-600 mr-2"></i>
+                    Agregar Nueva Tarea
+                </h3>
+                <button type="button" class="base-modal-close" onclick="closeChecklistModal()">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="base-modal-body">
+                <form id="add-checklist-form" class="space-y-6">
+                    <div class="form-group">
+                        <label for="checklist-title" class="form-label required">
+                            <i data-lucide="check-square" class="w-4 h-4 text-blue-500"></i>
+                            Título de la tarea
+                        </label>
+                        <input type="text"
+                               id="checklist-title"
+                               name="title"
+                               class="form-input form-input-modern"
+                               placeholder="Ej: Verificar conexiones eléctricas, lubricar componentes..."
+                               required
+                               maxlength="200"
+                               autocomplete="off">
+                        <p class="form-help-text">Descripción clara y específica de la tarea a realizar</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="checklist-description" class="form-label">
+                            <i data-lucide="align-left" class="w-4 h-4 text-green-500"></i>
+                            Descripción detallada
+                            <span class="text-sm text-gray-500 font-normal ml-1">(opcional)</span>
+                        </label>
+                        <textarea id="checklist-description"
+                                  name="description"
+                                  class="form-textarea form-textarea-modern"
+                                  rows="4"
+                                  placeholder="Instrucciones específicas, herramientas necesarias, precauciones de seguridad..."
+                                  maxlength="500"></textarea>
+                        <p class="form-help-text">Detalles adicionales que ayuden al técnico a completar la tarea</p>
+                    </div>
+                </form>
+            </div>
+
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn base-btn-secondary" onclick="closeChecklistModal()">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                    Cancelar
+                </button>
+                <button type="button" class="base-btn base-btn-primary" onclick="submitChecklistItem()">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Agregar Tarea
+                </button>
+            </div>
+        </div>
+    `;
+
+    return modal;
+}
+
+function createDeleteActivityGroupModal(noteIds = [], photoIds = []) {
+    const itemsText = [];
+    if (noteIds.length > 0) itemsText.push(`${noteIds.length} comentario(s)`);
+    if (photoIds.length > 0) itemsText.push(`${photoIds.length} foto(s)`);
+
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content" style="max-width: 400px;">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i>
+                    Confirmar Eliminación
+                </h3>
+            </div>
+            <div class="base-modal-body">
+                <p style="margin-bottom: 1rem; color: #64748b;">
+                    ¿Estás seguro de que deseas eliminar esta actividad completa?
+                </p>
+                <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem;">
+                    <p style="color: #dc2626; font-weight: 500; margin: 0;">
+                        Se eliminarán: ${itemsText.join(' y ')}
+                    </p>
+                </div>
+                <p style="color: #ef4444; font-size: 0.875rem; margin: 0;">
+                    <strong>⚠️ Esta acción no se puede deshacer</strong>
+                </p>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="btn-secondary" id="cancel-delete-btn">
+                    Cancelar
+                </button>
+                <button type="button" class="btn-danger" id="confirm-delete-btn">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    Eliminar Definitivamente
+                </button>
+            </div>
+        </div>
+    `;
+
+    return modal;
+}
+
+function createUnifiedSparePartWorkflowModal(spareParts) {
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content" style="max-width: 600px;">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="package-plus" class="inline w-5 h-5 mr-2"></i>
+                    Solicitar Repuesto
+                </h3>
+                <button class="base-modal-close" onclick="closeModal(this)">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="info" class="w-5 h-5 text-blue-600 mt-0.5"></i>
+                        <p class="text-sm text-blue-800">
+                            <strong>Flujo inteligente:</strong> Selecciona un repuesto de la lista si está disponible,
+                            o solicita uno nuevo si no lo encuentras.
+                        </p>
+                    </div>
+                </div>
+
+                <form id="unified-spare-part-form">
+                    <div id="step-1-select" class="space-y-4">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Repuesto</label>
+                            <select id="spare-part-selector" name="spare_part_id" class="base-form-input">
+                                <option value="">Seleccionar repuesto disponible...</option>
+                                ${spareParts.filter(part => part.current_stock > 0).map(part => {
+                                    const partName = part.name || part.item_name || 'Sin nombre';
+                                    return `
+                                    <option value="${part.id}"
+                                            data-stock="${part.current_stock}"
+                                            data-cost="${part.unit_cost || 0}"
+                                            data-name="${partName}">
+                                        ${partName} (${part.sku || part.item_code || 'N/A'}) - Stock: ${part.current_stock}
+                                    </option>
+                                `;
+                                }).join('')}
+                                <option value="NOT_FOUND" style="background: #FEF3C7; font-weight: bold;">
+                                    ⚠️ No encuentro el repuesto - Solicitar compra
+                                </option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="step-2-use" class="space-y-4 hidden">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-3 mb-4">
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="check-circle" class="w-5 h-5 text-green-600 mt-0.5"></i>
+                                <div>
+                                    <p class="text-sm text-green-800 font-medium">Repuesto disponible en inventario</p>
+                                    <p class="text-xs text-green-700 mt-1">Se registrará el uso y se reducirá el stock automáticamente.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="base-form-group">
+                            <label class="base-form-label">Cantidad a Utilizar <span class="required">*</span></label>
+                            <input type="number" id="quantity-use" name="quantity_used" class="base-form-input" min="1" value="1">
+                            <small class="text-gray-500 text-xs" id="stock-info"></small>
+                        </div>
+
+                        <div class="base-form-group">
+                            <label class="base-form-label">Notas de Uso</label>
+                            <textarea name="notes" class="base-form-input" rows="2" placeholder="Descripción del uso del repuesto..."></textarea>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="bill_to_client" name="bill_to_client" class="mt-1" checked>
+                                <div class="flex-1">
+                                    <label for="bill_to_client" class="font-medium text-gray-900 cursor-pointer text-sm">
+                                        <i data-lucide="dollar-sign" class="w-4 h-4 inline mr-1"></i>
+                                        Facturar al cliente
+                                    </label>
+                                    <p class="text-xs text-gray-600 mt-1">Se creará un gasto automáticamente vinculado al ticket.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="step-2-request" class="space-y-4 hidden">
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="alert-circle" class="w-5 h-5 text-yellow-600 mt-0.5"></i>
+                                <div>
+                                    <p class="text-sm text-yellow-800 font-medium">Repuesto no disponible en inventario</p>
+                                    <p class="text-xs text-yellow-700 mt-1">Se creará una solicitud de compra que debe ser aprobada por gerencia.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="base-form-group">
+                            <label class="base-form-label">Nombre del Repuesto <span class="required">*</span></label>
+                            <input type="text" id="new-spare-name" name="spare_part_name" class="base-form-input"
+                                   placeholder="Ej: Correa de transmisión para trotadora">
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="base-form-group">
+                                <label class="base-form-label">Cantidad Necesaria <span class="required">*</span></label>
+                                <input type="number" id="quantity-request" name="quantity_needed" class="base-form-input" min="1" value="1">
+                            </div>
+                            <div class="base-form-group">
+                                <label class="base-form-label">Prioridad <span class="required">*</span></label>
+                                <select name="priority" class="base-form-input">
+                                    <option value="baja">Baja</option>
+                                    <option value="media" selected>Media</option>
+                                    <option value="alta">Alta</option>
+                                    <option value="urgente">Urgente</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="base-form-group">
+                            <label class="base-form-label">Especificaciones Técnicas</label>
+                            <textarea name="description" class="base-form-input" rows="2"
+                                      placeholder="Marca, modelo, especificaciones..."></textarea>
+                        </div>
+
+                        <div class="base-form-group">
+                            <label class="base-form-label">Justificación (¿Por qué es necesario?)</label>
+                            <textarea name="justification" class="base-form-input" rows="2"
+                                      placeholder="Explica por qué este repuesto es necesario para resolver el ticket..."></textarea>
+                        </div>
+
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div class="flex items-start gap-2">
+                                <i data-lucide="shield" class="w-5 h-5 text-blue-600 mt-0.5"></i>
+                                <div>
+                                    <p class="text-xs text-blue-800">
+                                        <strong>Confidencial:</strong> La información de costos y cotizaciones
+                                        se maneja internamente. Esta solicitud no aparecerá en el ticket público.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal(this)">Cancelar</button>
+                <button type="button" id="submit-unified-btn" class="base-btn-primary" disabled>
+                    <i data-lucide="package-plus" class="w-4 h-4 inline mr-1"></i>
+                    <span id="submit-btn-text">Selecciona una opción</span>
+                </button>
+            </div>
+        </div>
+    `;
+
+    return modal;
+}
+
+function createLegacySparePartUsageModal(spareParts) {
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="check-circle" class="inline w-5 h-5 mr-2"></i>
+                    Registrar Uso de Repuesto
+                </h3>
+                <button class="base-modal-close" onclick="closeModal(this)">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <form id="spare-part-form">
+                    <div class="base-form-group">
+                        <label class="base-form-label">Repuesto <span class="required">*</span></label>
+                        <select name="spare_part_id" class="base-form-input" required>
+                            <option value="">Seleccionar repuesto</option>
+                            ${spareParts.map(part => `
+                                <option value="${part.id}" data-stock="${part.current_stock}">
+                                    ${part.name} (${part.sku}) - Stock: ${part.current_stock}
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Cantidad Utilizada <span class="required">*</span></label>
+                            <input type="number" name="quantity_used" class="base-form-input" required min="1" value="1">
+                        </div>
+                    </div>
+                    <div class="base-form-group">
+                        <label class="base-form-label">Notas</label>
+                        <textarea name="notes" class="base-form-input" rows="2" placeholder="Descripción del uso del repuesto..."></textarea>
+                    </div>
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" id="bill_to_client" name="bill_to_client" class="mt-1" checked>
+                            <div class="flex-1">
+                                <label for="bill_to_client" class="font-medium text-gray-900 cursor-pointer">
+                                    <i data-lucide="dollar-sign" class="w-4 h-4 inline mr-1"></i>
+                                    Facturar al cliente
+                                </label>
+                                <p class="text-sm text-gray-600 mt-1">Se creará un gasto automáticamente y se vinculará al ticket para facturación.</p>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal(this)">Cancelar</button>
+                <button type="button" class="base-btn-primary" onclick="submitSparePartForm(this)">
+                    <i data-lucide="check-circle" class="w-4 h-4 inline mr-1"></i>
+                    Registrar Uso
+                </button>
+            </div>
+        </div>
+    `;
+
+    return modal;
+}
+
+function createSparePartRequestModal() {
+    const modal = document.createElement('div');
+    modal.className = 'base-modal';
+    modal.innerHTML = `
+        <div class="base-modal-content">
+            <div class="base-modal-header">
+                <h3 class="base-modal-title">
+                    <i data-lucide="shopping-cart" class="inline w-5 h-5 mr-2"></i>
+                    Solicitar Compra de Repuesto
+                </h3>
+                <button type="button" class="base-modal-close" onclick="closeModal(this)">
+                    <i data-lucide="x" class="h-5 w-5"></i>
+                </button>
+            </div>
+            <div class="base-modal-body">
+                <div class="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="info" class="w-5 h-5 text-yellow-600 mt-0.5"></i>
+                        <p class="text-sm text-yellow-800">
+                            Usa esta opción cuando necesites repuestos que <strong>no están disponibles</strong> en el inventario actual.
+                            La solicitud será enviada al departamento de inventario para su evaluación.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div class="flex items-start gap-2">
+                        <i data-lucide="shield" class="w-5 h-5 text-blue-600 mt-0.5"></i>
+                        <p class="text-sm text-blue-800">
+                            <strong>Confidencial:</strong> La información de costos y cotizaciones se maneja internamente.
+                            Esta solicitud no aparecerá en el ticket público.
+                        </p>
+                    </div>
+                </div>
+
+                <form id="request-spare-part-form" class="space-y-4">
+                    <div class="base-form-group">
+                        <label class="base-form-label">Nombre del Repuesto <span class="required">*</span></label>
+                        <input type="text" name="spare_part_name" class="base-form-input" required
+                               placeholder="Ej: Correa de transmisión para trotadora">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="base-form-group">
+                            <label class="base-form-label">Cantidad Necesaria <span class="required">*</span></label>
+                            <input type="number" name="quantity_needed" class="base-form-input" min="1" required>
+                        </div>
+                        <div class="base-form-group">
+                            <label class="base-form-label">Prioridad <span class="required">*</span></label>
+                            <select name="priority" class="base-form-input" required>
+                                <option value="baja">Baja</option>
+                                <option value="media" selected>Media</option>
+                                <option value="alta">Alta</option>
+                                <option value="urgente">Urgente</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="base-form-group">
+                        <label class="base-form-label">Descripción/Especificaciones</label>
+                        <textarea name="description" rows="3" class="base-form-input"
+                                  placeholder="Describe las especificaciones técnicas, modelo, marca, etc."></textarea>
+                    </div>
+
+                    <div class="base-form-group">
+                        <label class="base-form-label">Justificación (¿Por qué es necesario?)</label>
+                        <textarea name="justification" rows="2" class="base-form-input"
+                                  placeholder="¿Por qué es necesario este repuesto para resolver el ticket?"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="base-modal-footer">
+                <button type="button" class="base-btn-cancel" onclick="closeModal(this)">Cancelar</button>
+                <button type="submit" form="request-spare-part-form" class="base-btn-primary">
+                    <i data-lucide="send" class="w-4 h-4 mr-2"></i>
+                    Enviar Solicitud
+                </button>
+            </div>
+        </div>
+    `;
+
+    return modal;
+}
+
+async function editActivityGroup(noteIds = [], photoIds = []) {
+    const ticketState = window.state;
+
+    console.log('✏️ Editando grupo de actividad:', { noteIds, photoIds });
+
+    if (noteIds.length > 0) {
+        const firstNote = ticketState?.notes?.find((note) => note.id === noteIds[0]);
+        console.log('🔍 Buscando nota con ID:', noteIds[0], 'Encontrada:', firstNote);
+
+        if (!firstNote) {
+            window.showToast?.('❌ No se encontró la nota para editar', 'error');
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'base-modal';
+        modal.innerHTML = `
+            <div class="base-modal-content edit-note-modal" style="max-width: 650px; border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);">
+                <div class="base-modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px 12px 0 0; padding: 1.5rem; border-bottom: none;">
+                    <h3 class="base-modal-title" style="margin: 0; font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 0.75rem;">
+                        <div style="background: rgba(255,255,255,0.2); padding: 0.5rem; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                            <i data-lucide="edit-3" class="w-5 h-5"></i>
+                        </div>
+                        Editar Comentario
+                    </h3>
+                    <button type="button" class="base-modal-close" onclick="this.closest('.base-modal').remove()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 0.5rem; border-radius: 6px; transition: all 0.2s ease;">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="base-modal-body" style="padding: 2rem; background: #fafbfc;">
+                    <div style="background: white; border-radius: 8px; padding: 1.5rem; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);">
+                        <form id="edit-note-form">
+                            <div class="edit-modal-tabs" style="display: flex; margin-bottom: 1rem; border-bottom: 1px solid #e5e7eb;">
+                                <button type="button" class="edit-tab-btn active" data-tab="edit" style="padding: 0.5rem 1rem; border: none; background: transparent; color: #6366f1; border-bottom: 2px solid #6366f1; cursor: pointer; font-weight: 600;">
+                                    Editar
+                                </button>
+                                <button type="button" class="edit-tab-btn" data-tab="preview" style="padding: 0.5rem 1rem; border: none; background: transparent; color: #6b7280; border-bottom: 2px solid transparent; cursor: pointer; font-weight: 600;">
+                                    Vista Previa
+                                </button>
+                            </div>
+
+                            <div id="edit-panel" class="edit-panel">
+                                <div class="form-group" style="margin-bottom: 1.5rem;">
+                                    <label for="edit-note-text" class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #dbeafe; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="message-circle" class="w-4 h-4 text-blue-600"></i>
+                                        </div>
+                                        Comentario
+                                    </label>
+                                    <textarea
+                                        id="edit-note-text"
+                                        name="note"
+                                        class="form-control"
+                                        rows="4"
+                                        placeholder="Escribe tu comentario aquí..."
+                                        required
+                                        style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; font-size: 0.9rem; transition: all 0.2s ease; resize: vertical; min-height: 100px;"
+                                    >${firstNote.note || ''}</textarea>
+                                </div>
+                            </div>
+
+                            <div id="preview-panel" class="edit-panel" style="display: none;">
+                                <div class="form-group" style="margin-bottom: 1.5rem;">
+                                    <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #dcfce7; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="eye" class="w-4 h-4 text-green-600"></i>
+                                        </div>
+                                        Vista Previa
+                                    </label>
+                                    <div id="edit-preview-content" style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; min-height: 100px; background: #f9fafb; color: #374151; line-height: 1.5;">
+                                        ${(window.renderMarkdown?.(firstNote.note || '')) || ''}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+                                <div class="form-group">
+                                    <label for="edit-note-type" class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #dcfce7; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="tag" class="w-4 h-4 text-green-600"></i>
+                                        </div>
+                                        Tipo de Nota
+                                    </label>
+                                    <select id="edit-note-type" name="note_type" class="form-control" required style="border: 2px solid #e5e7eb; border-radius: 8px; padding: 0.75rem; font-size: 0.9rem; transition: all 0.2s ease; background: white;">
+                                        <option value="">Seleccionar tipo</option>
+                                        <option value="general" ${firstNote.note_type === 'general' ? 'selected' : ''}>💬 General</option>
+                                        <option value="diagnostico" ${firstNote.note_type === 'diagnostico' ? 'selected' : ''}>🔍 Diagnóstico</option>
+                                        <option value="solucion" ${firstNote.note_type === 'solucion' ? 'selected' : ''}>✅ Solución</option>
+                                        <option value="seguimiento" ${firstNote.note_type === 'seguimiento' ? 'selected' : ''}>📋 Seguimiento</option>
+                                        <option value="cliente" ${firstNote.note_type === 'cliente' ? 'selected' : ''}>👤 Comunicación Cliente</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label" style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #374151; margin-bottom: 0.75rem; font-size: 0.9rem;">
+                                        <div style="background: #fef3c7; padding: 0.25rem; border-radius: 4px; display: flex; align-items: center; justify-content: center;">
+                                            <i data-lucide="shield" class="w-4 h-4 text-yellow-600"></i>
+                                        </div>
+                                        Visibilidad
+                                    </label>
+                                    <label class="checkbox-label" style="display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem; background: #f8fafc; border: 2px solid #e5e7eb; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                                        <input
+                                            type="checkbox"
+                                            id="edit-is-internal"
+                                            name="is_internal"
+                                            ${firstNote.is_internal ? 'checked' : ''}
+                                            style="width: 18px; height: 18px; accent-color: #667eea;"
+                                        >
+                                        <span class="checkbox-text" style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: #64748b;">
+                                            <i data-lucide="eye-off" class="w-4 h-4"></i>
+                                            Nota interna (solo técnicos)
+                                        </span>
+                                    </label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="base-modal-footer" style="padding: 1.5rem 2rem; background: #f8fafc; border-radius: 0 0 12px 12px; display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid #e2e8f0;">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()" style="padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 8px; transition: all 0.2s ease; border: 2px solid #e5e7eb;">
+                        <i data-lucide="x" class="w-4 h-4" style="margin-right: 0.5rem;"></i>
+                        Cancelar
+                    </button>
+                    <button type="button" class="btn-primary" id="update-note-btn" style="padding: 0.75rem 1.5rem; font-weight: 500; border-radius: 8px; transition: all 0.2s ease; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none; box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.3);">
+                        <i data-lucide="save" class="w-4 h-4" style="margin-right: 0.5rem;"></i>
+                        Actualizar Comentario
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        setTimeout(() => {
+            modal.classList.add('is-open');
+            window.lucide?.createIcons?.();
+        }, 10);
+
+        setupEditModalTabs(modal, firstNote.note || '');
+
+        const updateBtn = modal.querySelector('#update-note-btn');
+        updateBtn.addEventListener('click', () => updateAdvancedNote(updateBtn, noteIds[0], modal));
+        return;
+    }
+
+    if (photoIds.length > 0) {
+        const photos = (ticketState?.photos || []).filter((photo) => photoIds.includes(photo.id));
+
+        if (!photos.length) {
+            window.showToast?.('❌ No se encontraron las fotos para editar', 'error');
+            return;
+        }
+
+        const modal = document.createElement('div');
+        modal.className = 'base-modal';
+        modal.innerHTML = `
+            <div class="base-modal-content" style="max-width: 700px;">
+                <div class="base-modal-header">
+                    <h3 class="base-modal-title">
+                        <i data-lucide="image" class="w-5 h-5 text-green-500"></i>
+                        Gestionar Fotos (${photos.length})
+                    </h3>
+                    <button type="button" class="base-modal-close" onclick="this.closest('.base-modal').remove()">
+                        <i data-lucide="x" class="w-5 h-5"></i>
+                    </button>
+                </div>
+                <div class="base-modal-body">
+                    <p style="color: #64748b; margin-bottom: 1rem;">
+                        Puedes eliminar fotos individuales o toda la actividad completa.
+                    </p>
+                    <div class="photos-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 1rem;">
+                        ${photos.map((photo) => `
+                            <div class="photo-item" style="position: relative; border: 1px solid #e2e8f0; border-radius: 6px; overflow: hidden;">
+                                <img src="data:image/jpeg;base64,${photo.photo}" alt="Foto" style="width: 100%; height: 100px; object-fit: cover;">
+                                <div style="padding: 0.5rem; background: white;">
+                                    <p style="font-size: 0.75rem; color: #64748b; margin: 0;">
+                                        ${new Date(photo.uploaded_at).toLocaleDateString()}
+                                    </p>
+                                    <button type="button" class="btn-danger" style="width: 100%; margin-top: 0.5rem; font-size: 0.75rem; padding: 0.25rem;" onclick="deleteIndividualPhoto(${photo.id}, this)">
+                                        <i data-lucide="trash-2" class="w-3 h-3"></i>
+                                        Eliminar
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                <div class="base-modal-footer">
+                    <button type="button" class="btn-secondary" onclick="this.closest('.base-modal').remove()">
+                        Cerrar
+                    </button>
+                    <button type="button" class="btn-danger" onclick="deleteActivityGroup([], [${photoIds.join(',')}]); this.closest('.base-modal').remove();">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        Eliminar Todas
+                    </button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+        window.lucide?.createIcons?.();
+        return;
+    }
+
+    window.showToast?.('❌ No hay elementos para editar en esta actividad', 'error');
+}
+
+async function updateAdvancedNote(button, noteId, modal) {
+    const ticketState = window.state;
+    const form = modal.querySelector('#edit-note-form');
+    const formData = new FormData(form);
+
+    const noteText = formData.get('note').trim();
+    const noteType = formData.get('note_type');
+    const isInternal = formData.get('is_internal') === 'on';
+
+    if (!noteText) {
+        window.showToast?.('❌ El comentario no puede estar vacío', 'error');
+        return;
+    }
+
+    if (!noteType) {
+        window.showToast?.('❌ Selecciona el tipo de nota', 'error');
+        return;
+    }
+
+    try {
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Actualizando...';
+
+        const updateData = {
+            note: noteText,
+            note_type: noteType,
+            is_internal: isInternal
+        };
+
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/notes/${noteId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updateData)
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.error || `Error HTTP ${response.status}`);
+        }
+
+        await response.json();
+
+        const noteIndex = ticketState?.notes?.findIndex((note) => note.id === noteId) ?? -1;
+        if (noteIndex !== -1) {
+            ticketState.notes[noteIndex] = {
+                ...ticketState.notes[noteIndex],
+                ...updateData,
+                updated_at: new Date().toISOString()
+            };
+        }
+
+        modal.remove();
+        window.renderNotes?.();
+        window.renderTicketStats?.();
+        window.lucide?.createIcons?.();
+        window.showToast?.('✅ Comentario actualizado correctamente', 'success');
+    } catch (error) {
+        console.error('❌ Error al actualizar nota:', error);
+        window.showToast?.(`❌ Error al actualizar: ${error.message}`, 'error');
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="save" class="w-4 h-4"></i> Actualizar Comentario';
+    }
+}
+
+async function deleteIndividualPhoto(photoId, button) {
+    const ticketState = window.state;
+
+    if (!confirm('¿Eliminar esta foto?')) {
+        return;
+    }
+
+    try {
+        button.disabled = true;
+        button.innerHTML = '<i data-lucide="loader" class="w-3 h-3 animate-spin"></i>';
+
+        const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${ticketState?.currentTicket?.id}/photos/${photoId}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json' }
+        });
+
+        if (!response.ok) {
+            throw new Error(`Error HTTP ${response.status}`);
+        }
+
+        ticketState.photos = (ticketState.photos || []).filter((photo) => photo.id !== photoId);
+        button.closest('.photo-item')?.remove();
+        window.renderNotes?.();
+        window.showToast?.('✅ Foto eliminada correctamente', 'success');
+    } catch (error) {
+        console.error('❌ Error al eliminar foto:', error);
+        window.showToast?.('❌ Error al eliminar la foto', 'error');
+        button.disabled = false;
+        button.innerHTML = '<i data-lucide="trash-2" class="w-3 h-3"></i> Eliminar';
+    }
+}
+
+function setupEditModalTabs(modal) {
+    const tabButtons = modal.querySelectorAll('.edit-tab-btn');
+    const editPanel = modal.querySelector('#edit-panel');
+    const previewPanel = modal.querySelector('#preview-panel');
+    const textarea = modal.querySelector('#edit-note-text');
+    const previewContent = modal.querySelector('#edit-preview-content');
+
+    function updatePreview() {
+        const text = textarea.value;
+        const rendered = typeof window.renderMarkdown === 'function'
+            ? window.renderMarkdown(text)
+            : text;
+        previewContent.innerHTML = rendered || '<em style="color: #9ca3af;">Escribe algo para ver la vista previa...</em>';
+    }
+
+    tabButtons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const tab = btn.dataset.tab;
+
+            tabButtons.forEach((button) => {
+                button.classList.remove('active');
+                button.style.color = '#6b7280';
+                button.style.borderBottomColor = 'transparent';
+            });
+
+            btn.classList.add('active');
+            btn.style.color = '#6366f1';
+            btn.style.borderBottomColor = '#6366f1';
+
+            if (tab === 'edit') {
+                editPanel.style.display = 'block';
+                previewPanel.style.display = 'none';
+            } else if (tab === 'preview') {
+                editPanel.style.display = 'none';
+                previewPanel.style.display = 'block';
+                updatePreview();
+            }
+        });
+    });
+
+    textarea.addEventListener('input', () => {
+        if (previewPanel.style.display !== 'none') {
+            updatePreview();
+        }
+    });
+
+    updatePreview();
+}
+
+window.ticketDetailModals = {
+    createSparePartModal,
+    createPhotoModal,
+    createPhotoViewerModal,
+    createStatusChangeModal,
+    createAdvancedNoteModal,
+    createEditTicketModal,
+    createAddChecklistModal,
+    createDeleteActivityGroupModal,
+    createUnifiedSparePartWorkflowModal,
+    createLegacySparePartUsageModal,
+    createSparePartRequestModal,
+    editActivityGroup,
+    updateAdvancedNote,
+    deleteIndividualPhoto,
+    setupEditModalTabs
+};

@@ -1,13 +1,16 @@
 # Runtime Note
 
-`backend/src/modules/` no es hoy la fuente de verdad del runtime productivo.
+`backend/src/modules/` es el árbol de módulos que consume `registerModules()`.
+`backend/src/server-clean.js` sigue siendo el entrypoint canónico, pero hoy es
+solo un composition root delgado; el wiring funcional sale desde este
+directorio vía `createApp()` + `registerModules()`.
 
-El backend activo sigue entrando por:
+Puntos clave:
 
-- `backend/src/server-clean.js`
-- `backend/src/core/bootstrap/register-advanced-routes.js`
-- `backend/src/routes/`
-
-Este árbol modular se conserva como trabajo de extracción parcial y referencia
-para refactor futuro. Antes de mover lógica aquí, primero hay que cablear el
-bootstrap real o retirar el duplicado legacy en `routes/`.
+- Los módulos activos incluyen auth, users, clients, locations, equipment,
+  tickets, gimnación, workforce, dashboard, finance, planning, inventory,
+  checklist, workflow, notifications, purchase-orders y SLA.
+- `payroll` expone un registrador compatible con app y router para evitar
+  prefijos dobles.
+- Los wrappers legacy en `backend/src/routes/` solo deberían existir como
+  compatibilidad temporal.

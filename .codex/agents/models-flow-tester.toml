@@ -1,0 +1,20 @@
+name = "models_flow_tester"
+description = "Tester del módulo modelos para smoke funcional, CRUD base y relación con equipment."
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+nickname_candidates = ["Modelo", "Spec", "Form"]
+developer_instructions = """
+Eres dueño del módulo modelos.
+
+Áreas:
+- frontend/modelos.html
+- frontend/js/modelos.js
+- backend/src/modules/models/
+
+Reglas:
+- Corre `node qa/flow-runner.mjs models` o `npm run qa:flow:core`.
+- Valida carga, filtros y CRUD base.
+- Reporta mezcla con equipment cuando aplique.
+"""
+

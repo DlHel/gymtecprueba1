@@ -1,9 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../db-adapter');
+const { getNextPurchaseOrderNumber, normalizePurchaseOrderStatus } = require('../../shared/purchase-orders');
 
 // ✅ MIGRADO: Usar middleware centralizado del core
-const { authenticateToken } = require('../../core/middleware/auth.middleware');
+const {
+    authenticateToken,
+    requireRole
+} = require('../../core/middleware/auth.middleware');
 
 /**
  * GYMTEC ERP - APIs SISTEMA DE INVENTARIO INTELIGENTE
@@ -48,33 +52,24 @@ router.get('/', authenticateToken, async (req, res) => {
         let sql = `
         SELECT 
             i.*,
-            i.category as category_name,
-            i.location as location_name,
-            i.supplier as primary_supplier_name,
+            ic.name as category_name,
+            NULL as location_name,
+            NULL as primary_supplier_name,
             CASE 
                 WHEN i.current_stock <= i.minimum_stock THEN 'low'
                 ELSE 'normal'
             END as stock_status,
             (i.current_stock * COALESCE(i.unit_cost, 0)) as total_value
         FROM Inventory i
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         WHERE 1=1`;
 
         
         const params = [];
         
         if (category) {
-            sql += ' AND i.category = ?';
+            sql += ' AND i.category_id = ?';
             params.push(category);
-        }
-        
-        if (location) {
-            sql += ' AND i.location = ?';
-            params.push(location);
-        }
-        
-        if (supplier) {
-            sql += ' AND i.supplier LIKE ?';
-            params.push(`%${supplier}%`);
         }
         
         if (low_stock_only === 'true') {
@@ -83,7 +78,7 @@ router.get('/', authenticateToken, async (req, res) => {
         
         
         if (search) {
-            sql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.notes LIKE ?)';
+            sql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR COALESCE(i.description, \'\') LIKE ?)';
             const searchTerm = `%${search}%`;
             params.push(searchTerm, searchTerm, searchTerm);
         }
@@ -111,18 +106,8 @@ router.get('/', authenticateToken, async (req, res) => {
         const countParams = [];
         
         if (category) {
-            countSql += ' AND i.category = ?';
+            countSql += ' AND i.category_id = ?';
             countParams.push(category);
-        }
-        
-        if (location) {
-            countSql += ' AND i.location = ?';
-            countParams.push(location);
-        }
-        
-        if (supplier) {
-            countSql += ' AND i.supplier LIKE ?';
-            countParams.push(`%${supplier}%`);
         }
         
         if (low_stock_only === 'true') {
@@ -131,7 +116,7 @@ router.get('/', authenticateToken, async (req, res) => {
         
         
         if (search) {
-            countSql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR i.notes LIKE ?)';
+            countSql += ' AND (i.item_code LIKE ? OR i.item_name LIKE ? OR COALESCE(i.description, \'\') LIKE ?)';
             const searchTerm = `%${search}%`;
             countParams.push(searchTerm, searchTerm, searchTerm);
         }
@@ -265,7 +250,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * @desc Actualizar item de inventario
  * @access Protegido - Requiere autenticación
  */
-router.put('/:id', authenticateToken, async (req, res) => {
+router.put('/:id(\\d+)', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const {
@@ -374,7 +359,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             im.*,
             i.item_code,
             i.item_name,
-            i.category as category_name,
+            ic.name as category_name,
             u.username as performed_by_name,
             CASE 
                 WHEN im.reference_type = 'ticket' THEN t.id
@@ -391,6 +376,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as is_pending_request
         FROM InventoryMovements im
         LEFT JOIN Inventory i ON im.inventory_id = i.id
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         LEFT JOIN Users u ON im.performed_by = u.id
         LEFT JOIN Tickets t ON im.reference_type = 'ticket' AND im.reference_id = t.id
         LEFT JOIN spare_part_requests spr ON im.reference_type = 'spare_part_request' AND im.reference_id = spr.id
@@ -428,7 +414,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as id,
             NULL as inventory_id,
             'pending_request' as movement_type,
-            spr.quantity as quantity,
+            spr.quantity_needed as quantity,
             NULL as unit_cost,
             NULL as total_cost,
             NULL as stock_before,
@@ -443,7 +429,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as performed_by,
             spr.created_at as performed_at,
             NULL as item_code,
-            IFNULL(i.item_name, CONCAT('Repuesto #', spr.spare_part_id)) as item_name,
+            spr.spare_part_name as item_name,
             NULL as category_name,
             spr.requested_by as performed_by_name,
             t.id as related_ticket_id,
@@ -454,7 +440,6 @@ router.get('/movements', authenticateToken, async (req, res) => {
             'normal' as request_priority
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
-        LEFT JOIN Inventory i ON spr.spare_part_id = i.id
         WHERE spr.status = 'pending' OR spr.status = 'pendiente'
         ORDER BY spr.created_at DESC
         `;
@@ -467,7 +452,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as id,
             NULL as inventory_id,
             'rejected_request' as movement_type,
-            spr.quantity as quantity,
+            spr.quantity_needed as quantity,
             NULL as unit_cost,
             NULL as total_cost,
             NULL as stock_before,
@@ -482,9 +467,9 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as performed_by,
             spr.approved_at as performed_at,
             NULL as item_code,
-            IFNULL(i.item_name, CONCAT('Repuesto #', spr.spare_part_id)) as item_name,
+            spr.spare_part_name as item_name,
             NULL as category_name,
-            spr.approved_by as performed_by_name,
+            COALESCE(approved_by_user.username, CAST(spr.approved_by AS CHAR)) as performed_by_name,
             t.id as related_ticket_id,
             t.title as related_ticket_title,
             spr.id as request_id,
@@ -493,7 +478,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             'normal' as request_priority
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
-        LEFT JOIN Inventory i ON spr.spare_part_id = i.id
+        LEFT JOIN Users approved_by_user ON spr.approved_by = approved_by_user.id
         WHERE spr.status = 'rejected' OR spr.status = 'rechazada'
         ORDER BY spr.approved_at DESC
         LIMIT 10
@@ -507,7 +492,7 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as id,
             NULL as inventory_id,
             'approved_request' as movement_type,
-            spr.quantity as quantity,
+            spr.quantity_needed as quantity,
             NULL as unit_cost,
             NULL as total_cost,
             NULL as stock_before,
@@ -522,19 +507,19 @@ router.get('/movements', authenticateToken, async (req, res) => {
             NULL as performed_by,
             spr.approved_at as performed_at,
             NULL as item_code,
-            IFNULL(i.item_name, CONCAT('Repuesto #', spr.spare_part_id)) as item_name,
+            spr.spare_part_name as item_name,
             NULL as category_name,
-            spr.approved_by as performed_by_name,
+            COALESCE(approved_by_user.username, CAST(spr.approved_by AS CHAR)) as performed_by_name,
             t.id as related_ticket_id,
             t.title as related_ticket_title,
             spr.id as request_id,
             spr.status as request_status,
             0 as is_pending_request,
             'normal' as request_priority,
-            NULL as purchase_order_id
+            spr.purchase_order_id as purchase_order_id
         FROM spare_part_requests spr
         LEFT JOIN Tickets t ON spr.ticket_id = t.id
-        LEFT JOIN Inventory i ON spr.spare_part_id = i.id
+        LEFT JOIN Users approved_by_user ON spr.approved_by = approved_by_user.id
         WHERE spr.status = 'approved' OR spr.status = 'aprobada'
         ORDER BY spr.approved_at DESC
         LIMIT 10
@@ -589,13 +574,14 @@ router.get('/technicians', authenticateToken, async (req, res) => {
             ti.*,
             i.item_code,
             i.item_name,
-            i.notes as description,
-            i.category as category_name,
+            COALESCE(i.description, '') as description,
+            ic.name as category_name,
             u.username as technician_name,
             u.email as technician_email,
             assigned_by_user.username as assigned_by_name
         FROM TechnicianInventory ti
         LEFT JOIN Inventory i ON ti.spare_part_id = i.id
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         LEFT JOIN Users u ON ti.technician_id = u.id
         LEFT JOIN Users assigned_by_user ON ti.assigned_by = assigned_by_user.id
         WHERE 1=1`;
@@ -616,24 +602,9 @@ router.get('/technicians', authenticateToken, async (req, res) => {
         
         const assignments = await db.all(sql, params);
         
-        // Agrupar por técnico
-        const groupedByTechnician = {};
-        (assignments || []).forEach(item => {
-            const techId = item.technician_id;
-            if (!groupedByTechnician[techId]) {
-                groupedByTechnician[techId] = {
-                    technician_id: techId,
-                    technician_name: item.technician_name,
-                    technician_email: item.technician_email,
-                    items: []
-                };
-            }
-            groupedByTechnician[techId].items.push(item);
-        });
-        
         res.json({
             message: 'success',
-            data: Object.values(groupedByTechnician),
+            data: assignments || [],
             total_assignments: assignments ? assignments.length : 0
         });
         
@@ -641,6 +612,233 @@ router.get('/technicians', authenticateToken, async (req, res) => {
         console.error('Error al obtener inventario de técnicos:', error);
         res.status(500).json({
             error: 'Error al obtener inventario de técnicos',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/inventory/technician-assignments
+ * @desc Asignar repuesto del inventario central a un técnico
+ * @access Protegido - Admin/Manager/Supervisor
+ */
+router.post('/technician-assignments', authenticateToken, requireRole(['Admin', 'Manager', 'Supervisor']), async (req, res) => {
+    try {
+        const technicianId = parseInt(req.body.technician_id, 10);
+        const sparePartId = parseInt(req.body.spare_part_id, 10);
+        const quantity = parseInt(req.body.quantity, 10);
+        const notes = String(req.body.notes || '').trim() || null;
+
+        if (!technicianId || !sparePartId || !quantity) {
+            return res.status(400).json({
+                error: 'technician_id, spare_part_id y quantity son requeridos'
+            });
+        }
+
+        if (quantity < 1) {
+            return res.status(400).json({
+                error: 'La cantidad debe ser mayor a 0'
+            });
+        }
+
+        const technician = await db.get(
+            'SELECT id, username, email, role FROM Users WHERE id = ? LIMIT 1',
+            [technicianId]
+        );
+
+        if (!technician) {
+            return res.status(404).json({
+                error: 'Técnico no encontrado'
+            });
+        }
+
+        const sparePart = await db.get(
+            'SELECT id, item_code, item_name, current_stock FROM Inventory WHERE id = ? LIMIT 1',
+            [sparePartId]
+        );
+
+        if (!sparePart) {
+            return res.status(404).json({
+                error: 'Repuesto no encontrado'
+            });
+        }
+
+        const currentStock = parseFloat(sparePart.current_stock || 0);
+        if (currentStock < quantity) {
+            return res.status(400).json({
+                error: 'Stock insuficiente para asignar',
+                details: `Stock actual: ${currentStock}, solicitado: ${quantity}`
+            });
+        }
+
+        const newStock = currentStock - quantity;
+
+        const assignmentResult = await db.runAsync(`
+            INSERT INTO TechnicianInventory (
+                technician_id,
+                spare_part_id,
+                quantity,
+                assigned_at,
+                assigned_by,
+                status,
+                notes
+            ) VALUES (?, ?, ?, NOW(), ?, 'Asignado', ?)
+        `, [technicianId, sparePartId, quantity, req.user.id, notes]);
+
+        await db.runAsync(
+            'UPDATE Inventory SET current_stock = ?, updated_at = NOW() WHERE id = ?',
+            [newStock, sparePartId]
+        );
+
+        await db.runAsync(`
+            INSERT INTO InventoryMovements (
+                inventory_id,
+                movement_type,
+                quantity,
+                unit_cost,
+                total_cost,
+                stock_before,
+                stock_after,
+                reference_type,
+                reference_id,
+                notes,
+                performed_by,
+                performed_at
+            ) VALUES (?, 'transfer', ?, 0, 0, ?, ?, 'transfer', ?, ?, ?, NOW())
+        `, [
+            sparePartId,
+            quantity,
+            currentStock,
+            newStock,
+            assignmentResult.lastID,
+            `Asignación a técnico ${technician.username}${notes ? `: ${notes}` : ''}`,
+            req.user.id
+        ]);
+
+        const assignment = await db.get(`
+            SELECT 
+                ti.*,
+                i.item_code,
+                i.item_name,
+                u.username as technician_name,
+                u.email as technician_email
+            FROM TechnicianInventory ti
+            INNER JOIN Inventory i ON ti.spare_part_id = i.id
+            INNER JOIN Users u ON ti.technician_id = u.id
+            WHERE ti.id = ?
+        `, [assignmentResult.lastID]);
+
+        res.status(201).json({
+            message: 'Asignación creada exitosamente',
+            data: assignment
+        });
+    } catch (error) {
+        console.error('Error asignando repuesto a técnico:', error);
+        res.status(500).json({
+            error: 'Error al asignar repuesto a técnico',
+            details: error.message
+        });
+    }
+});
+
+/**
+ * @route POST /api/inventory/technician-assignments/:assignmentId/return
+ * @desc Devolver repuesto desde técnico al inventario central
+ * @access Protegido - Admin/Manager/Supervisor
+ */
+router.post('/technician-assignments/:assignmentId/return', authenticateToken, requireRole(['Admin', 'Manager', 'Supervisor']), async (req, res) => {
+    try {
+        const assignmentId = parseInt(req.params.assignmentId, 10);
+        const returnNotes = String(req.body.notes || '').trim();
+
+        if (!assignmentId) {
+            return res.status(400).json({
+                error: 'assignmentId inválido'
+            });
+        }
+
+        const assignment = await db.get(`
+            SELECT 
+                ti.*,
+                i.item_code,
+                i.item_name,
+                i.current_stock,
+                u.username as technician_name
+            FROM TechnicianInventory ti
+            INNER JOIN Inventory i ON ti.spare_part_id = i.id
+            INNER JOIN Users u ON ti.technician_id = u.id
+            WHERE ti.id = ?
+            LIMIT 1
+        `, [assignmentId]);
+
+        if (!assignment) {
+            return res.status(404).json({
+                error: 'Asignación no encontrada'
+            });
+        }
+
+        if (assignment.status === 'Devuelto') {
+            return res.status(400).json({
+                error: 'La asignación ya fue devuelta'
+            });
+        }
+
+        const currentStock = parseFloat(assignment.current_stock || 0);
+        const quantity = parseFloat(assignment.quantity || 0);
+        const newStock = currentStock + quantity;
+
+        const mergedNotes = [assignment.notes, returnNotes].filter(Boolean).join('\n');
+
+        await db.runAsync(`
+            UPDATE TechnicianInventory
+            SET status = 'Devuelto',
+                notes = ? 
+            WHERE id = ?
+        `, [mergedNotes || null, assignmentId]);
+
+        await db.runAsync(
+            'UPDATE Inventory SET current_stock = ?, updated_at = NOW() WHERE id = ?',
+            [newStock, assignment.spare_part_id]
+        );
+
+        await db.runAsync(`
+            INSERT INTO InventoryMovements (
+                inventory_id,
+                movement_type,
+                quantity,
+                unit_cost,
+                total_cost,
+                stock_before,
+                stock_after,
+                reference_type,
+                reference_id,
+                notes,
+                performed_by,
+                performed_at
+            ) VALUES (?, 'transfer', ?, 0, 0, ?, ?, 'return', ?, ?, ?, NOW())
+        `, [
+            assignment.spare_part_id,
+            quantity,
+            currentStock,
+            newStock,
+            assignmentId,
+            `Devolución desde técnico ${assignment.technician_name}${returnNotes ? `: ${returnNotes}` : ''}`,
+            req.user.id
+        ]);
+
+        res.json({
+            message: 'Devolución registrada exitosamente',
+            data: {
+                assignment_id: assignmentId,
+                spare_part_id: assignment.spare_part_id,
+                returned_quantity: quantity,
+                current_stock: newStock
+            }
+        });
+    } catch (error) {
+        console.error('Error devolviendo repuesto desde técnico:', error);
+        res.status(500).json({
+            error: 'Error al devolver repuesto',
             details: error.message
         });
     }
@@ -662,9 +860,9 @@ router.get('/low-stock', authenticateToken, (req, res) => {
         const sql = `
         SELECT 
             i.*,
-            i.category as category_name,
-            i.location as location_name,
-            i.supplier as primary_supplier_name,
+            ic.name as category_name,
+            NULL as location_name,
+            NULL as primary_supplier_name,
             (i.minimum_stock - i.current_stock) as reorder_needed,
             CASE 
                 WHEN i.current_stock = 0 THEN 'out_of_stock'
@@ -672,6 +870,7 @@ router.get('/low-stock', authenticateToken, (req, res) => {
                 ELSE 'low'
             END as urgency_level
         FROM Inventory i
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         WHERE i.current_stock <= i.minimum_stock
         ORDER BY 
             CASE 
@@ -817,17 +1016,18 @@ router.get('/spare-part-requests', authenticateToken, (req, res) => {
  * @desc Obtener un item específico por ID
  * @access Protegido - Requiere autenticación
  */
-router.get('/:id', authenticateToken, async (req, res) => {
+router.get('/:id(\\d+)', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         
         const sql = `
         SELECT 
             i.*,
-            i.category as category_name,
-            i.location as location_name,
-            i.supplier as primary_supplier_name
+            ic.name as category_name,
+            NULL as location_name,
+            NULL as primary_supplier_name
         FROM Inventory i
+        LEFT JOIN InventoryCategories ic ON i.category_id = ic.id
         WHERE i.id = ?`;
         
         const item = await db.get(sql, [id]);
@@ -858,7 +1058,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * @desc Eliminar (soft delete) un item de inventario
  * @access Protegido - Requiere autenticación
  */
-router.delete('/:id', authenticateToken, async (req, res) => {
+router.delete('/:id(\\d+)', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         
@@ -913,7 +1113,7 @@ router.delete('/:id', authenticateToken, async (req, res) => {
  * @access Protegido - Requiere autenticación
  * @access Protegido - Requiere autenticación
  */
-router.post('/:id/adjust', authenticateToken, async (req, res) => {
+router.post('/:id(\\d+)/adjust', authenticateToken, async (req, res) => {
     try {
         const { id } = req.params;
         const { adjustment_quantity, reason, notes } = req.body;
@@ -1350,7 +1550,7 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
             // 4B. NO HAY STOCK: Crear orden de compra automática
             console.log(`⚠️ Sin stock suficiente. Creando orden de compra...`);
             
-            const orderNumber = `PO-AUTO-${Date.now()}`;
+            const orderNumber = await getNextPurchaseOrderNumber();
             
             // Crear orden de compra
             console.log('📦 Creando orden de compra automática...');
@@ -1365,10 +1565,11 @@ router.post('/requests/:id/approve', authenticateToken, async (req, res) => {
                         total_amount,
                         notes,
                         created_by
-                    ) VALUES (?, ?, 'Pendiente', CURDATE(), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 0, ?, ?)`,
+                    ) VALUES (?, ?, ?, CURDATE(), DATE_ADD(CURDATE(), INTERVAL 7 DAY), 0, ?, ?)`,
                     [
                         orderNumber,
                         inventoryItem?.primary_supplier || 'Proveedor pendiente',
+                        normalizePurchaseOrderStatus('pending'),
                         `Orden automática para solicitud #${requestId}: ${request.spare_part_name}`,
                         req.user.id
                     ],

@@ -397,7 +397,7 @@ class AuthManager {
                         <i data-lucide="chevron-down" class="w-4 h-4"></i>
                     </button>
                     <div id="user-menu" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2 z-50">
-                        <a href="#" onclick="authManager.showChangePasswordModal()" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                        <a href="#" onclick="event.preventDefault(); authManager.showChangePasswordModal();" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                             <i data-lucide="key" class="w-4 h-4 inline mr-2"></i>Cambiar Contraseña
                         </a>
                         <hr class="my-2">
@@ -427,7 +427,12 @@ class AuthManager {
     }
 
     showChangePasswordModal() {
-        console.log('Mostrar modal de cambio de contraseña');
+        if (typeof window.openChangePasswordModal === 'function') {
+            window.openChangePasswordModal();
+            return;
+        }
+
+        console.warn('⚠️ El módulo de cambio de contraseña no está disponible');
     }
 }
 

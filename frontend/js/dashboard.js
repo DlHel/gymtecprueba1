@@ -42,7 +42,7 @@ class DashboardManager {
     async loadKPIsEnhanced() {
         console.log('📊 Cargando KPIs mejorados...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/kpis-enhanced`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/kpis-enhanced`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -58,7 +58,7 @@ class DashboardManager {
     async loadCriticalAlerts() {
         console.log('🚨 Cargando alertas críticas...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/critical-alerts`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/critical-alerts`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -72,7 +72,7 @@ class DashboardManager {
     async loadResourcesSummary() {
         console.log('👥 Cargando resumen de recursos...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/resources-summary`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/resources-summary`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -86,7 +86,7 @@ class DashboardManager {
     async loadFinancialSummary() {
         console.log('💰 Cargando resumen financiero...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/financial-summary`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/financial-summary`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -100,7 +100,7 @@ class DashboardManager {
     async loadInventorySummary() {
         console.log('📦 Cargando resumen de inventario...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/inventory-summary`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/inventory-summary`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -114,7 +114,7 @@ class DashboardManager {
     async loadContractsSLASummary() {
         console.log('📋 Cargando resumen de contratos y SLA...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/contracts-sla-summary`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/contracts-sla-summary`);
             const data = await response.json();
             
             if (data.message === 'success') {
@@ -128,7 +128,7 @@ class DashboardManager {
     async loadRecentActivity() {
         console.log('📋 Cargando actividad reciente...');
         try {
-            const response = await window.authManager.authenticatedFetch(`${API_URL}/dashboard/activity?limit=10`);
+            const response = await window.authManager.authenticatedFetch(`${window.API_URL}/dashboard/activity?limit=10`);
             const data = await response.json();
             
             if (data.message === 'success') {

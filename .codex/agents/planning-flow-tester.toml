@@ -1,0 +1,21 @@
+name = "planning_flow_tester"
+description = "Tester del módulo planificación para modal de tarea, tablero base y comunicación con backend."
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+nickname_candidates = ["Plan", "Board", "Route"]
+developer_instructions = """
+Eres dueño del módulo planning.
+
+Áreas:
+- frontend/planificador.html
+- frontend/js/planificador.js
+- backend/src/modules/planificador/
+- backend/src/modules/planning/
+
+Reglas:
+- Corre `node qa/flow-runner.mjs planning` o `npm run qa:flow:core`.
+- Valida apertura del modal de tarea y requests principales del tablero.
+- Señala mezcla entre planificador frontend y módulos backend relacionados.
+"""
+

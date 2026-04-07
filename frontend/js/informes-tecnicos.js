@@ -1,18 +1,12 @@
 // informes-tecnicos.js - Módulo de generación de informes técnicos para clientes
-// Este módulo extiende ReportsManager con funcionalidades de informes técnicos
+// Este módulo registra funcionalidades técnicas sobre la instancia activa de ReportsManager
 
-// Agregar funciones al prototipo de ReportsManager
 (function() {
     'use strict';
-    
-    // Función para extender ReportsManager
-    function extendReportsManager() {
-        // Extensión de ReportsManager - usar window.ReportsManager que se exporta en reportes.js
-        if (typeof window.ReportsManager !== 'undefined') {
-            console.log('✅ Extendiendo ReportsManager con módulo de informes técnicos...');
-        
-        // Nueva función: Descargar PDF generado en el servidor
-        window.ReportsManager.prototype.downloadPDFFromServer = async function(ticketId) {
+
+    const technicalReportExtensions = {};
+
+    technicalReportExtensions.downloadPDFFromServer = async function(ticketId) {
             try {
                 console.log(`📄 Descargando PDF del servidor para ticket #${ticketId}...`);
                 this.showNotification('Generando PDF...', 'info');
@@ -41,9 +35,9 @@
                 this.showNotification('Error al descargar PDF: ' + error.message, 'error');
                 throw error;
             }
-        };
-        
-        window.ReportsManager.prototype.generateInformeTecnico = async function(ticketId) {
+    };
+
+    technicalReportExtensions.generateInformeTecnico = async function(ticketId) {
             try {
                 console.log(`📄 Generando informe técnico para ticket #${ticketId}`);
                 
@@ -65,12 +59,12 @@
                 this.showNotification('Error al generar informe: ' + error.message, 'error');
                 throw error;
             }
-        };
-        
-        // Cargar datos completos del ticket para informe
-        window.ReportsManager.prototype.loadTicketInformeData = async function(ticketId) {
+    };
+
+    // Cargar datos completos del ticket para informe
+    technicalReportExtensions.loadTicketInformeData = async function(ticketId) {
             try {
-                const response = await authenticatedFetch(`${API_URL}/tickets/${ticketId}/informe-data`);
+                const response = await window.authenticatedFetch(`${window.API_URL}/tickets/${ticketId}/informe-data`);
                 
                 if (!response || !response.ok) {
                     throw new Error('Error al obtener datos del ticket');
@@ -136,10 +130,10 @@
                 console.error('Error cargando datos de informe:', error);
                 throw error;
             }
-        };
-        
-        // Extraer comentarios etiquetados
-        window.ReportsManager.prototype.extractTaggedComments = function(comments) {
+    };
+
+    // Extraer comentarios etiquetados
+    technicalReportExtensions.extractTaggedComments = function(comments) {
             const contenido = {
                 diagnostico: [],
                 trabajo: [],
@@ -180,10 +174,10 @@
             });
             
             return contenido;
-        };
-        
-        // Generar PDF con jsPDF - Diseño Profesional con Colores Corporativos Gymtec
-        window.ReportsManager.prototype.generateInformePDF = async function(informe) {
+    };
+
+    // Generar PDF con jsPDF - Diseño Profesional con Colores Corporativos Gymtec
+    technicalReportExtensions.generateInformePDF = async function(informe) {
             try {
                 // Verificar que jsPDF esté disponible
                 if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -535,7 +529,7 @@
         };
         
         // Helper: Agregar sección con formato
-        window.ReportsManager.prototype.addSection = function(doc, title, yPos) {
+        technicalReportExtensions.addSection = function(doc, title, yPos) {
             doc.setFontSize(14);
             doc.setFont('helvetica', 'bold');
             doc.text(title, 20, yPos);
@@ -544,7 +538,7 @@
         };
         
         // Helper: Verificar salto de página
-        window.ReportsManager.prototype.checkPageBreak = function(doc, yPos, neededSpace) {
+        technicalReportExtensions.checkPageBreak = function(doc, yPos, neededSpace) {
             const pageHeight = doc.internal.pageSize.getHeight();
             if (yPos + neededSpace > pageHeight - 20) {
                 doc.addPage();
@@ -554,7 +548,7 @@
         };
         
         // Calcular duración entre fechas
-        window.ReportsManager.prototype.calculateDuration = function(startDate, endDate) {
+        technicalReportExtensions.calculateDuration = function(startDate, endDate) {
             const start = new Date(startDate);
             const end = new Date(endDate);
             const diff = end - start;
@@ -570,9 +564,9 @@
         };
         
         // Registrar informe en servidor
-        window.ReportsManager.prototype.saveInformeRecord = async function(data) {
+        technicalReportExtensions.saveInformeRecord = async function(data) {
             try {
-                const response = await authenticatedFetch(`${API_URL}/informes`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/informes`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -596,12 +590,12 @@
         };
 
         // Subir PDF al servidor
-        window.ReportsManager.prototype.uploadInformePDF = async function(informeId, pdfBlob, filename) {
+        technicalReportExtensions.uploadInformePDF = async function(informeId, pdfBlob, filename) {
             try {
                 const formData = new FormData();
                 formData.append('pdf', pdfBlob, filename);
 
-                const response = await authenticatedFetch(`${API_URL}/informes/${informeId}/pdf`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/informes/${informeId}/pdf`, {
                     method: 'POST',
                     body: formData // No setear Content-Type, fetch lo hace con boundary
                 });
@@ -617,7 +611,7 @@
         };
 
         // Enviar informe por correo
-        window.ReportsManager.prototype.sendInformeEmail = async function(informeId, email) {
+        technicalReportExtensions.sendInformeEmail = async function(informeId, email) {
             try {
                 // Pedir email si no viene (o confirmar)
                 const clientEmail = prompt("Ingrese el correo del cliente para enviar el informe:", email || "");
@@ -625,7 +619,7 @@
 
                 this.showNotification('Enviando correo...', 'info');
 
-                const response = await authenticatedFetch(`${API_URL}/informes/${informeId}/enviar`, {
+                const response = await window.authenticatedFetch(`${window.API_URL}/informes/${informeId}/enviar`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ client_email: clientEmail })
@@ -641,58 +635,24 @@
                 this.showNotification('No se pudo enviar el correo', 'error');
             }
         };
-        
-        console.log('✅ Módulo de informes técnicos cargado correctamente');
-        } else {
-            console.warn('⚠️ ReportsManager no encontrado en este intento');
-        }
-    }
-    
-    // Función robusta para inicializar - maneja race conditions
-    function initializeWhenReady() {
-        // Intentar obtener ReportsManager de diferentes formas
-        function tryGetReportsManager() {
-            // Forma 1: Directamente desde window.ReportsManager
-            if (typeof window.ReportsManager !== 'undefined') {
-                return true;
-            }
-            // Forma 2: Desde el constructor de la instancia (fallback)
-            if (window.reportsManager && window.reportsManager.constructor) {
-                window.ReportsManager = window.reportsManager.constructor;
-                console.log('✅ ReportsManager obtenido desde constructor de instancia');
-                return true;
-            }
-            return false;
-        }
-        
-        // Si ReportsManager ya existe o podemos obtenerlo, extender inmediatamente
-        if (tryGetReportsManager()) {
-            extendReportsManager();
+
+    function registerTechnicalReports() {
+        window.GymtecTechnicalReports = technicalReportExtensions;
+
+        if (window.reportsManager && typeof window.reportsManager.registerTechnicalReports === 'function') {
+            window.reportsManager.registerTechnicalReports(technicalReportExtensions);
+            console.log('✅ Módulo de informes técnicos cargado correctamente');
             return;
         }
-        
-        // Si no existe aún, esperar con un intervalo (máximo 5 segundos)
-        let attempts = 0;
-        const maxAttempts = 50; // 50 * 100ms = 5 segundos
-        const interval = setInterval(function() {
-            attempts++;
-            if (tryGetReportsManager()) {
-                clearInterval(interval);
-                extendReportsManager();
-            } else if (attempts >= maxAttempts) {
-                clearInterval(interval);
-                console.warn('⚠️ ReportsManager no disponible después de 5 segundos');
-            }
-        }, 100);
+
+        console.warn('⚠️ reportsManager no disponible para registrar informes técnicos');
     }
-    
-    // Ejecutar ahora si el DOM ya está listo, o esperar al evento
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(initializeWhenReady, 100);
+            setTimeout(registerTechnicalReports, 100);
         });
     } else {
-        // DOMContentLoaded ya pasó - ejecutar ahora
-        setTimeout(initializeWhenReady, 100);
+        setTimeout(registerTechnicalReports, 100);
     }
 })();

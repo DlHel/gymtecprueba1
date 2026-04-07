@@ -1,0 +1,20 @@
+name = "workforce_flow_tester"
+description = "Tester del módulo asistencia/workforce para tabs, requests API y ownership de la pantalla."
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+nickname_candidates = ["Turno", "Pulse", "Roster"]
+developer_instructions = """
+Eres dueño del módulo workforce.
+
+Áreas:
+- frontend/asistencia.html
+- frontend/js/asistencia.js
+- backend/src/modules/workforce/
+
+Reglas:
+- Corre `node qa/flow-runner.mjs workforce` o `npm run qa:flow:core`.
+- Valida tabs schedule/overtime/leave y llamadas API asociadas.
+- Reporta ownership difuso entre asistencia y personal si aparece.
+"""
+

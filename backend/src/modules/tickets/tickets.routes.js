@@ -6,7 +6,9 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../../db-adapter');
+const sharp = require('sharp');
 const { authenticateToken } = require('../../core/middleware/auth.middleware');
+const ticketPartsRoutes = require('./ticket-parts.routes');
 
 // Importar hook de notificaciones
 let triggerNotificationProcessing;
@@ -100,7 +102,11 @@ router.get('/tickets/:id/detail', authenticateToken, (req, res) => {
             db.all(notesSql, [ticketId], (notesErr, notes) => {
                 notes = notes || [];
                 
-                const checklistSql = `SELECT * FROM TicketChecklist WHERE ticket_id = ? ORDER BY created_at DESC`;
+                const checklistSql = `
+                    SELECT * FROM TicketChecklists
+                    WHERE ticket_id = ?
+                    ORDER BY order_index ASC, id ASC
+                `;
                 db.all(checklistSql, [ticketId], (checklistErr, checklist) => {
                     checklist = checklist || [];
                     
@@ -249,6 +255,94 @@ router.get('/tickets/:ticketId/photos', authenticateToken, (req, res) => {
     });
 });
 
+router.post('/tickets/:ticketId/photos', authenticateToken, async (req, res) => {
+    const { ticketId } = req.params;
+    const { photo_data, file_size, description, photo_type } = req.body;
+    let { file_name, mime_type } = req.body;
+
+    if (!photo_data || !mime_type) {
+        return res.status(400).json({
+            error: 'photo_data y mime_type son requeridos',
+            code: 'PHOTO_DATA_REQUIRED'
+        });
+    }
+
+    const maxSize = 10 * 1024 * 1024;
+    if (photo_data.length > maxSize) {
+        return res.status(400).json({
+            error: 'La imagen es demasiado grande (máximo 10MB)',
+            code: 'FILE_TOO_LARGE'
+        });
+    }
+
+    try {
+        let processedPhotoData = photo_data;
+        let processedSize = file_size;
+
+        try {
+            if (photo_data.includes('base64,')) {
+                const base64Data = photo_data.split(';base64,').pop();
+                const imgBuffer = Buffer.from(base64Data, 'base64');
+                const compressedBuffer = await sharp(imgBuffer)
+                    .resize(1280, 1280, {
+                        fit: 'inside',
+                        withoutEnlargement: true
+                    })
+                    .jpeg({ quality: 80, mozjpeg: true })
+                    .toBuffer();
+
+                processedPhotoData = `data:image/jpeg;base64,${compressedBuffer.toString('base64')}`;
+                processedSize = compressedBuffer.length;
+                mime_type = 'image/jpeg';
+
+                if (file_name && !file_name.toLowerCase().endsWith('.jpg') && !file_name.toLowerCase().endsWith('.jpeg')) {
+                    file_name = `${file_name.split('.')[0]}.jpg`;
+                }
+            }
+        } catch (compressionError) {
+            console.warn('⚠️ No se pudo comprimir la foto del ticket, se guardará original:', compressionError.message);
+        }
+
+        const result = await db.runAsync(
+            `INSERT INTO TicketPhotos
+             (ticket_id, photo_data, file_name, mime_type, file_size, description, photo_type, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [
+                parseInt(ticketId, 10),
+                processedPhotoData,
+                file_name || 'foto.jpg',
+                mime_type,
+                processedSize || 0,
+                description || null,
+                photo_type || 'Otros'
+            ]
+        );
+
+        const newPhoto = await db.getAsync(
+            'SELECT id, ticket_id, file_name, mime_type, file_size, description, photo_type, created_at FROM TicketPhotos WHERE id = ?',
+            [result.lastID]
+        );
+
+        if (!newPhoto) {
+            return res.status(500).json({
+                error: 'Error al obtener foto creada',
+                code: 'PHOTO_RETRIEVE_ERROR'
+            });
+        }
+
+        return res.status(201).json({
+            message: 'Foto agregada exitosamente',
+            data: newPhoto
+        });
+    } catch (error) {
+        console.error('❌ Error procesando foto del ticket:', error);
+        return res.status(500).json({
+            error: `Error al procesar la foto: ${error.message}`,
+            code: 'PHOTO_PROCESSING_ERROR'
+        });
+    }
+});
+
 router.delete('/tickets/photos/:photoId', authenticateToken, (req, res) => {
     const sql = 'DELETE FROM TicketPhotos WHERE id = ?';
     db.run(sql, [req.params.photoId], function(err) {
@@ -257,5 +351,7 @@ router.delete('/tickets/photos/:photoId', authenticateToken, (req, res) => {
         res.json({ message: "Foto eliminada exitosamente", changes: this.changes });
     });
 });
+
+router.use(ticketPartsRoutes);
 
 module.exports = router;

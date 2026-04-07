@@ -18,12 +18,23 @@
     "web-vitals": "^3.3.0"
   },
   "devDependencies": {
+    "playwright-core": "^1.59.1",
     "tailwindcss": "^4.1.10"
   },
   "scripts": {
     "start": "docker compose up --build",
     "build": "docker compose build",
     "test": "npm --prefix backend test",
+    "qa:ui": "node qa/ui-audit.mjs",
+    "qa:seed": "node qa/seed-fixtures.mjs",
+    "qa:modals": "node qa/check-modals.mjs",
+    "qa:architecture": "node qa/check-architecture.mjs",
+    "qa:flow:tickets": "node qa/flow-runner.mjs tickets",
+    "qa:flow:inventory": "node qa/flow-runner.mjs inventory",
+    "qa:flow:finance": "node qa/flow-runner.mjs finance",
+    "qa:flow:erp": "node qa/flow-runner.mjs erp",
+    "qa:flow:core": "node qa/flow-runner.mjs core",
+    "qa:flow:all": "node qa/flow-runner.mjs all",
     "lint": "npm --prefix backend run lint && node backend/node_modules/eslint/bin/eslint.js --quiet frontend/js/config.js frontend/js/auth.js frontend/js/base-modal.js frontend/js/global-init.js frontend/js/nav-loader.js",
     "lint:backend": "npm --prefix backend run lint",
     "lint:frontend": "node backend/node_modules/eslint/bin/eslint.js --quiet frontend/js/config.js frontend/js/auth.js frontend/js/base-modal.js frontend/js/global-init.js frontend/js/nav-loader.js",

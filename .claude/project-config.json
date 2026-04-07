@@ -58,6 +58,70 @@
       {
         "name": "monolith-refactorer",
         "focus": "Safe extraction from server-clean.js"
+      },
+      {
+        "name": "flow-test-orchestrator",
+        "focus": "Sequenced QA orchestration for tickets, inventory, finance and the rest of core modules"
+      },
+      {
+        "name": "tickets-flow-tester",
+        "focus": "Deep QA for tickets, ticket detail, checklist, workflow and spare-part handoffs"
+      },
+      {
+        "name": "inventory-flow-tester",
+        "focus": "Deep QA for inventory, purchase orders, stock movements and technician assignments"
+      },
+      {
+        "name": "finance-flow-tester",
+        "focus": "Deep QA for finance, quotes, invoices, expenses and payroll"
+      },
+      {
+        "name": "dashboard-flow-tester",
+        "focus": "Dashboard module QA and ownership"
+      },
+      {
+        "name": "clients-flow-tester",
+        "focus": "Clients module QA and ownership"
+      },
+      {
+        "name": "equipment-flow-tester",
+        "focus": "Equipment module QA and ownership"
+      },
+      {
+        "name": "reports-flow-tester",
+        "focus": "Reports module QA and ownership"
+      },
+      {
+        "name": "workforce-flow-tester",
+        "focus": "Workforce module QA and ownership"
+      },
+      {
+        "name": "contracts-flow-tester",
+        "focus": "Contracts module QA and ownership"
+      },
+      {
+        "name": "planning-flow-tester",
+        "focus": "Planning module QA and ownership"
+      },
+      {
+        "name": "notifications-flow-tester",
+        "focus": "Notifications module QA and ownership"
+      },
+      {
+        "name": "config-flow-tester",
+        "focus": "Configuration module QA and ownership"
+      },
+      {
+        "name": "models-flow-tester",
+        "focus": "Models module QA and ownership"
+      },
+      {
+        "name": "personal-flow-tester",
+        "focus": "Personal module QA and ownership"
+      },
+      {
+        "name": "qa-procedure-maintainer",
+        "focus": "Sync QA procedures, specs, agents and routing when new functionality is added"
       }
     ]
   },
@@ -86,7 +150,15 @@
       "test": "npm test",
       "lint": "npm run lint",
       "backendTest": "cd backend && npm test",
-      "backendLint": "cd backend && npm run lint"
+      "backendLint": "cd backend && npm run lint",
+      "qaSeed": "npm run qa:seed",
+      "qaFlowTickets": "npm run qa:flow:tickets",
+      "qaFlowInventory": "npm run qa:flow:inventory",
+      "qaFlowFinance": "npm run qa:flow:finance",
+      "qaFlowCore": "npm run qa:flow:core",
+      "qaModals": "npm run qa:modals",
+      "qaArchitecture": "npm run qa:architecture",
+      "qaUi": "npm run qa:ui"
     }
   },
   "protectedFiles": [

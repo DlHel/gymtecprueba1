@@ -28,6 +28,7 @@ class InventoryManager {
             technicianInventory: [],
             purchaseOrders: [],
             transactions: [],
+            categories: [],
             technicians: [],
             spareParts: []
         };
@@ -171,9 +172,8 @@ class InventoryManager {
         }
         // Botones de asignaciones
         else if (target.classList.contains('return-item-btn')) {
-            const technicianId = target.dataset.technicianId;
-            const itemId = target.dataset.itemId;
-            this.returnFromTechnician(technicianId, itemId);
+            const assignmentId = target.dataset.assignmentId;
+            this.returnFromTechnician(assignmentId);
         }
         // Remover ítem de orden
         else if (target.classList.contains('order-item-remove')) {
@@ -210,6 +210,7 @@ class InventoryManager {
         try {
             // Cargar datos básicos
             await Promise.all([
+                this.loadCategories(),
                 this.loadTechnicians(),
                 this.loadSpareParts()
             ]);
@@ -244,7 +245,7 @@ class InventoryManager {
             console.log('📦 Cargando inventario central desde:', `${this.apiBaseUrl}/inventory`);
             const container = document.getElementById('central-inventory-container');
             
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory`);
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -256,9 +257,11 @@ class InventoryManager {
             console.log('✅ Respuesta del servidor:', result);
             
             this.data.centralInventory = result.data || [];
+            this.data.spareParts = [...this.data.centralInventory];
             console.log(`📊 Total items cargados: ${this.data.centralInventory.length}`);
             
             this.renderCentralInventory();
+            this.populateSparePartSelects();
             this.updateStats('central', this.data.centralInventory.length);
             
             console.log(`✅ Inventario central cargado: ${this.data.centralInventory.length} items`);
@@ -272,7 +275,7 @@ class InventoryManager {
         try {
             console.log('👥 Cargando inventario de técnicos...');
             
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/technicians`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/technicians`);
             if (!response.ok) throw new Error('Error al cargar inventario de técnicos');
             
             const result = await response.json();
@@ -292,7 +295,7 @@ class InventoryManager {
         try {
             console.log('🚚 Cargando órdenes de compra...');
             
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/purchase-orders`);
             if (!response.ok) throw new Error('Error al cargar órdenes de compra');
             
             const result = await response.json();
@@ -313,7 +316,7 @@ class InventoryManager {
             console.log('📊 Cargando movimientos de inventario...');
             
             // CORRECCIÓN: Backend usa /movements no /transactions
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/movements`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/movements`);
             if (!response.ok) throw new Error('Error al cargar movimientos');
             
             const result = await response.json();
@@ -331,7 +334,7 @@ class InventoryManager {
 
     async loadTechnicians() {
         try {
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/users?role=technician`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/users?role=technician`);
             if (!response.ok) throw new Error('Error al cargar técnicos');
             
             const result = await response.json();
@@ -344,9 +347,22 @@ class InventoryManager {
         }
     }
 
+    async loadCategories() {
+        try {
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/categories`);
+            if (!response.ok) throw new Error('Error al cargar categorías');
+
+            const result = await response.json();
+            this.data.categories = result.data || [];
+            this.populateCategorySelects();
+        } catch (error) {
+            console.error('Error loading categories:', error);
+        }
+    }
+
     async loadSpareParts() {
         try {
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory`);
             if (!response.ok) throw new Error('Error al cargar repuestos');
             
             const result = await response.json();
@@ -428,12 +444,28 @@ class InventoryManager {
             return;
         }
 
-        // Agrupar por técnico
-        const groupedByTechnician = this.data.technicianInventory.reduce((acc, assignment) => {
+        const assignments = this.data.technicianInventory.flatMap((entry) => {
+            if (Array.isArray(entry.items)) {
+                return entry.items.map((item) => ({
+                    ...item,
+                    technician_name: item.technician_name || entry.technician_name || entry.technician?.name,
+                    technician_email: item.technician_email || entry.technician_email || entry.technician?.email,
+                    technician_role: item.technician_role || entry.technician_role || entry.technician?.role || 'Técnico'
+                }));
+            }
+
+            return [entry];
+        });
+
+        const groupedByTechnician = assignments.reduce((acc, assignment) => {
             const techId = assignment.technician_id;
             if (!acc[techId]) {
                 acc[techId] = {
-                    technician: assignment.technician,
+                    technician: {
+                        name: assignment.technician_name || assignment.technician?.name || 'Técnico',
+                        email: assignment.technician_email || assignment.technician?.email || '',
+                        role: assignment.technician_role || assignment.technician?.role || 'Técnico'
+                    },
                     items: []
                 };
             }
@@ -446,12 +478,11 @@ class InventoryManager {
                 <div class="inventory-item-card">
                     <div class="inventory-item-header">
                         <div>
-                            <h5 class="inventory-item-name">${item.spare_part_name}</h5>
+                            <h5 class="inventory-item-name">${item.item_name || item.spare_part_name || 'Repuesto sin nombre'}</h5>
                             <div class="inventory-item-sku">Cantidad: ${item.quantity}</div>
                         </div>
                         <button class="inventory-action-btn secondary return-item-btn" 
-                                data-technician-id="${item.technician_id}" 
-                                data-item-id="${item.spare_part_id}">
+                                data-assignment-id="${item.id}">
                             <i data-lucide="corner-up-left" class="w-3 h-3"></i>
                             Devolver
                         </button>
@@ -957,6 +988,31 @@ class InventoryManager {
         });
     }
 
+    populateCategorySelects() {
+        const formSelect = document.querySelector('#inventory-form select[name="category"]');
+        const filterSelect = document.getElementById('category-filter');
+
+        if (formSelect) {
+            formSelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+            this.data.categories.forEach((category) => {
+                const option = document.createElement('option');
+                option.value = String(category.id);
+                option.textContent = category.name;
+                formSelect.appendChild(option);
+            });
+        }
+
+        if (filterSelect) {
+            filterSelect.innerHTML = '<option value="">Todas las categorías</option>';
+            this.data.categories.forEach((category) => {
+                const option = document.createElement('option');
+                option.value = String(category.id);
+                option.textContent = category.name;
+                filterSelect.appendChild(option);
+            });
+        }
+    }
+
     formatDate(dateString) {
         if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('es-CL');
@@ -1055,15 +1111,36 @@ class InventoryManager {
             ? `${this.apiBaseUrl}/inventory/${itemId}` 
             : `${this.apiBaseUrl}/inventory`;
         
+        const rawCategory = formData.get('category');
+        const rawLocation = formData.get('location');
+        const parsedCategoryId = Number.parseInt(rawCategory, 10);
+        const parsedLocationId = Number.parseInt(rawLocation, 10);
+
         const data = {
-            name: formData.get('name'),
-            sku: formData.get('sku'),
-            current_stock: parseInt(formData.get('current_stock'), 10) || 0,
-            min_stock: parseInt(formData.get('min_stock'), 10) || 0
+            item_name: formData.get('name'),
+            item_code: formData.get('sku'),
+            description: formData.get('description') || null,
+            current_stock: Number.parseInt(formData.get('current_stock'), 10) || 0,
+            minimum_stock: Number.parseInt(formData.get('min_stock'), 10) || 0,
+            unit_cost: Number.parseFloat(formData.get('unit_price')) || 0,
+            unit_price: Number.parseFloat(formData.get('unit_price')) || 0
         };
+
+        if (Number.isInteger(parsedCategoryId) && parsedCategoryId > 0) {
+            data.category_id = parsedCategoryId;
+        } else if (rawCategory) {
+            const matchedCategory = this.data.categories.find((category) => category.name === rawCategory);
+            if (matchedCategory) {
+                data.category_id = matchedCategory.id;
+            }
+        }
+
+        if (Number.isInteger(parsedLocationId) && parsedLocationId > 0) {
+            data.location_id = parsedLocationId;
+        }
         
         try {
-            const response = await authenticatedFetch(url, {
+            const response = await window.authenticatedFetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -1115,7 +1192,8 @@ class InventoryManager {
                 items.push({
                     spare_part_id: parseInt(sparePartId, 10),
                     quantity: parseInt(quantity, 10),
-                    unit_price: parseFloat(unitPrice) || 0
+                    unit_price: parseFloat(unitPrice) || 0,
+                    unit_cost: parseFloat(unitPrice) || 0
                 });
             }
         });
@@ -1126,16 +1204,23 @@ class InventoryManager {
             return;
         }
         
+        const supplierValue = formData.get('supplier') || 'Proveedor pendiente';
+        const totalAmount = items.reduce(
+            (sum, item) => sum + ((item.unit_cost || 0) * (item.quantity || 0)),
+            0
+        );
+
         const data = {
-            supplier: formData.get('supplier') || 'Proveedor pendiente',
+            supplier: supplierValue,
+            supplier_id: supplierValue,
             expected_delivery: formData.get('expected_delivery') || null,
             notes: formData.get('notes') || null,
-            total_amount: parseFloat(formData.get('total_amount')) || 0,
-            items: items
+            total_amount: totalAmount,
+            items
         };
         
         try {
-            const response = await authenticatedFetch(url, {
+            const response = await window.authenticatedFetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
@@ -1164,7 +1249,44 @@ class InventoryManager {
 
     async assignToTechnician() {
         console.log('💾 Asignando a técnico...');
-        this.showNotification('Sistema de asignación a técnicos en desarrollo. Próximamente disponible.', 'info');
+
+        const form = document.getElementById('assign-technician-form');
+        const formData = new FormData(form);
+        const payload = {
+            technician_id: parseInt(formData.get('technician_id'), 10),
+            spare_part_id: parseInt(formData.get('spare_part_id'), 10),
+            quantity: parseInt(formData.get('quantity'), 10),
+            notes: formData.get('notes') || ''
+        };
+
+        if (!payload.technician_id || !payload.spare_part_id || !payload.quantity) {
+            this.showNotification('Debes completar técnico, repuesto y cantidad', 'error');
+            return;
+        }
+
+        try {
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/technician-assignments`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al asignar repuesto');
+            }
+
+            this.showNotification('✅ Repuesto asignado correctamente', 'success');
+            this.closeModal(document.getElementById('assign-technician-modal'));
+            await Promise.all([
+                this.loadCentralInventory(),
+                this.loadTechnicianInventory(),
+                this.loadTransactions()
+            ]);
+        } catch (error) {
+            console.error('Error asignando a técnico:', error);
+            this.showNotification(`Error al asignar: ${error.message}`, 'error');
+        }
     }
 
     async editInventoryItem(id) {
@@ -1172,7 +1294,7 @@ class InventoryManager {
         
         try {
             // Cargar datos del item
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/${id}`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/${id}`);
             
             if (!response.ok) {
                 throw new Error('Error al cargar datos del repuesto');
@@ -1192,7 +1314,23 @@ class InventoryManager {
             // Pre-llenar formulario
             if (form.elements['name']) form.elements['name'].value = item.item_name || '';
             if (form.elements['sku']) form.elements['sku'].value = item.item_code || '';
-            if (form.elements['category']) form.elements['category'].value = item.category_id || '';
+            if (form.elements['category']) {
+                const categorySelect = form.elements['category'];
+                const categoryCandidates = [
+                    item.category_id ? String(item.category_id) : '',
+                    item.category_name || '',
+                    item.category || ''
+                ].filter(Boolean);
+
+                const matchedOption = Array.from(categorySelect.options).find((option) => (
+                    categoryCandidates.some((candidate) => (
+                        option.value === String(candidate)
+                        || option.textContent.trim() === String(candidate)
+                    ))
+                ));
+
+                categorySelect.value = matchedOption ? matchedOption.value : '';
+            }
             if (form.elements['current_stock']) form.elements['current_stock'].value = item.current_stock || 0;
             if (form.elements['min_stock']) form.elements['min_stock'].value = item.minimum_stock || 0;
             if (form.elements['unit_price']) form.elements['unit_price'].value = item.unit_cost || 0;
@@ -1215,7 +1353,7 @@ class InventoryManager {
         console.log(`🗑️ Eliminando repuesto ${id}...`);
         
         try {
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/inventory/${id}`, {
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/${id}`, {
                 method: 'DELETE'
             });
             
@@ -1238,7 +1376,7 @@ class InventoryManager {
         
         try {
             // Obtener datos de la orden
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}`);
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}`);
             if (!response.ok) throw new Error('Error al cargar orden de compra');
             
             const result = await response.json();
@@ -1246,7 +1384,7 @@ class InventoryManager {
             
             // Cargar las solicitudes de repuestos asociadas a esta orden
             console.log('Cargando solicitudes asociadas a la orden:', id);
-            const requestsResponse = await authenticatedFetch(`${this.apiBaseUrl}/inventory/spare-part-requests?purchase_order_id=${id}`);
+            const requestsResponse = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/spare-part-requests?purchase_order_id=${id}`);
             
             if (requestsResponse.ok) {
                 const requestsResult = await requestsResponse.json();
@@ -1274,7 +1412,7 @@ class InventoryManager {
         }
         
         try {
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}/receive`, {
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}/receive`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
@@ -1301,7 +1439,7 @@ class InventoryManager {
         console.log(`❌ Cancelando orden ${id}...`);
         
         try {
-            const response = await authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}`, {
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/purchase-orders/${id}`, {
                 method: 'DELETE'
             });
             
@@ -1319,9 +1457,37 @@ class InventoryManager {
         }
     }
 
-    async returnFromTechnician(technicianId, itemId) {
-        console.log(`↩️ Devolviendo repuesto ${itemId} del técnico ${technicianId}...`);
-        this.showNotification('Sistema de asignación a técnicos en desarrollo. Próximamente disponible.', 'info');
+    async returnFromTechnician(assignmentId) {
+        console.log(`↩️ Devolviendo asignación ${assignmentId}...`);
+
+        if (!confirm('¿Confirmar devolución del repuesto al inventario central?')) {
+            return;
+        }
+
+        try {
+            const response = await window.authenticatedFetch(`${this.apiBaseUrl}/inventory/technician-assignments/${assignmentId}/return`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    notes: 'Devolución registrada desde módulo de inventario'
+                })
+            });
+
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                throw new Error(result.error || 'Error al devolver repuesto');
+            }
+
+            this.showNotification('✅ Repuesto devuelto correctamente', 'success');
+            await Promise.all([
+                this.loadCentralInventory(),
+                this.loadTechnicianInventory(),
+                this.loadTransactions()
+            ]);
+        } catch (error) {
+            console.error('Error devolviendo repuesto:', error);
+            this.showNotification(`Error al devolver: ${error.message}`, 'error');
+        }
     }
 
     addOrderItem() {
@@ -1398,7 +1564,7 @@ class InventoryManager {
         this.showNotification('⏳ Procesando aprobación...', 'info');
         
         try {
-            const response = await authenticatedFetch(
+            const response = await window.authenticatedFetch(
                 `${this.apiBaseUrl}/inventory/requests/${requestId}/approve`,
                 {
                     method: 'POST',
@@ -1460,7 +1626,7 @@ class InventoryManager {
         this.showNotification('⏳ Procesando rechazo...', 'info');
         
         try {
-            const response = await authenticatedFetch(
+            const response = await window.authenticatedFetch(
                 `${this.apiBaseUrl}/inventory/requests/${requestId}/reject`,
                 {
                     method: 'POST',
